@@ -1,0 +1,88 @@
+export interface User {
+  id: number;
+  name: string;
+  surname: string;
+  email: string;
+  phone: string;
+  prefix?: string;
+  telegram?: string;
+  country: string;
+  city?: string;
+  address?: string;
+  idnumber?: string;
+  idexp?: string;
+  avatar?: string;
+  balance?: number;
+  validate: 0 | 1 | 2;
+  group: string;
+  referral_code?: string;
+  created_at?: string;
+}
+
+export interface Transaction {
+  id: number;
+  user_id: number;
+  type: 'deposit' | 'withdraw' | 'transfer' | 'crypto';
+  amount: number;
+  amount_sent?: number;
+  real?: number;
+  statut: string | number;
+  mode?: string;
+  reference?: string;
+  note?: string;
+  de?: string;
+  phone?: string;
+  receiver_id?: number;
+  receiver_name?: string;
+  receiver_email?: string;
+  currency_src?: string;
+  dollar?: number;
+  currency_dest?: string;
+  address?: string;
+  cp_hash?: string;
+  avant?: number;
+  apres?: number;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  token?: string;
+  user?: User;
+  two_factor_required?: boolean;
+  temp_token?: string;
+}
+
+export interface RegisterRequest {
+  name: string;
+  surname: string;
+  email: string;
+  password: string;
+  password_confirmation: string;
+}
+
+export interface DepositRequest {
+  amount: number;
+  moyen: string;
+  tel: string;
+  otp?: string;
+}
+
+export interface TransferRequest {
+  amount: number;
+  moyen: string;
+  tel: string;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+}

@@ -1,0 +1,193 @@
+import React from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Linking,
+} from 'react-native';
+
+import { useRouter } from 'expo-router';
+import { FontAwesome6 } from '@expo/vector-icons';
+import { ScreenBackground } from '../../src/components/ScreenBackground';
+import { Colors, Spacing, FontSize, Fonts, BorderRadius } from '../../src/constants/theme';
+import { showAlert } from '../../src/stores/alertStore';
+import { CustomAlert } from '../../src/components/CustomAlert';
+
+const open = (url: string) =>
+  Linking.openURL(url).catch(() => showAlert('Erreur', "Impossible d'ouvrir ce lien."));
+
+const CHANNELS = [
+  {
+    icon: 'telegram' as const,
+    brand: true,
+    label: 'Telegram',
+    sublabel: '@goespay',
+    color: '#0088cc',
+    bg: 'rgba(0,136,204,0.15)',
+    url: 'https://t.me/goespaay',
+  },
+  {
+    icon: 'whatsapp' as const,
+    brand: true,
+    label: 'WhatsApp',
+    sublabel: '+237 659 939 340',
+    color: '#25D366',
+    bg: 'rgba(37,211,102,0.15)',
+    url: 'https://wa.me/237659939340',
+  },
+  {
+    icon: 'envelope' as const,
+    brand: false,
+    label: 'Email',
+    sublabel: 'support@goespay.io',
+    color: Colors.secondary,
+    bg: 'rgba(244,178,40,0.15)',
+    url: 'mailto:claims@goespay.io',
+  },
+  {
+    icon: 'phone' as const,
+    brand: false,
+    label: 'Téléphone',
+    sublabel: '+237 659 939 340',
+    color: '#ff295b',
+    bg: 'rgba(255,41,91,0.15)',
+    url: 'tel:+237659939340',
+  },
+];
+
+const SOCIALS = [
+  { icon: 'telegram' as const, brand: true, color: Colors.primary, url: 'https://t.me/goespay' },
+  { icon: 'whatsapp' as const, brand: true, color: '#25D366', url: 'https://wa.me/22962965500' },
+  { icon: 'facebook-f' as const, brand: true, color: Colors.primary, url: 'http://fb.me/goespaay' },
+  { icon: 'instagram' as const, brand: true, color: '#E1306C', url: 'http://instagram.com/goespaay' },
+  { icon: 'x-twitter' as const, brand: true, color: Colors.text, url: 'http://twitter.com/goespaay' },
+  { icon: 'youtube' as const, brand: true, color: '#FF0000', url: 'https://youtube.com/channel/UCxooykyhvHYo_zAI1yckRsw/?sub_confirmation=1' },
+];
+
+export default function SupportScreen() {
+  const router = useRouter();
+  return (
+    <ScreenBackground edges={['top']}>
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()}>
+              <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
+            </TouchableOpacity>
+            <Text style={styles.title}>Support</Text>
+          </View>
+
+          {/* Canaux de contact */}
+          <View style={styles.grid}>
+            {CHANNELS.map((ch) => (
+              <TouchableOpacity key={ch.label} style={styles.card} onPress={() => open(ch.url)} activeOpacity={0.75}>
+                <View style={[styles.iconBox, { backgroundColor: ch.bg }]}>
+                  <FontAwesome6 name={ch.icon} size={20} color={ch.color} iconStyle={ch.brand ? 'brands' : 'solid'} />
+                </View>
+                <View style={styles.cardBody}>
+                  <Text style={styles.cardLabel}>{ch.label}</Text>
+                  <Text style={styles.cardSub}>{ch.sublabel}</Text>
+                </View>
+                <FontAwesome6 name="arrow-right" size={13} color={Colors.textMuted} />
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Réseaux sociaux */}
+          <View style={styles.socialSection}>
+            <Text style={styles.socialTitle}>RETROUVEZ-NOUS</Text>
+            <View style={styles.socialRow}>
+              {SOCIALS.map((s) => (
+                <TouchableOpacity key={s.url} onPress={() => open(s.url)} style={styles.socialBtn} activeOpacity={0.7}>
+                  <FontAwesome6 name={s.icon} size={22} color={s.color} iconStyle={s.brand ? 'brands' : 'solid'} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </ScrollView>
+      <CustomAlert />
+    </ScreenBackground>
+  );
+}
+
+const styles = StyleSheet.create({
+  scroll: {
+    padding: Spacing.lg,
+    paddingBottom: Spacing.md,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  title: {
+    fontSize: FontSize.xl,
+    fontFamily: Fonts.bold,
+    color: Colors.text,
+  },
+  grid: {
+    gap: Spacing.sm,
+  },
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+  },
+  iconBox: {
+    width: 46,
+    height: 46,
+    borderRadius: BorderRadius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardBody: {
+    flex: 1,
+  },
+  cardLabel: {
+    fontFamily: Fonts.bold,
+    fontSize: FontSize.md,
+    color: Colors.text,
+  },
+  cardSub: {
+    fontSize: FontSize.sm,
+    color: Colors.textMuted,
+    marginTop: 1,
+  },
+  socialSection: {
+    marginTop: Spacing.xl,
+    alignItems: 'center',
+  },
+  socialTitle: {
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.bold,
+    color: Colors.textMuted,
+    letterSpacing: 1.2,
+    marginBottom: Spacing.md,
+  },
+  socialRow: {
+    flexDirection: 'row',
+    gap: Spacing.lg,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  socialBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.pill,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
+

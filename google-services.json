@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "825649954853",
+    "project_id": "goespay",
+    "storage_bucket": "goespay.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:825649954853:android:5d9cf39f8c78e4ac7affcc",
+        "android_client_info": {
+          "package_name": "io.goespay.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAknJK0z4Dob13WF_161Sbbb1grHDt0hAE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

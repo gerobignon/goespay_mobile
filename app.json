@@ -1,30 +1,74 @@
 {
   "expo": {
-    "name": "goespay",
+    "name": "GoesPay",
     "slug": "goespay",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "scheme": "goespay",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#171e2b"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "io.goespay.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "GoesPay a besoin de la caméra pour vérifier votre identité (KYC).",
+        "NSPhotoLibraryUsageDescription": "GoesPay a besoin d'accéder à vos photos quand vous changez de photo de profil.",
+        "NSFaceIDUsageDescription": "GoesPay utilise Face ID pour déverrouiller l'application.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#171e2b"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "package": "io.goespay.app",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED"
+      ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    }
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-local-authentication",
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#171e2b",
+          "defaultChannel": "default"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "GoesPay a besoin d'accéder à vos photos pour la vérification KYC.",
+          "cameraPermission": "GoesPay a besoin de la caméra pour vérifier votre identité (KYC)."
+        }
+      ],
+      "@react-native-community/datetimepicker"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c08bc175-f5ea-4a10-9455-f6789a9a0348"
+      }
+    },
+    "owner": "gerobignon"
   }
 }
