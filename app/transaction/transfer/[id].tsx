@@ -14,19 +14,24 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { FontAwesome6 } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { showAlert } from '../../../src/stores/alertStore';
 import { CustomAlert } from '../../../src/components/CustomAlert';
 import { walletService } from '../../../src/services/walletService';
 import { Card } from '../../../src/components/Card';
 import { TransactionDetailRow } from '../../../src/components/TransactionDetailRow';
-import { TRANSACTION_STATUS } from '../../../src/constants/config';
+import { TRANSACTION_STATUS, getTransactionStatus } from '../../../src/constants/config';
 import { formatCurrency, formatDate } from '../../../src/utils/format';
 import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../../../src/constants/theme';
+import type { ColorPalette } from '../../../src/constants/theme';
+import { useThemedStyles } from '../../../src/hooks/useThemedStyles';
 import type { Transaction } from '../../../src/types';
 
 export default function TransferDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { t } = useTranslation();
+  const styles = useThemedStyles(createStyles);
   const [tx, setTx] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -87,7 +92,7 @@ export default function TransferDetailScreen() {
     );
   }
 
-  const status = TRANSACTION_STATUS[tx.statut] ?? { label: tx.statut, color: Colors.textMuted };
+  const status = getTransactionStatus(t)[tx.statut] ?? { label: tx.statut, color: Colors.textMuted };
 
   return (
     <ScreenBackground>
@@ -96,7 +101,7 @@ export default function TransferDetailScreen() {
           <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/history')}>
             <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
           </TouchableOpacity>
-          <Text style={styles.title}>Détail du transfert</Text>
+          <Text style={styles.title}>{t('transaction.transferDetail')}</Text>
         </View>
 
         {/* Action button */}
@@ -108,7 +113,7 @@ export default function TransferDetailScreen() {
               activeOpacity={0.7}
             >
               <FontAwesome6 name="triangle-exclamation" size={12} color={Colors.white} />
-              <Text style={styles.claimBtnText}>Réclamation</Text>
+              <Text style={styles.claimBtnText}>{t('transaction.claim')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -130,31 +135,31 @@ export default function TransferDetailScreen() {
           <Text style={styles.currency}>XOF</Text>
 
           <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
-          <TransactionDetailRow label="Type" value="Transfert" badge badgeColor={Colors.secondary} badgeIcon="right-left" />
+          <TransactionDetailRow label={t('transaction.type')} value={t('transaction.transfer')} badge badgeColor={Colors.secondary} badgeIcon="right-left" />
           <TransactionDetailRow
-            label="Statut"
+            label={t('transaction.status')}
             value={status.label}
             badge
             badgeColor={status.color}
             badgeIcon={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'}
           />
-          <TransactionDetailRow label="Destinataire" value={tx.receiver_name ?? '—'} />
+          <TransactionDetailRow label={t('transaction.receiver')} value={tx.receiver_name ?? '—'} />
           <TransactionDetailRow label="Email" value={tx.receiver_email ?? '—'} copyable />
-          <TransactionDetailRow label="Référence" value={tx.reference ?? '—'} copyable mono />
+          <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />
           <TransactionDetailRow
-            label="Solde avant"
+            label={t('transaction.balanceBefore')}
             value={tx.avant != null ? `${formatCurrency(tx.avant)} XOF` : '—'}
             mono
           />
           <TransactionDetailRow
-            label="Solde après"
+            label={t('transaction.balanceAfter')}
             value={tx.apres != null ? `${formatCurrency(tx.apres)} XOF` : '—'}
             mono
             color={status.color}
           />
-          <TransactionDetailRow label="Date du transfert" value={formatDate(tx.created_at)} />
+          <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
           {tx.updated_at && tx.updated_at !== tx.created_at && (
-            <TransactionDetailRow label="Date de validation" value={formatDate(tx.updated_at)} />
+            <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.updated_at)} />
           )}
         </Card>
       </ScrollView>
@@ -162,10 +167,10 @@ export default function TransferDetailScreen() {
       {/* Claim Modal */}
       <Modal visible={claimVisible} transparent animationType="slide">
         <CustomAlert />
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Faire une réclamation</Text>
+              <Text style={styles.modalTitle}>{t('transaction.addClaim')}</Text>
               <TouchableOpacity onPress={() => setClaimVisible(false)}>
                 <FontAwesome6 name="xmark" size={18} color={Colors.text} />
               </TouchableOpacity>
@@ -192,7 +197,7 @@ export default function TransferDetailScreen() {
             >
               <FontAwesome6 name="paper-plane" size={14} color={Colors.white} />
               <Text style={styles.modalSubmitText}>
-                {claimLoading ? 'Envoi...' : 'Envoyer'}
+                {claimLoading ? t('common.sending') : t('common.send')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -202,7 +207,7 @@ export default function TransferDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   scroll: {
     padding: Spacing.lg,
     paddingTop: Spacing.xxl,
@@ -267,7 +272,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
-    backgroundColor: '#ff295b',
+    backgroundColor: Colors.secondary,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.md,
   },

@@ -1,6 +1,7 @@
 import axios from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import { SafeStorage } from './storage';
 import { API_BASE_URL } from '../constants/config';
+import i18n from '../i18n';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -11,11 +12,19 @@ const api = axios.create({
   },
 });
 
+if (__DEV__) {
+  console.log('[API] Base URL:', API_BASE_URL);
+}
+
 api.interceptors.request.use(
   async (config) => {
-    const token = await SecureStore.getItemAsync('auth_token');
+    const token = await SafeStorage.getItem('auth_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    config.headers['Accept-Language'] = i18n.language || 'fr';
+    if (__DEV__) {
+      console.log(`[API →] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
     }
     return config;
   },
@@ -25,16 +34,22 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => {
     if (__DEV__) {
-      console.log(`[API] ${response.config.method?.toUpperCase()} ${response.config.url} →`, JSON.stringify(response.data).substring(0, 600));
+      try { console.log(`[API ✓] ${response.config.method?.toUpperCase()} ${response.config.url} → ${response.status}`, String(JSON.stringify(response.data)).substring(0, 600)); } catch {}
     }
     return response;
   },
   async (error) => {
     if (__DEV__) {
-      console.log(`[API ERROR] ${error.config?.method?.toUpperCase()} ${error.config?.url} → ${error.response?.status}`, JSON.stringify(error.response?.data).substring(0, 400));
+      const isNetwork = !error.response;
+      try {
+        console.log(
+          `[API ✗] ${error.config?.method?.toUpperCase()} ${error.config?.baseURL}${error.config?.url} → ${isNetwork ? 'NETWORK ERROR' : error.response?.status}`,
+          isNetwork ? error.message : String(JSON.stringify(error.response?.data)).substring(0, 400),
+        );
+      } catch {}
     }
     if (error.response?.status === 401) {
-      await SecureStore.deleteItemAsync('auth_token');
+      await SafeStorage.removeItem('auth_token');
     }
     return Promise.reject(error);
   }

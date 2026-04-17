@@ -1,8 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ImageSourcePropType } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { FontAwesome6 } from '@expo/vector-icons';
-import { Colors, BorderRadius, FontSize, Spacing, Fonts } from '../constants/theme';
-import { TRANSACTION_STATUS, OPERATORS } from '../constants/config';
+import { Colors, type ColorPalette, BorderRadius, FontSize, Spacing, Fonts } from '../constants/theme';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { TRANSACTION_STATUS, getTransactionStatus, OPERATORS } from '../constants/config';
 import { formatAmount, formatDate } from '../utils/format';
 import type { Transaction } from '../types';
 
@@ -62,7 +64,7 @@ const PAYMENT_MODE_LOGOS: Record<string, ImageSourcePropType> = {
   'manual': require('../../assets/picto.png'),
 };
 
-function getTransactionLogo(transaction: Transaction): ImageSourcePropType | null {
+export function getTransactionLogo(transaction: Transaction): ImageSourcePropType | null {
   // Types spéciaux avec picto
   const specialType = (transaction.type as string)?.toLowerCase();
   if (specialType === 'referal' || specialType === 'commission' || specialType === 'reward' || specialType === 'manual') {
@@ -91,6 +93,42 @@ function getTransactionLogo(transaction: Transaction): ImageSourcePropType | nul
   return null;
 }
 
+const MODE_LABELS: Record<string, string> = {
+  paydunya: 'PayDunya', 'pdy-mode': 'PayDunya',
+  kkiabj: 'KkiaPay', kkiaci: 'KkiaPay', kkiang: 'KkiaPay', kkiapay: 'KkiaPay', 'kia-mode': 'KkiaPay',
+  payci: 'PayCI',
+  'mtn-benin': 'MTN Momo', 'moov-benin': 'Moov Money',
+  'moov-burkina-faso': 'Moov Money', 'moov-burkina': 'Moov Money',
+  'orange-money-burkina': 'Orange Money',
+  'moov-ci': 'Moov Money', 'mtn-ci': 'MTN Momo',
+  'orange-money-ci': 'Orange Money', 'wave-ci': 'Wave',
+  't-money-togo': 'T-Money', 'moov-togo': 'Moov Money',
+  'orange-money-senegal': 'Orange Money', 'wave-senegal': 'Wave',
+  'expresso-senegal': 'Expresso', 'free-money-senegal': 'Free Money',
+  'orange-money-mali': 'Orange Money', 'moov-mali': 'Moov Money',
+  'mtn-cameroun': 'MTN Momo',
+  'card': 'Carte Bancaire', 'visa-mastercard': 'Visa/Mastercard', 'visa-mastercard-2': 'Visa/Mastercard',
+  'referal': 'Parrainage', 'commission': 'Commission', 'reward': 'Récompense', 'manual': 'Manuel',
+};
+
+const PROVIDER_I18N_KEYS: Record<string, string> = {
+  'card': 'transaction.card',
+  'referal': 'transaction.referral',
+  'commission': 'transaction.commission',
+  'reward': 'transaction.reward',
+  'manual': 'transaction.manual',
+};
+
+export function getModeName(transaction: Transaction, t?: (key: string) => string): string {
+  if (!transaction.mode) return '';
+  const key = transaction.mode.toLowerCase();
+  if (t && PROVIDER_I18N_KEYS[key]) return t(PROVIDER_I18N_KEYS[key]);
+  if (MODE_LABELS[key]) return MODE_LABELS[key];
+  const op = OPERATORS.find((o) => o.id === key);
+  if (op) return op.name;
+  return transaction.mode;
+}
+
 const TYPE_ICONS: Record<string, string> = {
   deposit: 'arrow-down',
   withdraw: 'arrow-up',
@@ -98,12 +136,12 @@ const TYPE_ICONS: Record<string, string> = {
   crypto: 'bitcoin-sign',
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  deposit: 'Dépôt',
-  withdraw: 'Retrait',
-  transfer: 'Transfert',
-  crypto: 'Crypto',
-};
+const getTypeLabel = (t: any) => ({
+  deposit: t('transaction.deposit'),
+  withdraw: t('transaction.withdraw'),
+  transfer: t('transaction.transfer'),
+  crypto: t('transaction.crypto'),
+});
 
 const STATUS_ICONS: Record<string, string> = {
   success: 'circle-check',
@@ -113,11 +151,13 @@ const STATUS_ICONS: Record<string, string> = {
 };
 
 export function TransactionItem({ transaction, onPress, padded = false }: TransactionItemProps) {
+  const { t } = useTranslation();
   const normalizedStatut =
     transaction.type === 'crypto'
       ? transaction.statut == 1 ? 'success' : transaction.statut == 0 ? 'failed' : 'wait'
       : transaction.statut;
-  const status = TRANSACTION_STATUS[normalizedStatut] || { label: String(transaction.statut), color: '#888' };
+  const styles = useThemedStyles(createStyles);
+  const status = getTransactionStatus(t)[normalizedStatut] || { label: String(transaction.statut), color: '#888' };
   const icon = TYPE_ICONS[transaction.type] || 'circle-question';
   const statusIcon = STATUS_ICONS[normalizedStatut] || 'circle-question';
   const logo = getTransactionLogo(transaction);
@@ -140,8 +180,8 @@ export function TransactionItem({ transaction, onPress, padded = false }: Transa
           <FontAwesome6 name={statusIcon} size={12} color={status.color} style={{ marginRight: 6 }} />
           <Text style={styles.type}>
             {transaction.type === 'crypto'
-              ? `${transaction.mode === 'Buy' ? 'Achat' : 'Vente'} ${transaction.currency_src ?? 'Crypto'}`
-              : TYPE_LABELS[transaction.type]}
+              ? `${transaction.mode === 'Buy' ? t('history.buy') : t('history.sell')} ${transaction.currency_src ?? 'Crypto'}`
+              : getTypeLabel(t)[transaction.type]}
           </Text>
         </View>
         <Text style={styles.date}>{formatDate(transaction.created_at)}</Text>
@@ -166,7 +206,7 @@ export function TransactionItem({ transaction, onPress, padded = false }: Transa
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -5,6 +5,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   ImageBackground,
+  useWindowDimensions,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -20,12 +22,21 @@ import {
 } from '../../src/services/secureAuthService';
 import { Image } from 'react-native';
 import { useAuthStore } from '../../src/stores/authStore';
-import { Colors, Spacing, FontSize, Fonts } from '../../src/constants/theme';
+import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../../src/constants/theme';
+import { useThemedStyles } from '../../src/hooks/useThemedStyles';
+import { useTheme } from '../../src/components/ThemeProvider';
+import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
 
 export default function UnlockScreen() {
   const router = useRouter();
   const { lockMethod, unlock } = usePinStore();
   const { logout } = useAuthStore();
+  const styles = useThemedStyles(createStyles);
+  const { isDark } = useTheme();
+  const { height } = useWindowDimensions();
+  const isSmallScreen = height <= 720;
+  const { t } = useTranslation();
 
   const [error, setError] = useState<string | null>(null);
   const [resetTrigger, setResetTrigger] = useState(false);
@@ -49,7 +60,7 @@ export default function UnlockScreen() {
       unlock();
       router.replace('/(tabs)');
     } else {
-      setError('Biométrie échouée. Réessayez.');
+      setError(t('auth.pin.biometricFailedShort'));
     }
   };
 
@@ -69,7 +80,7 @@ export default function UnlockScreen() {
         router.replace('/(auth)/login');
         return;
       }
-      setError(`PIN incorrect. ${5 - newAttempts} essai(s) restant(s).`);
+      setError(t('auth.pin.incorrectPin', { remaining: 5 - newAttempts }));
       setResetTrigger((v) => !v);
     }
   };
@@ -82,11 +93,16 @@ export default function UnlockScreen() {
 
   return (
     <ImageBackground
-      source={require('../../assets/bg_page.jpg')}
+      source={isDark ? require('../../assets/bg_page.jpg') : require('../../assets/bg_page_light.jpg')}
       style={styles.bg}
     >
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-      <View style={styles.container}>
+      <LanguageSwitcher />
+      <ScrollView
+        contentContainerStyle={[styles.container, isSmallScreen && styles.containerSmall]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <Image
           source={require('../../assets/logo_min.png')}
           style={styles.logo}
@@ -94,7 +110,7 @@ export default function UnlockScreen() {
         />
 
         <Text style={styles.title}>
-          {lockMethod === 'biometric' ? 'Déverrouillez avec Face ID / Touch ID' : 'Entrez votre PIN'}
+          {lockMethod === 'biometric' ? t('auth.pin.unlockBiometric', 'Déverrouillez avec Face ID / Touch ID') : t('auth.pin.enterPin', 'Entrez votre PIN')}
         </Text>
 
         {lockMethod === 'pin' && (
@@ -112,34 +128,38 @@ export default function UnlockScreen() {
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <TouchableOpacity style={styles.bioBtn} onPress={handleBiometric}>
               <FontAwesome6 name="fingerprint" size={48} color={Colors.secondary} />
-              <Text style={styles.bioText}>Appuyer pour déverrouiller</Text>
+              <Text style={styles.bioText}>{t('auth.pin.tapToUnlock', 'Appuyer pour déverrouiller')}</Text>
             </TouchableOpacity>
           </View>
         )}
 
         <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-          <Text style={styles.logoutText}>Se déconnecter</Text>
+          <Text style={styles.logoutText}>{t('account.logout')}</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
       </SafeAreaView>
     </ImageBackground>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   bg: { flex: 1 },
   container: {
-    flex: 1,
+    flexGrow: 1,
     padding: Spacing.xl,
     paddingTop: 100,
     alignItems: 'center',
     gap: Spacing.xl,
   },
+  containerSmall: {
+    paddingTop: Spacing.lg,
+    gap: Spacing.md,
+  },
   logo: {
-    width: 200,
-    height: 56,
+    width: 160,
+    height: 46,
     alignSelf: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   title: {
     color: Colors.text,
@@ -172,7 +192,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   logoutBtn: {
-    marginTop: 'auto',
+    marginTop: Spacing.lg,
     paddingVertical: Spacing.sm,
   },
   logoutText: {

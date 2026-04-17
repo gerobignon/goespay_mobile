@@ -1,51 +1,41 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Modal,
+  Platform,
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  TouchableWithoutFeedback,
-  Animated,
-  PanResponder,
-  Dimensions,
   Image,
   ScrollView,
-  ActivityIndicator,
   KeyboardAvoidingView,
-  Platform,
+  ActivityIndicator,
   ImageSourcePropType,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Input } from './Input';
+import { ResponsiveModal } from './ResponsiveModal';
 import { Button } from './Button';
 import { CryptoSellDetailsModal } from './CryptoSellDetailsModal';
 import { useAuthStore } from '../stores/authStore';
 import { useWalletStore } from '../stores/walletStore';
-import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
+import { useCryptoStore, CryptoRate } from '../stores/cryptoStore';
+import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { useResponsive } from '../hooks/useResponsive';
 import api from '../services/api';
 import { showAlert } from '../stores/alertStore';
 import { CustomAlert } from './CustomAlert';
+import { walletService } from '../services/walletService';
+import type { SavedWallet } from '../types';
+import { useTranslation } from 'react-i18next';
 
 interface CryptoModalProps {
   visible: boolean;
   onClose: () => void;
-}
-
-interface CryptoRate {
-  code: string;
-  name: string;
-  buy_rate: number;
-  sell_rate: number;
-  buy_rate_ng?: number;
-  sell_rate_ng?: number;
-  buy_rate_cm?: number;
-  sell_rate_cm?: number;
-  buy_rate_ga?: number;
-  sell_rate_ga?: number;
-  live_rate?: number;
-  img?: string;
+  buyEnabled?: boolean;
+  sellEnabled?: boolean;
 }
 
 type Tab = 'buy' | 'sell';
@@ -66,45 +56,20 @@ const CRYPTO_IMAGES: Record<string, ImageSourcePropType> = {
   LTCT: require('../../assets/crypto/ltc.png'),
 };
 
-const SCREEN_HEIGHT = Dimensions.get('window').height;
-const DEFAULT_H = SCREEN_HEIGHT * 0.92;
-const MIN_H = SCREEN_HEIGHT * 0.3;
-const MAX_H = SCREEN_HEIGHT * 0.92;
-
-export function CryptoModal({ visible, onClose }: CryptoModalProps) {
+export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled = true }: CryptoModalProps) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const sheetHeight = useRef(new Animated.Value(DEFAULT_H)).current;
-  const lastHeight = useRef(DEFAULT_H);
-
-  useEffect(() => {
-    if (visible) {
-      sheetHeight.setValue(DEFAULT_H);
-      lastHeight.current = DEFAULT_H;
-    }
-  }, [visible]);
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderMove: (_, { dy }) => {
-        const newH = lastHeight.current - dy;
-        sheetHeight.setValue(Math.max(MIN_H, Math.min(MAX_H, newH)));
-      },
-      onPanResponderRelease: (_, { dy }) => {
-        const clampedH = Math.max(MIN_H, Math.min(MAX_H, lastHeight.current - dy));
-        lastHeight.current = clampedH;
-        Animated.spring(sheetHeight, { toValue: clampedH, useNativeDriver: false, bounciness: 4 }).start();
-      },
-    })
-  ).current;
+  const styles = useThemedStyles(createStyles);
+  const { isDesktop } = useResponsive();
 
   const user = useAuthStore((s) => s.user);
   const fetchBalance = useWalletStore((s) => s.fetchBalance);
+  const rates = useCryptoStore((s) => s.rates);
+  const cryptoLoading = useCryptoStore((s) => s.loading);
+  const cryptoError = useCryptoStore((s) => s.error);
+  const fetchRates = useCryptoStore((s) => s.fetchRates);
 
   const [tab, setTab] = useState<Tab>('buy');
-  const [rates, setRates] = useState<CryptoRate[]>([]);
-  const [loadingRates, setLoadingRates] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState('');
   const [amount, setAmount] = useState('');
   const [walletAddress, setWalletAddress] = useState('');
@@ -113,44 +78,37 @@ export function CryptoModal({ visible, onClose }: CryptoModalProps) {
   const [confirmed, setConfirmed] = useState(false);
   const [sellDetailsVisible, setSellDetailsVisible] = useState(false);
   const [sellDetailsData, setSellDetailsData] = useState<any>(null);
+  const [savedWallets, setSavedWallets] = useState<SavedWallet[]>([]);
+  const [savedWalletsLoadError, setSavedWalletsLoadError] = useState<string | null>(null);
+  const [saveWalletModalVisible, setSaveWalletModalVisible] = useState(false);
+  const [saveWalletName, setSaveWalletName] = useState('');
+  const [saveWalletCurrency, setSaveWalletCurrency] = useState('');
+  const [saveWalletLoading, setSaveWalletLoading] = useState(false);
 
   const country = user?.country ?? '';
   const isSellBlocked = SELL_BLOCKED_COUNTRIES.includes(country);
 
+  const loadSavedWallets = async () => {
+    try {
+      const data = await walletService.getSavedWallets();
+      setSavedWallets(data);
+      setSavedWalletsLoadError(null);
+    } catch (error: any) {
+      console.log('[SavedWallets] load error:', error?.response?.status, error?.message);
+      setSavedWalletsLoadError(t('cryptoModal.walletsLoadError'));
+    }
+  };
+
   useEffect(() => {
     if (visible) {
-      fetchRates();
+      fetchRates(rates.length === 0);
       setSelectedCurrency('');
       setAmount('');
       setWalletAddress('');
-      setTab('buy');
+      setTab(buyEnabled ? 'buy' : 'sell');
+      loadSavedWallets();
     }
   }, [visible]);
-
-  const fetchRates = async (retry = 0) => {
-    setLoadingRates(true);
-    try {
-      const response = await api.get('/crypto/rates');
-      const body = response.data;
-      const list = body.data ?? body.list ?? body.rates ?? body;
-      if (Array.isArray(list)) {
-        setRates(list);
-        // Si des taux live manquent, retenter une fois après 3s
-        const stablecoins = ['PM', 'PAYEER', 'USDT.TRC20', 'BUSD.BEP20', 'USDT', 'BUSD'];
-        const hasNullRate = list.some((r: CryptoRate) => !stablecoins.includes(r.code) && !r.live_rate);
-        if (hasNullRate && retry < 2) {
-          setTimeout(() => fetchRates(retry + 1), 3000);
-        }
-      }
-    } catch (error: any) {
-      console.log('[Crypto] fetchRates error:', error?.response?.status, error?.message);
-      if (retry < 2) {
-        setTimeout(() => fetchRates(retry + 1), 3000);
-      }
-    } finally {
-      setLoadingRates(false);
-    }
-  };
 
   const getBuyRate = (item: CryptoRate): number => {
     if (country === 'NG' && item.buy_rate_ng) return item.buy_rate_ng;
@@ -167,6 +125,93 @@ export function CryptoModal({ visible, onClose }: CryptoModalProps) {
   };
 
   const selectedRate = rates.find((r) => r.code === selectedCurrency);
+  const normalizedWalletAddress = walletAddress.trim();
+  const normalizedCurrency = normalizeCurrencyCode(selectedCurrency || '');
+  const walletsForSelectedCurrency = savedWallets.filter(
+    (w) => !selectedCurrency || normalizeCurrencyCode(w.currency) === normalizedCurrency,
+  );
+  const existingSelectedWallet = savedWallets.find(
+    (w) => normalizeCurrencyCode(w.currency) === normalizedCurrency && w.address === normalizedWalletAddress,
+  );
+
+  // Auto-fill only when currency or tab changes — NOT when user manually clears the address
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (tab !== 'buy') return;
+    if (walletAddress.trim()) return;
+    if (!selectedCurrency) return;
+    const first = walletsForSelectedCurrency[0];
+    if (first?.address) setWalletAddress(first.address);
+  }, [tab, selectedCurrency]);
+
+  const saveCurrentWallet = async () => {
+    const address = walletAddress.trim();
+    if (!address) return;
+
+    const currencyForSave = normalizeCurrencyCode(selectedCurrency || '');
+    const existing = savedWallets.find((item) => normalizeCurrencyCode(item.currency) === currencyForSave && item.address === address);
+    if (existing) return;
+
+    setSaveWalletName('');
+    setSaveWalletCurrency(selectedCurrency || '');
+    setSaveWalletModalVisible(true);
+  };
+
+  const confirmSaveCurrentWallet = async () => {
+    const address = walletAddress.trim();
+    const currencyToSave = normalizeCurrencyCode(saveWalletCurrency || '');
+    if (!currencyToSave || !address) {
+      showAlert(t('common.error'), t('cryptoModal.selectCurrencyFirst'));
+      return;
+    }
+
+    const existing = savedWallets.find((item) => normalizeCurrencyCode(item.currency) === currencyToSave && item.address === address);
+    if (existing) {
+      setSaveWalletModalVisible(false);
+      return;
+    }
+
+    setSaveWalletLoading(true);
+    try {
+      const created = await walletService.createSavedWallet({
+        currency: currencyToSave,
+        address,
+        name: saveWalletName.trim(),
+      });
+      setSavedWallets((prev) => [created, ...prev]);
+      setSaveWalletModalVisible(false);
+      setSaveWalletName('');
+      showAlert(t('common.success'), t('cryptoModal.walletSaved'));
+    } catch (error: any) {
+      showAlert(t('common.error'), error?.response?.data?.error || error?.response?.data?.message || t('cryptoModal.walletSaveError'));
+    } finally {
+      setSaveWalletLoading(false);
+    }
+  };
+
+  const removeCurrentWallet = async () => {
+    const address = walletAddress.trim();
+    const existing = savedWallets.find((item) => normalizeCurrencyCode(item.currency) === normalizedCurrency && item.address === address);
+    if (!existing) return;
+    showAlert(
+      t('cryptoModal.deleteWallet'),
+      t('cryptoModal.deleteWalletMsg'),
+      [
+        { text: t('common.cancel') },
+        {
+          text: t('common.delete'),
+          onPress: async () => {
+            try {
+              await walletService.deleteSavedWallet(existing.id);
+              setSavedWallets((prev) => prev.filter((item) => item.id !== existing.id));
+            } catch (error: any) {
+              showAlert(t('common.error'), error?.response?.data?.error || error?.response?.data?.message || t('account.walletDeleteError'));
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const computeConversion = (): string => {
     const numAmount = parseFloat(amount);
@@ -180,44 +225,55 @@ export function CryptoModal({ visible, onClose }: CryptoModalProps) {
       // Formula: (give / buy_rate) * bubuy  (buy_rate = XOF per $1, bubuy = crypto per $1)
       const rate = getBuyRate(selectedRate);
       if (!rate) return '';
-      if (!Number.isFinite(bubuy) || bubuy <= 0) return 'Chargement du taux en cours…';
+      if (!Number.isFinite(bubuy) || bubuy <= 0) return t('cryptoModal.loadingRate');
       const cryptoAmount = (numAmount / rate) * bubuy;
-      return `Vous recevrez ≈ ${cryptoAmount.toFixed(8)} ${formatCurrencyCode(selectedCurrency)}`;
+      return `${t('cryptoModal.youWillReceive')}${cryptoAmount.toFixed(8)} ${formatCurrencyCode(selectedCurrency)}`;
     } else {
       // User gives crypto, receives XOF
       // Formula: (crypto * sell_rate) / bubuy  (sell_rate = XOF per $1, bubuy = crypto per $1)
       const rate = getSellRate(selectedRate);
       if (!rate) return '';
-      if (!Number.isFinite(bubuy) || bubuy <= 0) return 'Chargement du taux en cours…';
+      if (!Number.isFinite(bubuy) || bubuy <= 0) return t('cryptoModal.loadingRate');
       const xofAmount = (numAmount * rate) / bubuy;
-      return `Vous recevrez ≈ ${Math.round(xofAmount).toLocaleString('fr-FR')} XOF`;
+      return `${t('cryptoModal.youWillReceive')}${Math.round(xofAmount).toLocaleString('fr-FR')} XOF`;
     }
   };
 
-  const formatCurrencyCode = (code: string): string => {
-    if (code === 'BNB.BSC') return 'BNB';
-    if (code === 'USDT.TRC20') return 'USDT';
-    if (code === 'BUSD.BEP20') return 'BUSD';
-    return code;
-  };
+  function normalizeCurrencyCode(code: string): string {
+    return formatCurrencyCode((code || '').trim().toUpperCase());
+  }
+
+  function resolveRateCodeFromWalletCurrency(walletCurrency: string): string {
+    const normalized = normalizeCurrencyCode(walletCurrency);
+    const matchedRate = rates.find((rate) => normalizeCurrencyCode(rate.code) === normalized);
+    return matchedRate?.code || '';
+  }
+
+  function formatCurrencyCode(code: string): string {
+    const normalized = (code || '').trim().toUpperCase();
+    if (normalized === 'BNB.BSC') return 'BNB';
+    if (normalized === 'USDT.TRC20') return 'USDT';
+    if (normalized === 'BUSD.BEP20') return 'BUSD';
+    return normalized;
+  }
 
   const handlePressSubmit = () => {
     if (user?.validate !== 1) {
-      showAlert('KYC requis', 'Vous devez compléter la vérification KYC avant de pouvoir faire des transactions crypto.');
+      showAlert(t('cryptoModal.kycRequired'), t('cryptoModal.kycRequiredMsg'));
       return;
     }
 
     const numAmount = parseFloat(amount);
     if (!numAmount || numAmount <= 0) {
-      showAlert('Erreur', 'Veuillez entrer un montant valide.');
+      showAlert(t('common.error'), t('cryptoModal.invalidAmount'));
       return;
     }
     if (!selectedCurrency) {
-      showAlert('Erreur', 'Veuillez sélectionner une crypto-monnaie.');
+      showAlert(t('common.error'), t('cryptoModal.selectCrypto'));
       return;
     }
     if (tab === 'buy' && !walletAddress.trim()) {
-      showAlert('Erreur', 'Veuillez entrer votre adresse de portefeuille.');
+      showAlert(t('common.error'), t('cryptoModal.enterWalletAddress'));
       return;
     }
 
@@ -232,20 +288,33 @@ export function CryptoModal({ visible, onClose }: CryptoModalProps) {
     setLoading(true);
     try {
       if (tab === 'buy') {
+        const normalizedCurrency = formatCurrencyCode(selectedCurrency || '').trim();
+        const normalizedAddress = walletAddress.trim();
         const response = await api.post('/crypto/buy', {
           currency: selectedCurrency,
           give: numAmount,
-          address: walletAddress.trim(),
+          address: normalizedAddress,
         });
+        if (normalizedCurrency && normalizedAddress) {
+          const existing = savedWallets.find((item) => item.currency === normalizedCurrency && item.address === normalizedAddress);
+          if (!existing) {
+            const created = await walletService.createSavedWallet({
+              currency: normalizedCurrency,
+              address: normalizedAddress,
+              name: '',
+            });
+            setSavedWallets((prev) => [created, ...prev]);
+          }
+        }
         const result = response.data;
         await fetchBalance();
 
         if (result?.state === 1) {
-          showAlert('Succès', result?.message || 'Transaction complétée. Vous recevrez vos coins sous peu.', [
+          showAlert(t('common.success'), result?.message || t('cryptoModal.txCompleted'), [
             { text: 'OK', onPress: onClose },
           ]);
         } else {
-          showAlert('En cours', result?.message || 'Votre achat crypto est en cours de traitement.', [
+          showAlert(t('cryptoModal.processing'), result?.message || t('cryptoModal.buyProcessing'), [
             { text: 'OK', onPress: onClose },
           ]);
         }
@@ -264,11 +333,11 @@ export function CryptoModal({ visible, onClose }: CryptoModalProps) {
           setSelectedCurrency('');
           setWalletAddress('');
         } else if (result?.status === 'checkout') {
-          showAlert('En attente', result?.message || 'Veuillez compléter le paiement.', [
+          showAlert(t('cryptoModal.pending'), result?.message || t('cryptoModal.completePayment'), [
             { text: 'OK', onPress: onClose },
           ]);
         } else {
-          showAlert('Succès', result?.message || 'Votre vente crypto a été initiée.', [
+          showAlert(t('common.success'), result?.message || t('cryptoModal.sellInitiated'), [
             { text: 'OK', onPress: onClose },
           ]);
         }
@@ -280,8 +349,8 @@ export function CryptoModal({ visible, onClose }: CryptoModalProps) {
         (error?.response?.data?.errors
           ? Object.values(error.response.data.errors).flat().join('\n')
           : null) ||
-        'Erreur lors de la transaction crypto.';
-      showAlert('Erreur', msg);
+        t('cryptoModal.cryptoError');
+      showAlert(t('common.error'), msg);
     } finally {
       setLoading(false);
     }
@@ -294,11 +363,11 @@ export function CryptoModal({ visible, onClose }: CryptoModalProps) {
     const hasUserInput = !!amount.trim() || !!walletAddress.trim();
     if (hasUserInput) {
       showAlert(
-        'Annuler la transaction ?',
-        'Les informations saisies seront perdues.',
+        t('cryptoModal.cancelTransaction'),
+        t('cryptoModal.infoLost'),
         [
-          { text: 'Continuer la saisie' },
-          { text: 'Quitter', onPress: onClose },
+          { text: t('common.continue') },
+          { text: t('common.quit'), onPress: onClose },
         ],
       );
     } else {
@@ -307,19 +376,15 @@ export function CryptoModal({ visible, onClose }: CryptoModalProps) {
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
-      <TouchableWithoutFeedback onPress={handleClose}>
-        <KeyboardAvoidingView
-          style={[styles.overlay, { paddingTop: insets.top }]}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <TouchableWithoutFeedback>
-            <Animated.View style={[styles.sheet, { height: sheetHeight, paddingBottom: Math.max(insets.bottom, Spacing.lg) }]}>
-              <View style={styles.handleContainer} {...panResponder.panHandlers}>
-                <View style={styles.handle} />
-              </View>
+    <ResponsiveModal visible={visible} onClose={handleClose}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: Platform.OS === 'web' ? undefined : 1 }}
+        enabled={Platform.OS !== 'web'}
+      >
+          <View style={[styles.sheet, { flex: Platform.OS === 'web' ? undefined : 1, paddingBottom: Math.max(insets.bottom, Spacing.lg), paddingTop: Platform.OS === 'web' ? Spacing.lg : insets.top }]}>
               <View style={styles.header}>
-                <Text style={styles.title}>Crypto</Text>
+                <Text style={styles.title}>{t('transaction.crypto')}</Text>
                 <TouchableOpacity onPress={handleClose}>
                   <FontAwesome6 name="xmark" size={20} color={Colors.textMuted} />
                 </TouchableOpacity>
@@ -327,6 +392,7 @@ export function CryptoModal({ visible, onClose }: CryptoModalProps) {
 
           {/* Tabs */}
           <View style={styles.tabs}>
+            {buyEnabled && (
             <TouchableOpacity
               style={[styles.tab, tab === 'buy' && styles.tabActive]}
               onPress={() => {
@@ -341,9 +407,11 @@ export function CryptoModal({ visible, onClose }: CryptoModalProps) {
                 color={tab === 'buy' ? Colors.white : Colors.textMuted}
               />
               <Text style={[styles.tabText, tab === 'buy' && styles.tabTextActive]}>
-                Acheter
+                {t('cryptoModal.buy')}
               </Text>
             </TouchableOpacity>
+            )}
+            {sellEnabled && (
             <TouchableOpacity
               style={[styles.tab, tab === 'sell' && styles.tabActive]}
               onPress={() => {
@@ -358,16 +426,17 @@ export function CryptoModal({ visible, onClose }: CryptoModalProps) {
                 color={tab === 'sell' ? Colors.white : Colors.textMuted}
               />
               <Text style={[styles.tabText, tab === 'sell' && styles.tabTextActive]}>
-                Vendre
+                {t('cryptoModal.sell')}
               </Text>
             </TouchableOpacity>
+            )}
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
             {user?.validate !== 1 && (
               <View style={styles.kycBanner}>
                 <FontAwesome6 name="triangle-exclamation" size={14} color={Colors.warning} style={{ marginRight: 8 }} />
-                <Text style={styles.kycBannerText}>Vérification KYC requise pour effectuer des transactions.</Text>
+                <Text style={styles.kycBannerText}>{t('cryptoModal.kycBanner')}</Text>
               </View>
             )}
             {/* Sell blocked for certain countries */}
@@ -375,63 +444,114 @@ export function CryptoModal({ visible, onClose }: CryptoModalProps) {
               <View style={styles.blockedContainer}>
                 <FontAwesome6 name="triangle-exclamation" size={48} color={Colors.error} />
                 <Text style={styles.blockedText}>
-                  La vente de crypto n'est pas disponible dans votre pays pour le moment.
+                  {t('cryptoModal.sellBlocked')}
                 </Text>
                 <Text style={styles.blockedSubText}>
-                  Vous pouvez utiliser un compte dans un pays éligible ou contacter le support.
+                  {t('cryptoModal.sellBlockedSub')}
                 </Text>
               </View>
-            ) : loadingRates ? (
+            ) : cryptoLoading && rates.length === 0 ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={Colors.secondary} />
-                <Text style={styles.loadingText}>Chargement des taux...</Text>
+                <Text style={styles.loadingText}>{t('cryptoModal.loadingRates')}</Text>
+              </View>
+            ) : cryptoError && rates.length === 0 ? (
+              <View style={styles.loadingContainer}>
+                <FontAwesome6 name="triangle-exclamation" size={32} color={Colors.error} />
+                <Text style={styles.loadingText}>{t('cryptoModal.loadRatesError')}</Text>
+                <Button
+                  title={t('cryptoModal.retry')}
+                  onPress={() => fetchRates(true)}
+                  icon="rotate-right"
+                  style={{ marginTop: Spacing.md }}
+                />
               </View>
             ) : (
               <>
                 {/* Currency selection */}
-                <Text style={styles.fieldLabel}>Crypto-monnaie</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.currencyScroll}
-                  contentContainerStyle={styles.currencyScrollContent}
-                >
-                  {rates.map((item) => (
-                    <TouchableOpacity
-                      key={item.code}
-                      style={[
-                        styles.currencyCard,
-                        selectedCurrency === item.code && styles.currencySelected,
-                      ]}
-                      onPress={() => setSelectedCurrency(item.code)}
-                    >
-                      {CRYPTO_IMAGES[item.code] ? (
-                        <Image source={CRYPTO_IMAGES[item.code]} style={styles.currencyLogo} resizeMode="contain" />
-                      ) : (
-                        <Text style={styles.currencyIcon}>{getCryptoIcon(item.code)}</Text>
-                      )}
-                      <Text
+                <Text style={styles.fieldLabel}>{t('cryptoModal.cryptocurrency')}</Text>
+                {isDesktop ? (
+                  <View style={styles.currencyChipGrid}>
+                    {rates.map((item) => (
+                      <TouchableOpacity
+                        key={item.code}
                         style={[
-                          styles.currencyName,
-                          selectedCurrency === item.code && styles.currencyNameSelected,
+                          styles.currencyChip,
+                          selectedCurrency === item.code && styles.currencyChipSelected,
                         ]}
-                        numberOfLines={1}
+                        onPress={() => setSelectedCurrency(item.code)}
                       >
-                        {formatCurrencyCode(item.code)}
-                      </Text>
-                      <Text style={styles.currencyRate}>
-                        {tab === 'buy'
-                          ? `${getBuyRate(item).toLocaleString('fr-FR')} XOF`
-                          : `${getSellRate(item).toLocaleString('fr-FR')} XOF`}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                        {CRYPTO_IMAGES[item.code] ? (
+                          <Image source={CRYPTO_IMAGES[item.code]} style={styles.currencyChipLogo} resizeMode="contain" />
+                        ) : (
+                          <Text style={styles.currencyIcon}>{getCryptoIcon(item.code)}</Text>
+                        )}
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={[
+                              styles.currencyChipCode,
+                              selectedCurrency === item.code && styles.currencyChipCodeSelected,
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {formatCurrencyCode(item.code)}
+                          </Text>
+                          <Text style={styles.currencyChipRate} numberOfLines={1}>
+                            {tab === 'buy'
+                              ? `${getBuyRate(item).toLocaleString('fr-FR')} XOF`
+                              : `${getSellRate(item).toLocaleString('fr-FR')} XOF`}
+                          </Text>
+                        </View>
+                        {selectedCurrency === item.code && (
+                          <FontAwesome6 name="circle-check" size={14} color={Colors.secondary} />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                ) : (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.currencyScroll}
+                    contentContainerStyle={styles.currencyScrollContent}
+                  >
+                    {rates.map((item) => (
+                      <TouchableOpacity
+                        key={item.code}
+                        style={[
+                          styles.currencyCard,
+                          selectedCurrency === item.code && styles.currencySelected,
+                        ]}
+                        onPress={() => setSelectedCurrency(item.code)}
+                      >
+                        {CRYPTO_IMAGES[item.code] ? (
+                          <Image source={CRYPTO_IMAGES[item.code]} style={styles.currencyLogo} resizeMode="contain" />
+                        ) : (
+                          <Text style={styles.currencyIcon}>{getCryptoIcon(item.code)}</Text>
+                        )}
+                        <Text
+                          style={[
+                            styles.currencyName,
+                            selectedCurrency === item.code && styles.currencyNameSelected,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {formatCurrencyCode(item.code)}
+                        </Text>
+                        <Text style={styles.currencyRate}>
+                          {tab === 'buy'
+                            ? `${getBuyRate(item).toLocaleString('fr-FR')} XOF`
+                            : `${getSellRate(item).toLocaleString('fr-FR')} XOF`}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                )}
 
                 {/* Amount */}
                 <Input
-                  label={tab === 'buy' ? 'Montant à payer (XOF)' : `Montant en ${formatCurrencyCode(selectedCurrency) || 'crypto'}`}
-                  placeholder={tab === 'buy' ? 'Ex: 50000' : 'Ex: 0.001'}
+                  label={tab === 'buy' ? t('cryptoModal.amountToPay') : t('cryptoModal.amountIn', { currency: formatCurrencyCode(selectedCurrency) || 'crypto' })}
+                  placeholder={tab === 'buy' ? t('cryptoModal.exAmount') : t('cryptoModal.exCryptoAmount')}
                   value={amount}
                   onChangeText={(t) => setAmount(t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
                   keyboardType="numeric"
@@ -442,8 +562,8 @@ export function CryptoModal({ visible, onClose }: CryptoModalProps) {
                   <View style={styles.conversionBox}>
                     <FontAwesome6 name="arrows-rotate" size={14} color={Colors.primary} />
                     <Text style={styles.conversionText}>{conversion}</Text>
-                    {conversion.includes('Chargement') && (
-                      <TouchableOpacity onPress={() => fetchRates()} style={styles.reloadBtn}>
+                    {conversion.includes(t('cryptoModal.loadingRate')) && (
+                      <TouchableOpacity onPress={() => fetchRates(true)} style={styles.reloadBtn}>
                         <FontAwesome6 name="rotate-right" size={14} color={Colors.white} />
                       </TouchableOpacity>
                     )}
@@ -452,18 +572,77 @@ export function CryptoModal({ visible, onClose }: CryptoModalProps) {
 
                 {/* Wallet address for buy */}
                 {tab === 'buy' && (
-                  <Input
-                    label="Adresse du portefeuille"
-                    placeholder="Adresse crypto de réception"
-                    value={walletAddress}
-                    onChangeText={setWalletAddress}
-                    autoCapitalize="none"
-                  />
+                  <>
+                    <Input
+                      label={t('cryptoModal.walletAddressLabel')}
+                      placeholder={t('cryptoModal.walletAddressPlaceholder')}
+                      value={walletAddress}
+                      onChangeText={setWalletAddress}
+                      autoCapitalize="none"
+                    />
+
+                    {!!normalizedWalletAddress && (
+                      <Button
+                        variant="secondary"
+                        icon="bookmark"
+                        title={t('account.addWallet')}
+                        onPress={saveCurrentWallet}
+                        style={styles.saveBtnSmall}
+                        textStyle={styles.saveBtnText}
+                      />
+                    )}
+
+                    {walletsForSelectedCurrency.length > 0 && (
+                      <View style={styles.savedBlock}>
+                        <Text style={styles.savedLabel}>{t('account.savedWallets')}</Text>
+                        <View style={styles.savedList}>
+                          {walletsForSelectedCurrency.map((item) => {
+                            const selected = !!walletAddress.trim() && walletAddress.trim() === item.address.trim();
+                            return (
+                              <TouchableOpacity
+                                key={item.id}
+                                style={[styles.savedChip, selected && styles.savedChipSelected]}
+                                onPress={() => {
+                                  if (selected) {
+                                    setWalletAddress('');
+                                    return;
+                                  }
+
+                                  setWalletAddress(item.address);
+                                  if (!selectedCurrency) {
+                                    const resolved = resolveRateCodeFromWalletCurrency(item.currency);
+                                    if (resolved) setSelectedCurrency(resolved);
+                                  }
+                                }}
+                              >
+                                <Text style={[styles.savedChipText, selected && styles.savedChipTextSelected]} numberOfLines={1}>
+                                  {item.name?.trim() ? `${item.name} · ` : ''}{formatCurrencyCode(item.currency)}: {item.address}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    )}
+
+                    {savedWalletsLoadError && walletsForSelectedCurrency.length === 0 && (
+                      <Text style={styles.savedErrorText}>{savedWalletsLoadError}</Text>
+                    )}
+
+                    <View style={styles.savedActionsRow}>
+                      {!!existingSelectedWallet && (
+                        <TouchableOpacity style={styles.savedActionBtn} onPress={removeCurrentWallet}>
+                          <FontAwesome6 name="trash" size={12} color={Colors.error} />
+                          <Text style={[styles.savedActionText, { color: Colors.error }]}>{t('common.delete')}</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </>
                 )}
 
                 {/* Submit */}
                 <Button
-                  title={tab === 'buy' ? 'Acheter' : 'Vendre'}
+                  title={tab === 'buy' ? t('cryptoModal.buy') : t('cryptoModal.sell')}
                   onPress={handlePressSubmit}
                   icon={tab === 'buy' ? 'coins' : 'circle-dollar-to-slot'}
                   loading={loading}
@@ -477,19 +656,17 @@ export function CryptoModal({ visible, onClose }: CryptoModalProps) {
               </>
             )}
           </ScrollView>
-            </Animated.View>
-          </TouchableWithoutFeedback>
-        </KeyboardAvoidingView>
-      </TouchableWithoutFeedback>
+          </View>
+      </KeyboardAvoidingView>
 
       {/* Modal de confirmation */}
       <Modal visible={confirmVisible} transparent animationType="fade">
         <View style={styles.confirmOverlay}>
           <View style={styles.confirmSheet}>
             <Text style={styles.confirmTitle}>
-              {tab === 'buy' ? 'Confirmer l\'achat' : 'Confirmer la vente'}
+              {tab === 'buy' ? t('cryptoModal.confirmBuy') : t('cryptoModal.confirmSell')}
             </Text>
-            <Text style={styles.confirmSubtitle}>Veuillez bien vérifier les informations avant de continuer. Toute erreur entraînera une perte définitive des fonds.</Text>
+            <Text style={styles.confirmSubtitle}>{t('cryptoModal.confirmSubtitle')}</Text>
 
             {/* Crypto icon + name */}
             {selectedRate && (
@@ -503,13 +680,13 @@ export function CryptoModal({ visible, onClose }: CryptoModalProps) {
 
             {tab === 'buy' ? (
               <>
-                <Text style={styles.confirmAmountLabel}>Montant à payer</Text>
+                <Text style={styles.confirmAmountLabel}>{t('cryptoModal.amountToPayLabel')}</Text>
                 <Text style={styles.confirmAmount}>{parseFloat(amount || '0').toLocaleString('fr-FR').replace(/\s/g, '.')}</Text>
                 <Text style={styles.confirmAmountCurrency}>XOF</Text>
               </>
             ) : (
               <>
-                <Text style={styles.confirmAmountLabel}>Montant à vendre</Text>
+                <Text style={styles.confirmAmountLabel}>{t('cryptoModal.amountToSellLabel')}</Text>
                 <Text style={styles.confirmAmount}>{amount}</Text>
                 <Text style={styles.confirmAmountCurrency}>{formatCurrencyCode(selectedCurrency)}</Text>
               </>
@@ -526,7 +703,7 @@ export function CryptoModal({ visible, onClose }: CryptoModalProps) {
             {/* Wallet address for buy */}
             {tab === 'buy' && walletAddress ? (
               <View style={styles.confirmDetailBox}>
-                <Text style={styles.confirmDetailLabel}>Adresse de réception</Text>
+                <Text style={styles.confirmDetailLabel}>{t('cryptoModal.receivingAddress')}</Text>
                 <Text style={styles.confirmDetailValue} numberOfLines={2}>{walletAddress}</Text>
               </View>
             ) : null}
@@ -534,7 +711,7 @@ export function CryptoModal({ visible, onClose }: CryptoModalProps) {
             {/* Rate info */}
             {selectedRate && (
               <View style={styles.confirmDetailBox}>
-                <Text style={styles.confirmDetailLabel}>Taux appliqué</Text>
+                <Text style={styles.confirmDetailLabel}>{t('cryptoModal.appliedRate')}</Text>
                 <Text style={styles.confirmDetailValue}>
                   $1 = {(tab === 'buy' ? getBuyRate(selectedRate) : getSellRate(selectedRate)).toLocaleString('fr-FR')} XOF
                 </Text>
@@ -546,24 +723,74 @@ export function CryptoModal({ visible, onClose }: CryptoModalProps) {
               <View style={[styles.checkbox, confirmed && styles.checkboxChecked]}>
                 {confirmed && <FontAwesome6 name="check" size={10} color={Colors.white} />}
               </View>
-              <Text style={styles.checkLabel}>Je confirme que les informations sont correctes</Text>
+              <Text style={styles.checkLabel}>{t('cryptoModal.confirmCorrect')}</Text>
             </TouchableOpacity>
 
             <View style={styles.confirmBtns}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setConfirmVisible(false)}>
-                <Text style={styles.cancelBtnText}>Modifier</Text>
+                <Text style={styles.cancelBtnText}>{t('cryptoModal.edit')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.confirmBtn, !confirmed && styles.confirmBtnDisabled]}
                 onPress={confirmed ? handleConfirm : undefined}
               >
                 <FontAwesome6 name={tab === 'buy' ? 'coins' : 'circle-dollar-to-slot'} size={14} color={Colors.white} style={{ marginRight: 6 }} />
-                <Text style={styles.confirmBtnText}>Confirmer</Text>
+                <Text style={styles.confirmBtnText}>{t('cryptoModal.confirm')}</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
+
+      {saveWalletModalVisible && (
+        <View style={styles.confirmOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setSaveWalletModalVisible(false)} activeOpacity={1} />
+          <View style={styles.confirmSheet}>
+            <Text style={styles.confirmTitle}>{t('account.addWallet')}</Text>
+            <Text style={styles.confirmSubtitle}>{t('cryptoModal.saveWalletSubtitle')}</Text>
+
+            {/* Sélecteur de monnaie */}
+            <Text style={styles.saveWalletLabel}>{t('cryptoModal.selectCurrency')}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.saveWalletCurrencyScroll} contentContainerStyle={{ gap: Spacing.xs, paddingVertical: Spacing.xs }}>
+              {rates.map((item) => {
+                const code = normalizeCurrencyCode(item.code);
+                const isSelected = normalizeCurrencyCode(saveWalletCurrency) === code;
+                return (
+                  <TouchableOpacity
+                    key={item.code}
+                    style={[styles.saveWalletChip, isSelected && styles.saveWalletChipSelected]}
+                    onPress={() => setSaveWalletCurrency(item.code)}
+                  >
+                    {CRYPTO_IMAGES[item.code] ? (
+                      <Image source={CRYPTO_IMAGES[item.code]} style={{ width: 16, height: 16 }} resizeMode="contain" />
+                    ) : null}
+                    <Text style={[styles.saveWalletChipText, isSelected && styles.saveWalletChipTextSelected]}>
+                      {formatCurrencyCode(item.code)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <Input
+              label={t('cryptoModal.nameLabel')}
+              placeholder={t('cryptoModal.namePlaceholder')}
+              value={saveWalletName}
+              onChangeText={setSaveWalletName}
+              containerStyle={{ width: '100%' }}
+            />
+            <View style={styles.confirmBtns}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setSaveWalletModalVisible(false)}>
+                <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmBtn} onPress={confirmSaveCurrentWallet} disabled={saveWalletLoading}>
+                <FontAwesome6 name="floppy-disk" size={14} color={Colors.white} style={{ marginRight: 6 }} />
+                <Text style={styles.confirmBtnText}>{saveWalletLoading ? t('common.saving') : t('common.save')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
 
       <CryptoSellDetailsModal
         visible={sellDetailsVisible}
@@ -576,7 +803,7 @@ export function CryptoModal({ visible, onClose }: CryptoModalProps) {
       />
 
       <CustomAlert />
-    </Modal>
+    </ResponsiveModal>
   );
 }
 
@@ -601,7 +828,7 @@ function getCryptoIcon(code: string): string {
   }
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   kycBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -616,30 +843,10 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontFamily: Fonts.semiBold,
   },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    justifyContent: 'flex-end',
-  },
   sheet: {
     backgroundColor: Colors.background,
-    borderTopLeftRadius: BorderRadius.xl,
-    borderTopRightRadius: BorderRadius.xl,
     padding: Spacing.lg,
     overflow: 'hidden',
-  },
-  handleContainer: {
-    alignSelf: 'stretch',
-    alignItems: 'center',
-    paddingTop: Spacing.sm,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.border,
-    alignSelf: 'center',
-    marginBottom: Spacing.md,
   },
   header: {
     flexDirection: 'row',
@@ -693,6 +900,53 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     gap: Spacing.sm,
   },
+  currencyGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  currencyChipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+    marginBottom: Spacing.md,
+  },
+  currencyChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 7,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.pill,
+    backgroundColor: Colors.inputBg,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    minWidth: 150,
+    flex: 1,
+  },
+  currencyChipSelected: {
+    borderColor: Colors.secondary,
+    backgroundColor: 'rgba(244,178,40,0.12)',
+  },
+  currencyChipLogo: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  currencyChipCode: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+    color: Colors.text,
+  },
+  currencyChipCodeSelected: {
+    color: Colors.secondary,
+  },
+  currencyChipRate: {
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.regular,
+    color: Colors.textMuted,
+  },
   currencyCard: {
     width: 90,
     backgroundColor: Colors.inputBg,
@@ -701,7 +955,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: Colors.border,
     gap: Spacing.xs,
   },
   currencySelected: {
@@ -756,6 +1010,81 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  savedBlock: {
+    marginBottom: Spacing.md,
+  },
+  savedLabel: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.semiBold,
+    marginBottom: Spacing.xs,
+  },
+  savedList: {
+    gap: Spacing.xs,
+  },
+  savedChip: {
+    backgroundColor: Colors.inputBg,
+    borderColor: Colors.border,
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 8,
+  },
+  savedChipSelected: {
+    borderColor: Colors.secondary,
+    backgroundColor: 'rgba(244,178,40,0.12)',
+  },
+  savedChipText: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.semiBold,
+  },
+  savedChipTextSelected: {
+    color: Colors.secondary,
+  },
+  savedActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    marginTop: -Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  savedActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+  },
+  savedActionBtnBelowInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+    marginTop: -Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  savedActionText: {
+    color: Colors.secondary,
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.semiBold,
+  },
+  saveBtnSmall: {
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    paddingHorizontal: Spacing.sm,
+    minHeight: 28,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.xs,
+  },
+  saveBtnText: {
+    fontSize: FontSize.xs,
+  },
+  savedErrorText: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.regular,
+    marginBottom: Spacing.sm,
+  },
   blockedContainer: {
     alignItems: 'center',
     paddingVertical: Spacing.xxl,
@@ -785,11 +1114,12 @@ const styles = StyleSheet.create({
   },
   // Modal confirmation
   confirmOverlay: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.lg,
+    zIndex: 999,
   },
   confirmSheet: {
     backgroundColor: Colors.background,
@@ -797,6 +1127,40 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     width: '100%',
     alignItems: 'center',
+  },
+  saveWalletLabel: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+    color: Colors.textSecondary,
+    alignSelf: 'flex-start',
+    marginBottom: Spacing.xs,
+  },
+  saveWalletCurrencyScroll: {
+    width: '100%',
+    marginBottom: Spacing.md,
+  },
+  saveWalletChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.pill,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.inputBg,
+  },
+  saveWalletChipSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  saveWalletChipText: {
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.semiBold,
+    color: Colors.textMuted,
+  },
+  saveWalletChipTextSelected: {
+    color: Colors.white,
   },
   confirmTitle: {
     fontSize: FontSize.xl,

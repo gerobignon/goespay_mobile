@@ -7,7 +7,9 @@ import {
   ScrollView,
   ViewStyle,
 } from 'react-native';
-import { Colors, BorderRadius, FontSize, Spacing, Fonts } from '../constants/theme';
+import { Colors, type ColorPalette, BorderRadius, FontSize, Spacing, Fonts } from '../constants/theme';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { useTranslation } from 'react-i18next';
 
 interface PickerItem {
   label: string;
@@ -29,6 +31,8 @@ export function Picker({
   items,
   containerStyle,
 }: PickerProps) {
+  const styles = useThemedStyles(createStyles);
+  const { t } = useTranslation();
   const [open, setOpen] = React.useState(false);
   const selectedItem = items.find((i) => i.value === selectedValue);
 
@@ -41,7 +45,7 @@ export function Picker({
         activeOpacity={0.7}
       >
         <Text style={styles.selectorText}>
-          {selectedItem?.label || 'Sélectionner...'}
+          {selectedItem?.label || t('common.select')}
         </Text>
         <Text style={styles.arrow}>{open ? '▲' : '▼'}</Text>
       </TouchableOpacity>
@@ -75,7 +79,7 @@ export function Picker({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     marginBottom: Spacing.md,
   },

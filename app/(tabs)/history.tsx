@@ -7,24 +7,44 @@ import {
   RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { useWalletStore } from '../../src/stores/walletStore';
-import { TransactionItem } from '../../src/components/TransactionItem';
-import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
+import { TransactionItem, getTransactionLogo, getModeName } from '../../src/components/TransactionItem';
+import { TransactionDetailModal, type TxType } from '../../src/components/TransactionDetailModal';
+import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
+import { TRANSACTION_STATUS, getTransactionStatus } from '../../src/constants/config';
+import { formatAmount, formatDate } from '../../src/utils/format';
 import type { Transaction } from '../../src/types';
+import { useResponsive } from '../../src/hooks/useResponsive';
+import { useThemedStyles } from '../../src/hooks/useThemedStyles';
+import { useTranslation } from 'react-i18next';
 
-const FILTERS = [
-  { key: undefined, label: 'Tout' },
-  { key: 'deposit', label: 'Dépôts' },
-  { key: 'withdraw', label: 'Retraits' },
-  { key: 'crypto', label: 'Crypto' },
+// 8 colonnes sur 12 à 1200px max
+const DESKTOP_MAX_WIDTH = 1100;
+
+const getTypeLabels = (t: (key: string) => string): Record<string, string> => ({
+  deposit: t('transaction.deposit'),
+  withdraw: t('transaction.withdraw'),
+  transfer: t('transaction.transfer'),
+  crypto: t('transaction.crypto'),
+});
+
+const FILTER_KEYS = [
+  { key: undefined, labelKey: 'history.filterAll' },
+  { key: 'deposit', labelKey: 'history.filterDeposit' },
+  { key: 'withdraw', labelKey: 'history.filterWithdraw' },
+  { key: 'crypto', labelKey: 'history.filterCrypto' },
 ] as const;
 
 export default function HistoryScreen() {
   const router = useRouter();
+  const { isWide, isDesktop } = useResponsive();
+  const styles = useThemedStyles(createStyles);
+  const { t } = useTranslation();
   const {
     transactions,
     isLoadingTransactions,
@@ -34,6 +54,10 @@ export default function HistoryScreen() {
   const [activeFilter, setActiveFilter] = useState<string | undefined>(undefined);
   const [refreshing, setRefreshing] = useState(false);
   const hasFetchedRef = useRef(false);
+
+  // Desktop modal state
+  const [modalTxId, setModalTxId] = useState<number | null>(null);
+  const [modalTxType, setModalTxType] = useState<TxType | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -56,6 +80,12 @@ export default function HistoryScreen() {
   };
 
   const handlePress = (tx: Transaction) => {
+    const type = tx.type as TxType;
+    if (isDesktop) {
+      setModalTxId(tx.id);
+      setModalTxType(type);
+      return;
+    }
     if (tx.type === 'deposit') {
       router.push(`/transaction/deposit/${tx.id}`);
     } else if (tx.type === 'withdraw') {
@@ -69,18 +99,18 @@ export default function HistoryScreen() {
 
   return (
     <ScreenBackground edges={['top']} style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, isWide && { maxWidth: DESKTOP_MAX_WIDTH, alignSelf: 'center', width: '100%' }]}>
         <TouchableOpacity onPress={() => router.back()}>
           <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Historique</Text>
+        <Text style={styles.title}>{t('history.title')}</Text>
       </View>
 
       {/* Filters */}
-      <View style={styles.filters}>
-        {FILTERS.map((f) => (
+      <View style={[styles.filters, isWide && { maxWidth: DESKTOP_MAX_WIDTH, alignSelf: 'center', width: '100%' }]}>
+        {FILTER_KEYS.map((f) => (
           <TouchableOpacity
-            key={f.label}
+            key={f.labelKey}
             style={[
               styles.filterBtn,
               activeFilter === f.key && styles.filterBtnActive,
@@ -93,7 +123,7 @@ export default function HistoryScreen() {
                 activeFilter === f.key && styles.filterTextActive,
               ]}
             >
-              {f.label}
+              {t(f.labelKey)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -102,9 +132,32 @@ export default function HistoryScreen() {
       <FlatList
         data={transactions}
         keyExtractor={(item) => `${item.type}-${item.id}`}
-        renderItem={({ item }) => (
-          <TransactionItem transaction={item} onPress={handlePress} padded />
-        )}
+        renderItem={({ item }) =>
+          isDesktop ? (
+            <DesktopTransactionRow tx={item} onPress={handlePress} styles={styles} />
+          ) : (
+            <TransactionItem transaction={item} onPress={handlePress} padded />
+          )
+        }
+        ListHeaderComponent={
+          isDesktop && transactions.length > 0 ? (
+            <View style={styles.tableHeader}>
+              <Text style={[styles.thCell, styles.tdCol12]}>{t('transaction.date')}</Text>
+              <Text style={[styles.thCell, styles.tdCol1]}>{t('transaction.type')}</Text>
+              <Text style={[styles.thCell, styles.tdCol1]}>{t('transaction.reference')}</Text>
+              <Text style={[styles.thCell, styles.tdCol13]}>{t('transaction.details', 'Détails')}</Text>
+              <Text style={[styles.thCell, styles.tdCol1]}>{t('transaction.balanceBefore')}</Text>
+              <Text style={[styles.thCell, styles.tdCol1]}>{t('transaction.balanceAfter')}</Text>
+              <Text style={[styles.thCell, { ...styles.tdCol1 as any, textAlign: 'right' }]}>{t('transaction.amount')}</Text>
+              <Text style={[styles.thCell, { ...styles.tdCol08 as any, textAlign: 'center' }]}>{t('transaction.status')}</Text>
+            </View>
+          ) : isLoadingTransactions && transactions.length === 0 ? (
+            <ActivityIndicator
+              color={Colors.secondary}
+              style={{ paddingTop: Spacing.xxl * 2 }}
+            />
+          ) : null
+        }
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -114,14 +167,6 @@ export default function HistoryScreen() {
         }
         onEndReached={() => loadMoreTransactions(activeFilter)}
         onEndReachedThreshold={0.3}
-        ListHeaderComponent={
-          isLoadingTransactions && transactions.length === 0 ? (
-            <ActivityIndicator
-              color={Colors.secondary}
-              style={{ paddingTop: Spacing.xxl * 2 }}
-            />
-          ) : null
-        }
         ListFooterComponent={
           isLoadingTransactions && transactions.length > 0 ? (
             <ActivityIndicator
@@ -133,17 +178,111 @@ export default function HistoryScreen() {
         ListEmptyComponent={
           !isLoadingTransactions ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>Aucune transaction</Text>
+              <Text style={styles.emptyText}>{t('history.noTransactions')}</Text>
             </View>
           ) : null
         }
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[
+          styles.list,
+          isWide && { alignSelf: 'center', width: '100%', maxWidth: DESKTOP_MAX_WIDTH },
+        ]}
+      />
+
+      {/* Modal détail transaction (desktop uniquement) */}
+      <TransactionDetailModal
+        txId={modalTxId}
+        txType={modalTxType}
+        onClose={() => { setModalTxId(null); setModalTxType(null); }}
       />
     </ScreenBackground>
   );
 }
 
-const styles = StyleSheet.create({
+function getDetail(tx: Transaction, t: (key: string) => string): string {
+  if (tx.type === 'transfer') return tx.receiver_name || tx.receiver_email || tx.phone || tx.note || '—';
+  if (tx.type === 'crypto') {
+    const side = tx.mode === 'Buy' ? t('history.buy') : t('history.sell');
+    if (tx.address) return `${side} · ${tx.address.slice(0, 10)}…`;
+    return `${side} ${tx.currency_src ?? ''}`;
+  }
+  if (tx.type === 'withdraw') return tx.phone || tx.note || '—';
+  // deposit
+  return tx.note || '—';
+}
+
+function getRef(tx: Transaction): string {
+  return tx.reference || tx.cp_hash || `#${tx.id}`;
+}
+
+function DesktopTransactionRow({ tx, onPress, styles }: { tx: Transaction; onPress: (tx: Transaction) => void; styles: any }) {
+  const { t } = useTranslation();
+  const TYPE_LABELS = getTypeLabels(t);
+  const normalizedStatut =
+    tx.type === 'crypto'
+      ? tx.statut == 1 ? 'success' : tx.statut == 0 ? 'failed' : 'wait'
+      : tx.statut;
+  const status = getTransactionStatus(t)[normalizedStatut] || { label: String(tx.statut), color: '#888' };
+  const logo = getTransactionLogo(tx);
+  const modeName = getModeName(tx);
+
+  return (
+    <TouchableOpacity style={styles.tableRow} onPress={() => onPress(tx)} activeOpacity={0.7}>
+      {/* Date */}
+      <View style={styles.tdCol12}>
+        <Text style={styles.tdCell}>{formatDate(tx.created_at)}</Text>
+      </View>
+      {/* Type + Moyen */}
+      <View style={[styles.tdCol1, { flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
+        {logo ? (
+          <Image source={logo} style={styles.rowLogo} resizeMode="contain" />
+        ) : (
+          <View style={[styles.rowIconCircle, { backgroundColor: status.color + '20' }]}>
+            <FontAwesome6 name={TYPE_LABELS[tx.type] ? 'arrow-down' : 'circle-question'} size={12} color={status.color} />
+          </View>
+        )}
+        <View style={{ flex: 1 }}>
+          <Text style={styles.tdCell} numberOfLines={1}>{TYPE_LABELS[tx.type] || tx.type}</Text>
+          {modeName ? <Text style={styles.tdModeLabel} numberOfLines={1}>{modeName}</Text> : null}
+        </View>
+      </View>
+      {/* Référence */}
+      <View style={styles.tdCol1}>
+        <Text style={[styles.tdCell, { opacity: 0.6 }]} numberOfLines={1}>{getRef(tx)}</Text>
+      </View>
+      {/* Détails */}
+      <View style={styles.tdCol13}>
+        <Text style={styles.tdCell} numberOfLines={1}>{getDetail(tx, t)}</Text>
+      </View>
+      {/* Solde avant */}
+      <View style={styles.tdCol1}>
+        <Text style={[styles.tdCell, { opacity: 0.55 }]} numberOfLines={1}>
+          {tx.avant != null ? `${formatAmount(tx.avant)}` : '—'}
+        </Text>
+      </View>
+      {/* Solde après */}
+      <View style={styles.tdCol1}>
+        <Text style={[styles.tdCell, { opacity: 0.55 }]} numberOfLines={1}>
+          {tx.apres != null ? `${formatAmount(tx.apres)}` : '—'}
+        </Text>
+      </View>
+      {/* Montant */}
+      <View style={[styles.tdCol1, { alignItems: 'flex-end' }]}>
+        <Text style={[styles.tdCell, { color: status.color, fontFamily: Fonts.bold }]}>
+          {tx.type === 'deposit' ? '+' : '-'}{formatAmount(tx.amount)}
+        </Text>
+        <Text style={[styles.tdModeLabel, { color: status.color, opacity: 0.7 }]}>XOF</Text>
+      </View>
+      {/* Statut */}
+      <View style={[styles.tdCol08, { alignItems: 'center' }]}>
+        <View style={[styles.statusBadge, { backgroundColor: status.color + '25' }]}>
+          <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -195,5 +334,68 @@ const styles = StyleSheet.create({
   emptyText: {
     color: Colors.textMuted,
     fontSize: FontSize.md,
+  },
+  // Desktop table styles
+  tableHeader: {
+    flexDirection: 'row',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderBottomWidth: 2,
+    borderBottomColor: Colors.border,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.sm,
+    marginBottom: Spacing.xs,
+  },
+  thCell: {
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.bold,
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm + 2,
+    paddingHorizontal: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  // Column flex definitions
+  tdCol12: { flex: 1.2 },
+  tdCol13: { flex: 1.3 },
+  tdCol1: { flex: 1 },
+  tdCol08: { flex: 0.8 },
+  tdCell: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.regular,
+    color: Colors.text,
+  },
+  tdModeLabel: {
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.regular,
+    color: Colors.textMuted,
+    marginTop: 1,
+  },
+  rowLogo: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  rowIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.pill,
+  },
+  statusText: {
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.semiBold,
   },
 });

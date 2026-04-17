@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useAlertStore, AlertType } from '../stores/alertStore';
-import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
+import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
+import { useThemedStyles } from '../hooks/useThemedStyles';
 
 const ICON_MAP: Record<AlertType, { name: string; color: string; bg: string }> = {
   error: { name: 'circle-xmark', color: Colors.error, bg: Colors.error + '20' },
@@ -20,6 +21,7 @@ const ICON_MAP: Record<AlertType, { name: string; color: string; bg: string }> =
 };
 
 export function CustomAlert() {
+  const styles = useThemedStyles(createStyles);
   const visible = useAlertStore((s) => s.visible);
   const title = useAlertStore((s) => s.title);
   const message = useAlertStore((s) => s.message);
@@ -72,7 +74,7 @@ export function CustomAlert() {
             >
               {/* Icon */}
               <View style={[styles.iconCircle, { backgroundColor: icon.bg }]}>
-                <FontAwesome6 name={icon.name} size={32} color={icon.color} />
+                <FontAwesome6 name={icon.name} size={24} color={icon.color} />
               </View>
 
               {/* Title */}
@@ -122,7 +124,7 @@ export function CustomAlert() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -132,21 +134,21 @@ const styles = StyleSheet.create({
   },
   container: {
     width: '100%',
-    maxWidth: 340,
+    maxWidth: 320,
     backgroundColor: Colors.background,
     borderRadius: BorderRadius.xl,
     borderWidth: 1,
     borderColor: Colors.border,
-    padding: Spacing.lg,
+    padding: Spacing.md,
     alignItems: 'center',
   },
   iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   title: {
     fontSize: FontSize.lg,
@@ -161,17 +163,17 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
+    gap: Spacing.xs,
     width: '100%',
     justifyContent: 'center',
   },
   button: {
     flex: 1,
-    paddingVertical: Spacing.sm + 4,
+    paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.pill,
     alignItems: 'center',
     justifyContent: 'center',

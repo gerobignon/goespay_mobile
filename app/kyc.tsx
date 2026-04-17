@@ -24,18 +24,25 @@ import { Input } from '../src/components/Input';
 import { Button } from '../src/components/Button';
 import { Card } from '../src/components/Card';
 import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../src/constants/theme';
+import type { ColorPalette } from '../src/constants/theme';
+import { useThemedStyles } from '../src/hooks/useThemedStyles';
 import { showAlert } from '../src/stores/alertStore';
 import { ALL_COUNTRIES } from '../src/constants/countries';
+import { useTranslation } from 'react-i18next';
 
-const DOC_TYPES = [
-  { value: 'Passport', label: 'Passeport' },
-  { value: 'Identity card', label: "Carte d'identité" },
-  { value: "Driver's license", label: 'Permis de conduire' },
+const DOC_TYPES_KEYS = [
+  { value: 'Passport', key: 'kyc.passport' },
+  { value: 'Identity card', key: 'kyc.identityCard' },
+  { value: "Driver's license", key: 'kyc.driverLicense' },
 ];
 
 export default function KycScreen() {
   const router = useRouter();
   const { user, refreshProfile } = useAuthStore();
+  const styles = useThemedStyles(createStyles);
+  const { t } = useTranslation();
+
+  const DOC_TYPES = DOC_TYPES_KEYS.map((d) => ({ value: d.value, label: t(d.key) }));
 
   // Personal info state (pre-filled from user)
   const [country, setCountry] = useState(user?.country ?? '');
@@ -115,8 +122,8 @@ export default function KycScreen() {
       );
       await refreshProfile();
       showAlert(
-        'Documents envoyés',
-        'Votre demande de vérification a été envoyée. Vous serez notifié une fois validé.',
+        t('kyc.docsSent'),
+        t('kyc.docsSentMessage'),
         [{ text: 'OK', onPress: () => router.back() }]
       );
     } catch (error: any) {
@@ -140,7 +147,7 @@ export default function KycScreen() {
             <TouchableOpacity onPress={() => router.back()}>
               <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
             </TouchableOpacity>
-            <Text style={styles.title}>Vérification KYC</Text>
+            <Text style={styles.title}>{t('kyc.title')}</Text>
             <View style={{ width: 20 }} />
           </View>
 
@@ -149,10 +156,9 @@ export default function KycScreen() {
               <View style={styles.pendingIcon}>
                 <FontAwesome6 name="clock" size={48} color={Colors.secondary} />
               </View>
-              <Text style={styles.pendingTitle}>Documents reçus !</Text>
+              <Text style={styles.pendingTitle}>{t('kyc.documentsReceived')}</Text>
               <Text style={styles.pendingText}>
-                Votre demande de vérification est en cours de traitement.
-                Vous serez notifié une fois l'examen terminé.
+                {t('kyc.pending')}
               </Text>
             </View>
           </Card>
@@ -177,7 +183,7 @@ export default function KycScreen() {
             <TouchableOpacity onPress={() => router.back()}>
               <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
             </TouchableOpacity>
-            <Text style={styles.title}>Vérification KYC</Text>
+            <Text style={styles.title}>{t('kyc.title')}</Text>
             <View style={{ width: 20 }} />
           </View>
 
@@ -186,9 +192,9 @@ export default function KycScreen() {
               <View style={[styles.pendingIcon, { backgroundColor: Colors.primary + '20' }]}>
                 <FontAwesome6 name="circle-check" size={48} color={Colors.primary} />
               </View>
-              <Text style={styles.pendingTitle}>Compte vérifié</Text>
+              <Text style={styles.pendingTitle}>{t('kyc.accountVerified')}</Text>
               <Text style={styles.pendingText}>
-                Votre identité a été validée. Vous avez accès à toutes les fonctionnalités.
+                {t('kyc.approved')}
               </Text>
             </View>
           </Card>
@@ -209,14 +215,14 @@ export default function KycScreen() {
     <ScreenBackground>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
             <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
           </TouchableOpacity>
-          <Text style={styles.title}>Vérification KYC</Text>
+          <Text style={styles.title}>{t('kyc.title')}</Text>
           <View style={{ width: 20 }} />
         </View>
 
@@ -240,24 +246,24 @@ export default function KycScreen() {
         </Text>
         <Card style={{ gap: Spacing.sm }}>
           {/* Pays */}
-          <Text style={styles.fieldLabel}>Pays</Text>
+          <Text style={styles.fieldLabel}>{t('kyc.country')}</Text>
           <TouchableOpacity
             style={styles.countryPicker}
             onPress={() => setCountryModalVisible(true)}
             activeOpacity={0.7}
           >
             <Text style={selectedCountry ? styles.countryPickerText : styles.countryPickerPlaceholder}>
-              {selectedCountry ? `${selectedCountry.name} (+${selectedCountry.phone})` : 'Sélectionner un pays'}
+              {selectedCountry ? `${selectedCountry.name} (+${selectedCountry.phone})` : t('kyc.selectCountry')}
             </Text>
             <FontAwesome6 name="chevron-down" size={12} color={Colors.textMuted} />
           </TouchableOpacity>
 
           {/* Ville */}
-          <Text style={styles.fieldLabel}>Ville</Text>
+          <Text style={styles.fieldLabel}>{t('kyc.city')}</Text>
           <Input placeholder="Votre ville" value={city} onChangeText={setCity} />
 
           {/* Adresse */}
-          <Text style={styles.fieldLabel}>Adresse</Text>
+          <Text style={styles.fieldLabel}>{t('kyc.address')}</Text>
           <Input placeholder="Adresse complète" value={address} onChangeText={setAddress} />
 
           {/* N° pièce d'identité */}
@@ -265,14 +271,14 @@ export default function KycScreen() {
           <Input placeholder="Numéro de la pièce" value={idnumber} onChangeText={setIdnumber} />
 
           {/* Date d'expiration */}
-          <Text style={styles.fieldLabel}>Date d'expiration</Text>
+          <Text style={styles.fieldLabel}>{t('kyc.expiryDate')}</Text>
           <TouchableOpacity
             style={styles.countryPicker}
             onPress={() => setShowDatePicker(true)}
             activeOpacity={0.7}
           >
             <Text style={idexp ? styles.countryPickerText : styles.countryPickerPlaceholder}>
-              {idexp || 'Sélectionner une date'}
+              {idexp || t('kyc.selectDate')}
             </Text>
             <FontAwesome6 name="calendar" size={14} color={Colors.textMuted} />
           </TouchableOpacity>
@@ -324,7 +330,7 @@ export default function KycScreen() {
           )}
 
           {/* Téléphone */}
-          <Text style={styles.fieldLabel}>WhatsApp {prefix ? `(${prefix})` : ''}</Text>
+          <Text style={styles.fieldLabel}>{t('kyc.whatsapp')} {prefix ? `(${prefix})` : ''}</Text>
           <Input
             placeholder="Numéro sans indicatif"
             value={phone}
@@ -333,7 +339,7 @@ export default function KycScreen() {
           />
 
           {/* Telegram */}
-          <Text style={styles.fieldLabel}>Telegram (optionnel)</Text>
+          <Text style={styles.fieldLabel}>{t('kyc.telegramOptional')}</Text>
           <Input placeholder="@username" value={telegram} onChangeText={setTelegram} />
         </Card>
 
@@ -390,7 +396,7 @@ export default function KycScreen() {
                   <View style={styles.placeholderIcon}>
                     <FontAwesome6 name="id-card" size={28} color={Colors.textMuted} />
                   </View>
-                  <Text style={styles.placeholderTitle}>Ajouter la pièce d'identité</Text>
+                  <Text style={styles.placeholderTitle}>{t('kyc.addId')}</Text>
                   <Text style={styles.placeholderHint}>JPG ou PNG • Max 8 Mo</Text>
                 </View>
               )}
@@ -422,7 +428,7 @@ export default function KycScreen() {
                   <View style={styles.placeholderIcon}>
                     <FontAwesome6 name="camera-retro" size={28} color={Colors.textMuted} />
                   </View>
-                  <Text style={styles.placeholderTitle}>Ajouter le selfie</Text>
+                  <Text style={styles.placeholderTitle}>{t('kyc.addSelfie')}</Text>
                   <Text style={styles.placeholderHint}>JPG ou PNG • Max 8 Mo</Text>
                 </View>
               )}
@@ -445,7 +451,7 @@ export default function KycScreen() {
           activeOpacity={0.7}
         >
           <FontAwesome6 name="rectangle-xmark" size={14} color={Colors.textMuted} />
-          <Text style={styles.laterText}>Compléter plus tard</Text>
+          <Text style={styles.laterText}>{t('common.completeLater')}</Text>
         </TouchableOpacity>
       </ScrollView>\n      </KeyboardAvoidingView>
 
@@ -453,7 +459,7 @@ export default function KycScreen() {
       <Modal visible={countryModalVisible} animationType="slide" transparent={false}>
         <SafeAreaView style={[styles.modalContainer, { flex: 1 }]} edges={['top', 'bottom']}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Sélectionner un pays</Text>
+            <Text style={styles.modalTitle}>{t('kyc.selectCountry')}</Text>
             <TouchableOpacity onPress={() => { setCountryModalVisible(false); setCountrySearch(''); }}>
               <FontAwesome6 name="xmark" size={20} color={Colors.text} />
             </TouchableOpacity>
@@ -503,7 +509,7 @@ export default function KycScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   scroll: {
     padding: Spacing.lg,
   },

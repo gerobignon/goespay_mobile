@@ -15,11 +15,18 @@ import { Link, useRouter } from 'expo-router';
 import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
 import { authService } from '../../src/services/authService';
-import { Colors, Spacing, FontSize, Fonts } from '../../src/constants/theme';
+import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../../src/constants/theme';
 import { showAlert } from '../../src/stores/alertStore';
+import { useThemedStyles } from '../../src/hooks/useThemedStyles';
+import { useTheme } from '../../src/components/ThemeProvider';
+import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const styles = useThemedStyles(createStyles);
+  const { isDark } = useTheme();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [surname, setSurname] = useState('');
   const [name, setName] = useState('');
@@ -34,7 +41,7 @@ export default function RegisterScreen() {
   const passwordRef = useRef<TextInput>(null);
   const passwordConfirmationRef = useRef<TextInput>(null);
 
-  const fieldRefs: Record<string, React.RefObject<TextInput>> = {
+  const fieldRefs: Record<string, React.RefObject<TextInput | null>> = {
     surname: surnameRef,
     name: nameRef,
     email: emailRef,
@@ -45,17 +52,17 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     setFieldErrors({});
     if (!surname.trim() || !name.trim() || !email.trim() || !password.trim()) {
-      showAlert('Erreur', 'Veuillez remplir tous les champs.');
+      showAlert(t('common.error'), t('auth.register.fillAllFields', 'Veuillez remplir tous les champs.'));
       return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      setFieldErrors({ email: "L'adresse email n'est pas valide." });
+      setFieldErrors({ email: t('auth.register.invalidEmail', "L'adresse email n'est pas valide.") });
       emailRef.current?.focus();
       return;
     }
     if (password !== passwordConfirmation) {
-      setFieldErrors({ password_confirmation: 'Les mots de passe ne correspondent pas.' });
+      setFieldErrors({ password_confirmation: t('auth.register.passwordMismatch', 'Les mots de passe ne correspondent pas.') });
       passwordConfirmationRef.current?.focus();
       return;
     }
@@ -70,8 +77,8 @@ export default function RegisterScreen() {
         password_confirmation: passwordConfirmation,
       });
       showAlert(
-        'Inscription réussie',
-        'Un code de vérification a été envoyé à votre adresse email.',
+        t('auth.register.successTitle', 'Inscription réussie'),
+        t('auth.register.successMessage', 'Un code de vérification a été envoyé à votre adresse email.'),
         [{ text: 'OK', onPress: () => router.replace({ pathname: '/(auth)/activation', params: { email: email.trim() } }) }]
       );
     } catch (error: any) {
@@ -91,7 +98,7 @@ export default function RegisterScreen() {
           data?.message ||
           data?.error ||
           "Erreur lors de l'inscription.";
-        showAlert('Erreur', message);
+        showAlert(t('common.error'), message);
       }
     } finally {
       setLoading(false);
@@ -100,10 +107,11 @@ export default function RegisterScreen() {
 
   return (
     <ImageBackground
-      source={require('../../assets/bg_page.jpg')}
+      source={isDark ? require('../../assets/bg_page.jpg') : require('../../assets/bg_page_light.jpg')}
       style={styles.background}
     >
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+      <LanguageSwitcher />
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -114,14 +122,14 @@ export default function RegisterScreen() {
         >
           <View style={styles.logoContainer}>
             <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
-            <Text style={styles.subtitle}>Créer votre compte</Text>
+            <Text style={styles.subtitle}>{t('auth.register.title')}</Text>
           </View>
 
           <View style={styles.formCard}>
             <Input
               ref={surnameRef}
-              label="Nom"
-              placeholder="Votre nom"
+              label={t('auth.register.surname')}
+              placeholder={t('auth.register.surnamePlaceholder')}
               value={surname}
               onChangeText={(v) => { setSurname(v); setFieldErrors((e) => ({ ...e, surname: '' })); }}
               autoCapitalize="words"
@@ -130,8 +138,8 @@ export default function RegisterScreen() {
 
             <Input
               ref={nameRef}
-              label="Prénom"
-              placeholder="Votre prénom"
+              label={t('auth.register.name')}
+              placeholder={t('auth.register.namePlaceholder')}
               value={name}
               onChangeText={(v) => { setName(v); setFieldErrors((e) => ({ ...e, name: '' })); }}
               autoCapitalize="words"
@@ -140,8 +148,8 @@ export default function RegisterScreen() {
 
             <Input
               ref={emailRef}
-              label="Email"
-              placeholder="votre@email.com"
+              label={t('auth.register.email')}
+              placeholder={t('auth.register.emailPlaceholder')}
               value={email}
               onChangeText={(v) => { setEmail(v); setFieldErrors((e) => ({ ...e, email: '' })); }}
               keyboardType="email-address"
@@ -152,8 +160,8 @@ export default function RegisterScreen() {
 
             <Input
               ref={passwordRef}
-              label="Mot de passe"
-              placeholder="••••••••"
+              label={t('auth.register.password')}
+              placeholder={t('auth.register.passwordPlaceholder')}
               value={password}
               onChangeText={(v) => { setPassword(v); setFieldErrors((e) => ({ ...e, password: '' })); }}
               secureTextEntry
@@ -163,7 +171,7 @@ export default function RegisterScreen() {
 
             <Input
               ref={passwordConfirmationRef}
-              label="Confirmer le mot de passe"
+              label={t('auth.register.confirmPassword')}
               placeholder="••••••••"
               value={passwordConfirmation}
               onChangeText={(v) => { setPasswordConfirmation(v); setFieldErrors((e) => ({ ...e, password_confirmation: '' })); }}
@@ -172,7 +180,7 @@ export default function RegisterScreen() {
             />
 
             <Button
-              title="S'inscrire"
+              title={t('auth.register.submit')}
               onPress={handleRegister}
               icon="user-plus"
               loading={loading}
@@ -181,7 +189,7 @@ export default function RegisterScreen() {
 
             <View style={styles.links}>
               <Link href="/(auth)/login" style={styles.link}>
-                Déjà un compte ? Se connecter
+                {t('auth.register.alreadyAccount')}
               </Link>
             </View>
           </View>
@@ -192,7 +200,7 @@ export default function RegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   background: {
     flex: 1,
   },
@@ -201,8 +209,8 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flexGrow: 1,
-    justifyContent: 'center',
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.sm,
   },
   logoContainer: {
     alignItems: 'center',
@@ -211,19 +219,21 @@ const styles = StyleSheet.create({
   logo: {
     width: 180,
     height: 180,
-    marginBottom: Spacing.md,
   },
   subtitle: {
     fontSize: FontSize.lg,
-    color: 'rgba(255,255,255,0.8)',
+    color: Colors.text,
     fontFamily: Fonts.semiBold,
   },
   formCard: {
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: Colors.card,
     borderRadius: 16,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: Colors.border,
+    maxWidth: 460,
+    width: '100%',
+    alignSelf: 'center',
   },
   links: {
     alignItems: 'center',

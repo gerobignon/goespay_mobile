@@ -3,16 +3,23 @@ import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platfor
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
-import { Colors, Spacing, FontSize, Fonts } from '../../src/constants/theme';
+import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../../src/constants/theme';
 import { Input } from '../../src/components/Input';
 import { OtpInput } from '../../src/components/OtpInput';
 import { Button } from '../../src/components/Button';
 import { authService } from '../../src/services/authService';
 import { showAlert } from '../../src/stores/alertStore';
+import { useThemedStyles } from '../../src/hooks/useThemedStyles';
+import { useTheme } from '../../src/components/ThemeProvider';
+import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
 
 export default function ActivationScreen() {
   const { email } = useLocalSearchParams<{ email: string }>();
   const router = useRouter();
+  const styles = useThemedStyles(createStyles);
+  const { isDark } = useTheme();
+  const { t } = useTranslation();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -30,13 +37,13 @@ export default function ActivationScreen() {
     try {
       await authService.verifyEmail(currentEmail, code.trim());
       showAlert(
-        'Compte activé',
-        'Votre adresse email a été vérifiée. Vous pouvez maintenant vous connecter.',
+        t('auth.activation.activated', 'Compte activé'),
+        t('auth.activation.activatedMessage', 'Votre adresse email a été vérifiée. Vous pouvez maintenant vous connecter.'),
         [{ text: 'OK', onPress: () => router.replace('/(auth)/login') }]
       );
     } catch (error: any) {
-      const msg = error?.response?.data?.error || 'Code de vérification incorrect.';
-      showAlert('Erreur', msg);
+      const msg = error?.response?.data?.error || t('auth.activation.invalidCode');
+      showAlert(t('common.error'), msg);
     } finally {
       setLoading(false);
     }
@@ -46,10 +53,10 @@ export default function ActivationScreen() {
     setResending(true);
     try {
       await authService.resendVerification(currentEmail);
-      showAlert('Envoyé', 'Un nouveau code a été envoyé à votre adresse email.');
+      showAlert(t('auth.activation.sent', 'Envoyé'), t('auth.activation.newCodeSent', 'Un nouveau code a été envoyé à votre adresse email.'));
     } catch (error: any) {
-      const msg = error?.response?.data?.error || 'Erreur lors de l\'envoi.';
-      showAlert('Erreur', msg);
+      const msg = error?.response?.data?.error || t('auth.activation.sendError');
+      showAlert(t('common.error'), msg);
     } finally {
       setResending(false);
     }
@@ -57,7 +64,7 @@ export default function ActivationScreen() {
 
   const handleChangeEmail = async () => {
     if (!newEmail.trim() || !/\S+@\S+\.\S+/.test(newEmail)) {
-      showAlert('Erreur', 'Veuillez entrer une adresse email valide.');
+      showAlert(t('common.error'), t('auth.activation.invalidEmail', 'Veuillez entrer une adresse email valide.'));
       return;
     }
     setChangingEmail(true);
@@ -67,39 +74,40 @@ export default function ActivationScreen() {
       setNewEmail('');
       setShowChangeEmail(false);
       setCode('');
-      showAlert('Succès', `Adresse email modifiée. Un nouveau code a été envoyé à ${newEmail.trim()}.`);
+      showAlert(t('common.success'), t('auth.activation.emailChanged', `Adresse email modifiée. Un nouveau code a été envoyé à ${newEmail.trim()}.`));
     } catch (error: any) {
-      const msg = error?.response?.data?.error || 'Erreur lors du changement d\'email.';
-      showAlert('Erreur', msg);
+      const msg = error?.response?.data?.error || t('auth.activation.emailChangeError');
+      showAlert(t('common.error'), msg);
     } finally {
       setChangingEmail(false);
     }
   };
 
   return (
-    <ImageBackground source={require('../../assets/bg_page.jpg')} style={{ flex: 1 }}>
+    <ImageBackground source={isDark ? require('../../assets/bg_page.jpg') : require('../../assets/bg_page_light.jpg')} style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+      <LanguageSwitcher />
       <KeyboardAvoidingView
-      style={styles.container}
+      style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-    <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.lg }} keyboardShouldPersistTaps="handled">
       <FontAwesome6
         name="envelope-circle-check"
         size={64}
         color={Colors.secondary}
         style={{ marginBottom: Spacing.lg }}
       />
-      <Text style={styles.title}>Vérification email</Text>
+      <Text style={styles.title}>{t('auth.activation.title', 'Vérification email')}</Text>
       <Text style={styles.message}>
-        Un code de vérification a été envoyé à{'\n'}
+        {t('auth.activation.codeSentTo', 'Un code de vérification a été envoyé à')}{' '}
         <Text style={styles.emailText}>{currentEmail}</Text>
       </Text>
 
       <View style={styles.form}>
         <OtpInput value={code} onChange={setCode} onComplete={handleVerify} />
         <Button
-          title="Vérifier"
+          title={t('auth.activation.verify', 'Vérifier')}
           onPress={handleVerify}
           loading={loading}
           disabled={code.length !== 6}
@@ -109,18 +117,18 @@ export default function ActivationScreen() {
 
       <TouchableOpacity onPress={handleResend} disabled={resending} style={styles.resendBtn}>
         <Text style={styles.resendText}>
-          {resending ? 'Envoi en cours...' : 'Renvoyer le code'}
+          {resending ? t('auth.activation.sending', 'Envoi en cours...') : t('auth.forgotPassword.resendCode')}
         </Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => setShowChangeEmail(!showChangeEmail)} style={styles.resendBtn}>
-        <Text style={styles.changeEmailText}>Changer l'adresse email</Text>
+        <Text style={styles.changeEmailText}>{t('auth.activation.changeEmail', "Changer l'adresse email")}</Text>
       </TouchableOpacity>
 
       {showChangeEmail && (
         <View style={styles.changeEmailForm}>
           <Input
-            label="Nouvelle adresse email"
+            label={t('auth.activation.newEmail', 'Nouvelle adresse email')}
             placeholder="nouvelle@email.com"
             value={newEmail}
             onChangeText={setNewEmail}
@@ -128,7 +136,7 @@ export default function ActivationScreen() {
             autoCapitalize="none"
           />
           <Button
-            title="Confirmer le changement"
+            title={t('auth.activation.confirmChange', 'Confirmer le changement')}
             onPress={handleChangeEmail}
             loading={changingEmail}
             icon="envelope"
@@ -137,7 +145,7 @@ export default function ActivationScreen() {
       )}
 
       <Link href="/(auth)/login" style={styles.link}>
-        Retour à la connexion
+        {t('auth.forgotPassword.backToLogin')}
       </Link>
     </ScrollView>
     </KeyboardAvoidingView>
@@ -146,12 +154,9 @@ export default function ActivationScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.lg,
   },
   title: {
     fontSize: FontSize.xxl,

@@ -12,8 +12,8 @@ const DEV_API = Platform.select({
 
 const PROD_API = 'https://goespay.io/api/mobile/v1';
 
-export const API_BASE_URL = __DEV__ ? DEV_API : PROD_API;
-// export const API_BASE_URL = PROD_API;
+// export const API_BASE_URL = __DEV__ ? DEV_API : PROD_API;
+export const API_BASE_URL = PROD_API;
 
 export const OPERATORS = [
   // Bénin
@@ -47,6 +47,15 @@ export const TRANSACTION_STATUS: Record<string, { label: string; color: string }
   failed: { label: 'Échoué', color: '#ff295b' },
   fail: { label: 'Échoué', color: '#ff295b' },
 } as const;
+
+export function getTransactionStatus(t: (key: string) => string): Record<string, { label: string; color: string }> {
+  return {
+    success: { label: t('transaction.statusSuccess'), color: '#3176FE' },
+    wait: { label: t('transaction.statusWait'), color: '#F4B228' },
+    failed: { label: t('transaction.statusFailed'), color: '#ff295b' },
+    fail: { label: t('transaction.statusFailed'), color: '#ff295b' },
+  };
+}
 
 export const COUNTRIES = [
   { code: 'BJ', name: 'Bénin', prefix: '+229' },

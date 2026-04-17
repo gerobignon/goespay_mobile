@@ -13,8 +13,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
-import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
+import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
+import { useThemedStyles } from '../hooks/useThemedStyles';
 import { CustomAlert } from './CustomAlert';
+import { useTranslation } from 'react-i18next';
 
 interface CryptoSellDetailsModalProps {
   visible: boolean;
@@ -38,6 +40,8 @@ interface CryptoSellDetailsModalProps {
 
 export function CryptoSellDetailsModal({ visible, onClose, data }: CryptoSellDetailsModalProps) {
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(createStyles);
+  const { t } = useTranslation();
   const [timeLeft, setTimeLeft] = useState<{ hours: number; minutes: number; seconds: number } | null>(null);
   const [isCopied, setIsCopied] = useState(false);
 
@@ -105,7 +109,7 @@ export function CryptoSellDetailsModal({ visible, onClose, data }: CryptoSellDet
                   {'⚠️  Tout autre montant entraîne une perte définitive'}
                 </Text>
                 <Text style={styles.receiveText}>
-                  {'Vous recevrez ≈ '}{Math.round(xofAmount).toLocaleString('fr-FR')}{' XOF'}
+                  {t('cryptoModal.youWillReceive')}{Math.round(xofAmount).toLocaleString('fr-FR')}{' XOF'}
                 </Text>
 
                 {/* QR */}
@@ -122,7 +126,7 @@ export function CryptoSellDetailsModal({ visible, onClose, data }: CryptoSellDet
                   <Text style={styles.fieldLabel}>Adresse de dépôt</Text>
                   <Text style={styles.addressText}>{address}</Text>
                   <Text style={[styles.tapToCopy, isCopied && { color: Colors.success }]}>
-                    {isCopied ? '✓  Adresse copiée !' : 'Appuyer pour copier'}
+                    {isCopied ? t('common.addressCopied') : t('common.tapToCopy')}
                   </Text>
                 </TouchableOpacity>
 
@@ -163,7 +167,7 @@ export function CryptoSellDetailsModal({ visible, onClose, data }: CryptoSellDet
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.85)',
@@ -173,14 +177,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
     borderTopLeftRadius: BorderRadius.xl,
     borderTopRightRadius: BorderRadius.xl,
-    padding: Spacing.lg,
+    padding: Spacing.md,
     overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.sm,
   },
   title: {
     fontSize: FontSize.xl,
@@ -213,7 +217,7 @@ const styles = StyleSheet.create({
     fontSize: FontSize.lg,
     color: Colors.secondary,
     fontFamily: Fonts.bold,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.sm,
     textAlign: 'center',
   },
   qrSection: {
@@ -229,9 +233,9 @@ const styles = StyleSheet.create({
   addressBox: {
     backgroundColor: Colors.inputBg,
     borderRadius: BorderRadius.md,
-    padding: Spacing.md,
+    padding: Spacing.sm,
     alignItems: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.sm,
     borderWidth: 1,
     borderColor: Colors.border,
   },

@@ -16,13 +16,20 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { saveCredentials } from '../../src/services/secureAuthService';
 import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
-import { Colors, Spacing, FontSize, Fonts } from '../../src/constants/theme';
+import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../../src/constants/theme';
 import { showAlert } from '../../src/stores/alertStore';
 import { authService } from '../../src/services/authService';
 import { OtpInput } from '../../src/components/OtpInput';
+import { useThemedStyles } from '../../src/hooks/useThemedStyles';
+import { useTheme } from '../../src/components/ThemeProvider';
+import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const styles = useThemedStyles(createStyles);
+  const { isDark } = useTheme();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -36,7 +43,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      showAlert('Erreur', 'Veuillez remplir tous les champs.');
+      showAlert(t('common.error'), t('auth.login.fillAllFields', 'Veuillez remplir tous les champs.'));
       return;
     }
     setLoading(true);
@@ -61,17 +68,17 @@ export default function LoginScreen() {
       // If account requires email activation, redirect to activation screen
       if (error?.response?.status === 403 && error?.response?.data?.requires_activation) {
         showAlert(
-          'Email non vérifié',
-          'Veuillez vérifier votre adresse email pour activer votre compte.',
-          [{ text: 'Vérifier', onPress: () => router.push({ pathname: '/(auth)/activation', params: { email: error.response.data.email } }) }]
+          t('auth.login.emailNotVerified', 'Email non vérifié'),
+          t('auth.login.verifyEmail', 'Veuillez vérifier votre adresse email pour activer votre compte.'),
+          [{ text: t('auth.login.verify', 'Vérifier'), onPress: () => router.push({ pathname: '/(auth)/activation', params: { email: error.response.data.email } }) }]
         );
         return;
       }
       const message =
         error?.response?.data?.message ||
         error?.response?.data?.error ||
-        'Identifiants incorrects.';
-      showAlert('Erreur de connexion', message);
+        t('auth.login.incorrectCredentials');
+      showAlert(t('auth.login.loginError', 'Erreur de connexion'), message);
     } finally {
       setLoading(false);
     }
@@ -79,7 +86,7 @@ export default function LoginScreen() {
 
   const handleVerify2fa = async () => {
     if (twoFaCode.length !== 6) {
-      showAlert('Erreur', 'Entrez un code à 6 chiffres.');
+      showAlert(t('common.error'), t('auth.login.enter6digits', 'Entrez un code à 6 chiffres.'));
       return;
     }
     setTwoFaLoading(true);
@@ -88,7 +95,7 @@ export default function LoginScreen() {
       await loginWithToken(response.token!, response.user!, rememberMe);
       await saveCredentials(email.trim(), password);
     } catch (error: any) {
-      showAlert('Erreur', error?.response?.data?.error || 'Code incorrect.');
+      showAlert(t('common.error'), error?.response?.data?.error || t('auth.login.incorrectCode', 'Code incorrect.'));
     } finally {
       setTwoFaLoading(false);
     }
@@ -96,10 +103,11 @@ export default function LoginScreen() {
 
   return (
     <ImageBackground
-      source={require('../../assets/bg_page.jpg')}
+      source={isDark ? require('../../assets/bg_page.jpg') : require('../../assets/bg_page_light.jpg')}
       style={styles.background}
     >
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+      <LanguageSwitcher />
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -110,28 +118,28 @@ export default function LoginScreen() {
         >
           <View style={styles.logoContainer}>
             <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
-            <Text style={styles.subtitle}>Votre wallet Mobile Money</Text>
+            <Text style={styles.subtitle}>{t('auth.login.subtitle')}</Text>
           </View>
 
           <View style={styles.formCard}>
             {twoFaRequired ? (
               <>
                 <Text style={{ color: Colors.text, fontFamily: Fonts.semiBold, fontSize: FontSize.lg, marginBottom: Spacing.sm, textAlign: 'center' }}>
-                  Double authentification
+                  {t('auth.login.twoFaTitle')}
                 </Text>
                 <Text style={{ color: Colors.textMuted, fontSize: FontSize.sm, marginBottom: Spacing.md, textAlign: 'center' }}>
-                  Entrez le code à 6 chiffres de votre application d'authentification.
+                  {t('auth.login.twoFaHint')}
                 </Text>
                 <OtpInput value={twoFaCode} onChange={setTwoFaCode} onComplete={handleVerify2fa} />
                 <Button
-                  title="Vérifier"
+                  title={t('auth.login.twoFaVerify')}
                   onPress={handleVerify2fa}
                   icon="shield-halved"
                   loading={twoFaLoading}
                   style={{ marginTop: Spacing.md }}
                 />
                 <Button
-                  title="Annuler"
+                  title={t('common.cancel')}
                   onPress={() => { setTwoFaRequired(false); setTempToken(''); setTwoFaCode(''); }}
                   variant="outline"
                   style={{ marginTop: Spacing.sm }}
@@ -140,8 +148,8 @@ export default function LoginScreen() {
             ) : (
               <>
             <Input
-              label="Email"
-              placeholder="votre@email.com"
+              label={t('auth.login.email')}
+              placeholder={t('auth.login.emailPlaceholder')}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -150,8 +158,8 @@ export default function LoginScreen() {
             />
 
             <Input
-              label="Mot de passe"
-              placeholder="••••••••"
+              label={t('auth.login.password')}
+              placeholder={t('auth.login.passwordPlaceholder')}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -159,7 +167,7 @@ export default function LoginScreen() {
             />
 
             <View style={styles.rememberRow}>
-              <Text style={styles.rememberText}>Se souvenir de moi</Text>
+              <Text style={styles.rememberText}>{t('auth.login.rememberMe')}</Text>
               <Switch
                 value={rememberMe}
                 onValueChange={setRememberMe}
@@ -169,7 +177,7 @@ export default function LoginScreen() {
             </View>
 
             <Button
-              title="Se connecter"
+              title={t('auth.login.submit')}
               onPress={handleLogin}
               icon="right-to-bracket"
               loading={loading}
@@ -178,10 +186,10 @@ export default function LoginScreen() {
 
             <View style={styles.links}>
               <Link href="/(auth)/forgot-password" style={styles.link}>
-                Mot de passe oublié ?
+                {t('auth.login.forgotPassword')}
               </Link>
               <Link href="/(auth)/register" style={styles.link}>
-                Créer un compte
+                {t('auth.login.createAccount')}
               </Link>
             </View>
             </>
@@ -194,7 +202,7 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   background: {
     flex: 1,
   },
@@ -204,29 +212,30 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flexGrow: 1,
-    justifyContent: 'center',
-    padding: Spacing.lg,
-  },
-  logoContainer: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.sm,
+  },  logoContainer: {
     alignItems: 'center',
     marginBottom: Spacing.xl,
   },
   logo: {
     width: 180,
     height: 180,
-    marginBottom: Spacing.md,
   },
   subtitle: {
     fontSize: FontSize.lg,
-    color: 'rgba(255,255,255,0.8)',
+    color: Colors.text,
     fontFamily: Fonts.semiBold,
   },
   formCard: {
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: Colors.card,
     borderRadius: 16,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: Colors.border,
+    maxWidth: 460,
+    width: '100%',
+    alignSelf: 'center',
   },
   links: {
     flexDirection: 'row',

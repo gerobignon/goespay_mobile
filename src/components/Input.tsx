@@ -9,7 +9,8 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
-import { Colors, BorderRadius, FontSize, Spacing, Fonts } from '../constants/theme';
+import { Colors, type ColorPalette, BorderRadius, FontSize, Spacing, Fonts } from '../constants/theme';
+import { useThemedStyles } from '../hooks/useThemedStyles';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -23,6 +24,7 @@ export const Input = forwardRef<RNTextInput, InputProps>(function Input(
   { label, error, containerStyle, style, secureTextEntry, rightAction, prefix, ...props },
   ref
 ) {
+  const styles = useThemedStyles(createStyles);
   const [showPassword, setShowPassword] = useState(false);
   const isPassword = secureTextEntry;
 
@@ -72,7 +74,7 @@ export const Input = forwardRef<RNTextInput, InputProps>(function Input(
   );
 });
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     marginBottom: Spacing.md,
   },

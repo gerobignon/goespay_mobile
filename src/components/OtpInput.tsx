@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, TextInput, StyleSheet, NativeSyntheticEvent, TextInputKeyPressEventData } from 'react-native';
-import { Colors, BorderRadius, FontSize, Spacing, Fonts } from '../constants/theme';
+import { View, Text, TextInput, StyleSheet, NativeSyntheticEvent, TextInputKeyPressEventData } from 'react-native';
+import { Colors, type ColorPalette, BorderRadius, FontSize, Spacing, Fonts } from '../constants/theme';
+import { useThemedStyles } from '../hooks/useThemedStyles';
 
 interface OtpInputProps {
   value: string;
@@ -10,6 +11,7 @@ interface OtpInputProps {
 }
 
 export function OtpInput({ value, onChange, length = 6, onComplete }: OtpInputProps) {
+  const styles = useThemedStyles(createStyles);
   const inputs = useRef<(TextInput | null)[]>([]);
 
   const digits = Array.from({ length }, (_, i) => value[i] || '');
@@ -52,36 +54,45 @@ export function OtpInput({ value, onChange, length = 6, onComplete }: OtpInputPr
   return (
     <View style={styles.row}>
       {Array.from({ length }, (_, i) => (
-        <TextInput
-          key={i}
-          ref={(ref) => { inputs.current[i] = ref; }}
-          style={[styles.cell, digits[i] ? styles.cellFilled : null]}
-          value={digits[i]}
-          onChangeText={(t) => handleChange(t, i)}
-          onKeyPress={(e) => handleKeyPress(e, i)}
-          keyboardType="number-pad"
-          maxLength={length} // allow paste
-          textAlign="center"
-          selectionColor={Colors.secondary}
-          placeholderTextColor={Colors.textMuted}
-          placeholder="·"
-          autoComplete="one-time-code"
-        />
+        <View key={i} style={styles.cellWrapper}>
+          <TextInput
+            ref={(ref) => { inputs.current[i] = ref; }}
+            style={[styles.cell, digits[i] ? styles.cellFilled : null]}
+            value={digits[i]}
+            onChangeText={(t) => handleChange(t, i)}
+            onKeyPress={(e) => handleKeyPress(e, i)}
+            keyboardType="number-pad"
+            maxLength={length}
+            textAlign="center"
+            selectionColor={Colors.secondary}
+            autoComplete="one-time-code"
+          />
+          {!digits[i] && (
+            <View style={styles.dotOverlay} pointerEvents="none">
+              <Text style={styles.dotText}>·</Text>
+            </View>
+          )}
+        </View>
       ))}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: Spacing.sm,
     marginBottom: Spacing.md,
   },
+  cellWrapper: {
+    position: 'relative',
+    width: 40,
+    height: 52,
+  },
   cell: {
-    width: 48,
-    height: 56,
+    width: 40,
+    height: 52,
     backgroundColor: Colors.inputBg,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
@@ -92,5 +103,20 @@ const styles = StyleSheet.create({
   },
   cellFilled: {
     borderColor: Colors.secondary,
+  },
+  dotOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dotText: {
+    color: Colors.textMuted,
+    fontSize: 28,
+    lineHeight: 32,
+    textAlign: 'center',
   },
 });

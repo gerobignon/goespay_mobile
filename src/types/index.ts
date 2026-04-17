@@ -46,6 +46,25 @@ export interface Transaction {
   updated_at?: string;
 }
 
+export interface SavedPhone {
+  id: number;
+  name?: string;
+  tel: string;
+  type?: 'transfer' | 'deposit';
+  operator?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface SavedWallet {
+  id: number;
+  name?: string;
+  currency: string;
+  address: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;

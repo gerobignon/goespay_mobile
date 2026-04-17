@@ -56,7 +56,7 @@ export const walletService = {
     return response.data;
   },
 
-  getDepositStatus: async (depositId: number): Promise<{ deposit_id: number; statut: 'wait' | 'success' | 'fail'; amount: number; type: string }> => {
+  getDepositStatus: async (depositId: number): Promise<{ deposit_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; type: string }> => {
     const response = await api.get(`/deposit/status/${depositId}`);
     return response.data;
   },
@@ -80,6 +80,51 @@ export const walletService = {
 
   addNote: async (data: { transaction_id: number; message: string }): Promise<any> => {
     const response = await api.post('/wallet/note', data);
+    return response.data;
+  },
+
+  getSavedPhones: async (params?: { type?: 'transfer' | 'deposit'; operator?: string }): Promise<any[]> => {
+    const response = await api.get('/user/phones', { params });
+    return response.data?.data ?? response.data ?? [];
+  },
+
+  saveSavedPhone: async (data: { label: string; phone: string; operator: string }): Promise<any> => {
+    const response = await api.post('/user/phones', data);
+    return response.data;
+  },
+
+  createSavedPhone: async (data: { tel: string; name?: string; type?: 'transfer' | 'deposit'; operator?: string }): Promise<any> => {
+    const response = await api.post('/user/phones', data);
+    return response.data?.data ?? response.data;
+  },
+
+  updateSavedPhone: async (id: number, data: { tel?: string; name?: string; type?: 'transfer' | 'deposit'; operator?: string }): Promise<any> => {
+    const response = await api.put(`/user/phones/${id}`, data);
+    return response.data?.data ?? response.data;
+  },
+
+  deleteSavedPhone: async (id: number): Promise<any> => {
+    const response = await api.delete(`/user/phones/${id}`);
+    return response.data;
+  },
+
+  getSavedWallets: async (): Promise<any[]> => {
+    const response = await api.get('/user/wallets');
+    return response.data?.data ?? response.data ?? [];
+  },
+
+  createSavedWallet: async (data: Record<string, any>): Promise<any> => {
+    const response = await api.post('/user/wallets', data);
+    return response.data?.data ?? response.data;
+  },
+
+  updateSavedWallet: async (id: number, data: Record<string, any>): Promise<any> => {
+    const response = await api.put(`/user/wallets/${id}`, data);
+    return response.data?.data ?? response.data;
+  },
+
+  deleteSavedWallet: async (id: number): Promise<any> => {
+    const response = await api.delete(`/user/wallets/${id}`);
     return response.data;
   },
 };

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import * as SecureStore from 'expo-secure-store';
+import { SafeStorage } from '../services/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User } from '../types';
 import { authService } from '../services/authService';
@@ -34,7 +34,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   login: async (email, password, remember = false) => {
     const response = await authService.login({ email, password });
-    await SecureStore.setItemAsync('auth_token', response.token!);
+    await SafeStorage.setItem('auth_token', response.token!);
     await AsyncStorage.setItem(REMEMBER_KEY, remember ? '1' : '0');
     if (remember) {
       await AsyncStorage.setItem(CACHED_USER_KEY, JSON.stringify(response.user));
@@ -48,7 +48,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   loginWithToken: async (token, user, remember = false) => {
-    await SecureStore.setItemAsync('auth_token', token);
+    await SafeStorage.setItem('auth_token', token);
     await AsyncStorage.setItem(REMEMBER_KEY, remember ? '1' : '0');
     if (remember) {
       await AsyncStorage.setItem(CACHED_USER_KEY, JSON.stringify(user));
@@ -57,7 +57,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    await SecureStore.deleteItemAsync('auth_token');
+    await SafeStorage.removeItem('auth_token');
     await AsyncStorage.multiRemove([REMEMBER_KEY, CACHED_USER_KEY, CACHED_BALANCE_KEY]);
     await clearPin();
     await setLockMethod(null);
@@ -67,7 +67,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   loadToken: async () => {
     try {
-      const token = await SecureStore.getItemAsync('auth_token');
+      const token = await SafeStorage.getItem('auth_token');
       const remember = (await AsyncStorage.getItem(REMEMBER_KEY)) === '1';
 
       if (!token) {
@@ -99,16 +99,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // If not remembered, clear everything
       const remember = (await AsyncStorage.getItem(REMEMBER_KEY)) === '1';
       if (!remember) {
-        await SecureStore.deleteItemAsync('auth_token');
+        await SafeStorage.removeItem('auth_token');
         set({ token: null, user: null, isAuthenticated: false, isLoading: false });
       } else {
         // Remembered but offline: try cached data
         const cachedUser = await AsyncStorage.getItem(CACHED_USER_KEY);
-        const token = await SecureStore.getItemAsync('auth_token');
+        const token = await SafeStorage.getItem('auth_token');
         if (cachedUser && token) {
           set({ token, user: JSON.parse(cachedUser), isAuthenticated: true, isLoading: false, rememberMe: true });
         } else {
-          await SecureStore.deleteItemAsync('auth_token');
+          await SafeStorage.removeItem('auth_token');
           set({ token: null, user: null, isAuthenticated: false, isLoading: false });
         }
       }

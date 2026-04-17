@@ -8,7 +8,8 @@ import {
   Animated,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
-import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
+import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
+import { useThemedStyles } from '../hooks/useThemedStyles';
 
 interface Props {
   label: string;
@@ -34,6 +35,7 @@ export function TransactionDetailRow({
   mono,
   color,
 }: Props) {
+  const styles = useThemedStyles(createStyles);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -74,32 +76,31 @@ export function TransactionDetailRow({
   };
 
   return (
-    <View style={styles.row}>
+    <TouchableOpacity
+      style={styles.row}
+      onPress={copyable && value !== '—' ? handleCopy : undefined}
+      activeOpacity={copyable && value !== '—' ? 0.6 : 1}
+      disabled={!copyable || value === '—'}
+    >
       <Text style={styles.rowLabel}>{label}</Text>
       <View style={styles.valueCol}>
         {renderValue()}
         {copyable && value !== '—' && (
-          <TouchableOpacity
-            onPress={handleCopy}
-            activeOpacity={0.6}
-            style={styles.copyBtn}
-          >
-            <FontAwesome6
-              name={copied ? 'circle-check' : 'clipboard'}
-              size={13}
-              color={copied ? '#3ecf8e' : Colors.textMuted}
-            />
-            {copied && (
-              <Text style={styles.copiedLabel}>Copié !</Text>
-            )}
-          </TouchableOpacity>
+          <FontAwesome6
+            name={copied ? 'circle-check' : 'clipboard'}
+            size={13}
+            color={copied ? '#3ecf8e' : Colors.textMuted}
+          />
+        )}
+        {copied && (
+          <Text style={styles.copiedLabel}>Copié !</Text>
         )}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',

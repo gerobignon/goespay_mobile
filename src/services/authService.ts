@@ -131,7 +131,7 @@ export const authService = {
     return response.data;
   },
 
-  enable2fa: async (): Promise<{ qr_svg: string; secret: string; recovery_codes: string[] }> => {
+  enable2fa: async (): Promise<{ qr_url: string; qr_svg?: string; secret: string; recovery_codes: string[] }> => {
     const response = await api.post('/2fa/enable');
     return response.data;
   },

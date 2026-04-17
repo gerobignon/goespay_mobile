@@ -11,12 +11,16 @@ import {
 import { useRouter } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
-import { Colors, Spacing, FontSize, Fonts, BorderRadius } from '../../src/constants/theme';
+import { Colors, type ColorPalette, Spacing, FontSize, Fonts, BorderRadius } from '../../src/constants/theme';
 import { showAlert } from '../../src/stores/alertStore';
 import { CustomAlert } from '../../src/components/CustomAlert';
+import { useResponsive } from '../../src/hooks/useResponsive';
+import { useThemedStyles } from '../../src/hooks/useThemedStyles';
+import { useTheme } from '../../src/components/ThemeProvider';
+import { useTranslation } from 'react-i18next';
 
 const open = (url: string) =>
-  Linking.openURL(url).catch(() => showAlert('Erreur', "Impossible d'ouvrir ce lien."));
+  Linking.openURL(url).catch(() => {});
 
 const CHANNELS = [
   {
@@ -50,6 +54,7 @@ const CHANNELS = [
     icon: 'phone' as const,
     brand: false,
     label: 'Téléphone',
+    labelKey: 'support.phone',
     sublabel: '+237 659 939 340',
     color: '#ff295b',
     bg: 'rgba(255,41,91,0.15)',
@@ -57,26 +62,33 @@ const CHANNELS = [
   },
 ];
 
-const SOCIALS = [
-  { icon: 'telegram' as const, brand: true, color: Colors.primary, url: 'https://t.me/goespay' },
-  { icon: 'whatsapp' as const, brand: true, color: '#25D366', url: 'https://wa.me/22962965500' },
-  { icon: 'facebook-f' as const, brand: true, color: Colors.primary, url: 'http://fb.me/goespaay' },
-  { icon: 'instagram' as const, brand: true, color: '#E1306C', url: 'http://instagram.com/goespaay' },
-  { icon: 'x-twitter' as const, brand: true, color: Colors.text, url: 'http://twitter.com/goespaay' },
-  { icon: 'youtube' as const, brand: true, color: '#FF0000', url: 'https://youtube.com/channel/UCxooykyhvHYo_zAI1yckRsw/?sub_confirmation=1' },
-];
-
 export default function SupportScreen() {
   const router = useRouter();
+  const { isWide } = useResponsive();
+  const styles = useThemedStyles(createStyles);
+  const { isDark } = useTheme();
+  const { t } = useTranslation();
+
+  const SOCIALS = [
+    { icon: 'telegram' as const, brand: true, color: Colors.primary, url: 'https://t.me/goespay' },
+    { icon: 'whatsapp' as const, brand: true, color: '#25D366', url: 'https://wa.me/22962965500' },
+    { icon: 'facebook-f' as const, brand: true, color: Colors.primary, url: 'http://fb.me/goespaay' },
+    { icon: 'instagram' as const, brand: true, color: '#E1306C', url: 'http://instagram.com/goespaay' },
+    { icon: 'x-twitter' as const, brand: true, color: isDark ? '#fff' : '#000', url: 'http://twitter.com/goespaay' },
+    { icon: 'youtube' as const, brand: true, color: '#FF0000', url: 'https://youtube.com/channel/UCxooykyhvHYo_zAI1yckRsw/?sub_confirmation=1' },
+  ];
   return (
     <ScreenBackground edges={['top']}>
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[
+          styles.scroll,
+          isWide && { alignSelf: 'center', width: '100%', maxWidth: 800 },
+        ]} showsVerticalScrollIndicator={false}>
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity onPress={() => router.back()}>
               <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
             </TouchableOpacity>
-            <Text style={styles.title}>Support</Text>
+            <Text style={styles.title}>{t('support.title')}</Text>
           </View>
 
           {/* Canaux de contact */}
@@ -87,7 +99,7 @@ export default function SupportScreen() {
                   <FontAwesome6 name={ch.icon} size={20} color={ch.color} iconStyle={ch.brand ? 'brands' : 'solid'} />
                 </View>
                 <View style={styles.cardBody}>
-                  <Text style={styles.cardLabel}>{ch.label}</Text>
+                  <Text style={styles.cardLabel}>{ch.labelKey ? t(ch.labelKey) : ch.label}</Text>
                   <Text style={styles.cardSub}>{ch.sublabel}</Text>
                 </View>
                 <FontAwesome6 name="arrow-right" size={13} color={Colors.textMuted} />
@@ -97,7 +109,7 @@ export default function SupportScreen() {
 
           {/* Réseaux sociaux */}
           <View style={styles.socialSection}>
-            <Text style={styles.socialTitle}>RETROUVEZ-NOUS</Text>
+            <Text style={styles.socialTitle}>{t('support.followUs')}</Text>
             <View style={styles.socialRow}>
               {SOCIALS.map((s) => (
                 <TouchableOpacity key={s.url} onPress={() => open(s.url)} style={styles.socialBtn} activeOpacity={0.7}>
@@ -112,7 +124,7 @@ export default function SupportScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   scroll: {
     padding: Spacing.lg,
     paddingBottom: Spacing.md,

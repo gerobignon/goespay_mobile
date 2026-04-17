@@ -19,13 +19,20 @@ import {
   authenticateWithBiometric,
 } from '../../src/services/secureAuthService';
 import { Image } from 'react-native';
-import { Colors, Spacing, FontSize, Fonts } from '../../src/constants/theme';
+import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../../src/constants/theme';
+import { useThemedStyles } from '../../src/hooks/useThemedStyles';
+import { useTheme } from '../../src/components/ThemeProvider';
+import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
 
 type Step = 'choose' | 'enter-pin' | 'confirm-pin' | 'done';
 
 export default function SetupPinScreen() {
   const router = useRouter();
   const { setMethod, unlock } = usePinStore();
+  const styles = useThemedStyles(createStyles);
+  const { isDark } = useTheme();
+  const { t } = useTranslation();
 
   const [step, setStep] = useState<Step>('choose');
   const [firstPin, setFirstPin] = useState('');
@@ -47,7 +54,7 @@ export default function SetupPinScreen() {
       unlock();
       router.replace('/(tabs)');
     } else {
-      setError('Biométrie échouée. Réessayez ou utilisez un PIN.');
+      setError(t('auth.pin.biometricFailed'));
     }
   };
 
@@ -60,7 +67,7 @@ export default function SetupPinScreen() {
 
   const handleConfirmPin = async (pin: string) => {
     if (pin !== firstPin) {
-      setError('Les PIN ne correspondent pas. Réessayez.');
+      setError(t('auth.pin.pinMismatch'));
       setResetTrigger((v) => !v);
       setStep('enter-pin');
       setFirstPin('');
@@ -80,10 +87,11 @@ export default function SetupPinScreen() {
 
   return (
     <ImageBackground
-      source={require('../../assets/bg_page.jpg')}
+      source={isDark ? require('../../assets/bg_page.jpg') : require('../../assets/bg_page_light.jpg')}
       style={styles.bg}
     >
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+      <LanguageSwitcher />
       <ScrollView contentContainerStyle={styles.container}>
         <Image
           source={require('../../assets/logo_min.png')}
@@ -93,10 +101,9 @@ export default function SetupPinScreen() {
 
         {step === 'choose' && (
           <View style={styles.content}>
-            <Text style={styles.title}>Sécurisez votre compte</Text>
+            <Text style={styles.title}>{t('auth.pin.secureAccount', 'Sécurisez votre compte')}</Text>
             <Text style={styles.subtitle}>
-              Choisissez comment vous souhaitez déverrouiller l'application.
-              Cette étape est obligatoire.
+              {t('auth.pin.chooseMethod', "Choisissez comment vous souhaitez déverrouiller l'application. Cette étape est obligatoire.")}
             </Text>
 
             <TouchableOpacity style={styles.option} onPress={handleChoosePin}>
@@ -104,8 +111,8 @@ export default function SetupPinScreen() {
                 <FontAwesome6 name="hashtag" size={22} color={Colors.primary} />
               </View>
               <View style={styles.optionText}>
-                <Text style={styles.optionTitle}>Code PIN</Text>
-                <Text style={styles.optionDesc}>4 chiffres à saisir à chaque ouverture</Text>
+                <Text style={styles.optionTitle}>{t('account.pin', 'Code PIN')}</Text>
+                <Text style={styles.optionDesc}>{t('auth.pin.pinDesc', '4 chiffres à saisir à chaque ouverture')}</Text>
               </View>
               <FontAwesome6 name="chevron-right" size={14} color={Colors.textMuted} />
             </TouchableOpacity>
@@ -116,8 +123,8 @@ export default function SetupPinScreen() {
                   <FontAwesome6 name="fingerprint" size={22} color={Colors.secondary} />
                 </View>
                 <View style={styles.optionText}>
-                  <Text style={styles.optionTitle}>Face ID / Touch ID</Text>
-                  <Text style={styles.optionDesc}>Déverrouillage biométrique rapide</Text>
+                  <Text style={styles.optionTitle}>{t('account.biometric')}</Text>
+                  <Text style={styles.optionDesc}>{t('auth.pin.biometricDesc', 'Déverrouillage biométrique rapide')}</Text>
                 </View>
                 <FontAwesome6 name="chevron-right" size={14} color={Colors.textMuted} />
               </TouchableOpacity>
@@ -129,32 +136,32 @@ export default function SetupPinScreen() {
 
         {step === 'enter-pin' && (
           <View style={styles.content}>
-            <Text style={styles.title}>Choisissez un PIN</Text>
+            <Text style={styles.title}>{t('auth.pin.choosePin', 'Choisissez un PIN')}</Text>
             <PinPad
               length={4}
               onComplete={handleFirstPin}
               error={error}
-              label="Entrez votre PIN à 4 chiffres"
+              label={t('auth.pin.enter4digits', 'Entrez votre PIN à 4 chiffres')}
               reset={resetTrigger}
             />
             <TouchableOpacity onPress={() => { setStep('choose'); setError(null); }}>
-              <Text style={styles.back}>← Retour</Text>
+              <Text style={styles.back}>← {t('common.back')}</Text>
             </TouchableOpacity>
           </View>
         )}
 
         {step === 'confirm-pin' && (
           <View style={styles.content}>
-            <Text style={styles.title}>Confirmez votre PIN</Text>
+            <Text style={styles.title}>{t('auth.pin.confirmTitle')}</Text>
             <PinPad
               length={4}
               onComplete={handleConfirmPin}
               error={error}
-              label="Confirmez votre PIN"
+              label={t('auth.pin.confirmPin', 'Confirmez votre PIN')}
               reset={resetTrigger}
             />
             <TouchableOpacity onPress={() => { setStep('enter-pin'); setError(null); triggerReset(); }}>
-              <Text style={styles.back}>← Retour</Text>
+              <Text style={styles.back}>← {t('common.back')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -164,7 +171,7 @@ export default function SetupPinScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   bg: { flex: 1 },
   container: {
     flexGrow: 1,

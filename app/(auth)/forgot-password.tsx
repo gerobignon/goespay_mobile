@@ -8,6 +8,7 @@ import {
   ScrollView,
   Image,
   ImageBackground,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, useRouter } from 'expo-router';
@@ -15,12 +16,19 @@ import { Input } from '../../src/components/Input';
 import { OtpInput } from '../../src/components/OtpInput';
 import { Button } from '../../src/components/Button';
 import { authService } from '../../src/services/authService';
-import { Colors, Spacing, FontSize, Fonts } from '../../src/constants/theme';
+import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../../src/constants/theme';
 import { showAlert } from '../../src/stores/alertStore';
+import { useThemedStyles } from '../../src/hooks/useThemedStyles';
+import { useTheme } from '../../src/components/ThemeProvider';
+import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
-  const passwordRef = useRef(null);
+  const styles = useThemedStyles(createStyles);
+  const { isDark } = useTheme();
+  const { t } = useTranslation();
+  const passwordRef = useRef<TextInput>(null);
   const [step, setStep] = useState<1 | 2>(1);
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -29,7 +37,6 @@ export default function ForgotPasswordScreen() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
-  // Auto-submit when all fields are valid on step 2
   useEffect(() => {
     if (step === 2 && code.length === 6 && password && passwordConfirmation && password === passwordConfirmation && !loading) {
       handleResetPassword();
@@ -38,12 +45,12 @@ export default function ForgotPasswordScreen() {
 
   const handleSendCode = async () => {
     if (!email.trim()) {
-      showAlert('Erreur', 'Veuillez entrer votre email.');
+      showAlert(t('common.error'), t('auth.forgotPassword.enterEmail', 'Veuillez entrer votre email.'));
       return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      showAlert('Erreur', 'Veuillez entrer une adresse email valide.');
+      showAlert(t('common.error'), t('auth.forgotPassword.invalidEmail', 'Veuillez entrer une adresse email valide.'));
       return;
     }
     setLoading(true);
@@ -53,7 +60,7 @@ export default function ForgotPasswordScreen() {
     } catch (error: any) {
       const message =
         error?.response?.data?.message || "Erreur lors de l'envoi.";
-      showAlert('Erreur', message);
+      showAlert(t('common.error'), message);
     } finally {
       setLoading(false);
     }
@@ -61,11 +68,11 @@ export default function ForgotPasswordScreen() {
 
   const handleResetPassword = async () => {
     if (!code.trim() || !password || !passwordConfirmation) {
-      showAlert('Erreur', 'Veuillez remplir tous les champs.');
+      showAlert(t('common.error'), t('auth.forgotPassword.fillAllFields', 'Veuillez remplir tous les champs.'));
       return;
     }
     if (password !== passwordConfirmation) {
-      showAlert('Erreur', 'Les mots de passe ne correspondent pas.');
+      showAlert(t('common.error'), t('auth.forgotPassword.passwordMismatch', 'Les mots de passe ne correspondent pas.'));
       return;
     }
     setLoading(true);
@@ -79,131 +86,124 @@ export default function ForgotPasswordScreen() {
       setDone(true);
     } catch (error: any) {
       const message =
-        error?.response?.data?.message || 'Code invalide ou expiré.';
-      showAlert('Erreur', message);
+        error?.response?.data?.message || t('auth.forgotPassword.invalidCode');
+      showAlert(t('common.error'), message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ImageBackground
-      source={require('../../assets/bg_page.jpg')}
-      style={styles.background}
-    >
+    <ImageBackground source={isDark ? require('../../assets/bg_page.jpg') : require('../../assets/bg_page_light.jpg')} style={styles.background}>
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
+        <LanguageSwitcher />
+        <KeyboardAvoidingView
+          style={styles.container}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View style={styles.logoContainer}>
-            <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
-            <Text style={styles.subtitle}>Mot de passe oublié</Text>
-          </View>
+          <ScrollView
+            contentContainerStyle={styles.scroll}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.logoContainer}>
+              <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+              <Text style={styles.subtitle}>{t('auth.forgotPassword.title')}</Text>
+            </View>
 
-          <View style={styles.formCard}>
-            {done ? (
-              <>
-                <Text style={styles.message}>
-                  Votre mot de passe a été réinitialisé avec succès.
-                </Text>
-                <Button
-                  title="Se connecter"
-                  icon="right-to-bracket"
-                  onPress={() => router.replace('/(auth)/login')}
-                  style={{ marginTop: Spacing.md }}
-                />
-              </>
-            ) : step === 1 ? (
-              <>
-                <Text style={styles.hint}>
-                  Entrez votre adresse email pour recevoir un code de
-                  réinitialisation à 6 chiffres.
-                </Text>
-                <Input
-                  label="Email"
-                  placeholder="votre@email.com"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                />
-                <Button
-                  title="Envoyer le code"
-                  onPress={handleSendCode}
-                  icon="paper-plane"
-                  loading={loading}
-                  style={{ marginTop: Spacing.sm }}
-                />
-                <View style={styles.links}>
-                  <Link href="/(auth)/login" style={styles.link}>
-                    Retour à la connexion
-                  </Link>
-                </View>
-              </>
-            ) : (
-              <>
-                <Text style={styles.hint}>
-                  Un code à 6 chiffres a été envoyé à{' '}
-                  <Text style={styles.email}>{email}</Text>. Entrez-le
-                  ci-dessous avec votre nouveau mot de passe.
-                </Text>
-                  value={code} 
-                  onChange={setCode} 
-                  onComplete={() => passwordRef.current?.focus()} 
-                />
-                <Input
-                  ref={passwordRef}put value={code} onChange={setCode} />
-                <Input
-                  label="Nouveau mot de passe"
-                  placeholder="••••••••"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  autoCapitalize="none"
-                />
-                <Input
-                  label="Confirmer le mot de passe"
-                  placeholder="••••••••"
-                  value={passwordConfirmation}
-                  onChangeText={setPasswordConfirmation}
-                  secureTextEntry
-                  autoCapitalize="none"
-                />
-                <Button
-                  title="Réinitialiser"
-                  onPress={handleResetPassword}
-                  icon="lock"
-                  loading={loading}
-                  style={{ marginTop: Spacing.sm }}
-                />
-                <View style={styles.links}>
-                  <Text
-                    style={styles.link}
-                    onPress={() => setStep(1)}
-                  >
-                    Renvoyer un code
+            <View style={styles.formCard}>
+              {done ? (
+                <>
+                  <Text style={styles.message}>
+                    {t('auth.forgotPassword.successMessage', 'Votre mot de passe a été réinitialisé avec succès.')}
                   </Text>
-                  <Link href="/(auth)/login" asChild>
-                    <Text style={styles.linkPrimary}>Retour à la connexion</Text>
-                  </Link>
-                </View>
-              </>
-            )}
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+                  <Button
+                    title={t('auth.login.submit')}
+                    icon="right-to-bracket"
+                    onPress={() => router.replace('/(auth)/login')}
+                    style={{ marginTop: Spacing.md }}
+                  />
+                </>
+              ) : step === 1 ? (
+                <>
+                  <Text style={styles.hint}>
+                    {t('auth.forgotPassword.hint')}
+                  </Text>
+                  <Input
+                    label={t('auth.forgotPassword.email')}
+                    placeholder={t('auth.forgotPassword.emailPlaceholder')}
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                  />
+                  <Button
+                    title={t('auth.forgotPassword.submit')}
+                    onPress={handleSendCode}
+                    icon="paper-plane"
+                    loading={loading}
+                    style={{ marginTop: Spacing.sm }}
+                  />
+                  <View style={styles.links}>
+                    <Link href="/(auth)/login" style={styles.link}>
+                      {t('auth.forgotPassword.backToLogin')}
+                    </Link>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.hint}>
+                    {t('auth.forgotPassword.codeSentTo', 'Un code à 6 chiffres a été envoyé à')}{' '}
+                    <Text style={styles.email}>{email}</Text>. {t('auth.forgotPassword.enterCodeBelow', 'Entrez-le ci-dessous avec votre nouveau mot de passe.')}
+                  </Text>
+                  <OtpInput
+                    value={code}
+                    onChange={setCode}
+                    onComplete={() => passwordRef.current?.focus()}
+                  />
+                  <Input
+                    ref={passwordRef}
+                    label={t('auth.forgotPassword.newPassword')}
+                    placeholder="••••••••"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry
+                    autoCapitalize="none"
+                  />
+                  <Input
+                    label={t('auth.forgotPassword.confirmPassword')}
+                    placeholder="••••••••"
+                    value={passwordConfirmation}
+                    onChangeText={setPasswordConfirmation}
+                    secureTextEntry
+                    autoCapitalize="none"
+                  />
+                  <Button
+                    title={t('auth.forgotPassword.resetSubmit')}
+                    onPress={handleResetPassword}
+                    icon="lock"
+                    loading={loading}
+                    style={{ marginTop: Spacing.sm }}
+                  />
+                  <View style={styles.links}>
+                    <Text style={styles.link} onPress={() => setStep(1)}>
+                      {t('auth.forgotPassword.resendCode')}
+                    </Text>
+                    <Link href="/(auth)/login" asChild>
+                      <Text style={styles.linkPrimary}>{t('auth.forgotPassword.backToLogin')}</Text>
+                    </Link>
+                  </View>
+                </>
+              )}
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </ImageBackground>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   background: {
     flex: 1,
   },
@@ -226,15 +226,18 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: FontSize.lg,
-    color: 'rgba(255,255,255,0.8)',
+    color: Colors.text,
     fontFamily: Fonts.semiBold,
   },
   formCard: {
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: Colors.card,
     borderRadius: 16,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: Colors.border,
+    maxWidth: 460,
+    width: '100%',
+    alignSelf: 'center',
   },
   hint: {
     fontSize: FontSize.sm,

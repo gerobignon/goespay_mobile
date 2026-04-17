@@ -18,23 +18,37 @@ import { walletService } from '../../../src/services/walletService';
 import { Card } from '../../../src/components/Card';
 import { formatCurrency, formatDate } from '../../../src/utils/format';
 import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../../../src/constants/theme';
+import type { ColorPalette } from '../../../src/constants/theme';
+import { useThemedStyles } from '../../../src/hooks/useThemedStyles';
 import { TransactionDetailRow } from '../../../src/components/TransactionDetailRow';
+import { useTranslation } from 'react-i18next';
 import { showAlert } from '../../../src/stores/alertStore';
 import { CustomAlert } from '../../../src/components/CustomAlert';
 import type { Transaction } from '../../../src/types';
 
-const CRYPTO_STATUS: Record<string | number, { label: string; color: string; icon: string }> = {
-  1:         { label: 'Succès',     color: '#3176FE', icon: 'circle-check' },
-  0:         { label: 'Échoué',     color: '#ff295b', icon: 'circle-xmark' },
-  success:   { label: 'Succès',     color: '#3176FE', icon: 'circle-check' },
-  failed:    { label: 'Échoué',     color: '#ff295b', icon: 'circle-xmark' },
-  fail:      { label: 'Échoué',     color: '#ff295b', icon: 'circle-xmark' },
+const CRYPTO_STATUS_COLORS: Record<string | number, { color: string; icon: string }> = {
+  1:         { color: '#3176FE', icon: 'circle-check' },
+  0:         { color: '#ff295b', icon: 'circle-xmark' },
+  success:   { color: '#3176FE', icon: 'circle-check' },
+  failed:    { color: '#ff295b', icon: 'circle-xmark' },
+  fail:      { color: '#ff295b', icon: 'circle-xmark' },
 };
-const DEFAULT_STATUS = { label: 'En attente', color: '#F4B228', icon: 'clock' };
+const DEFAULT_STATUS_COLORS = { color: '#F4B228', icon: 'clock' };
+
+function getCryptoStatusLocal(statut: string | number, t: (key: string) => string) {
+  const entry = CRYPTO_STATUS_COLORS[statut] ?? DEFAULT_STATUS_COLORS;
+  const labelMap: Record<string | number, string> = {
+    1: t('transaction.statusSuccess'), 0: t('transaction.statusFailed'),
+    success: t('transaction.statusSuccess'), failed: t('transaction.statusFailed'), fail: t('transaction.statusFailed'),
+  };
+  return { ...entry, label: labelMap[statut] ?? t('transaction.statusWait') };
+}
 
 export default function CryptoDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { t } = useTranslation();
+  const styles = useThemedStyles(createStyles);
   const [tx, setTx] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -46,10 +60,12 @@ export default function CryptoDetailScreen() {
   useEffect(() => {
     const load = async () => {
       try {
+        console.log(`[CryptoDetail] Loading crypto transaction #${id}`);
         const data = await walletService.getCryptoTransaction(parseInt(id, 10));
+        console.log(`[CryptoDetail] Got:`, JSON.stringify(data));
         setTx(data);
-      } catch {
-        // handle error
+      } catch (err: any) {
+        console.log(`[CryptoDetail] Error:`, err?.response?.status, err?.response?.data, err?.message);
       } finally {
         setLoading(false);
       }
@@ -94,7 +110,7 @@ export default function CryptoDetailScreen() {
     );
   }
 
-  const status = CRYPTO_STATUS[tx.statut] ?? DEFAULT_STATUS;
+  const status = getCryptoStatusLocal(tx.statut, t);
   const isBuy = tx.mode === 'Buy';
   const cryptoCode = tx.currency_src ?? '—';
   const xofAmount = tx.amount;
@@ -107,7 +123,7 @@ export default function CryptoDetailScreen() {
           <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/history')}>
             <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
           </TouchableOpacity>
-          <Text style={styles.title}>Détail Crypto</Text>
+          <Text style={styles.title}>{t('transaction.cryptoDetail')}</Text>
         </View>
 
         {/* Action button */}
@@ -119,7 +135,7 @@ export default function CryptoDetailScreen() {
               activeOpacity={0.7}
             >
               <FontAwesome6 name="triangle-exclamation" size={12} color={Colors.white} />
-              <Text style={styles.claimBtnText}>Réclamation</Text>
+              <Text style={styles.claimBtnText}>{t('transaction.claim')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -136,19 +152,19 @@ export default function CryptoDetailScreen() {
           <Text style={styles.currency}>XOF</Text>
 
           <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
-          <TransactionDetailRow label="Type" value={isBuy ? 'Achat Crypto' : 'Vente Crypto'} badge badgeColor={Colors.secondary} badgeIcon="bitcoin-sign" />
-          <TransactionDetailRow label="Statut" value={status.label} badge badgeColor={status.color} badgeIcon={status.icon} />
-          <TransactionDetailRow label="Cryptomonnaie" value={cryptoCode} badge badgeColor={Colors.textMuted} />
+          <TransactionDetailRow label={t('transaction.type')} value={isBuy ? t('transaction.buyType') : t('transaction.sellType')} badge badgeColor={Colors.secondary} badgeIcon="bitcoin-sign" />
+          <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={status.icon} />
+          <TransactionDetailRow label={t('transaction.currency')} value={cryptoCode} badge badgeColor={Colors.textMuted} />
           {cryptoAmount != null && (
-            <TransactionDetailRow label="Montant crypto" value={`${cryptoAmount} ${cryptoCode}`} mono />
+            <TransactionDetailRow label={t('transaction.amount')} value={`${cryptoAmount} ${cryptoCode}`} mono />
           )}
-          <TransactionDetailRow label="Adresse" value={tx.address ?? '—'} copyable mono />
-          {tx.cp_hash && <TransactionDetailRow label="Hash blockchain" value={tx.cp_hash} copyable mono />}
-          <TransactionDetailRow label="Solde avant" value={tx.avant != null ? `${formatCurrency(tx.avant)} XOF` : '—'} mono />
-          <TransactionDetailRow label="Solde après" value={tx.apres != null ? `${formatCurrency(tx.apres)} XOF` : '—'} mono color={status.color} />
-          <TransactionDetailRow label="Date" value={formatDate(tx.created_at)} />
+          <TransactionDetailRow label={t('transaction.address')} value={tx.address ?? '—'} copyable mono />
+          {tx.cp_hash && <TransactionDetailRow label={t('transaction.txHash')} value={tx.cp_hash} copyable mono />}
+          <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? `${formatCurrency(tx.avant)} XOF` : '—'} mono />
+          <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? `${formatCurrency(tx.apres)} XOF` : '—'} mono color={status.color} />
+          <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
           {tx.updated_at && tx.updated_at !== tx.created_at && (
-            <TransactionDetailRow label="Date de validation" value={formatDate(tx.updated_at)} />
+            <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.updated_at)} />
           )}
         </Card>
       </ScrollView>
@@ -156,10 +172,10 @@ export default function CryptoDetailScreen() {
       {/* Claim Modal */}
       <Modal visible={claimVisible} transparent animationType="slide">
         <CustomAlert />
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Faire une réclamation</Text>
+              <Text style={styles.modalTitle}>{t('transaction.addClaim')}</Text>
               <TouchableOpacity onPress={() => setClaimVisible(false)}>
                 <FontAwesome6 name="xmark" size={18} color={Colors.text} />
               </TouchableOpacity>
@@ -189,7 +205,7 @@ export default function CryptoDetailScreen() {
             >
               <FontAwesome6 name="paper-plane" size={14} color={Colors.white} />
               <Text style={styles.modalSubmitText}>
-                {claimLoading ? 'Envoi...' : 'Envoyer'}
+                {claimLoading ? t('common.sending') : t('common.send')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -199,7 +215,7 @@ export default function CryptoDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   scroll: { padding: Spacing.lg, paddingTop: Spacing.xxl },
   loader: {
     flex: 1,
@@ -255,7 +271,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
-    backgroundColor: '#ff295b',
+    backgroundColor: Colors.secondary,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.md,
   },

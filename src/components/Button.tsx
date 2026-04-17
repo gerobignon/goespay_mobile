@@ -8,7 +8,8 @@ import {
   TextStyle,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
-import { Colors, BorderRadius, FontSize, Spacing, Fonts } from '../constants/theme';
+import { Colors, type ColorPalette, BorderRadius, FontSize, Spacing, Fonts } from '../constants/theme';
+import { useThemedStyles } from '../hooks/useThemedStyles';
 
 interface ButtonProps {
   title: string;
@@ -31,6 +32,7 @@ export function Button({
   style,
   textStyle,
 }: ButtonProps) {
+  const styles = useThemedStyles(createStyles);
   const bgColor =
     variant === 'primary'
       ? Colors.primary
@@ -81,15 +83,15 @@ export function Button({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   button: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm + 2,
+    paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.pill,
-    minHeight: 50,
+    minHeight: 42,
   },
   outline: {
     borderWidth: 1.5,

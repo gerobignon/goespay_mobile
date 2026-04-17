@@ -7,7 +7,8 @@ import {
   Vibration,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
-import { Colors, Spacing, FontSize, Fonts } from '../constants/theme';
+import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../constants/theme';
+import { useThemedStyles } from '../hooks/useThemedStyles';
 
 interface PinPadProps {
   length?: 4 | 6;
@@ -21,6 +22,7 @@ interface PinPadProps {
 const KEYS = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
 
 export function PinPad({ length = 4, onComplete, onBiometric, error, label, reset }: PinPadProps) {
+  const styles = useThemedStyles(createStyles);
   const [pin, setPin] = useState('');
 
   // reset toggle: vide le PIN à chaque flip, vibre si erreur présente
@@ -96,7 +98,7 @@ export function PinPad({ length = 4, onComplete, onBiometric, error, label, rese
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     alignItems: 'center',
     gap: Spacing.lg,

@@ -1,7 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
-import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
+import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { useTheme } from './ThemeProvider';
+import { useTranslation } from 'react-i18next';
 
 interface KycBannerProps {
   onPress?: () => void;
@@ -9,15 +12,19 @@ interface KycBannerProps {
 }
 
 export function KycBanner({ onPress, status = 0 }: KycBannerProps) {
+  const styles = useThemedStyles(createStyles);
+  const { isDark } = useTheme();
+  const { t } = useTranslation();
   const isPending = status === 2;
   const message = isPending
-    ? 'Votre dossier est en cours de vérification. Veuillez patienter.'
-    : 'Votre compte n\'est pas encore validé. Vérifiez votre identité.';
+    ? t('kyc.pendingReview')
+    : t('kyc.notValidated');
   const color = isPending ? Colors.info ?? '#3b82f6' : Colors.warning;
+  const bgOpacity = isDark ? '20' : '33';
 
   return (
     <TouchableOpacity
-      style={[styles.container, { backgroundColor: color + '20' }]}
+      style={[styles.container, { backgroundColor: color + bgOpacity }]}
       onPress={isPending ? undefined : onPress}
       activeOpacity={isPending ? 1 : 0.7}
     >
@@ -36,7 +43,7 @@ export function KycBanner({ onPress, status = 0 }: KycBannerProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -15,21 +15,30 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { FontAwesome6 } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { showAlert } from '../../../src/stores/alertStore';
 import { CustomAlert } from '../../../src/components/CustomAlert';
 import { walletService } from '../../../src/services/walletService';
 import { Card } from '../../../src/components/Card';
 import { TransactionDetailRow } from '../../../src/components/TransactionDetailRow';
-import { TRANSACTION_STATUS } from '../../../src/constants/config';
+import { TRANSACTION_STATUS, getTransactionStatus } from '../../../src/constants/config';
 import { formatCurrency, formatDate } from '../../../src/utils/format';
 import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../../../src/constants/theme';
+import type { ColorPalette } from '../../../src/constants/theme';
+import { useThemedStyles } from '../../../src/hooks/useThemedStyles';
 import type { Transaction } from '../../../src/types';
+
+import { DepositModal } from '../../../src/components/DepositModal';
 
 export default function DepositDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { t } = useTranslation();
+  const styles = useThemedStyles(createStyles);
   const [tx, setTx] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const [retryVisible, setRetryVisible] = useState(false);
 
   // Claim modal
   const [claimVisible, setClaimVisible] = useState(false);
@@ -117,7 +126,7 @@ export default function DepositDetailScreen() {
     );
   }
 
-  const status = TRANSACTION_STATUS[tx.statut] ?? { label: tx.statut, color: Colors.textMuted };
+  const status = getTransactionStatus(t)[tx.statut] ?? { label: tx.statut, color: Colors.textMuted };
 
   return (
     <ScreenBackground>
@@ -126,11 +135,21 @@ export default function DepositDetailScreen() {
           <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/history')}>
             <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
           </TouchableOpacity>
-          <Text style={styles.title}>Détail du dépôt</Text>
+          <Text style={styles.title}>{t('transaction.depositDetail')}</Text>
         </View>
 
         {/* Action buttons */}
         <View style={styles.actionRow}>
+          {tx.statut === 'failed' && (
+            <TouchableOpacity
+              style={styles.retryBtn}
+              onPress={() => setRetryVisible(true)}
+              activeOpacity={0.7}
+            >
+              <FontAwesome6 name="rotate-right" size={12} color={Colors.white} />
+              <Text style={styles.retryBtnText}>{t('common.retry', 'Réessayer')}</Text>
+            </TouchableOpacity>
+          )}
           {tx.statut === 'success' && tx.reference && (
             <TouchableOpacity
               style={styles.invoiceBtn}
@@ -138,7 +157,7 @@ export default function DepositDetailScreen() {
               activeOpacity={0.7}
             >
               <FontAwesome6 name="file-invoice-dollar" size={12} color={Colors.white} />
-              <Text style={styles.invoiceBtnText}>Voir la facture</Text>
+              <Text style={styles.invoiceBtnText}>{t('transaction.viewInvoice')}</Text>
             </TouchableOpacity>
           )}
           {tx.statut !== 'success' && (
@@ -148,7 +167,7 @@ export default function DepositDetailScreen() {
             activeOpacity={0.7}
           >
             <FontAwesome6 name="triangle-exclamation" size={12} color={Colors.white} />
-            <Text style={styles.claimBtnText}>Réclamation</Text>
+            <Text style={styles.claimBtnText}>{t('transaction.claim')}</Text>
           </TouchableOpacity>
           )}
           {!tx.note && (
@@ -158,7 +177,7 @@ export default function DepositDetailScreen() {
               activeOpacity={0.7}
             >
               <FontAwesome6 name="comment-dots" size={12} color={Colors.white} />
-              <Text style={styles.noteBtnText}>Ajouter une note</Text>
+              <Text style={styles.noteBtnText}>{t('transaction.addNote')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -180,31 +199,31 @@ export default function DepositDetailScreen() {
           <Text style={styles.currency}>XOF</Text>
 
           <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
-          <TransactionDetailRow label="Type" value="Dépôt" badge badgeColor="#3ecf8e" badgeIcon="arrow-down" />
+          <TransactionDetailRow label={t('transaction.type')} value={t('transaction.deposit')} badge badgeColor="#3ecf8e" badgeIcon="arrow-down" />
           <TransactionDetailRow
-            label="Statut"
+            label={t('transaction.status')}
             value={status.label}
             badge
             badgeColor={status.color}
             badgeIcon={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'}
           />
-          <TransactionDetailRow label="Opérateur" value={tx.mode ?? '—'} badge badgeColor={Colors.secondary} />
-          <TransactionDetailRow label="Référence" value={tx.reference ?? '—'} copyable mono />
+          <TransactionDetailRow label={t('transaction.operator')} value={tx.mode ?? '—'} badge badgeColor={Colors.secondary} />
+          <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />
           <TransactionDetailRow
-            label="Solde avant"
+            label={t('transaction.balanceBefore')}
             value={tx.avant != null ? `${formatCurrency(tx.avant)} XOF` : '—'}
             mono
           />
           <TransactionDetailRow
-            label="Solde après"
+            label={t('transaction.balanceAfter')}
             value={tx.apres != null ? `${formatCurrency(tx.apres)} XOF` : '—'}
             mono
             color={status.color}
           />
-          {tx.note && <TransactionDetailRow label="Note" value={tx.note} />}
-          <TransactionDetailRow label="Date du dépôt" value={formatDate(tx.created_at)} />
+          {tx.note && <TransactionDetailRow label={t('transaction.note')} value={tx.note} />}
+          <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
           {tx.updated_at && tx.updated_at !== tx.created_at && (
-            <TransactionDetailRow label="Date de validation" value={formatDate(tx.updated_at)} />
+            <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.updated_at)} />
           )}
         </Card>
       </ScrollView>
@@ -212,10 +231,10 @@ export default function DepositDetailScreen() {
       {/* Claim Modal */}
       <Modal visible={claimVisible} transparent animationType="slide">
         <CustomAlert />
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Faire une réclamation</Text>
+              <Text style={styles.modalTitle}>{t('transaction.addClaim')}</Text>
               <TouchableOpacity onPress={() => setClaimVisible(false)}>
                 <FontAwesome6 name="xmark" size={18} color={Colors.text} />
               </TouchableOpacity>
@@ -242,7 +261,7 @@ export default function DepositDetailScreen() {
             >
               <FontAwesome6 name="paper-plane" size={14} color={Colors.white} />
               <Text style={styles.modalSubmitText}>
-                {claimLoading ? 'Envoi...' : 'Envoyer'}
+                {claimLoading ? t('common.sending') : t('common.send')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -252,10 +271,10 @@ export default function DepositDetailScreen() {
       {/* Note Modal */}
       <Modal visible={noteVisible} transparent animationType="slide">
         <CustomAlert />
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Ajouter une note</Text>
+              <Text style={styles.modalTitle}>{t('transaction.addNote')}</Text>
               <TouchableOpacity onPress={() => setNoteVisible(false)}>
                 <FontAwesome6 name="xmark" size={18} color={Colors.text} />
               </TouchableOpacity>
@@ -279,17 +298,27 @@ export default function DepositDetailScreen() {
             >
               <FontAwesome6 name="comment-dots" size={14} color={Colors.white} />
               <Text style={styles.modalSubmitText}>
-                {noteLoading ? 'Envoi...' : 'Ajouter'}
+                {noteLoading ? t('common.sending') : t('common.add')}
               </Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <DepositModal
+        visible={retryVisible}
+        onClose={() => setRetryVisible(false)}
+        prefill={{
+          amount: tx ? String(tx.amount) : '',
+          operator: tx?.mode ?? '',
+          phone: tx?.phone ?? '',
+        }}
+      />
     </ScreenBackground>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   scroll: {
     padding: Spacing.lg,
     paddingTop: Spacing.xxl,
@@ -353,10 +382,24 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    backgroundColor: Colors.secondary,
+    backgroundColor: Colors.error,
     borderRadius: BorderRadius.pill,
   },
   claimBtnText: {
+    color: Colors.white,
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.bold,
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.pill,
+  },
+  retryBtnText: {
     color: Colors.white,
     fontSize: FontSize.xs,
     fontFamily: Fonts.bold,
@@ -381,7 +424,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    backgroundColor: Colors.inputBg,
+    backgroundColor: Colors.primary,
     borderRadius: BorderRadius.pill,
   },
   noteBtnText: {

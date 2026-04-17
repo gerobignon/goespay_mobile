@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
+import { SafeStorage } from './storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 
 const KEYS = {
@@ -12,41 +12,41 @@ const KEYS = {
 // ─── Credentials ──────────────────────────────────────────────────────────────
 
 export async function saveCredentials(email: string, password: string) {
-  await SecureStore.setItemAsync(KEYS.EMAIL, email);
-  await SecureStore.setItemAsync(KEYS.PASSWORD, password);
+  await SafeStorage.setItem(KEYS.EMAIL, email);
+  await SafeStorage.setItem(KEYS.PASSWORD, password);
 }
 
 export async function getCredentials(): Promise<{ email: string; password: string } | null> {
-  const email = await SecureStore.getItemAsync(KEYS.EMAIL);
-  const password = await SecureStore.getItemAsync(KEYS.PASSWORD);
+  const email = await SafeStorage.getItem(KEYS.EMAIL);
+  const password = await SafeStorage.getItem(KEYS.PASSWORD);
   if (!email || !password) return null;
   return { email, password };
 }
 
 export async function clearCredentials() {
-  await SecureStore.deleteItemAsync(KEYS.EMAIL);
-  await SecureStore.deleteItemAsync(KEYS.PASSWORD);
+  await SafeStorage.removeItem(KEYS.EMAIL);
+  await SafeStorage.removeItem(KEYS.PASSWORD);
 }
 
 // ─── PIN ──────────────────────────────────────────────────────────────────────
 
 export async function savePin(pin: string) {
-  await SecureStore.setItemAsync(KEYS.PIN, pin);
-  await SecureStore.setItemAsync(KEYS.PIN_SET, '1');
+  await SafeStorage.setItem(KEYS.PIN, pin);
+  await SafeStorage.setItem(KEYS.PIN_SET, '1');
 }
 
 export async function verifyPin(input: string): Promise<boolean> {
-  const stored = await SecureStore.getItemAsync(KEYS.PIN);
+  const stored = await SafeStorage.getItem(KEYS.PIN);
   return stored === input;
 }
 
 export async function clearPin() {
-  await SecureStore.deleteItemAsync(KEYS.PIN);
-  await SecureStore.deleteItemAsync(KEYS.PIN_SET);
+  await SafeStorage.removeItem(KEYS.PIN);
+  await SafeStorage.removeItem(KEYS.PIN_SET);
 }
 
 export async function isPinSet(): Promise<boolean> {
-  const val = await SecureStore.getItemAsync(KEYS.PIN_SET);
+  const val = await SafeStorage.getItem(KEYS.PIN_SET);
   return val === '1';
 }
 
@@ -55,16 +55,16 @@ export async function isPinSet(): Promise<boolean> {
 export type LockMethod = 'pin' | 'biometric' | null;
 
 export async function getLockMethod(): Promise<LockMethod> {
-  const val = await SecureStore.getItemAsync(KEYS.METHOD);
+  const val = await SafeStorage.getItem(KEYS.METHOD);
   if (val === 'pin' || val === 'biometric') return val;
   return null;
 }
 
 export async function setLockMethod(method: LockMethod) {
   if (method === null) {
-    await SecureStore.deleteItemAsync(KEYS.METHOD);
+    await SafeStorage.removeItem(KEYS.METHOD);
   } else {
-    await SecureStore.setItemAsync(KEYS.METHOD, method);
+    await SafeStorage.setItem(KEYS.METHOD, method);
   }
 }
 
@@ -90,10 +90,10 @@ export async function authenticateWithBiometric(): Promise<boolean> {
 
 export async function clearAllSecureData() {
   await Promise.all([
-    SecureStore.deleteItemAsync(KEYS.EMAIL),
-    SecureStore.deleteItemAsync(KEYS.PASSWORD),
-    SecureStore.deleteItemAsync(KEYS.PIN),
-    SecureStore.deleteItemAsync(KEYS.METHOD),
-    SecureStore.deleteItemAsync(KEYS.PIN_SET),
+    SafeStorage.removeItem(KEYS.EMAIL),
+    SafeStorage.removeItem(KEYS.PASSWORD),
+    SafeStorage.removeItem(KEYS.PIN),
+    SafeStorage.removeItem(KEYS.METHOD),
+    SafeStorage.removeItem(KEYS.PIN_SET),
   ]);
 }
