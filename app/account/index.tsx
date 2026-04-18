@@ -11,12 +11,16 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../../src/stores/authStore';
+import { usePinStore } from '../../src/stores/pinStore';
+import { authService } from '../../src/services/authService';
 import { Button } from '../../src/components/Button';
 import { Colors, DarkColors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { API_BASE_URL } from '../../src/constants/config';
 import { CustomAlert } from '../../src/components/CustomAlert';
+import { showAlert } from '../../src/stores/alertStore';
 import { DesktopHeader } from '../../src/components/DesktopHeader';
 import { DesktopFooter } from '../../src/components/DesktopFooter';
 import { useResponsive } from '../../src/hooks/useResponsive';
@@ -27,9 +31,41 @@ export default function AccountScreen() {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
   const { isWide, isDesktop, contentMaxWidth } = useResponsive();
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const { isDark } = useTheme();
   const { t } = useTranslation();
+
+  // Sur desktop, la sidebar est dans le layout — rediriger vers profil
+  React.useEffect(() => {
+    if (isDesktop) router.replace('/account/profile');
+  }, [isDesktop]);
+
+  const handleLogout = () => {
+    showAlert(t('account.logoutTitle'), t('account.logoutMessage'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('account.logoutConfirm'), style: 'destructive', onPress: async () => {
+          await logout();
+          usePinStore.setState({ lockMethod: null, isSetupDone: false, isLocked: false });
+        }
+      },
+    ]);
+  };
+
+  const handleAvatarPick = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') return;
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+    if (!result.canceled && result.assets[0]) {
+      try {
+        const result2 = await authService.uploadAvatar(result.assets[0].uri);
+        const currentUser = useAuthStore.getState().user;
+        if (currentUser) useAuthStore.setState({ user: { ...currentUser, avatar: result2.avatar } });
+      } catch {
+        showAlert(t('common.error'), t('account.avatarError', 'Impossible de mettre à jour la photo.'));
+      }
+    }
+  };
 
   const avatarSource = user?.avatar
     ? { uri: user.avatar.startsWith('http') ? user.avatar : `${API_BASE_URL.replace('/api/mobile/v1', '')}${user.avatar}` }
@@ -69,7 +105,7 @@ export default function AccountScreen() {
             <View style={styles.avatarSection}>
               <TouchableOpacity
                 style={styles.avatarWrapper}
-                onPress={() => router.push('/account/profile')}
+                onPress={handleAvatarPick}
                 activeOpacity={0.85}
               >
                 {avatarSource ? (
@@ -80,7 +116,7 @@ export default function AccountScreen() {
                   </View>
                 )}
                 <View style={styles.avatarBadge}>
-                  <FontAwesome6 name="ellipsis" size={10} color={Colors.white} />
+                  <FontAwesome6 name="pen" size={10} color={Colors.white} />
                 </View>
               </TouchableOpacity>
               <Text style={styles.userName}>

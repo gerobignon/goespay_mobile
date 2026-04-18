@@ -223,7 +223,7 @@ export default function DepositDetailScreen() {
           {tx.note && <TransactionDetailRow label={t('transaction.note')} value={tx.note} />}
           <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
           {tx.updated_at && tx.updated_at !== tx.created_at && (
-            <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.updated_at)} />
+            <TransactionDetailRow label={t('transaction.updatedAt')} value={formatDate(tx.updated_at)} />
           )}
         </Card>
       </ScrollView>
@@ -231,7 +231,7 @@ export default function DepositDetailScreen() {
       {/* Claim Modal */}
       <Modal visible={claimVisible} transparent animationType="slide">
         <CustomAlert />
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior="padding">
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{t('transaction.addClaim')}</Text>
@@ -271,7 +271,7 @@ export default function DepositDetailScreen() {
       {/* Note Modal */}
       <Modal visible={noteVisible} transparent animationType="slide">
         <CustomAlert />
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior="padding">
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{t('transaction.addNote')}</Text>

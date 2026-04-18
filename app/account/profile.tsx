@@ -24,9 +24,11 @@ import { showAlert } from '../../src/stores/alertStore';
 import { CustomAlert } from '../../src/components/CustomAlert';
 import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
+import { useResponsive } from '../../src/hooks/useResponsive';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { isDesktop } = useResponsive();
   const styles = useThemedStyles(createStyles);
   const { isDark } = useTheme();
   const { user, setUser } = useAuthStore();
@@ -62,30 +64,19 @@ export default function ProfileScreen() {
 
   const countryName = ALL_COUNTRIES.find((c) => c.code === user?.country)?.name || user?.country || '';
 
-  return (
-    <View style={{ flex: 1 }}>
-      <ImageBackground
-        source={isDark ? require('../../assets/bg_page.jpg') : require('../../assets/bg_page_light.jpg')}
-        style={styles.background}
-      >
-        <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          >
-            <ScrollView
-              contentContainerStyle={styles.scroll}
-              keyboardShouldPersistTaps="handled"
-            >
-              {/* Header */}
-              <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()}>
-                  <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
-                </TouchableOpacity>
-                <Text style={styles.title}>{t('account.personalInfo')}</Text>
-              </View>
+  const content = (
+    <>
+      {!isDesktop && (
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.title}>{t('account.personalInfo')}</Text>
+        </View>
+      )}
+      {isDesktop && <Text style={styles.title}>{t('account.personalInfo')}</Text>}
 
-              {isReadonly && (
+      {isReadonly && (
                 <View style={styles.verifiedBadge}>
                   <FontAwesome6 name="circle-check" size={16} color={Colors.success} />
                   <Text style={styles.verifiedText}>{t('account.verified')}</Text>
@@ -170,6 +161,28 @@ export default function ProfileScreen() {
                   />
                 )}
               </View>
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: 0 }]} keyboardShouldPersistTaps="handled">
+        {content}
+        <CustomAlert />
+      </ScrollView>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1 }}>
+      <ImageBackground
+        source={isDark ? require('../../assets/bg_page.jpg') : require('../../assets/bg_page_light.jpg')}
+        style={styles.background}
+      >
+        <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+              {content}
             </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>

@@ -181,8 +181,8 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     gap: Spacing.xl,
   },
   logo: {
-    width: 200,
-    height: 56,
+    width: 240,
+    height: 68,
     alignSelf: 'center',
     marginBottom: Spacing.md,
   },

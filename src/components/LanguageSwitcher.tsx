@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, Platform } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { SUPPORTED_LANGUAGES, setLanguage } from '../i18n';
 import type { LanguageCode } from '../i18n';
@@ -40,7 +40,8 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
+    paddingTop: Platform.OS === 'web' ? Spacing.xl : Spacing.sm,
+    marginBottom: Platform.OS === 'web' ? Spacing.md : 0,
   },
   btn: { paddingHorizontal: Spacing.sm, paddingVertical: 4 },
   label: { fontSize: FontSize.md, color: Colors.textMuted },

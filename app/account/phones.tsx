@@ -24,10 +24,12 @@ import { showAlert } from '../../src/stores/alertStore';
 import { CustomAlert } from '../../src/components/CustomAlert';
 import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
+import { useResponsive } from '../../src/hooks/useResponsive';
 import type { SavedPhone } from '../../src/types';
 
 export default function PhonesScreen() {
   const router = useRouter();
+  const { isDesktop } = useResponsive();
   const styles = useThemedStyles(createStyles);
   const { isDark } = useTheme();
   const { t } = useTranslation();
@@ -118,6 +120,146 @@ export default function PhonesScreen() {
     );
   };
 
+  const content = (
+    <>
+      {!isDesktop && (
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.title}>{t('account.savedPhones')}</Text>
+        </View>
+      )}
+      {isDesktop && <Text style={styles.title}>{t('account.savedPhones')}</Text>}
+
+      <View style={styles.formCard}>
+        {savedPhones.length > 0 ? savedPhones.map((item) => (
+          <View key={item.id} style={styles.savedEntryRow}>
+            <View style={{ flex: 1 }}>
+              <View style={styles.savedEntryTopRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.savedEntryTitle}>{item.name?.trim() || t('common.noLabel')}</Text>
+                  <Text style={styles.savedEntrySub}>{item.tel}</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.inlineIconBtn}
+                  onPress={() => {
+                    setPhoneForm({ id: item.id, name: item.name || '', tel: item.tel, type: item.type ?? 'transfer', operator: item.operator ?? '' });
+                    setPhoneModalOpen(true);
+                  }}
+                >
+                  <FontAwesome6 name="pen" size={14} color={Colors.secondary} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.inlineIconBtn} onPress={() => handleDeletePhoneEntry(item.id)}>
+                  <FontAwesome6 name="trash" size={14} color={Colors.error} />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.savedEntryBadgesRow}>
+                <View style={[styles.savedEntryBadgeWrap, item.type === 'deposit' ? styles.savedEntryBadgeDeposit : styles.savedEntryBadgeTransfer]}>
+                  <Text style={[styles.savedEntryBadgeText, item.type === 'deposit' ? { color: Colors.success } : { color: Colors.primary }]}>
+                    {item.type === 'deposit' ? t('account.typeDeposit') : t('account.typeTransfer')}
+                  </Text>
+                </View>
+                {item.operator ? (
+                  <View style={[styles.savedEntryBadgeWrap, styles.savedEntryBadgeOpWrap]}>
+                    <Text style={styles.savedEntryBadgeOpText}>
+                      {OPERATORS.find((op) => op.id === item.operator)?.flag ?? ''} {OPERATORS.find((op) => op.id === item.operator)?.name ?? item.operator}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          </View>
+        )) : (
+          <Text style={styles.emptyText}>{t('account.noPhones')}</Text>
+        )}
+
+        {loadError ? <Text style={styles.emptyText}>{loadError}</Text> : null}
+
+        <TouchableOpacity style={styles.addEntryBtn} onPress={() => { resetPhoneForm(); setPhoneModalOpen(true); }}>
+          <FontAwesome6 name="plus" size={12} color={Colors.primary} />
+          <Text style={styles.addEntryBtnText}>{t('account.addPhone')}</Text>
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+
+  const phoneModal = (
+    <Modal visible={phoneModalOpen} transparent animationType="fade" onRequestClose={resetPhoneForm}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.formModalOverlay}>
+        <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={resetPhoneForm} />
+        <View style={styles.formModalContainer}>
+          <View style={styles.formModalHeader}>
+            <Text style={styles.formModalTitle}>{phoneForm.id ? t('account.editPhone') : t('account.addPhone')}</Text>
+            <TouchableOpacity onPress={resetPhoneForm} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <FontAwesome6 name="xmark" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <Input
+              label={t('account.label')}
+              value={phoneForm.name}
+              onChangeText={(value) => setPhoneForm((prev) => ({ ...prev, name: value }))}
+              placeholder={t('account.labelPlaceholder')}
+            />
+            <Input
+              label={t('account.number')}
+              value={phoneForm.tel}
+              onChangeText={(value) => setPhoneForm((prev) => ({ ...prev, tel: value }))}
+              keyboardType="phone-pad"
+              placeholder={t('account.numberPlaceholder')}
+            />
+            <Text style={styles.managementFieldLabel}>{`${t('account.type')} *`}</Text>
+            <View style={styles.typeRow}>
+              {(['transfer', 'deposit'] as const).map((typ) => (
+                <TouchableOpacity
+                  key={typ}
+                  style={[styles.typeChip, phoneForm.type === typ && styles.typeChipSelected]}
+                  onPress={() => setPhoneForm((prev) => ({ ...prev, type: typ, operator: '' }))}
+                >
+                  <Text style={[styles.typeChipText, phoneForm.type === typ && styles.typeChipTextSelected]}>
+                    {typ === 'transfer' ? t('account.typeTransfer') : t('account.typeDeposit')}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={styles.managementFieldLabel}>{t('account.operator')}</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.sm }}>
+              {OPERATORS.filter((op) => phoneForm.type === 'deposit' ? op.id !== 'card' : op.withdraw).map((op) => (
+                <TouchableOpacity
+                  key={op.id}
+                  style={[styles.opChipSm, phoneForm.operator === op.id && styles.opChipSmSelected]}
+                  onPress={() => setPhoneForm((prev) => ({ ...prev, operator: op.id }))}
+                >
+                  <Image source={op.logo} style={styles.opChipSmLogo} resizeMode="contain" />
+                  <Text style={[styles.opChipSmText, phoneForm.operator === op.id && styles.opChipSmTextSelected]} numberOfLines={2}>
+                    {op.flag} {op.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.managementActions}>
+              <Button title={phoneForm.id ? t('account.update') : t('common.add')} onPress={handleSavePhoneEntry} loading={phoneSaving} style={{ flex: 1 }} />
+              <Button title={t('common.cancel')} variant="outline" onPress={resetPhoneForm} style={{ flex: 1 }} />
+            </View>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+
+  if (isDesktop) {
+    return (
+      <View style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: 0 }]} keyboardShouldPersistTaps="handled">
+          {content}
+        </ScrollView>
+        {phoneModal}
+        <CustomAlert />
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1 }}>
       <ImageBackground
@@ -127,128 +269,11 @@ export default function PhonesScreen() {
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-            {/* Header */}
-            <View style={styles.header}>
-              <TouchableOpacity onPress={() => router.back()}>
-                <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
-              </TouchableOpacity>
-              <Text style={styles.title}>{t('account.savedPhones')}</Text>
-            </View>
-
-            <View style={styles.formCard}>
-              {savedPhones.length > 0 ? savedPhones.map((item) => (
-                <View key={item.id} style={styles.savedEntryRow}>
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.savedEntryTopRow}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.savedEntryTitle}>{item.name?.trim() || t('common.noLabel')}</Text>
-                        <Text style={styles.savedEntrySub}>{item.tel}</Text>
-                      </View>
-                      <TouchableOpacity
-                        style={styles.inlineIconBtn}
-                        onPress={() => {
-                          setPhoneForm({ id: item.id, name: item.name || '', tel: item.tel, type: item.type ?? 'transfer', operator: item.operator ?? '' });
-                          setPhoneModalOpen(true);
-                        }}
-                      >
-                        <FontAwesome6 name="pen" size={14} color={Colors.secondary} />
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.inlineIconBtn} onPress={() => handleDeletePhoneEntry(item.id)}>
-                        <FontAwesome6 name="trash" size={14} color={Colors.error} />
-                      </TouchableOpacity>
-                    </View>
-                    <View style={styles.savedEntryBadgesRow}>
-                      <View style={[styles.savedEntryBadgeWrap, item.type === 'deposit' ? styles.savedEntryBadgeDeposit : styles.savedEntryBadgeTransfer]}>
-                        <Text style={[styles.savedEntryBadgeText, item.type === 'deposit' ? { color: Colors.success } : { color: Colors.primary }]}>
-                          {item.type === 'deposit' ? t('account.typeDeposit') : t('account.typeTransfer')}
-                        </Text>
-                      </View>
-                      {item.operator ? (
-                        <View style={[styles.savedEntryBadgeWrap, styles.savedEntryBadgeOpWrap]}>
-                          <Text style={styles.savedEntryBadgeOpText}>
-                            {OPERATORS.find((op) => op.id === item.operator)?.flag ?? ''} {OPERATORS.find((op) => op.id === item.operator)?.name ?? item.operator}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
-                  </View>
-                </View>
-              )) : (
-                <Text style={styles.emptyText}>{t('account.noPhones')}</Text>
-              )}
-
-              {loadError ? <Text style={styles.emptyText}>{loadError}</Text> : null}
-
-              <TouchableOpacity style={styles.addEntryBtn} onPress={() => { resetPhoneForm(); setPhoneModalOpen(true); }}>
-                <FontAwesome6 name="plus" size={12} color={Colors.primary} />
-                <Text style={styles.addEntryBtnText}>{t('account.addPhone')}</Text>
-              </TouchableOpacity>
-            </View>
+            {content}
           </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
-        <Modal visible={phoneModalOpen} transparent animationType="fade" onRequestClose={resetPhoneForm}>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.formModalOverlay}>
-            <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={resetPhoneForm} />
-            <View style={styles.formModalContainer}>
-              <View style={styles.formModalHeader}>
-                <Text style={styles.formModalTitle}>{phoneForm.id ? t('account.editPhone') : t('account.addPhone')}</Text>
-                <TouchableOpacity onPress={resetPhoneForm} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <FontAwesome6 name="xmark" size={16} color={Colors.textMuted} />
-                </TouchableOpacity>
-              </View>
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                <Input
-                  label={t('account.label')}
-                  value={phoneForm.name}
-                  onChangeText={(value) => setPhoneForm((prev) => ({ ...prev, name: value }))}
-                  placeholder={t('account.labelPlaceholder')}
-                />
-                <Input
-                  label={t('account.number')}
-                  value={phoneForm.tel}
-                  onChangeText={(value) => setPhoneForm((prev) => ({ ...prev, tel: value }))}
-                  keyboardType="phone-pad"
-                  placeholder={t('account.numberPlaceholder')}
-                />
-                <Text style={styles.managementFieldLabel}>{`${t('account.type')} *`}</Text>
-                <View style={styles.typeRow}>
-                  {(['transfer', 'deposit'] as const).map((typ) => (
-                    <TouchableOpacity
-                      key={typ}
-                      style={[styles.typeChip, phoneForm.type === typ && styles.typeChipSelected]}
-                      onPress={() => setPhoneForm((prev) => ({ ...prev, type: typ, operator: '' }))}
-                    >
-                      <Text style={[styles.typeChipText, phoneForm.type === typ && styles.typeChipTextSelected]}>
-                        {typ === 'transfer' ? t('account.typeTransfer') : t('account.typeDeposit')}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <Text style={styles.managementFieldLabel}>{t('account.operator')}</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.sm }}>
-                  {OPERATORS.filter((op) => phoneForm.type === 'deposit' ? op.id !== 'card' : op.withdraw).map((op) => (
-                    <TouchableOpacity
-                      key={op.id}
-                      style={[styles.opChipSm, phoneForm.operator === op.id && styles.opChipSmSelected]}
-                      onPress={() => setPhoneForm((prev) => ({ ...prev, operator: op.id }))}
-                    >
-                      <Image source={op.logo} style={styles.opChipSmLogo} resizeMode="contain" />
-                      <Text style={[styles.opChipSmText, phoneForm.operator === op.id && styles.opChipSmTextSelected]} numberOfLines={2}>
-                        {op.flag} {op.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <View style={styles.managementActions}>
-                  <Button title={phoneForm.id ? t('account.update') : t('common.add')} onPress={handleSavePhoneEntry} loading={phoneSaving} style={{ flex: 1 }} />
-                  <Button title={t('common.cancel')} variant="outline" onPress={resetPhoneForm} style={{ flex: 1 }} />
-                </View>
-              </ScrollView>
-            </View>
-          </KeyboardAvoidingView>
-        </Modal>
-
+        {phoneModal}
         <CustomAlert />
       </ImageBackground>
     </View>

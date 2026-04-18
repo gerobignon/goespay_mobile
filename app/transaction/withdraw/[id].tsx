@@ -162,7 +162,7 @@ export default function WithdrawDetailScreen() {
           />
           <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
           {tx.updated_at && tx.updated_at !== tx.created_at && (
-            <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.updated_at)} />
+            <TransactionDetailRow label={t('transaction.updatedAt')} value={formatDate(tx.updated_at)} />
           )}
         </Card>
       </ScrollView>
@@ -170,7 +170,7 @@ export default function WithdrawDetailScreen() {
       {/* Claim Modal */}
       <Modal visible={claimVisible} transparent animationType="slide">
         <CustomAlert />
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior="padding">
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{t('transaction.addClaim')}</Text>
@@ -274,7 +274,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     gap: 6,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    backgroundColor: Colors.secondary,
+    backgroundColor: Colors.error,
     borderRadius: BorderRadius.pill,
   },
   claimBtnText: {

@@ -1,0 +1,38 @@
+name: Deploy Web
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Expo web
+        run: npx expo export --platform web
+
+      - name: Copy .htaccess
+        run: cp web-public/.htaccess dist/.htaccess
+
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@4.3.3
+        with:
+          server: ${{ secrets.APP_FTP_HOST }}
+          username: ${{ secrets.APP_FTP_USER }}
+          password: ${{ secrets.APP_FTP_PASSWORD }}
+          local-dir: dist/
+          server-dir: /home/goes_app_git/

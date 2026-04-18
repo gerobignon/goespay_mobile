@@ -164,7 +164,7 @@ export default function CryptoDetailScreen() {
           <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? `${formatCurrency(tx.apres)} XOF` : '—'} mono color={status.color} />
           <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
           {tx.updated_at && tx.updated_at !== tx.created_at && (
-            <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.updated_at)} />
+            <TransactionDetailRow label={t('transaction.updatedAt')} value={formatDate(tx.updated_at)} />
           )}
         </Card>
       </ScrollView>
@@ -172,7 +172,7 @@ export default function CryptoDetailScreen() {
       {/* Claim Modal */}
       <Modal visible={claimVisible} transparent animationType="slide">
         <CustomAlert />
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior="padding">
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{t('transaction.addClaim')}</Text>
@@ -271,7 +271,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
-    backgroundColor: Colors.secondary,
+    backgroundColor: Colors.error,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.md,
   },

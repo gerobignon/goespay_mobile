@@ -382,7 +382,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
         style={{ flex: Platform.OS === 'web' ? undefined : 1 }}
         enabled={Platform.OS !== 'web'}
       >
-          <View style={[styles.sheet, { flex: Platform.OS === 'web' ? undefined : 1, paddingBottom: Math.max(insets.bottom, Spacing.lg), paddingTop: Platform.OS === 'web' ? Spacing.lg : insets.top }]}>
+          <View style={[styles.sheet, { flex: Platform.OS === 'web' ? undefined : 1, paddingBottom: Math.max(insets.bottom, Spacing.lg), paddingTop: Spacing.lg }]}>
               <View style={styles.header}>
                 <Text style={styles.title}>{t('transaction.crypto')}</Text>
                 <TouchableOpacity onPress={handleClose}>

@@ -18,9 +18,11 @@ import { useTranslation } from 'react-i18next';
 import i18n from '../../src/i18n';
 import { SUPPORTED_LANGUAGES, setLanguage } from '../../src/i18n';
 import { CustomAlert } from '../../src/components/CustomAlert';
+import { useResponsive } from '../../src/hooks/useResponsive';
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { isDesktop } = useResponsive();
   const styles = useThemedStyles(createStyles);
   const { mode: themeMode, setMode: setThemeMode, isDark } = useTheme();
   const { t } = useTranslation();
@@ -35,6 +37,76 @@ export default function SettingsScreen() {
     { key: 'dark', label: t('account.themeDark'), desc: t('account.themeDarkDesc', 'Thème sombre'), icon: 'moon' },
   ];
 
+  const content = (
+    <>
+      {!isDesktop && (
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.title}>{t('account.appearance')}</Text>
+        </View>
+      )}
+      {isDesktop && <Text style={styles.title}>{t('account.appearance')}</Text>}
+
+      {/* Thème */}
+      <View style={styles.formCard}>
+        <Text style={styles.sectionTitle}>
+          <FontAwesome6 name="palette" size={14} color={Colors.secondary} /> {t('account.appearance')}
+        </Text>
+        {themeOptions.map((opt) => (
+          <TouchableOpacity
+            key={opt.key}
+            style={styles.securityRow}
+            onPress={() => setThemeMode(opt.key)}
+          >
+            <View style={styles.securityIcon}>
+              <FontAwesome6 name={opt.icon} size={16} color={themeMode === opt.key ? Colors.primary : Colors.textMuted} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.securityLabel}>{opt.label}</Text>
+              <Text style={styles.securityDesc}>{opt.desc}</Text>
+            </View>
+            {themeMode === opt.key && (
+              <FontAwesome6 name="circle-check" size={16} color={Colors.primary} />
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Langue */}
+      <View style={[styles.formCard, { marginTop: Spacing.lg }]}>
+        <Text style={styles.sectionTitle}>
+          <FontAwesome6 name="language" size={14} color={Colors.secondary} /> {t('account.language')}
+        </Text>
+        {SUPPORTED_LANGUAGES.map((lang) => (
+          <TouchableOpacity
+            key={lang.code}
+            style={styles.securityRow}
+            onPress={() => changeLanguage(lang.code)}
+          >
+            <Text style={{ fontSize: FontSize.lg, marginRight: Spacing.sm }}>{lang.flag}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.securityLabel}>{lang.label}</Text>
+            </View>
+            {i18n.language === lang.code && (
+              <FontAwesome6 name="circle-check" size={16} color={Colors.primary} />
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: 0 }]}>
+        {content}
+        <CustomAlert />
+      </ScrollView>
+    );
+  }
+
   return (
     <View style={{ flex: 1 }}>
       <ImageBackground
@@ -43,60 +115,7 @@ export default function SettingsScreen() {
       >
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
           <ScrollView contentContainerStyle={styles.scroll}>
-            {/* Header */}
-            <View style={styles.header}>
-              <TouchableOpacity onPress={() => router.back()}>
-                <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
-              </TouchableOpacity>
-              <Text style={styles.title}>{t('account.appearance')}</Text>
-            </View>
-
-            {/* Thème */}
-            <View style={styles.formCard}>
-              <Text style={styles.sectionTitle}>
-                <FontAwesome6 name="palette" size={14} color={Colors.secondary} /> {t('account.appearance')}
-              </Text>
-              {themeOptions.map((opt) => (
-                <TouchableOpacity
-                  key={opt.key}
-                  style={styles.securityRow}
-                  onPress={() => setThemeMode(opt.key)}
-                >
-                  <View style={styles.securityIcon}>
-                    <FontAwesome6 name={opt.icon} size={16} color={themeMode === opt.key ? Colors.primary : Colors.textMuted} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.securityLabel}>{opt.label}</Text>
-                    <Text style={styles.securityDesc}>{opt.desc}</Text>
-                  </View>
-                  {themeMode === opt.key && (
-                    <FontAwesome6 name="circle-check" size={16} color={Colors.primary} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Langue */}
-            <View style={[styles.formCard, { marginTop: Spacing.lg }]}>
-              <Text style={styles.sectionTitle}>
-                <FontAwesome6 name="language" size={14} color={Colors.secondary} /> {t('account.language')}
-              </Text>
-              {SUPPORTED_LANGUAGES.map((lang) => (
-                <TouchableOpacity
-                  key={lang.code}
-                  style={styles.securityRow}
-                  onPress={() => changeLanguage(lang.code)}
-                >
-                  <Text style={{ fontSize: FontSize.lg, marginRight: Spacing.sm }}>{lang.flag}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.securityLabel}>{lang.label}</Text>
-                  </View>
-                  {i18n.language === lang.code && (
-                    <FontAwesome6 name="circle-check" size={16} color={Colors.primary} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
+            {content}
           </ScrollView>
         </SafeAreaView>
         <CustomAlert />

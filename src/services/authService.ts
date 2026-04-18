@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import api from './api';
 import type {
   LoginRequest,
@@ -73,10 +74,17 @@ export const authService = {
 
   uploadAvatar: async (uri: string): Promise<{ avatar: string }> => {
     const formData = new FormData();
-    const filename = uri.split('/').pop() || 'avatar.jpg';
-    const match = /\.(\w+)$/.exec(filename);
-    const type = match ? `image/${match[1]}` : 'image/jpeg';
-    formData.append('avatar', { uri, name: filename, type } as unknown as Blob);
+    if (Platform.OS === 'web') {
+      const resp = await fetch(uri);
+      const blob = await resp.blob();
+      const filename = uri.split('/').pop() || 'avatar.jpg';
+      formData.append('avatar', blob, filename);
+    } else {
+      const filename = uri.split('/').pop() || 'avatar.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : 'image/jpeg';
+      formData.append('avatar', { uri, name: filename, type } as unknown as Blob);
+    }
 
     const response = await api.post('/me/avatar', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },

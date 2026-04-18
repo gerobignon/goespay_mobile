@@ -220,8 +220,8 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     marginBottom: Spacing.xl,
   },
   logo: {
-    width: 180,
-    height: 180,
+    width: 240,
+    height: 240,
     marginBottom: Spacing.md,
   },
   subtitle: {

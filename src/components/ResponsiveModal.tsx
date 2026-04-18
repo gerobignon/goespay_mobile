@@ -1,5 +1,6 @@
 import React, { ReactNode } from 'react';
-import { Modal, View, ScrollView, StyleSheet, Pressable, Platform } from 'react-native';
+import { Modal, View, ScrollView, StyleSheet, Pressable, Platform, KeyboardAvoidingView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useResponsive } from '../hooks/useResponsive';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { Colors, type ColorPalette, BorderRadius, Spacing } from '../constants/theme';
@@ -20,7 +21,14 @@ export function ResponsiveModal({ visible, onClose, children }: ResponsiveModalP
   if (!isWide) {
     return (
       <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-        {children}
+        <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            {children}
+          </KeyboardAvoidingView>
+        </SafeAreaView>
       </Modal>
     );
   }

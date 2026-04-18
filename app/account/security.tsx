@@ -36,9 +36,11 @@ import { showAlert } from '../../src/stores/alertStore';
 import { CustomAlert } from '../../src/components/CustomAlert';
 import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
+import { useResponsive } from '../../src/hooks/useResponsive';
 
 export default function SecurityScreen() {
   const router = useRouter();
+  const { isDesktop } = useResponsive();
   const styles = useThemedStyles(createStyles);
   const { isDark } = useTheme();
   const { user } = useAuthStore();
@@ -266,6 +268,313 @@ export default function SecurityScreen() {
     }
   };
 
+  const content = (
+    <>
+      {!isDesktop && (
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.title}>{t('account.security')}</Text>
+        </View>
+      )}
+      {isDesktop && <Text style={styles.title}>{t('account.security')}</Text>}
+
+      <View style={styles.formCard}>
+        <Text style={styles.sectionTitle}>
+          <FontAwesome6 name="shield-halved" size={14} color={Colors.secondary} /> {t('account.security')}
+        </Text>
+
+        {/* PIN */}
+        <TouchableOpacity style={styles.securityRow} onPress={handleSwitchToPin}>
+          <View style={styles.securityIcon}>
+            <FontAwesome6 name="hashtag" size={16} color={currentLockMethod === 'pin' ? Colors.primary : Colors.textMuted} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.securityLabel}>{t('account.pin')}</Text>
+            <Text style={styles.securityDesc}>
+              {currentLockMethod === 'pin' ? t('account.pinActive') : t('account.pinInactive')}
+            </Text>
+          </View>
+          {currentLockMethod === 'pin' && (
+            <FontAwesome6 name="circle-check" size={16} color={Colors.primary} />
+          )}
+        </TouchableOpacity>
+
+        {/* Biométrie */}
+        {bioAvailable && (
+          <TouchableOpacity style={styles.securityRow} onPress={handleSwitchToBio}>
+            <View style={styles.securityIcon}>
+              <FontAwesome6 name="fingerprint" size={16} color={currentLockMethod === 'biometric' ? Colors.secondary : Colors.textMuted} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.securityLabel}>{t('account.biometric')}</Text>
+              <Text style={styles.securityDesc}>
+                {currentLockMethod === 'biometric' ? t('account.biometricActive') : t('account.biometricInactive')}
+              </Text>
+            </View>
+            {currentLockMethod === 'biometric' && (
+              <FontAwesome6 name="circle-check" size={16} color={Colors.secondary} />
+            )}
+          </TouchableOpacity>
+        )}
+
+        {/* Mot de passe */}
+        <TouchableOpacity style={styles.securityRow} onPress={() => setPwModalVisible(true)}>
+          <View style={styles.securityIcon}>
+            <FontAwesome6 name="lock" size={16} color={Colors.textMuted} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.securityLabel}>{t('account.password')}</Text>
+            <Text style={styles.securityDesc}>{t('account.changePassword')}</Text>
+          </View>
+          <FontAwesome6 name="chevron-right" size={14} color={Colors.textMuted} />
+        </TouchableOpacity>
+
+        {/* 2FA */}
+        <TouchableOpacity
+          style={styles.securityRow}
+          onPress={() => {
+            if (twoFaEnabled) {
+              setTwoFaStep('disable');
+              setTwoFaModalVisible(true);
+            } else {
+              handleEnable2fa();
+            }
+          }}
+        >
+          <View style={styles.securityIcon}>
+            <FontAwesome6 name="mobile-screen" size={16} color={twoFaEnabled ? Colors.success : Colors.textMuted} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.securityLabel}>{t('account.twoFa')}</Text>
+            <Text style={styles.securityDesc}>
+              {twoFaEnabled ? t('account.twoFaActive') : t('account.twoFaInactive')}
+            </Text>
+          </View>
+          {twoFaEnabled && (
+            <FontAwesome6 name="circle-check" size={16} color={Colors.success} />
+          )}
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+
+  const modals = (
+    <>
+      {/* Modal 2FA */}
+      <ResponsiveModal visible={twoFaModalVisible} onClose={handleCloseTwoFaModal}>
+        <View style={styles.modalSheet}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>
+              {twoFaStep === 'disable' ? t('account.twoFaDisableTitle') : twoFaStep === 'recovery' ? t('account.twoFaRecoveryTitle') : t('account.twoFaTitle')}
+            </Text>
+            <TouchableOpacity onPress={handleCloseTwoFaModal}>
+              <FontAwesome6 name="xmark" size={20} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+
+          {twoFaStep === 'qr' && (
+            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: Spacing.xl }}>
+              <Text style={styles.twoFaInstruction}>
+                {t('account.twoFaStep1')}{' '}{t('account.twoFaStep2')}
+              </Text>
+              {twoFaQrUrl ? (
+                <View style={{ alignSelf: 'center', marginVertical: Spacing.md, backgroundColor: '#ffffff', borderRadius: 12, padding: 10 }}>
+                  {Platform.OS === 'web' ? (
+                    <img
+                      src={
+                        twoFaQrUrl.startsWith('<svg') || twoFaQrUrl.startsWith('<SVG')
+                          ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(twoFaQrUrl)}`
+                          : twoFaQrUrl
+                      }
+                      width={150}
+                      height={150}
+                      style={{ borderRadius: 4, display: 'block' } as any}
+                    />
+                  ) : (
+                    <Image source={{ uri: twoFaQrUrl }} style={{ width: 150, height: 150, borderRadius: 4 }} />
+                  )}
+                </View>
+              ) : null}
+              <Text style={styles.twoFaInstruction}>{t('account.twoFaManualSecret')}</Text>
+              <TouchableOpacity
+                style={styles.secretBox}
+                onPress={() => {
+                  Clipboard.setString(twoFaSecret);
+                  showAlert(t('common.copied'), t('account.secretCopied'));
+                }}
+              >
+                <Text style={styles.secretText}>{twoFaSecret}</Text>
+                <Text style={styles.secretHint}>{t('account.twoFaCopySecret')}</Text>
+              </TouchableOpacity>
+              <Text style={[styles.twoFaInstruction, { marginTop: Spacing.md }]}>
+                {t('account.twoFaStep4')}
+              </Text>
+              <OtpInput value={twoFaCode} onChange={setTwoFaCode} onComplete={handleConfirm2fa} />
+              <Button
+                title={t('common.confirm')}
+                onPress={handleConfirm2fa}
+                loading={twoFaLoading}
+                style={{ marginTop: Spacing.sm }}
+              />
+            </ScrollView>
+          )}
+
+          {twoFaStep === 'disable' && (
+            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: Spacing.xl }}>
+              <Text style={styles.twoFaInstruction}>{t('account.twoFaDisableHint')}</Text>
+              <Input
+                label={t('account.password')}
+                value={twoFaDisablePassword}
+                onChangeText={setTwoFaDisablePassword}
+                secureTextEntry
+                placeholder="••••••••"
+              />
+              <Button
+                title={t('account.twoFaDisableSubmit')}
+                onPress={handleDisable2fa}
+                loading={twoFaLoading}
+                variant="outline"
+                style={{ marginTop: Spacing.sm }}
+              />
+            </ScrollView>
+          )}
+
+          {twoFaStep === 'recovery' && (
+            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: Spacing.xl }}>
+              <Text style={[styles.twoFaInstruction, { color: Colors.warning ?? Colors.secondary, fontFamily: Fonts.bold }]}>
+                {t('account.twoFaRecoveryWarning')}
+              </Text>
+              <Text style={styles.twoFaInstruction}>{t('account.twoFaRecoveryHint')}</Text>
+              <View style={styles.secretBox}>
+                {twoFaRecoveryCodes.map((code, i) => (
+                  <Text key={i} style={[styles.secretText, { marginVertical: 2 }]}>{code}</Text>
+                ))}
+              </View>
+              <Button
+                title={t('account.twoFaRecoveryCopy')}
+                onPress={() => {
+                  Clipboard.setString(twoFaRecoveryCodes.join('\n'));
+                  showAlert(t('common.copied'), t('account.recoveryCopied'));
+                }}
+                style={{ marginTop: Spacing.md }}
+              />
+              <Button
+                title={t('account.twoFaRecoveryDone')}
+                onPress={() => setTwoFaModalVisible(false)}
+                variant="outline"
+                style={{ marginTop: Spacing.sm }}
+              />
+            </ScrollView>
+          )}
+        </View>
+      </ResponsiveModal>
+
+      {/* Modal PIN */}
+      <ResponsiveModal visible={pinModalVisible} onClose={() => setPinModalVisible(false)}>
+        <View style={styles.modalSheet}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>
+              {pinStep === 'password' ? t('account.pinModalConfirmIdentity') : pinStep === 'enter' ? t('account.pinModalNewPin') : t('account.pinModalConfirmPin')}
+            </Text>
+            <TouchableOpacity onPress={() => setPinModalVisible(false)}>
+              <FontAwesome6 name="xmark" size={20} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+
+          {pinStep === 'password' && (
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <Text style={styles.twoFaInstruction}>
+                {t('account.pinModalPasswordHint', 'Entrez votre mot de passe pour modifier votre PIN.')}
+              </Text>
+              <Input
+                label={t('account.currentPassword')}
+                value={pinPasswordCheck}
+                onChangeText={setPinPasswordCheck}
+                secureTextEntry
+                placeholder="••••••••"
+                error={pinPasswordError || undefined}
+              />
+              <Button
+                title={t('common.next')}
+                onPress={handlePinPasswordCheck}
+                loading={pinPasswordLoading}
+                style={{ marginTop: Spacing.sm }}
+              />
+            </ScrollView>
+          )}
+
+          {(pinStep === 'enter' || pinStep === 'confirm') && (
+            <View style={{ alignItems: 'center', paddingTop: Spacing.md }}>
+              <PinPad
+                length={4}
+                onComplete={pinStep === 'enter' ? handlePinFirst : handlePinConfirm}
+                error={pinError}
+                reset={pinReset}
+                label={pinStep === 'enter' ? t('account.pinModalChoose4') : t('account.pinModalConfirmYourPin')}
+              />
+            </View>
+          )}
+        </View>
+      </ResponsiveModal>
+
+      {/* Modal mot de passe */}
+      <ResponsiveModal visible={pwModalVisible} onClose={handleClosePwModal}>
+        <View style={styles.modalSheet}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{t('account.changePasswordTitle')}</Text>
+            <TouchableOpacity onPress={handleClosePwModal}>
+              <FontAwesome6 name="xmark" size={20} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <Input
+              label={t('account.currentPassword')}
+              placeholder="••••••••"
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
+              secureTextEntry
+            />
+            <Input
+              label={t('account.newPassword')}
+              placeholder={t('account.passwordMinPlaceholder')}
+              value={newPassword}
+              onChangeText={setNewPassword}
+              secureTextEntry
+            />
+            <Input
+              label={t('account.confirmNewPassword')}
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+            />
+            <Button
+              title={t('account.changePasswordSubmit')}
+              onPress={handleChangePassword}
+              icon="lock"
+              loading={pwLoading}
+              style={{ marginTop: Spacing.sm }}
+            />
+          </ScrollView>
+        </View>
+      </ResponsiveModal>
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <View style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: 0 }]} keyboardShouldPersistTaps="handled">
+          {content}
+        </ScrollView>
+        {modals}
+        <CustomAlert />
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1 }}>
       <ImageBackground
@@ -275,294 +584,11 @@ export default function SecurityScreen() {
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-            {/* Header */}
-            <View style={styles.header}>
-              <TouchableOpacity onPress={() => router.back()}>
-                <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
-              </TouchableOpacity>
-              <Text style={styles.title}>{t('account.security')}</Text>
-            </View>
-
-            <View style={styles.formCard}>
-              <Text style={styles.sectionTitle}>
-                <FontAwesome6 name="shield-halved" size={14} color={Colors.secondary} /> {t('account.security')}
-              </Text>
-
-              {/* PIN */}
-              <TouchableOpacity style={styles.securityRow} onPress={handleSwitchToPin}>
-                <View style={styles.securityIcon}>
-                  <FontAwesome6 name="hashtag" size={16} color={currentLockMethod === 'pin' ? Colors.primary : Colors.textMuted} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.securityLabel}>{t('account.pin')}</Text>
-                  <Text style={styles.securityDesc}>
-                    {currentLockMethod === 'pin' ? t('account.pinActive') : t('account.pinInactive')}
-                  </Text>
-                </View>
-                {currentLockMethod === 'pin' && (
-                  <FontAwesome6 name="circle-check" size={16} color={Colors.primary} />
-                )}
-              </TouchableOpacity>
-
-              {/* Biométrie */}
-              {bioAvailable && (
-                <TouchableOpacity style={styles.securityRow} onPress={handleSwitchToBio}>
-                  <View style={styles.securityIcon}>
-                    <FontAwesome6 name="fingerprint" size={16} color={currentLockMethod === 'biometric' ? Colors.secondary : Colors.textMuted} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.securityLabel}>{t('account.biometric')}</Text>
-                    <Text style={styles.securityDesc}>
-                      {currentLockMethod === 'biometric' ? t('account.biometricActive') : t('account.biometricInactive')}
-                    </Text>
-                  </View>
-                  {currentLockMethod === 'biometric' && (
-                    <FontAwesome6 name="circle-check" size={16} color={Colors.secondary} />
-                  )}
-                </TouchableOpacity>
-              )}
-
-              {/* Mot de passe */}
-              <TouchableOpacity style={styles.securityRow} onPress={() => setPwModalVisible(true)}>
-                <View style={styles.securityIcon}>
-                  <FontAwesome6 name="lock" size={16} color={Colors.textMuted} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.securityLabel}>{t('account.password')}</Text>
-                  <Text style={styles.securityDesc}>{t('account.changePassword')}</Text>
-                </View>
-                <FontAwesome6 name="chevron-right" size={14} color={Colors.textMuted} />
-              </TouchableOpacity>
-
-              {/* 2FA */}
-              <TouchableOpacity
-                style={styles.securityRow}
-                onPress={() => {
-                  if (twoFaEnabled) {
-                    setTwoFaStep('disable');
-                    setTwoFaModalVisible(true);
-                  } else {
-                    handleEnable2fa();
-                  }
-                }}
-              >
-                <View style={styles.securityIcon}>
-                  <FontAwesome6 name="mobile-screen" size={16} color={twoFaEnabled ? Colors.success : Colors.textMuted} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.securityLabel}>{t('account.twoFa')}</Text>
-                  <Text style={styles.securityDesc}>
-                    {twoFaEnabled ? t('account.twoFaActive') : t('account.twoFaInactive')}
-                  </Text>
-                </View>
-                {twoFaEnabled && (
-                  <FontAwesome6 name="circle-check" size={16} color={Colors.success} />
-                )}
-              </TouchableOpacity>
-            </View>
+            {content}
           </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
-
-        {/* Modal 2FA */}
-        <ResponsiveModal visible={twoFaModalVisible} onClose={handleCloseTwoFaModal}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {twoFaStep === 'disable' ? t('account.twoFaDisableTitle') : twoFaStep === 'recovery' ? t('account.twoFaRecoveryTitle') : t('account.twoFaTitle')}
-              </Text>
-              <TouchableOpacity onPress={handleCloseTwoFaModal}>
-                <FontAwesome6 name="xmark" size={20} color={Colors.textMuted} />
-              </TouchableOpacity>
-            </View>
-
-            {twoFaStep === 'qr' && (
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={styles.twoFaInstruction}>
-                  {t('account.twoFaStep1')}{' '}{t('account.twoFaStep2')}
-                </Text>
-                {twoFaQrUrl ? (
-                  <View style={{ alignSelf: 'center', marginVertical: Spacing.md, backgroundColor: '#ffffff', borderRadius: 12, padding: 10 }}>
-                    {Platform.OS === 'web' ? (
-                      <img
-                        src={
-                          twoFaQrUrl.startsWith('<svg') || twoFaQrUrl.startsWith('<SVG')
-                            ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(twoFaQrUrl)}`
-                            : twoFaQrUrl
-                        }
-                        width={150}
-                        height={150}
-                        style={{ borderRadius: 4, display: 'block' } as any}
-                      />
-                    ) : (
-                      <Image source={{ uri: twoFaQrUrl }} style={{ width: 150, height: 150, borderRadius: 4 }} />
-                    )}
-                  </View>
-                ) : null}
-                <Text style={styles.twoFaInstruction}>{t('account.twoFaManualSecret')}</Text>
-                <TouchableOpacity
-                  style={styles.secretBox}
-                  onPress={() => {
-                    Clipboard.setString(twoFaSecret);
-                    showAlert(t('common.copied'), t('account.secretCopied'));
-                  }}
-                >
-                  <Text style={styles.secretText}>{twoFaSecret}</Text>
-                  <Text style={styles.secretHint}>{t('account.twoFaCopySecret')}</Text>
-                </TouchableOpacity>
-                <Text style={[styles.twoFaInstruction, { marginTop: Spacing.md }]}>
-                  {t('account.twoFaStep4')}
-                </Text>
-                <OtpInput value={twoFaCode} onChange={setTwoFaCode} onComplete={handleConfirm2fa} />
-                <Button
-                  title={t('common.confirm')}
-                  onPress={handleConfirm2fa}
-                  loading={twoFaLoading}
-                  style={{ marginTop: Spacing.sm }}
-                />
-              </ScrollView>
-            )}
-
-            {twoFaStep === 'disable' && (
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={styles.twoFaInstruction}>{t('account.twoFaDisableHint')}</Text>
-                <Input
-                  label={t('account.password')}
-                  value={twoFaDisablePassword}
-                  onChangeText={setTwoFaDisablePassword}
-                  secureTextEntry
-                  placeholder="••••••••"
-                />
-                <Button
-                  title={t('account.twoFaDisableSubmit')}
-                  onPress={handleDisable2fa}
-                  loading={twoFaLoading}
-                  variant="outline"
-                  style={{ marginTop: Spacing.sm }}
-                />
-              </ScrollView>
-            )}
-
-            {twoFaStep === 'recovery' && (
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={[styles.twoFaInstruction, { color: Colors.warning ?? Colors.secondary, fontFamily: Fonts.bold }]}>
-                  {t('account.twoFaRecoveryWarning')}
-                </Text>
-                <Text style={styles.twoFaInstruction}>{t('account.twoFaRecoveryHint')}</Text>
-                <View style={styles.secretBox}>
-                  {twoFaRecoveryCodes.map((code, i) => (
-                    <Text key={i} style={[styles.secretText, { marginVertical: 2 }]}>{code}</Text>
-                  ))}
-                </View>
-                <Button
-                  title={t('account.twoFaRecoveryCopy')}
-                  onPress={() => {
-                    Clipboard.setString(twoFaRecoveryCodes.join('\n'));
-                    showAlert(t('common.copied'), t('account.recoveryCopied'));
-                  }}
-                  style={{ marginTop: Spacing.md }}
-                />
-                <Button
-                  title={t('account.twoFaRecoveryDone')}
-                  onPress={() => setTwoFaModalVisible(false)}
-                  variant="outline"
-                  style={{ marginTop: Spacing.sm }}
-                />
-              </ScrollView>
-            )}
-          </View>
-        </ResponsiveModal>
-
-        {/* Modal PIN */}
-        <ResponsiveModal visible={pinModalVisible} onClose={() => setPinModalVisible(false)}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {pinStep === 'password' ? t('account.pinModalConfirmIdentity') : pinStep === 'enter' ? t('account.pinModalNewPin') : t('account.pinModalConfirmPin')}
-              </Text>
-              <TouchableOpacity onPress={() => setPinModalVisible(false)}>
-                <FontAwesome6 name="xmark" size={20} color={Colors.textMuted} />
-              </TouchableOpacity>
-            </View>
-
-            {pinStep === 'password' && (
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                <Text style={styles.twoFaInstruction}>
-                  {t('account.pinModalPasswordHint', 'Entrez votre mot de passe pour modifier votre PIN.')}
-                </Text>
-                <Input
-                  label={t('account.currentPassword')}
-                  value={pinPasswordCheck}
-                  onChangeText={setPinPasswordCheck}
-                  secureTextEntry
-                  placeholder="••••••••"
-                  error={pinPasswordError || undefined}
-                />
-                <Button
-                  title={t('common.next')}
-                  onPress={handlePinPasswordCheck}
-                  loading={pinPasswordLoading}
-                  style={{ marginTop: Spacing.sm }}
-                />
-              </ScrollView>
-            )}
-
-            {(pinStep === 'enter' || pinStep === 'confirm') && (
-              <View style={{ alignItems: 'center', paddingTop: Spacing.md }}>
-                <PinPad
-                  length={4}
-                  onComplete={pinStep === 'enter' ? handlePinFirst : handlePinConfirm}
-                  error={pinError}
-                  reset={pinReset}
-                  label={pinStep === 'enter' ? t('account.pinModalChoose4') : t('account.pinModalConfirmYourPin')}
-                />
-              </View>
-            )}
-          </View>
-        </ResponsiveModal>
-
-        {/* Modal mot de passe */}
-        <ResponsiveModal visible={pwModalVisible} onClose={handleClosePwModal}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('account.changePasswordTitle')}</Text>
-              <TouchableOpacity onPress={handleClosePwModal}>
-                <FontAwesome6 name="xmark" size={20} color={Colors.textMuted} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <Input
-                label={t('account.currentPassword')}
-                placeholder="••••••••"
-                value={currentPassword}
-                onChangeText={setCurrentPassword}
-                secureTextEntry
-              />
-              <Input
-                label={t('account.newPassword')}
-                placeholder={t('account.passwordMinPlaceholder')}
-                value={newPassword}
-                onChangeText={setNewPassword}
-                secureTextEntry
-              />
-              <Input
-                label={t('account.confirmNewPassword')}
-                placeholder="••••••••"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
-              />
-              <Button
-                title={t('account.changePasswordSubmit')}
-                onPress={handleChangePassword}
-                icon="lock"
-                loading={pwLoading}
-                style={{ marginTop: Spacing.sm }}
-              />
-            </ScrollView>
-          </View>
-        </ResponsiveModal>
-
+        {modals}
         <CustomAlert />
       </ImageBackground>
     </View>

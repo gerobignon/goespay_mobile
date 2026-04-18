@@ -36,6 +36,7 @@ import { DepositModal } from '../../src/components/DepositModal';
 import { TransferModal } from '../../src/components/TransferModal';
 import { CryptoModal } from '../../src/components/CryptoModal';
 import { TransactionItem } from '../../src/components/TransactionItem';
+import { TransactionDetailModal, type TxType } from '../../src/components/TransactionDetailModal';
 import { useCryptoStore } from '../../src/stores/cryptoStore';
 import { useConfigStore } from '../../src/stores/configStore';
 import { useResponsive } from '../../src/hooks/useResponsive';
@@ -53,6 +54,8 @@ export default function DashboardScreen() {
   const [transferVisible, setTransferVisible] = useState(false);
   const [cryptoVisible, setCryptoVisible] = useState(false);
   const [dropdownVisible, setDropdownVisible] = useState(false);
+  const [modalTxId, setModalTxId] = useState<number | null>(null);
+  const [modalTxType, setModalTxType] = useState<TxType | null>(null);
 
   const { logout } = useAuthStore();
   const { deposit_enabled, transfer_enabled, crypto_buy_enabled, crypto_sell_enabled, fetchConfig } = useConfigStore();
@@ -60,10 +63,20 @@ export default function DashboardScreen() {
   const showCrypto = isCryptoUser && (crypto_buy_enabled || crypto_sell_enabled);
   const isValidated = user?.validate === 1;
   const prefetchRates = useCryptoStore((s) => s.fetchRates);
-  const { isWide, contentMaxWidth } = useResponsive();
+  const { isWide, isDesktop, contentMaxWidth } = useResponsive();
   const { isDark } = useTheme();
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();
+
+  const handleTxPress = (tx: any) => {
+    const type = tx.type as TxType;
+    if (isDesktop) {
+      setModalTxId(tx.id);
+      setModalTxType(type);
+      return;
+    }
+    router.push(`/transaction/${type === 'deposit' ? 'deposit' : type === 'transfer' ? 'transfer' : type === 'crypto' ? 'crypto' : 'withdraw'}/${tx.id}`);
+  };
 
   const handleLogout = () => {
     showAlert(t('account.logoutTitle'), t('account.logoutMessage'), [
@@ -83,8 +96,9 @@ export default function DashboardScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
     if (!result.canceled && result.assets[0]) {
       try {
-        const updated = await authService.uploadAvatar(result.assets[0].uri);
-        useAuthStore.setState({ user: updated });
+        const result2 = await authService.uploadAvatar(result.assets[0].uri);
+        const currentUser = useAuthStore.getState().user;
+        if (currentUser) useAuthStore.setState({ user: { ...currentUser, avatar: result2.avatar } });
       } catch {
         showAlert(t('common.error'), t('account.avatarError', 'Impossible de mettre à jour la photo.'));
       }
@@ -245,7 +259,7 @@ export default function DashboardScreen() {
                   <TransactionItem
                     key={tx.id}
                     transaction={tx}
-                    onPress={() => router.push(`/transaction/${tx.type === 'deposit' ? 'deposit' : tx.type === 'transfer' ? 'transfer' : tx.type === 'crypto' ? 'crypto' : 'withdraw'}/${tx.id}`)}
+                    onPress={() => handleTxPress(tx)}
                   />
                 ))
               ) : (
@@ -336,7 +350,7 @@ export default function DashboardScreen() {
                 <TransactionItem
                   key={tx.id}
                   transaction={tx}
-                  onPress={() => router.push(`/transaction/${tx.type === 'deposit' ? 'deposit' : tx.type === 'transfer' ? 'transfer' : tx.type === 'crypto' ? 'crypto' : 'withdraw'}/${tx.id}`)}
+                  onPress={() => handleTxPress(tx)}
                 />
               ))
             ) : (
@@ -412,6 +426,12 @@ export default function DashboardScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      <TransactionDetailModal
+        txId={modalTxId}
+        txType={modalTxType}
+        onClose={() => { setModalTxId(null); setModalTxType(null); }}
+      />
 
       <CustomAlert />
     </ScreenBackground>

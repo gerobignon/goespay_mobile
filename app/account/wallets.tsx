@@ -23,6 +23,7 @@ import { showAlert } from '../../src/stores/alertStore';
 import { CustomAlert } from '../../src/components/CustomAlert';
 import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
+import { useResponsive } from '../../src/hooks/useResponsive';
 import type { SavedWallet } from '../../src/types';
 
 const CRYPTO_CURRENCIES = [
@@ -38,6 +39,7 @@ const CRYPTO_CURRENCIES = [
 
 export default function WalletsScreen() {
   const router = useRouter();
+  const { isDesktop } = useResponsive();
   const styles = useThemedStyles(createStyles);
   const { isDark } = useTheme();
   const { t } = useTranslation();
@@ -119,6 +121,118 @@ export default function WalletsScreen() {
     );
   };
 
+  const content = (
+    <>
+      {!isDesktop && (
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.title}>{t('account.savedWallets')}</Text>
+        </View>
+      )}
+      {isDesktop && <Text style={styles.title}>{t('account.savedWallets')}</Text>}
+
+      <View style={styles.formCard}>
+        {savedWallets.length > 0 ? savedWallets.map((item) => (
+          <View key={item.id} style={styles.savedEntryRow}>
+            <View style={{ flex: 1 }}>
+              <View style={styles.savedEntryTopRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.savedEntryTitle}>{item.name?.trim() || t('common.noLabel')}</Text>
+                  <Text style={styles.savedEntrySub}>{item.currency} · {item.address}</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.inlineIconBtn}
+                  onPress={() => {
+                    setWalletForm({ id: item.id, name: item.name || '', currency: item.currency, address: item.address });
+                    setWalletModalOpen(true);
+                  }}
+                >
+                  <FontAwesome6 name="pen" size={14} color={Colors.secondary} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.inlineIconBtn} onPress={() => handleDeleteWalletEntry(item.id)}>
+                  <FontAwesome6 name="trash" size={14} color={Colors.error} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )) : (
+          <Text style={styles.emptyText}>{t('account.noWallets')}</Text>
+        )}
+
+        {loadError ? <Text style={styles.emptyText}>{loadError}</Text> : null}
+
+        <TouchableOpacity style={styles.addEntryBtn} onPress={() => { resetWalletForm(); setWalletModalOpen(true); }}>
+          <FontAwesome6 name="plus" size={12} color={Colors.primary} />
+          <Text style={styles.addEntryBtnText}>{t('account.addWallet')}</Text>
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+
+  const walletModal = (
+    <Modal visible={walletModalOpen} transparent animationType="fade" onRequestClose={resetWalletForm}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.formModalOverlay}>
+        <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={resetWalletForm} />
+        <View style={styles.formModalContainer}>
+          <View style={styles.formModalHeader}>
+            <Text style={styles.formModalTitle}>{walletForm.id ? t('account.editWallet') : t('account.addWallet')}</Text>
+            <TouchableOpacity onPress={resetWalletForm} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <FontAwesome6 name="xmark" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <Input
+              label={t('account.label')}
+              value={walletForm.name}
+              onChangeText={(value) => setWalletForm((prev) => ({ ...prev, name: value }))}
+              placeholder={t('account.walletLabelPlaceholder')}
+            />
+            <Text style={styles.managementFieldLabel}>{`${t('account.currency')} *`}</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.sm }}>
+              {CRYPTO_CURRENCIES.map((c) => (
+                <TouchableOpacity
+                  key={c.id}
+                  style={[styles.opChipSm, walletForm.currency === c.id && styles.opChipSmSelected]}
+                  onPress={() => setWalletForm((prev) => ({ ...prev, currency: c.id }))}
+                >
+                  <Image source={c.logo} style={styles.opChipSmLogo} resizeMode="contain" />
+                  <Text style={[styles.opChipSmText, walletForm.currency === c.id && styles.opChipSmTextSelected]} numberOfLines={2}>
+                    {c.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Input
+              label={t('account.walletAddress')}
+              value={walletForm.address}
+              onChangeText={(value) => setWalletForm((prev) => ({ ...prev, address: value }))}
+              placeholder={t('account.walletAddressPlaceholder')}
+              autoCapitalize="none"
+            />
+            <View style={styles.managementActions}>
+              <Button title={walletForm.id ? t('account.update') : t('common.add')} onPress={handleSaveWalletEntry} loading={walletSaving} style={{ flex: 1 }} />
+              <Button title={t('common.cancel')} variant="outline" onPress={resetWalletForm} style={{ flex: 1 }} />
+            </View>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+
+  if (isDesktop) {
+    return (
+      <View style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: 0 }]} keyboardShouldPersistTaps="handled">
+          {content}
+        </ScrollView>
+        {walletModal}
+        <CustomAlert />
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1 }}>
       <ImageBackground
@@ -128,102 +242,11 @@ export default function WalletsScreen() {
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-            {/* Header */}
-            <View style={styles.header}>
-              <TouchableOpacity onPress={() => router.back()}>
-                <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
-              </TouchableOpacity>
-              <Text style={styles.title}>{t('account.savedWallets')}</Text>
-            </View>
-
-            <View style={styles.formCard}>
-              {savedWallets.length > 0 ? savedWallets.map((item) => (
-                <View key={item.id} style={styles.savedEntryRow}>
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.savedEntryTopRow}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.savedEntryTitle}>{item.name?.trim() || t('common.noLabel')}</Text>
-                        <Text style={styles.savedEntrySub}>{item.currency} · {item.address}</Text>
-                      </View>
-                      <TouchableOpacity
-                        style={styles.inlineIconBtn}
-                        onPress={() => {
-                          setWalletForm({ id: item.id, name: item.name || '', currency: item.currency, address: item.address });
-                          setWalletModalOpen(true);
-                        }}
-                      >
-                        <FontAwesome6 name="pen" size={14} color={Colors.secondary} />
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.inlineIconBtn} onPress={() => handleDeleteWalletEntry(item.id)}>
-                        <FontAwesome6 name="trash" size={14} color={Colors.error} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              )) : (
-                <Text style={styles.emptyText}>{t('account.noWallets')}</Text>
-              )}
-
-              {loadError ? <Text style={styles.emptyText}>{loadError}</Text> : null}
-
-              <TouchableOpacity style={styles.addEntryBtn} onPress={() => { resetWalletForm(); setWalletModalOpen(true); }}>
-                <FontAwesome6 name="plus" size={12} color={Colors.primary} />
-                <Text style={styles.addEntryBtnText}>{t('account.addWallet')}</Text>
-              </TouchableOpacity>
-            </View>
+            {content}
           </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
-
-        {/* Modal formulaire wallet */}
-        <Modal visible={walletModalOpen} transparent animationType="fade" onRequestClose={resetWalletForm}>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.formModalOverlay}>
-            <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={resetWalletForm} />
-            <View style={styles.formModalContainer}>
-              <View style={styles.formModalHeader}>
-                <Text style={styles.formModalTitle}>{walletForm.id ? t('account.editWallet') : t('account.addWallet')}</Text>
-                <TouchableOpacity onPress={resetWalletForm} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <FontAwesome6 name="xmark" size={16} color={Colors.textMuted} />
-                </TouchableOpacity>
-              </View>
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                <Input
-                  label={t('account.label')}
-                  value={walletForm.name}
-                  onChangeText={(value) => setWalletForm((prev) => ({ ...prev, name: value }))}
-                  placeholder={t('account.walletLabelPlaceholder')}
-                />
-                <Text style={styles.managementFieldLabel}>{`${t('account.currency')} *`}</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.sm }}>
-                  {CRYPTO_CURRENCIES.map((c) => (
-                    <TouchableOpacity
-                      key={c.id}
-                      style={[styles.opChipSm, walletForm.currency === c.id && styles.opChipSmSelected]}
-                      onPress={() => setWalletForm((prev) => ({ ...prev, currency: c.id }))}
-                    >
-                      <Image source={c.logo} style={styles.opChipSmLogo} resizeMode="contain" />
-                      <Text style={[styles.opChipSmText, walletForm.currency === c.id && styles.opChipSmTextSelected]} numberOfLines={2}>
-                        {c.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <Input
-                  label={t('account.walletAddress')}
-                  value={walletForm.address}
-                  onChangeText={(value) => setWalletForm((prev) => ({ ...prev, address: value }))}
-                  placeholder={t('account.walletAddressPlaceholder')}
-                  autoCapitalize="none"
-                />
-                <View style={styles.managementActions}>
-                  <Button title={walletForm.id ? t('account.update') : t('common.add')} onPress={handleSaveWalletEntry} loading={walletSaving} style={{ flex: 1 }} />
-                  <Button title={t('common.cancel')} variant="outline" onPress={resetWalletForm} style={{ flex: 1 }} />
-                </View>
-              </ScrollView>
-            </View>
-          </KeyboardAvoidingView>
-        </Modal>
-
+        {walletModal}
         <CustomAlert />
       </ImageBackground>
     </View>

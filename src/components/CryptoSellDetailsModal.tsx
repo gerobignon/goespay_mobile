@@ -88,7 +88,7 @@ export function CryptoSellDetailsModal({ visible, onClose, data }: CryptoSellDet
       <TouchableWithoutFeedback onPress={onClose}>
         <KeyboardAvoidingView style={styles.overlay} behavior="padding">
           <TouchableWithoutFeedback>
-            <View style={[styles.sheet, { flex: 1, paddingBottom: Math.max(insets.bottom, Spacing.lg), paddingTop: insets.top }]}>
+            <View style={[styles.sheet, { flex: 1, paddingBottom: Math.max(insets.bottom, Spacing.lg), paddingTop: Spacing.lg }]}>
 
               {/* Header */}
               <View style={styles.header}>
