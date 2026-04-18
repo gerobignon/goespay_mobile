@@ -57,11 +57,16 @@ api.interceptors.response.use(
 
 export default api;
 
-export async function checkApiConnection(): Promise<boolean> {
+export interface ApiPingResult {
+  connected: boolean;
+  offline: boolean;
+}
+
+export async function checkApiConnection(): Promise<ApiPingResult> {
   try {
-    await api.get('/ping', { timeout: 5000 });
-    return true;
+    const res = await api.get('/ping', { timeout: 5000 });
+    return { connected: true, offline: res.data?.offline === 1 };
   } catch {
-    return false;
+    return { connected: false, offline: false };
   }
 }

@@ -39,7 +39,7 @@ function RootInner() {
   const { isLocked, isSetupDone, isInitialized, initialize } = usePinStore();
   const segments = useSegments();
   const router = useRouter();
-  const [apiStatus, setApiStatus] = useState<'checking' | 'ok' | 'error'>('ok');
+  const [apiStatus, setApiStatus] = useState<'checking' | 'ok' | 'error' | 'maintenance'>('ok');
   const [isMounted, setIsMounted] = useState(false);
   const notifListenerRef = useRef<Notifications.Subscription | null>(null);
   const responseListenerRef = useRef<Notifications.Subscription | null>(null);
@@ -72,6 +72,30 @@ function RootInner() {
     loadToken();
     initialize();
     initLanguage();
+  }, []);
+
+  // Vérification du mode maintenance au montage et toutes les 60s sur web
+  useEffect(() => {
+    const check = async () => {
+      const { connected, offline } = await checkApiConnection();
+      if (!connected) {
+        setApiStatus('error');
+      } else if (offline) {
+        setApiStatus('maintenance');
+        if (Platform.OS === 'web') {
+          window.location.href = 'https://goespay.io/maintenance';
+        }
+      } else {
+        setApiStatus((prev) => (prev === 'error' || prev === 'maintenance' ? 'ok' : prev));
+      }
+    };
+
+    check();
+
+    if (Platform.OS === 'web') {
+      const interval = setInterval(check, 60_000);
+      return () => clearInterval(interval);
+    }
   }, []);
 
   // Enregistrement des notifications push quand l'utilisateur est authentifié
@@ -121,12 +145,17 @@ function RootInner() {
 
   const retry = async () => {
     setApiStatus('checking');
-    const connected = await checkApiConnection();
-    if (connected) {
+    const { connected, offline } = await checkApiConnection();
+    if (!connected) {
+      setApiStatus('error');
+    } else if (offline) {
+      setApiStatus('maintenance');
+      if (Platform.OS === 'web') {
+        window.location.href = 'https://goespay.io/maintenance';
+      }
+    } else {
       setApiStatus('ok');
       loadToken();
-    } else {
-      setApiStatus('error');
     }
   };
 
@@ -165,6 +194,20 @@ function RootInner() {
       <View style={styles.loading}>
         <Image source={require('../assets/picto.png')} style={{ width: 80, height: 80 }} resizeMode="contain" />
         <ActivityIndicator size="large" color={Colors.secondary} style={{ marginTop: Spacing.lg }} />
+        <StatusBar style="light" />
+      </View>
+    );
+  }
+
+  if (apiStatus === 'maintenance') {
+    return (
+      <View style={styles.loading}>
+        <Image source={require('../assets/picto.png')} style={{ width: 80, height: 80 }} resizeMode="contain" />
+        <Text style={[styles.errorTitle, { marginTop: Spacing.lg }]}>Maintenance en cours</Text>
+        <Text style={styles.errorText}>
+          L&apos;application est temporairement indisponible.{'\n'}
+          Veuillez réessayer dans quelques instants.
+        </Text>
         <StatusBar style="light" />
       </View>
     );
