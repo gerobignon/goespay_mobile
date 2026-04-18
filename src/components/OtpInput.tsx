@@ -13,15 +13,19 @@ interface OtpInputProps {
 export function OtpInput({ value, onChange, length = 6, onComplete }: OtpInputProps) {
   const styles = useThemedStyles(createStyles);
   const inputs = useRef<(TextInput | null)[]>([]);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   const digits = Array.from({ length }, (_, i) => value[i] || '');
 
-  // Auto-submit when all digits are entered
+  // Auto-submit quand tous les chiffres sont saisis.
+  // onComplete via ref pour éviter que le changement de référence de la fonction
+  // ne redéclenche l'effet à chaque re-render du parent.
   useEffect(() => {
-    if (value.length === length && onComplete) {
-      onComplete();
+    if (value.length === length && onCompleteRef.current) {
+      onCompleteRef.current();
     }
-  }, [value, length, onComplete]);
+  }, [value, length]);
 
   const handleChange = (text: string, index: number) => {
     // Handle paste of full code

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -38,6 +38,7 @@ export default function LoginScreen() {
   const [tempToken, setTempToken] = useState('');
   const [twoFaCode, setTwoFaCode] = useState('');
   const [twoFaLoading, setTwoFaLoading] = useState(false);
+  const twoFaSubmittingRef = useRef(false);
   const login = useAuthStore((s) => s.login);
   const loginWithToken = useAuthStore((s) => s.loginWithToken);
 
@@ -85,10 +86,12 @@ export default function LoginScreen() {
   };
 
   const handleVerify2fa = async () => {
+    if (twoFaSubmittingRef.current) return; // bloquer les appels simultanés
     if (twoFaCode.length !== 6) {
       showAlert(t('common.error'), t('auth.login.enter6digits', 'Entrez un code à 6 chiffres.'));
       return;
     }
+    twoFaSubmittingRef.current = true;
     setTwoFaLoading(true);
     try {
       const response = await authService.verify2faLogin(tempToken, twoFaCode);
@@ -97,6 +100,7 @@ export default function LoginScreen() {
     } catch (error: any) {
       showAlert(t('common.error'), error?.response?.data?.error || t('auth.login.incorrectCode', 'Code incorrect.'));
     } finally {
+      twoFaSubmittingRef.current = false;
       setTwoFaLoading(false);
     }
   };

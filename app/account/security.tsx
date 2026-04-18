@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -76,6 +76,7 @@ export default function SecurityScreen() {
   const [twoFaCode, setTwoFaCode] = useState('');
   const [twoFaDisablePassword, setTwoFaDisablePassword] = useState('');
   const [twoFaLoading, setTwoFaLoading] = useState(false);
+  const twoFaSubmittingRef = useRef(false);
   const [twoFaRecoveryCodes, setTwoFaRecoveryCodes] = useState<string[]>([]);
 
   useEffect(() => {
@@ -211,11 +212,13 @@ export default function SecurityScreen() {
   };
 
   const handleConfirm2fa = async () => {
+    if (twoFaSubmittingRef.current) return;
     if (twoFaCode.length !== 6) {
       showAlert(t('common.error'), t('account.twoFaEnter6digits'));
       return;
     }
     setTwoFaLoading(true);
+    twoFaSubmittingRef.current = true;
     try {
       const res = await authService.confirm2fa(twoFaCode);
       setTwoFaEnabled(true);
@@ -225,6 +228,7 @@ export default function SecurityScreen() {
     } catch (e: any) {
       showAlert(t('common.error'), e?.response?.data?.error || t('account.twoFaCodeIncorrect'));
     } finally {
+      twoFaSubmittingRef.current = false;
       setTwoFaLoading(false);
     }
   };
