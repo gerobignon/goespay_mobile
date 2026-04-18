@@ -25,6 +25,7 @@ import { formatCurrency, formatDate } from '../../../src/utils/format';
 import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../../../src/constants/theme';
 import type { ColorPalette } from '../../../src/constants/theme';
 import { useThemedStyles } from '../../../src/hooks/useThemedStyles';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Transaction } from '../../../src/types';
 
 export default function TransferDetailScreen() {
@@ -32,6 +33,7 @@ export default function TransferDetailScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
+  const insets = useSafeAreaInsets();
   const [tx, setTx] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -165,11 +167,10 @@ export default function TransferDetailScreen() {
       </ScrollView>
 
       {/* Claim Modal */}
-      <Modal visible={claimVisible} transparent animationType="slide">
+      <Modal visible={claimVisible} transparent animationType="slide" statusBarTranslucent>
         <CustomAlert />
         <KeyboardAvoidingView style={styles.modalOverlay} behavior="padding">
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
+          <View style={[styles.modalContent, { paddingBottom: Spacing.lg + insets.bottom }]}>
               <Text style={styles.modalTitle}>{t('transaction.addClaim')}</Text>
               <TouchableOpacity onPress={() => setClaimVisible(false)}>
                 <FontAwesome6 name="xmark" size={18} color={Colors.text} />

@@ -3,6 +3,7 @@ import { Modal, View, ScrollView, StyleSheet, Pressable, Platform, KeyboardAvoid
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useResponsive } from '../hooks/useResponsive';
 import { useThemedStyles } from '../hooks/useThemedStyles';
+import { useTheme } from './ThemeProvider';
 import { Colors, type ColorPalette, BorderRadius, Spacing } from '../constants/theme';
 
 interface ResponsiveModalProps {
@@ -17,11 +18,17 @@ interface ResponsiveModalProps {
 export function ResponsiveModal({ visible, onClose, children }: ResponsiveModalProps) {
   const { isWide, modalWidth } = useResponsive();
   const styles = useThemedStyles(createStyles);
+  const { colors } = useTheme();
 
   if (!isWide) {
     return (
-      <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-        <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+      <Modal
+        visible={visible}
+        animationType="slide"
+        onRequestClose={onClose}
+        statusBarTranslucent
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'bottom']}>
           <KeyboardAvoidingView
             style={{ flex: 1 }}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
