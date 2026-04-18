@@ -49,9 +49,11 @@ function RootInner() {
     Quicksand_500Medium: require('../assets/fonts/Quicksand_500Medium.ttf'),
     Quicksand_600SemiBold: require('../assets/fonts/Quicksand_600SemiBold.ttf'),
     Quicksand_700Bold: require('../assets/fonts/Quicksand_700Bold.ttf'),
-    FontAwesome6_Brands: require('../assets/fonts/FontAwesome6_Brands.ttf'),
-    FontAwesome6_Regular: require('../assets/fonts/FontAwesome6_Regular.ttf'),
-    FontAwesome6_Solid: require('../assets/fonts/FontAwesome6_Solid.ttf'),
+    FontAwesome6Brands: require('../assets/fonts/FontAwesome6_Brands.ttf'),
+    FontAwesome6Free: require('../assets/fonts/FontAwesome6_Regular.ttf'),
+    'FontAwesome6Brands-Regular': require('../assets/fonts/FontAwesome6_Brands.ttf'),
+    'FontAwesome6Free-Regular': require('../assets/fonts/FontAwesome6_Regular.ttf'),
+    'FontAwesome6Free-Solid': require('../assets/fonts/FontAwesome6_Solid.ttf'),
   });
 
   // Android ne propage pas fontFamily comme CSS → on force Quicksand globalement
