@@ -75,17 +75,21 @@ function RootInner() {
   }, []);
 
   // Vérification du mode maintenance au montage et toutes les 60s sur web
+  // TODO: réactiver avant le build de déploiement
   useEffect(() => {
     const check = async (isInitial = false) => {
-      const { connected, offline } = await checkApiConnection();
+      const { connected, offline: _offline } = await checkApiConnection();
+      // MAINTENANCE CHECK DÉSACTIVÉ TEMPORAIREMENT
+      // if (offline) {
+      //   if (Platform.OS === 'web') {
+      //     window.location.href = 'https://goespay.io/maintenance';
+      //     return;
+      //   }
+      //   setApiStatus('maintenance');
+      //   return;
+      // }
       if (!connected) {
         setApiStatus('error');
-      } else if (offline) {
-        if (Platform.OS === 'web') {
-          window.location.href = 'https://goespay.io/maintenance';
-          return; // ne pas changer apiStatus, la redirection prend le relais
-        }
-        setApiStatus('maintenance');
       } else {
         setApiStatus((prev) => (prev === 'checking' || prev === 'error' || prev === 'maintenance' ? 'ok' : prev));
       }
@@ -366,7 +370,7 @@ function MaintenanceScreen({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-const PRIMARY = '#3176FE';
+const PRIMARY = Colors.primary;
 const mStyles = StyleSheet.create({
   container: {
     flex: 1,
