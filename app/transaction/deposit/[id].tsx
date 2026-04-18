@@ -232,7 +232,6 @@ export default function DepositDetailScreen() {
 
       {/* Claim Modal */}
       <Modal visible={claimVisible} transparent animationType="slide" statusBarTranslucent>
-        <CustomAlert />
         <KeyboardAvoidingView style={styles.modalOverlay} behavior="padding">
           <View style={[styles.modalContent, { paddingBottom: Spacing.lg + insets.bottom }]}>
             <View style={styles.modalHeader}>
@@ -272,7 +271,6 @@ export default function DepositDetailScreen() {
 
       {/* Note Modal */}
       <Modal visible={noteVisible} transparent animationType="slide" statusBarTranslucent>
-        <CustomAlert />
         <KeyboardAvoidingView style={styles.modalOverlay} behavior="padding">
           <View style={[styles.modalContent, { paddingBottom: Spacing.lg + insets.bottom }]}>
             <View style={styles.modalHeader}>
@@ -316,6 +314,7 @@ export default function DepositDetailScreen() {
           phone: tx?.phone ?? '',
         }}
       />
+      <CustomAlert />
     </ScreenBackground>
   );
 }

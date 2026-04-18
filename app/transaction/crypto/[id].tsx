@@ -171,9 +171,9 @@ export default function CryptoDetailScreen() {
 
       {/* Claim Modal */}
       <Modal visible={claimVisible} transparent animationType="slide" statusBarTranslucent>
-        <CustomAlert />
         <KeyboardAvoidingView style={styles.modalOverlay} behavior="padding">
           <View style={[styles.modalContent, { paddingBottom: Spacing.lg + insets.bottom }]}>
+            <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{t('transaction.addClaim')}</Text>
               <TouchableOpacity onPress={() => setClaimVisible(false)}>
                 <FontAwesome6 name="xmark" size={18} color={Colors.text} />
@@ -210,6 +210,7 @@ export default function CryptoDetailScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+      <CustomAlert />
     </ScreenBackground>
   );
 }
