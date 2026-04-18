@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, Image, ActivityIndicator, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, Image, ActivityIndicator, StyleSheet, TouchableOpacity, Platform, Animated } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';import * as Notifications from 'expo-notifications';
 import { useAuthStore } from '../src/stores/authStore';
@@ -39,7 +39,7 @@ function RootInner() {
   const { isLocked, isSetupDone, isInitialized, initialize } = usePinStore();
   const segments = useSegments();
   const router = useRouter();
-  const [apiStatus, setApiStatus] = useState<'checking' | 'ok' | 'error' | 'maintenance'>('ok');
+  const [apiStatus, setApiStatus] = useState<'checking' | 'ok' | 'error' | 'maintenance'>('checking');
   const [isMounted, setIsMounted] = useState(false);
   const notifListenerRef = useRef<Notifications.Subscription | null>(null);
   const responseListenerRef = useRef<Notifications.Subscription | null>(null);
@@ -76,24 +76,25 @@ function RootInner() {
 
   // Vérification du mode maintenance au montage et toutes les 60s sur web
   useEffect(() => {
-    const check = async () => {
+    const check = async (isInitial = false) => {
       const { connected, offline } = await checkApiConnection();
       if (!connected) {
         setApiStatus('error');
       } else if (offline) {
-        setApiStatus('maintenance');
         if (Platform.OS === 'web') {
           window.location.href = 'https://goespay.io/maintenance';
+          return; // ne pas changer apiStatus, la redirection prend le relais
         }
+        setApiStatus('maintenance');
       } else {
-        setApiStatus((prev) => (prev === 'error' || prev === 'maintenance' ? 'ok' : prev));
+        setApiStatus((prev) => (prev === 'checking' || prev === 'error' || prev === 'maintenance' ? 'ok' : prev));
       }
     };
 
-    check();
+    check(true);
 
     if (Platform.OS === 'web') {
-      const interval = setInterval(check, 60_000);
+      const interval = setInterval(() => check(), 60_000);
       return () => clearInterval(interval);
     }
   }, []);
@@ -200,17 +201,7 @@ function RootInner() {
   }
 
   if (apiStatus === 'maintenance') {
-    return (
-      <View style={styles.loading}>
-        <Image source={require('../assets/picto.png')} style={{ width: 80, height: 80 }} resizeMode="contain" />
-        <Text style={[styles.errorTitle, { marginTop: Spacing.lg }]}>Maintenance en cours</Text>
-        <Text style={styles.errorText}>
-          L&apos;application est temporairement indisponible.{'\n'}
-          Veuillez réessayer dans quelques instants.
-        </Text>
-        <StatusBar style="light" />
-      </View>
-    );
+    return <MaintenanceScreen onRetry={retry} />;
   }
 
   if (apiStatus === 'error') {
@@ -299,5 +290,170 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.white,
     fontSize: FontSize.md,
     fontFamily: Fonts.semiBold,
+  },
+});
+
+function MaintenanceScreen({ onRetry }: { onRetry: () => void }) {
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const [retrying, setRetrying] = useState(false);
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.12, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, []);
+
+  const handleRetry = async () => {
+    setRetrying(true);
+    await onRetry();
+    setRetrying(false);
+  };
+
+  return (
+    <View style={mStyles.container}>
+      <StatusBar style="light" />
+
+      {/* Cercles décoratifs */}
+      <View style={[mStyles.circle, mStyles.circleTop]} />
+      <View style={[mStyles.circle, mStyles.circleBottom]} />
+
+      <View style={mStyles.content}>
+        {/* Logo */}
+        <Image
+          source={require('../assets/logo_min.png')}
+          style={mStyles.logo}
+          resizeMode="contain"
+        />
+
+        {/* Icône animée */}
+        <Animated.View style={[mStyles.iconWrapper, { transform: [{ scale: pulseAnim }] }]}>
+          <FontAwesome6 name="screwdriver-wrench" size={38} color="#fff" />
+        </Animated.View>
+
+        {/* Textes */}
+        <Text style={mStyles.title}>Maintenance en cours</Text>
+        <Text style={mStyles.subtitle}>
+          Nous améliorons GoesPay pour vous offrir{'\n'}une meilleure expérience.
+        </Text>
+        <Text style={mStyles.hint}>
+          L'application sera de nouveau disponible{'\n'}très prochainement. Merci de votre patience 🙏
+        </Text>
+
+        {/* Bouton réessayer */}
+        <TouchableOpacity
+          style={[mStyles.retryBtn, retrying && { opacity: 0.7 }]}
+          onPress={handleRetry}
+          disabled={retrying}
+          activeOpacity={0.8}
+        >
+          {retrying
+            ? <ActivityIndicator size="small" color="#fff" />
+            : <FontAwesome6 name="rotate-right" size={15} color="#fff" />
+          }
+          <Text style={mStyles.retryText}>
+            {retrying ? 'Vérification...' : 'Réessayer'}
+          </Text>
+        </TouchableOpacity>
+
+        <Text style={mStyles.autoCheck}>Vérification automatique toutes les 30s</Text>
+      </View>
+    </View>
+  );
+}
+
+const PRIMARY = '#3176FE';
+const mStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: PRIMARY,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  circle: {
+    position: 'absolute',
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+  },
+  circleTop: {
+    width: 340,
+    height: 340,
+    top: -120,
+    right: -100,
+  },
+  circleBottom: {
+    width: 280,
+    height: 280,
+    bottom: -100,
+    left: -80,
+  },
+  content: {
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  logo: {
+    width: 120,
+    height: 40,
+    marginBottom: 36,
+    tintColor: '#fff',
+  },
+  iconWrapper: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 32,
+  },
+  title: {
+    color: '#fff',
+    fontSize: 24,
+    fontFamily: Fonts.bold,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  subtitle: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 15,
+    fontFamily: Fonts.medium,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  hint: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 13,
+    fontFamily: Fonts.regular,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 36,
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.4)',
+    paddingHorizontal: 28,
+    paddingVertical: 13,
+    borderRadius: 50,
+    marginBottom: 16,
+  },
+  retryText: {
+    color: '#fff',
+    fontSize: 15,
+    fontFamily: Fonts.semiBold,
+  },
+  autoCheck: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 11,
+    fontFamily: Fonts.regular,
   },
 });
