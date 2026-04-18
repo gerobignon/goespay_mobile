@@ -3,7 +3,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, Image, ActivityIndicator, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
-import { useFonts, Quicksand_400Regular, Quicksand_500Medium, Quicksand_600SemiBold, Quicksand_700Bold } from '@expo-google-fonts/quicksand';import * as Notifications from 'expo-notifications';
+import { useFonts } from 'expo-font';import * as Notifications from 'expo-notifications';
 import { useAuthStore } from '../src/stores/authStore';
 import { usePinStore } from '../src/stores/pinStore';
 import { saveCredentials } from '../src/services/secureAuthService';
@@ -45,10 +45,10 @@ function RootInner() {
   const responseListenerRef = useRef<Notifications.Subscription | null>(null);
 
   const [fontsLoaded] = useFonts({
-    Quicksand_400Regular,
-    Quicksand_500Medium,
-    Quicksand_600SemiBold,
-    Quicksand_700Bold,
+    Quicksand_400Regular: require('../assets/fonts/Quicksand_400Regular.ttf'),
+    Quicksand_500Medium: require('../assets/fonts/Quicksand_500Medium.ttf'),
+    Quicksand_600SemiBold: require('../assets/fonts/Quicksand_600SemiBold.ttf'),
+    Quicksand_700Bold: require('../assets/fonts/Quicksand_700Bold.ttf'),
   });
 
   // Android ne propage pas fontFamily comme CSS → on force Quicksand globalement
