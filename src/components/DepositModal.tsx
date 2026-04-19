@@ -30,6 +30,8 @@ import { CustomAlert } from './CustomAlert';
 import type { SavedPhone } from '../types';
 import { useTranslation } from 'react-i18next';
 
+import { useConfigStore } from '../stores/configStore';
+
 interface DepositModalProps {
   visible: boolean;
   onClose: () => void;
@@ -54,6 +56,8 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   const consecutiveErrorsRef = useRef(0);
   const fetchBalance = useWalletStore((s) => s.fetchBalance);
   const user = useAuthStore((s) => s.user);
+  const depositMin = useConfigStore((s) => s.deposit_min);
+  const mobileMoneyCountriesConfig = useConfigStore((s) => s.mobile_money_countries);
   // Garde une trace si l'utilisateur a vidé/modifié le champ téléphone manuellement
   const phoneUserEditedRef = useRef(false);
   // Numéros enregistrés (type deposit)
@@ -173,7 +177,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   const userCountry = user?.country ?? '';
   const isAdmin = user?.group === 'admin';
   const isKycValidated = user?.validate === 1;
-  const mobileMoneyCountries = ['BJ', 'BF', 'CI', 'TG', 'SN', 'ML', 'CM'];
+  const mobileMoneyCountries = mobileMoneyCountriesConfig;
   const showCard = isAdmin || !isKycValidated || !mobileMoneyCountries.includes(userCountry);
   const filteredOperators = (isAdmin || !isKycValidated)
     ? [...OPERATORS]
@@ -281,7 +285,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
 
   const handleDeposit = async () => {
     const numAmount = parseFloat(amount);
-    if (!numAmount || numAmount < 1000) {
+    if (!numAmount || numAmount < depositMin) {
       showAlert(t('common.error'), t('depositModal.minAmount'));
       return;
     }

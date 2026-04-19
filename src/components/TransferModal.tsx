@@ -27,6 +27,8 @@ import { CustomAlert } from './CustomAlert';
 import type { SavedPhone } from '../types';
 import { useTranslation } from 'react-i18next';
 
+import { useConfigStore } from '../stores/configStore';
+
 interface TransferModalProps {
   visible: boolean;
   onClose: () => void;
@@ -53,13 +55,15 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
   const fetchBalance = useWalletStore((s) => s.fetchBalance);
   const balance = useWalletStore((s) => s.balance);
   const user = useAuthStore((s) => s.user);
+  const transferFeeCm = useConfigStore((s) => s.transfer_fee_cm);
+  const transferFeeDefault = useConfigStore((s) => s.transfer_fee_default);
 
   const displayOperators = OPERATORS.filter((op) => op.withdraw);
 
-  // Calcul frais en live (même logique que le web)
+  // Calcul frais en live (taux récupérés dynamiquement depuis le backend)
   const numAmount = parseFloat(amount) || 0;
   const selectedOp = OPERATORS.find((op) => op.id === operator);
-  const feeRate = selectedOp?.country === 'CM' ? 0.1 : 0.05;
+  const feeRate = (selectedOp?.country === 'CM' ? transferFeeCm : transferFeeDefault) / 100;
   const fees = useMemo(() => Math.round(numAmount * feeRate), [numAmount, feeRate]);
   const total = numAmount + fees;
 

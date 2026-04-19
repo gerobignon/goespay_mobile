@@ -31,6 +31,8 @@ import { walletService } from '../services/walletService';
 import type { SavedWallet } from '../types';
 import { useTranslation } from 'react-i18next';
 
+import { useConfigStore } from '../stores/configStore';
+
 interface CryptoModalProps {
   visible: boolean;
   onClose: () => void;
@@ -68,6 +70,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
   const cryptoLoading = useCryptoStore((s) => s.loading);
   const cryptoError = useCryptoStore((s) => s.error);
   const fetchRates = useCryptoStore((s) => s.fetchRates);
+  const stablecoinCodes = useConfigStore((s) => s.stablecoin_codes);
 
   const [tab, setTab] = useState<Tab>('buy');
   const [selectedCurrency, setSelectedCurrency] = useState('');
@@ -217,7 +220,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
     const numAmount = parseFloat(amount);
     if (!selectedRate || !numAmount || isNaN(numAmount)) return '';
 
-    const stablecoins = ['PM', 'PAYEER', 'USDT.TRC20', 'BUSD.BEP20', 'USDT', 'BUSD'];
+    const stablecoins = stablecoinCodes;
     const bubuy = stablecoins.includes(selectedCurrency) ? 1 : Number(selectedRate.live_rate);
 
     if (tab === 'buy') {
