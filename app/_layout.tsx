@@ -39,7 +39,7 @@ function RootInner() {
   const { isLocked, isSetupDone, isInitialized, initialize } = usePinStore();
   const segments = useSegments();
   const router = useRouter();
-  const [apiStatus, setApiStatus] = useState<'checking' | 'ok' | 'error' | 'maintenance'>('checking');
+  const [apiStatus, setApiStatus] = useState<'checking' | 'ok' | 'error' | 'maintenance'>('ok');
   const [isMounted, setIsMounted] = useState(false);
   const notifListenerRef = useRef<Notifications.Subscription | null>(null);
   const responseListenerRef = useRef<Notifications.Subscription | null>(null);
