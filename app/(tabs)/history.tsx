@@ -14,6 +14,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { useWalletStore } from '../../src/stores/walletStore';
 import { TransactionItem, getTransactionLogo, getModeName } from '../../src/components/TransactionItem';
+import { useAuthStore } from '../../src/stores/authStore';
 import { TransactionDetailModal, type TxType } from '../../src/components/TransactionDetailModal';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
 import { TRANSACTION_STATUS, getTransactionStatus } from '../../src/constants/config';
@@ -51,6 +52,9 @@ export default function HistoryScreen() {
     fetchTransactions,
     loadMoreTransactions,
   } = useWalletStore();
+  const { user } = useAuthStore();
+  const isCryptoUser = user?.group === 'admin' || user?.group === 'crypto';
+  const filteredFilterKeys = FILTER_KEYS.filter((f) => f.key !== 'crypto' || isCryptoUser);
   const [activeFilter, setActiveFilter] = useState<string | undefined>(undefined);
   const [refreshing, setRefreshing] = useState(false);
   const hasFetchedRef = useRef(false);
@@ -108,7 +112,7 @@ export default function HistoryScreen() {
 
       {/* Filters */}
       <View style={[styles.filters, isWide && { maxWidth: DESKTOP_MAX_WIDTH, alignSelf: 'center', width: '100%' }]}>
-        {FILTER_KEYS.map((f) => (
+        {filteredFilterKeys.map((f) => (
           <TouchableOpacity
             key={f.labelKey}
             style={[
