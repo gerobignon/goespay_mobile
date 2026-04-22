@@ -105,13 +105,15 @@ export default function DashboardScreen() {
     }
   };
 
-  const menuItems = [
+  const allMenuItems = [
     { key: 'profile', label: t('account.personalInfo'), icon: 'user-pen', route: '/account/profile' as const },
     { key: 'security', label: t('account.security'), icon: 'shield-halved', route: '/account/security' as const },
     { key: 'phones', label: t('account.savedPhones'), icon: 'address-book', route: '/account/phones' as const },
-    { key: 'wallets', label: t('account.savedWallets'), icon: 'wallet', route: '/account/wallets' as const },
+    { key: 'wallets', label: t('account.savedWallets'), icon: 'wallet', route: '/account/wallets' as const, cryptoOnly: true },
     { key: 'settings', label: t('account.appearance'), icon: 'gear', route: '/account/settings' as const },
   ];
+
+  const menuItems = allMenuItems.filter((item) => !(item.cryptoOnly && !isCryptoUser));
 
   useFocusEffect(
     useCallback(() => {
