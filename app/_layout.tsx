@@ -74,20 +74,19 @@ function RootInner() {
     initLanguage();
   }, []);
 
-  // Vérification du mode maintenance au montage et toutes les 60s sur web
-  // TODO: réactiver avant le build de déploiement
+  // Vérification du statut API au montage et toutes les 60s sur web
   useEffect(() => {
     const check = async (isInitial = false) => {
       const { connected, offline: _offline } = await checkApiConnection();
-      // MAINTENANCE CHECK DÉSACTIVÉ TEMPORAIREMENT
-      // if (offline) {
-      //   if (Platform.OS === 'web') {
-      //     window.location.href = 'https://goespay.io/maintenance';
-      //     return;
-      //   }
-      //   setApiStatus('maintenance');
-      //   return;
-      // }
+      // MAINTENANCE CHECK : redirection si serveur en maintenance
+      if (_offline) {
+        if (Platform.OS === 'web') {
+          window.location.href = 'https://goespay.io/maintenance';
+          return;
+        }
+        setApiStatus('maintenance');
+        return;
+      }
       if (!connected) {
         setApiStatus('error');
       } else {
@@ -111,7 +110,7 @@ function RootInner() {
       .then((token) => {
         if (token) sendPushTokenToServer(token);
       })
-      .catch((e) => console.warn('[Notifications] registerForPushNotifications error:', e));
+      .catch((e) => {});
 
     // Listener : notif reçue en foreground (rien de spécial à faire, le handler global s'en charge)
     notifListenerRef.current = addNotificationReceivedListener((_notification) => {

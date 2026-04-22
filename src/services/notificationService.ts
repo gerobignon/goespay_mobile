@@ -23,7 +23,6 @@ try { Notifications.setNotificationHandler({
 export async function registerForPushNotifications(): Promise<string | null> {
   // Les notifs push ne marchent que sur un device physique
   if (!Device.isDevice) {
-    console.log('[Notifications] Simulateur détecté, push désactivé.');
     return null;
   }
 
@@ -38,7 +37,6 @@ export async function registerForPushNotifications(): Promise<string | null> {
   }
 
   if (finalStatus !== 'granted') {
-    console.log('[Notifications] Permission refusée.');
     return null;
   }
 
@@ -63,7 +61,6 @@ export async function registerForPushNotifications(): Promise<string | null> {
   try {
     const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
     pushToken = tokenData.data;
-    console.log('[Notifications] Push token:', pushToken);
   } catch (e) {
     console.warn('[Notifications] Impossible d\'obtenir le token push:', e);
     return null;
@@ -81,7 +78,6 @@ export async function sendPushTokenToServer(pushToken: string): Promise<void> {
       push_token: pushToken,
       platform: Platform.OS,
     });
-    console.log('[Notifications] Token envoyé au serveur.');
   } catch (error) {
     console.warn('[Notifications] Erreur envoi token:', error);
   }

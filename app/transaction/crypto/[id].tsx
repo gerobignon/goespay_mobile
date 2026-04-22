@@ -60,12 +60,9 @@ export default function CryptoDetailScreen() {
   useEffect(() => {
     const load = async () => {
       try {
-        console.log(`[CryptoDetail] Loading crypto transaction #${id}`);
         const data = await walletService.getCryptoTransaction(parseInt(id, 10));
-        console.log(`[CryptoDetail] Got:`, JSON.stringify(data));
         setTx(data);
       } catch (err: any) {
-        console.log(`[CryptoDetail] Error:`, err?.response?.status, err?.response?.data, err?.message);
       } finally {
         setLoading(false);
       }

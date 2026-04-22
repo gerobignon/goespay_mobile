@@ -54,7 +54,6 @@ export default function WalletsScreen() {
     walletService.getSavedWallets()
       .then((data) => { setSavedWallets(data); setLoadError(null); })
       .catch((error) => {
-        console.log('[Wallets] load error:', error?.response?.status, error?.message);
         setLoadError(t('account.walletsLoadError'));
       });
   }, []);

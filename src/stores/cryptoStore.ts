@@ -64,7 +64,6 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       }
     } catch (e: any) {
       const msg = e?.message || 'Erreur réseau';
-      console.log('[Crypto] fetchRates error:', msg);
       set({ error: msg });
     } finally {
       set({ loading: false });

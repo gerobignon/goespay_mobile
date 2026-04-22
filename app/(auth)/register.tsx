@@ -83,7 +83,6 @@ export default function RegisterScreen() {
       );
     } catch (error: any) {
       const data = error?.response?.data;
-      if (__DEV__) console.log('[Register error]', JSON.stringify(data));
       const errors = data?.errors;
       if (errors && typeof errors === 'object' && Object.keys(errors).length > 0) {
         const mapped: Record<string, string> = {};

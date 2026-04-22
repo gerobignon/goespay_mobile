@@ -96,7 +96,6 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   const checkStatus = useCallback(async (depositId: number): Promise<boolean> => {
     try {
       const res = await walletService.getDepositStatus(depositId);
-      try { console.log(`[Deposit Polling] statut="${res.statut}"`, JSON.stringify(res)); } catch {}
       consecutiveErrorsRef.current = 0;
       if (res.statut === 'success') {
         stopPolling();
@@ -111,7 +110,6 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
       }
     } catch (err: any) {
       consecutiveErrorsRef.current++;
-      console.log(`[Deposit Polling] error (${consecutiveErrorsRef.current}):`, err?.response?.status, err?.message);
       // Après 5 erreurs consécutives → timeout
       if (consecutiveErrorsRef.current >= 5) {
         stopPolling();
@@ -132,7 +130,6 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
 
     const poll = async () => {
       attempts++;
-      console.log(`[Deposit Polling] attempt ${attempts}/${MAX_ATTEMPTS} for deposit #${depositId}`);
       const resolved = await checkStatus(depositId);
       if (resolved) return;
       if (attempts >= MAX_ATTEMPTS) {
@@ -151,7 +148,6 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   useEffect(() => {
     const sub = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active' && pollingDepositIdRef.current && pollingState === 'pending') {
-        console.log('[Deposit] App foregrounded, checking status immediately');
         checkStatus(pollingDepositIdRef.current);
       }
     });
@@ -163,7 +159,6 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
     if (Platform.OS !== 'web') return;
     const handleVisibility = () => {
       if (document.visibilityState === 'visible' && pollingDepositIdRef.current && pollingState === 'pending') {
-        console.log('[Deposit] Tab visible, checking status immediately');
         checkStatus(pollingDepositIdRef.current);
       }
     };
@@ -202,7 +197,6 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
       setSavedPhones(data);
       setSavedPhonesLoadError(null);
     }).catch((error: any) => {
-      console.log('[DepositSavedPhones] load error:', error?.response?.status, error?.message);
       setSavedPhonesLoadError(t('account.phonesLoadError'));
     });
   }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -303,7 +297,6 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
       if (!isCard) payload.tel = phone.trim();
       if (needsOtp && otp) payload.otp = otp;
       const result = await walletService.deposit(payload);
-      try { console.log('[Deposit] result:', JSON.stringify(result)); } catch {}
 
       const redirectUrl = result?.checkout_url || result?.url;
       if (redirectUrl) {
@@ -325,7 +318,6 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
       setPhone('');
       setOtp('');
     } catch (error: any) {
-      try { console.log('[Deposit] error:', error?.response?.status, JSON.stringify(error?.response?.data)); } catch {}
       const msg = error?.response?.data?.error
         || error?.response?.data?.message
         || (error?.response?.data?.errors ? Object.values(error.response.data.errors).flat().join('\n') : null)

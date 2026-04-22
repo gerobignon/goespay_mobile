@@ -50,7 +50,6 @@ export default function PhonesScreen() {
     walletService.getSavedPhones()
       .then((data) => { setSavedPhones(data); setLoadError(null); })
       .catch((error) => {
-        console.log('[Phones] load error:', error?.response?.status, error?.message);
         setLoadError(t('account.phonesLoadError'));
       });
   }, []);

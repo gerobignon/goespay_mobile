@@ -127,7 +127,6 @@ export default function KycScreen() {
         [{ text: 'OK', onPress: () => router.back() }]
       );
     } catch (error: any) {
-      console.log('[KYC] error:', error?.response?.data);
       const msg = error?.response?.data?.error
         || error?.response?.data?.message
         || (error?.response?.data?.errors ? Object.values(error.response.data.errors).flat().join('\n') : null)

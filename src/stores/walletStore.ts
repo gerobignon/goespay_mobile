@@ -52,7 +52,6 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       set({ balance, isLoadingBalance: false });
       AsyncStorage.setItem(CACHED_BALANCE_KEY, String(balance));
     } catch (e) {
-      console.log('[WalletStore] balance error:', e);
       set({ isLoadingBalance: false });
     }
   },
@@ -74,7 +73,6 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         AsyncStorage.setItem(CACHED_TRANSACTIONS_KEY, JSON.stringify(transactions));
       }
     } catch (e) {
-      console.log('[WalletStore] transactions error:', e);
       set({ isLoadingTransactions: false, transactions: [] });
     }
   },

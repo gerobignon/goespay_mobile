@@ -97,7 +97,6 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
       setSavedWallets(data);
       setSavedWalletsLoadError(null);
     } catch (error: any) {
-      console.log('[SavedWallets] load error:', error?.response?.status, error?.message);
       setSavedWalletsLoadError(t('cryptoModal.walletsLoadError'));
     }
   };

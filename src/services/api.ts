@@ -12,10 +12,6 @@ const api = axios.create({
   },
 });
 
-if (__DEV__) {
-  console.log('[API] Base URL:', API_BASE_URL);
-}
-
 api.interceptors.request.use(
   async (config) => {
     const token = await SafeStorage.getItem('auth_token');
@@ -23,9 +19,6 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     config.headers['Accept-Language'] = i18n.language || 'fr';
-    if (__DEV__) {
-      console.log(`[API →] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
-    }
     return config;
   },
   (error) => Promise.reject(error)
@@ -33,21 +26,9 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
   (response) => {
-    if (__DEV__) {
-      try { console.log(`[API ✓] ${response.config.method?.toUpperCase()} ${response.config.url} → ${response.status}`, String(JSON.stringify(response.data)).substring(0, 600)); } catch {}
-    }
     return response;
   },
   async (error) => {
-    if (__DEV__) {
-      const isNetwork = !error.response;
-      try {
-        console.log(
-          `[API ✗] ${error.config?.method?.toUpperCase()} ${error.config?.baseURL}${error.config?.url} → ${isNetwork ? 'NETWORK ERROR' : error.response?.status}`,
-          isNetwork ? error.message : String(JSON.stringify(error.response?.data)).substring(0, 400),
-        );
-      } catch {}
-    }
     if (error.response?.status === 401) {
       await SafeStorage.removeItem('auth_token');
     }

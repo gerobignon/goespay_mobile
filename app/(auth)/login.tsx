@@ -61,10 +61,6 @@ export default function LoginScreen() {
       await saveCredentials(email.trim(), password);
     } catch (error: any) {
       if (__DEV__) {
-        console.log('Login error status:', error?.response?.status);
-        console.log('Login error data:', JSON.stringify(error?.response?.data));
-        console.log('Login error URL:', error?.config?.url);
-        console.log('Login error body:', error?.config?.data);
       }
       // If account requires email activation, redirect to activation screen
       if (error?.response?.status === 403 && error?.response?.data?.requires_activation) {

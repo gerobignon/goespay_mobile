@@ -79,7 +79,6 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
       setSavedPhones(data);
       setSavedPhonesLoadError(null);
     } catch (error: any) {
-      console.log('[SavedPhones] load error:', error?.response?.status, error?.message);
       setSavedPhonesLoadError(t('account.phonesLoadError'));
     }
   };
