@@ -72,6 +72,11 @@ export const authService = {
     return response.data;
   },
 
+  resetPin: async (): Promise<{ message: string; reset: boolean }> => {
+    const response = await api.post('/me/reset-pin', {});
+    return response.data;
+  },
+
   uploadAvatar: async (uri: string): Promise<{ avatar: string }> => {
     const formData = new FormData();
     if (Platform.OS === 'web') {

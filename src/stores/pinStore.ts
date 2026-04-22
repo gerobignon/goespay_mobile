@@ -3,6 +3,7 @@ import {
   getLockMethod,
   setLockMethod,
   isPinSet,
+  clearPin as clearPinSecure,
   type LockMethod,
 } from '../services/secureAuthService';
 
@@ -18,6 +19,7 @@ interface PinState {
   lock: () => void;
   unlock: () => void;
   setMethod: (method: LockMethod) => Promise<void>;
+  clearPin: () => Promise<void>;
 }
 
 export const usePinStore = create<PinState>((set, get) => ({
@@ -48,5 +50,10 @@ export const usePinStore = create<PinState>((set, get) => ({
     const pinSet = await isPinSet();
     const isSetupDone = method !== null && (method === 'biometric' || pinSet);
     set({ lockMethod: method, isSetupDone });
+  },
+
+  clearPin: async () => {
+    await clearPinSecure();
+    set({ lockMethod: null, isSetupDone: false, isLocked: false });
   },
 }));

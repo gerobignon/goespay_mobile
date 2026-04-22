@@ -121,7 +121,9 @@
       "unlockTitle": "Unlock",
       "unlockHint": "Enter your PIN code to access your account.",
       "forgotPin": "Forgot PIN?",
-      "biometric": "Use Face ID / Touch ID"
+      "biometric": "Use Face ID / Touch ID",
+      "resetPin": "Reset PIN",
+      "resetWarning": "This will reconnect your account. You will need to set up a new PIN."
     }
   },
   "tabs": {

@@ -121,7 +121,9 @@
       "unlockTitle": "Déverrouiller",
       "unlockHint": "Entrez votre code PIN pour accéder à votre compte.",
       "forgotPin": "PIN oublié ?",
-      "biometric": "Utiliser Face ID / Touch ID"
+      "biometric": "Utiliser Face ID / Touch ID",
+      "resetPin": "Réinitialiser le PIN",
+      "resetWarning": "Cette action vous reconnectera à votre compte. Vous devrez configurer un nouveau PIN."
     }
   },
   "tabs": {

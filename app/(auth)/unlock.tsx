@@ -7,6 +7,8 @@ import {
   ImageBackground,
   useWindowDimensions,
   ScrollView,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -20,6 +22,7 @@ import {
   getCredentials,
   clearAllSecureData,
 } from '../../src/services/secureAuthService';
+import { authService } from '../../src/services/authService';
 import { Image } from 'react-native';
 import { useAuthStore } from '../../src/stores/authStore';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../../src/constants/theme';
@@ -27,10 +30,11 @@ import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
+import { showAlert } from '../../src/stores/alertStore';
 
 export default function UnlockScreen() {
   const router = useRouter();
-  const { lockMethod, unlock } = usePinStore();
+  const { lockMethod, unlock, clearPin } = usePinStore();
   const { logout } = useAuthStore();
   const styles = useThemedStyles(createStyles);
   const { isDark } = useTheme();
@@ -42,6 +46,8 @@ export default function UnlockScreen() {
   const [resetTrigger, setResetTrigger] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const [bioAvailable, setBioAvailable] = useState(false);
+  const [resetModalVisible, setResetModalVisible] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   useEffect(() => {
     isBiometricAvailable().then(setBioAvailable);
@@ -82,6 +88,21 @@ export default function UnlockScreen() {
       }
       setError(t('auth.pin.incorrectPin', { remaining: 5 - newAttempts }));
       setResetTrigger((v) => !v);
+    }
+  };
+
+  const handleForgotPin = async () => {
+    setResetLoading(true);
+    try {
+      await authService.resetPin();
+      // Supprimer le PIN stocké localement et afficher setup
+      await clearPin();
+      setResetModalVisible(false);
+      router.replace('/(auth)/setup-pin');
+    } catch (err: any) {
+      showAlert(t('common.error'), err.response?.data?.message || 'Erreur lors de la réinitialisation du PIN');
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -133,11 +154,59 @@ export default function UnlockScreen() {
           </View>
         )}
 
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-          <Text style={styles.logoutText}>{t('account.logout')}</Text>
-        </TouchableOpacity>
+        <View style={styles.buttonsContainer}>
+          <TouchableOpacity onPress={() => setResetModalVisible(true)} style={styles.forgotBtn}>
+            <Text style={styles.forgotText}>🔑 {t('auth.pin.forgotPin', 'PIN oublié ?')}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
+            <Text style={styles.logoutText}>{t('account.logout')}</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
       </SafeAreaView>
+
+      {/* Modal de confirmation PIN oublié */}
+      <Modal
+        visible={resetModalVisible}
+        transparent
+        animationType="fade"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>🔄 {t('auth.pin.resetPin', 'Réinitialiser le PIN')}</Text>
+            <Text style={styles.modalMessage}>
+              {t('auth.pin.resetWarning', 'Cette action vous reconectera à votre compte. Vous devrez configurer un nouveau PIN.')}
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.cancelBtn]}
+                onPress={() => setResetModalVisible(false)}
+                disabled={resetLoading}
+              >
+                {resetLoading ? (
+                  <ActivityIndicator color={Colors.primary} />
+                ) : (
+                  <Text style={styles.cancelText}>{t('common.cancel')}</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.confirmBtn]}
+                onPress={handleForgotPin}
+                disabled={resetLoading}
+              >
+                {resetLoading ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={styles.confirmText}>{t('common.confirm')}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ImageBackground>
   );
 }
@@ -191,8 +260,21 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontFamily: Fonts.medium,
     textAlign: 'center',
   },
-  logoutBtn: {
+  buttonsContainer: {
     marginTop: Spacing.lg,
+    gap: Spacing.md,
+    alignItems: 'center',
+  },
+  forgotBtn: {
+    paddingVertical: Spacing.sm,
+  },
+  forgotText: {
+    color: Colors.primary,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.medium,
+    textDecoration: 'underline',
+  } as any,
+  logoutBtn: {
     paddingVertical: Spacing.sm,
   },
   logoutText: {
@@ -201,4 +283,63 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontFamily: Fonts.medium,
     textDecoration: 'underline',
   } as any,
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
+  },
+  modalContent: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: Spacing.lg,
+    gap: Spacing.md,
+    minWidth: '80%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    color: Colors.text,
+    fontSize: FontSize.lg,
+    fontFamily: Fonts.bold,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    color: Colors.textMuted,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.regular,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginTop: Spacing.md,
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelBtn: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.surfaceBorder,
+  },
+  confirmBtn: {
+    backgroundColor: Colors.primary,
+  },
+  cancelText: {
+    color: Colors.text,
+    fontFamily: Fonts.semiBold,
+    fontSize: FontSize.sm,
+  },
+  confirmText: {
+    color: 'white',
+    fontFamily: Fonts.semiBold,
+    fontSize: FontSize.sm,
+  },
 });
