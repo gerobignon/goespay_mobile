@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { PinPad } from '../../src/components/PinPad';
+import { Input } from '../../src/components/Input';
 import { usePinStore } from '../../src/stores/pinStore';
 import {
   verifyPin,
@@ -35,7 +36,7 @@ import { showAlert } from '../../src/stores/alertStore';
 export default function UnlockScreen() {
   const router = useRouter();
   const { lockMethod, unlock, clearPin } = usePinStore();
-  const { logout } = useAuthStore();
+  const { logout, user } = useAuthStore();
   const styles = useThemedStyles(createStyles);
   const { isDark } = useTheme();
   const { height } = useWindowDimensions();
@@ -48,6 +49,8 @@ export default function UnlockScreen() {
   const [bioAvailable, setBioAvailable] = useState(false);
   const [resetModalVisible, setResetModalVisible] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
 
   useEffect(() => {
     isBiometricAvailable().then(setBioAvailable);
@@ -92,18 +95,34 @@ export default function UnlockScreen() {
   };
 
   const handleForgotPin = async () => {
+    if (!resetPassword.trim()) {
+      setResetPasswordError(t('account.pinPasswordError'));
+      return;
+    }
     setResetLoading(true);
+    setResetPasswordError(null);
     try {
+      await authService.login({ email: user!.email, password: resetPassword });
       await authService.resetPin();
-      // Supprimer le PIN stocké localement et afficher setup
       await clearPin();
       setResetModalVisible(false);
       router.replace('/(auth)/setup-pin');
     } catch (err: any) {
-      showAlert(t('common.error'), err.response?.data?.message || 'Erreur lors de la réinitialisation du PIN');
+      const status = err?.response?.status;
+      if (status === 401 || status === 422) {
+        setResetPasswordError(t('account.pinPasswordIncorrect'));
+      } else {
+        showAlert(t('common.error'), err.response?.data?.message || 'Erreur lors de la réinitialisation du PIN');
+      }
     } finally {
       setResetLoading(false);
     }
+  };
+
+  const handleCloseResetModal = () => {
+    setResetModalVisible(false);
+    setResetPassword('');
+    setResetPasswordError(null);
   };
 
   const handleLogout = async () => {
@@ -171,6 +190,7 @@ export default function UnlockScreen() {
         visible={resetModalVisible}
         transparent
         animationType="fade"
+        onRequestClose={handleCloseResetModal}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -179,17 +199,22 @@ export default function UnlockScreen() {
               {t('auth.pin.resetWarning', 'Cette action vous reconectera à votre compte. Vous devrez configurer un nouveau PIN.')}
             </Text>
 
+            <Input
+              label={t('account.currentPassword')}
+              value={resetPassword}
+              onChangeText={(v) => { setResetPassword(v); setResetPasswordError(null); }}
+              secureTextEntry
+              placeholder="••••••••"
+              error={resetPasswordError || undefined}
+            />
+
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalBtn, styles.cancelBtn]}
-                onPress={() => setResetModalVisible(false)}
+                onPress={handleCloseResetModal}
                 disabled={resetLoading}
               >
-                {resetLoading ? (
-                  <ActivityIndicator color={Colors.primary} />
-                ) : (
-                  <Text style={styles.cancelText}>{t('common.cancel')}</Text>
-                )}
+                <Text style={styles.cancelText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity

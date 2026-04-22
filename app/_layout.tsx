@@ -74,33 +74,33 @@ function RootInner() {
     initLanguage();
   }, []);
 
-  // TODO: Vérification du statut API au montage et toutes les 60s sur web
-  // useEffect(() => {
-  //   const check = async (isInitial = false) => {
-  //     const { connected, offline: _offline } = await checkApiConnection();
-  //     // MAINTENANCE CHECK : redirection si serveur en maintenance
-  //     if (_offline) {
-  //       if (Platform.OS === 'web') {
-  //         window.location.href = 'https://goespay.io/maintenance';
-  //         return;
-  //       }
-  //       setApiStatus('maintenance');
-  //       return;
-  //     }
-  //     if (!connected) {
-  //       setApiStatus('error');
-  //     } else {
-  //       setApiStatus((prev) => (prev === 'checking' || prev === 'error' || prev === 'maintenance' ? 'ok' : prev));
-  //     }
-  //   };
-  //
-  //   check(true);
-  //
-  //   if (Platform.OS === 'web') {
-  //     const interval = setInterval(() => check(), 60_000);
-  //     return () => clearInterval(interval);
-  //   }
-  // }, []);
+  // Vérification du statut API au montage et toutes les 60s sur web
+  useEffect(() => {
+    const check = async (isInitial = false) => {
+      const { connected, offline: _offline } = await checkApiConnection();
+      // MAINTENANCE CHECK : redirection si serveur en maintenance
+      if (_offline) {
+        if (Platform.OS === 'web') {
+          window.location.href = 'https://goespay.io/maintenance';
+          return;
+        }
+        setApiStatus('maintenance');
+        return;
+      }
+      if (!connected) {
+        setApiStatus('error');
+      } else {
+        setApiStatus((prev) => (prev === 'checking' || prev === 'error' || prev === 'maintenance' ? 'ok' : prev));
+      }
+    };
+
+    check(true);
+
+    if (Platform.OS === 'web') {
+      const interval = setInterval(() => check(), 60_000);
+      return () => clearInterval(interval);
+    }
+  }, []);
 
   // Enregistrement des notifications push quand l'utilisateur est authentifié
   useEffect(() => {
