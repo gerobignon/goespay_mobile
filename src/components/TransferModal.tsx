@@ -55,7 +55,7 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
   const fetchBalance = useWalletStore((s) => s.fetchBalance);
   const balance = useWalletStore((s) => s.balance);
   const user = useAuthStore((s) => s.user);
-  const transferFeeCm = useConfigStore((s) => s.transfer_fee_cm);
+  const countryFees = useConfigStore((s) => s.country_fees);
   const transferFeeDefault = useConfigStore((s) => s.transfer_fee_default);
 
   const displayOperators = OPERATORS.filter((op) => op.withdraw);
@@ -63,7 +63,11 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
   // Calcul frais en live (taux récupérés dynamiquement depuis le backend)
   const numAmount = parseFloat(amount) || 0;
   const selectedOp = OPERATORS.find((op) => op.id === operator);
-  const feeRate = (selectedOp?.country === 'CM' ? transferFeeCm : transferFeeDefault) / 100;
+  const opCountry = selectedOp?.country?.toUpperCase();
+  const feePercent = opCountry && countryFees[opCountry] != null
+    ? countryFees[opCountry]
+    : transferFeeDefault;
+  const feeRate = feePercent / 100;
   const fees = useMemo(() => Math.round(numAmount * feeRate), [numAmount, feeRate]);
   const total = numAmount + fees;
 

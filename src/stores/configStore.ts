@@ -11,7 +11,8 @@ interface FeatureFlags {
 export interface AppConfig {
   // Frais de transfert (en %, ex: 5 = 5%)
   transfer_fee_default: number;
-  transfer_fee_cm: number;
+  // Frais par pays (code ISO -> %), ex: { CM: 10, BJ: 5 }
+  country_fees: Record<string, number>;
   // Limites montants (XOF)
   deposit_min: number;
   transfer_min: number;
@@ -41,7 +42,10 @@ const defaultFlags: FeatureFlags = {
 
 export const DEFAULT_APP_CONFIG: AppConfig = {
   transfer_fee_default: 5,
-  transfer_fee_cm: 10,
+  country_fees: {
+    BJ: 5, BF: 5, CI: 5, TG: 5,
+    SN: 5, ML: 5, CM: 10,
+  },
   deposit_min: 1000,
   transfer_min: 2500,
   transfer_max: 500000,
