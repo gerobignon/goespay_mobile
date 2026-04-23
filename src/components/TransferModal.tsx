@@ -60,16 +60,19 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
 
   const displayOperators = OPERATORS.filter((op) => op.withdraw);
 
-  // Calcul frais en live (taux récupérés dynamiquement depuis le backend)
+  // Calcul frais en live: basé sur le pays de l'utilisateur (expéditeur), aligné avec le backend
   const numAmount = parseFloat(amount) || 0;
   const selectedOp = OPERATORS.find((op) => op.id === operator);
-  const opCountry = selectedOp?.country?.toUpperCase();
-  const feePercent = opCountry && countryFees[opCountry] != null
-    ? countryFees[opCountry]
-    : transferFeeDefault;
-  const feeRate = feePercent / 100;
-  const fees = useMemo(() => Math.round(numAmount * feeRate), [numAmount, feeRate]);
+  const userCountry = user?.country?.toUpperCase();
+  const feeConfig = (userCountry && countryFees[userCountry]) || transferFeeDefault;
+  const fees = useMemo(
+    () => Math.round(feeConfig.fixed + numAmount * feeConfig.percent / 100),
+    [numAmount, feeConfig.fixed, feeConfig.percent]
+  );
   const total = numAmount + fees;
+  const feeLabel = feeConfig.fixed > 0
+    ? `${feeConfig.fixed} XOF + ${feeConfig.percent}%`
+    : `${feeConfig.percent}%`;
 
   const fmt = (n: number) => n.toLocaleString('fr-FR').replace(/\s/g, '.').replace(/,/g, '.');
 
@@ -278,7 +281,7 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
             {showFees ? (
               <View style={styles.feesBox}>
                 <View style={styles.feesRow}>
-                  <Text style={styles.feesLabel}>{t('transferModal.fees')} ({(feeRate * 100).toFixed(0)}%)</Text>
+                  <Text style={styles.feesLabel}>{t('transferModal.fees')} ({feeLabel})</Text>
                   <Text style={[styles.feesValue, { color: Colors.error }]}>+ {fmt(fees)} XOF</Text>
                 </View>
                 <View style={[styles.feesRow, styles.feesTotalRow]}>
@@ -377,7 +380,7 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
 
             <View style={styles.confirmFeesBox}>
               <View style={styles.feesRow}>
-                <Text style={styles.feesLabel}>{t('transferModal.fees')} ({(feeRate * 100).toFixed(0)}%)</Text>
+                <Text style={styles.feesLabel}>{t('transferModal.fees')} ({feeLabel})</Text>
                 <Text style={[styles.feesValue, { color: Colors.error }]}>+ {fmt(fees)} XOF</Text>
               </View>
               <View style={[styles.feesRow, styles.feesTotalRow]}>

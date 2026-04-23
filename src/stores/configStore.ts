@@ -8,11 +8,16 @@ interface FeatureFlags {
   crypto_sell_enabled: boolean;
 }
 
+export interface FeeConfig {
+  fixed: number;   // Montant fixe en XOF
+  percent: number; // Pourcentage (ex: 3.5 = 3.5%)
+}
+
 export interface AppConfig {
-  // Frais de transfert (en %, ex: 5 = 5%)
-  transfer_fee_default: number;
-  // Frais par pays (code ISO -> %), ex: { CM: 10, BJ: 5 }
-  country_fees: Record<string, number>;
+  // Frais par défaut (fixe + pourcentage)
+  transfer_fee_default: FeeConfig;
+  // Frais par pays (code ISO -> { fixed, percent })
+  country_fees: Record<string, FeeConfig>;
   // Limites montants (XOF)
   deposit_min: number;
   transfer_min: number;
@@ -41,10 +46,15 @@ const defaultFlags: FeatureFlags = {
 };
 
 export const DEFAULT_APP_CONFIG: AppConfig = {
-  transfer_fee_default: 5,
+  transfer_fee_default: { fixed: 300, percent: 3.5 },
   country_fees: {
-    BJ: 5, BF: 5, CI: 5, TG: 5,
-    SN: 5, ML: 5, CM: 10,
+    BJ: { fixed: 300, percent: 3.5 },
+    BF: { fixed: 300, percent: 3.5 },
+    CI: { fixed: 300, percent: 3.5 },
+    TG: { fixed: 300, percent: 3.5 },
+    SN: { fixed: 300, percent: 3.5 },
+    ML: { fixed: 300, percent: 3.5 },
+    CM: { fixed: 300, percent: 3.5 },
   },
   deposit_min: 1000,
   transfer_min: 2500,
