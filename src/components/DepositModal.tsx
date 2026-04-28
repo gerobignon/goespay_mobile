@@ -810,6 +810,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderRadius: BorderRadius.xl ?? BorderRadius.lg,
     padding: Spacing.lg,
     width: '100%',
+    maxWidth: 480,
     gap: Spacing.sm,
   },
   confirmTitle: {
