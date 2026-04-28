@@ -182,7 +182,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
       ];
   const displayOperators = filteredOperators.length > 0 ? filteredOperators : OPERATORS;
 
-  const needsOtp = operator === 'orange-money-burkina';
+  const needsOtp = ['orange-money-burkina', 'orange-money-ci', 'orange-money-senegal', 'orange-gn'].includes(operator);
   const isCard = operator === 'card';
 
   const normalizedPhone = phone.replace(/\s+/g, '').trim();

@@ -35,8 +35,40 @@ export const OPERATORS = [
   { id: 'wave-senegal', name: 'Wave Sénégal', flag: '🇸🇳', country: 'SN', withdraw: true, logo: require('../../assets/operators/pay_wave.jpg') },
   // Mali
   { id: 'orange-money-mali', name: 'Orange Money Mali', flag: '🇲🇱', country: 'ML', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
-  // Cameroun
+  // Cameroun (PayDunya, historique)
   { id: 'mtn-cameroun', name: 'MTN Mobile Money Cameroun', flag: '🇨🇲', country: 'CM', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
+
+  // ─── AfribaPay ──────────────────────────────────────────────────────────
+  // Niger (XOF)
+  { id: 'airtel-ne', name: 'Airtel Money Niger', flag: '🇳🇪', country: 'NE', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
+  { id: 'moov-ne', name: 'Moov Money Niger', flag: '🇳🇪', country: 'NE', withdraw: true, logo: require('../../assets/operators/pay_moov.png') },
+  // Guinée Conakry (GNF)
+  { id: 'orange-gn', name: 'Orange Money Guinée', flag: '🇬🇳', country: 'GN', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'mtn-gn', name: 'MTN Mobile Money Guinée', flag: '🇬🇳', country: 'GN', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
+  // Guinée Bissau (XOF)
+  { id: 'orange-gw', name: 'Orange Money Guinée-Bissau', flag: '🇬🇼', country: 'GW', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  // Gambie (GMD)
+  { id: 'afrimoney-gm', name: 'Africell Money Gambie', flag: '🇬🇲', country: 'GM', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
+  // Tchad (XAF)
+  { id: 'airtel-td', name: 'Airtel Money Tchad', flag: '🇹🇩', country: 'TD', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
+  { id: 'moov-td', name: 'Moov Money Tchad', flag: '🇹🇩', country: 'TD', withdraw: true, logo: require('../../assets/operators/pay_moov.png') },
+  // Gabon (XAF)
+  { id: 'airtel-ga', name: 'Airtel Money Gabon', flag: '🇬🇦', country: 'GA', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
+  { id: 'moov-ga', name: 'Moov Money Gabon', flag: '🇬🇦', country: 'GA', withdraw: true, logo: require('../../assets/operators/pay_moov.png') },
+  // Congo Brazzaville (XAF)
+  { id: 'mtn-cg', name: 'MTN Mobile Money Congo', flag: '🇨🇬', country: 'CG', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
+  { id: 'airtel-cg', name: 'Airtel Money Congo', flag: '🇨🇬', country: 'CG', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
+  // Centrafrique (XAF)
+  { id: 'orange-cf', name: 'Orange Money Centrafrique', flag: '🇨🇫', country: 'CF', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  // RDC (CDF)
+  { id: 'mpesa-cd', name: 'M-Pesa RDC', flag: '🇨🇩', country: 'CD', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
+  { id: 'orange-cd', name: 'Orange Money RDC', flag: '🇨🇩', country: 'CD', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'airtel-cd', name: 'Airtel Money RDC', flag: '🇨🇩', country: 'CD', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
+  { id: 'africell-cd', name: 'Africell Money RDC', flag: '🇨🇩', country: 'CD', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
+  // Cameroun (XAF, AfribaPay — coexiste avec mtn-cameroun PayDunya)
+  { id: 'mtn-cm', name: 'MTN Mobile Money Cameroun', flag: '🇨🇲', country: 'CM', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
+  { id: 'orange-cm', name: 'Orange Money Cameroun', flag: '🇨🇲', country: 'CM', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
+
   // Carte bancaire (international, dépôt uniquement)
   { id: 'card', name: 'Carte Bancaire', flag: '🌍', country: 'INTL', withdraw: false, logo: require('../../assets/operators/pay_card.jpg') },
 ] as const;
@@ -60,10 +92,18 @@ export function getTransactionStatus(t: (key: string) => string): Record<string,
 export const COUNTRIES = [
   { code: 'BJ', name: 'Bénin', prefix: '+229' },
   { code: 'BF', name: 'Burkina Faso', prefix: '+226' },
+  { code: 'CF', name: 'Centrafrique', prefix: '+236' },
+  { code: 'CG', name: 'Congo Brazzaville', prefix: '+242' },
+  { code: 'CD', name: 'RD Congo', prefix: '+243' },
   { code: 'CI', name: "Côte d'Ivoire", prefix: '+225' },
+  { code: 'CM', name: 'Cameroun', prefix: '+237' },
+  { code: 'GA', name: 'Gabon', prefix: '+241' },
+  { code: 'GM', name: 'Gambie', prefix: '+220' },
+  { code: 'GN', name: 'Guinée Conakry', prefix: '+224' },
   { code: 'GW', name: 'Guinée-Bissau', prefix: '+245' },
   { code: 'ML', name: 'Mali', prefix: '+223' },
   { code: 'NE', name: 'Niger', prefix: '+227' },
   { code: 'SN', name: 'Sénégal', prefix: '+221' },
+  { code: 'TD', name: 'Tchad', prefix: '+235' },
   { code: 'TG', name: 'Togo', prefix: '+228' },
 ];
