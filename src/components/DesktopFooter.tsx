@@ -10,9 +10,13 @@ const bgDark = require('../../assets/bg_page.jpg');
 const bgLight = require('../../assets/bg_page_light.jpg');
 
 const SOCIALS = [
-  { icon: 'facebook', url: 'https://facebook.com/goespay', darkColor: '#1877F2', lightColor: '#1877F2' },
-  { icon: 'instagram', url: 'https://instagram.com/goespay', darkColor: '#E4405F', lightColor: '#E4405F' },
-  { icon: 'tiktok', url: 'https://tiktok.com/@goespay', darkColor: '#fff', lightColor: '#000' },
+  { icon: 'facebook', url: 'https://fb.me/goespaay', darkColor: '#1877F2', lightColor: '#1877F2' },
+  { icon: 'instagram', url: 'https://instagram.com/goespaay', darkColor: '#E4405F', lightColor: '#E4405F' },
+  { icon: 'x-twitter', url: 'https://twitter.com/goespaay', darkColor: '#fff', lightColor: '#000' },
+  { icon: 'linkedin-in', url: 'https://linkedin.com/company/goespay', darkColor: '#0A66C2', lightColor: '#0A66C2' },
+  { icon: 'youtube', url: 'https://youtube.com/channel/UCxooykyhvHYo_zAI1yckRsw', darkColor: '#FF0000', lightColor: '#FF0000' },
+  { icon: 'telegram', url: 'https://t.me/goespaay', darkColor: '#26A5E4', lightColor: '#26A5E4' },
+  { icon: 'whatsapp', url: 'https://wa.me/237659939340', darkColor: '#25D366', lightColor: '#25D366' },
 ];
 
 export function DesktopFooter() {
