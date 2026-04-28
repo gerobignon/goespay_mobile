@@ -46,8 +46,15 @@ export interface ApiPingResult {
 
 export async function checkApiConnection(): Promise<ApiPingResult> {
   try {
-    // withCredentials sur web pour transmettre le cookie de session BackendUser (October CMS)
-    const res = await api.get('/ping', { timeout: 5000, withCredentials: true });
+    // Sur web : récupère le cookie .goespay.io posé par le backend pour l'admin
+    let url = '/ping';
+    if (typeof document !== 'undefined') {
+      const m = document.cookie.match(/(?:^|;\s*)goespay_admin=([^;]+)/);
+      if (m) {
+        url += `?admin_token=${encodeURIComponent(m[1])}`;
+      }
+    }
+    const res = await api.get(url, { timeout: 5000 });
     return {
       connected: true,
       offline: res.data?.offline === 1,
