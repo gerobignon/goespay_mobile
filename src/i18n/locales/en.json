@@ -63,6 +63,8 @@
       "password": "Password",
       "passwordPlaceholder": "••••••••",
       "confirmPassword": "Confirm password",
+      "parrainCode": "Referral code (optional)",
+      "parrainCodePlaceholder": "Your sponsor's code",
       "submit": "Create my account",
       "alreadyAccount": "Already have an account? Sign in",
       "termsAccept": "By creating your account, you accept our",
@@ -172,6 +174,7 @@
     "logout": "Sign out",
     "logoutConfirm": "Sign out",
     "personalInfo": "Personal information",
+    "referral": "Referral",
     "firstName": "First name",
     "lastName": "Last name",
     "phone": "Phone",
@@ -521,5 +524,28 @@
   "layout": {
     "connectionError": "Connection failed",
     "retry": "Retry"
+  },
+  "affiliation": {
+    "title": "Referral",
+    "yourCode": "Your referral code",
+    "description": "Share this code or link with your friends. When they sign up using it, they become your referees and you earn commissions on their transactions.",
+    "copyLink": "Copy link",
+    "share": "Share",
+    "shareMessage": "Join me on GoesPay: {{link}}",
+    "codeCopied": "Code copied",
+    "linkCopied": "Link copied",
+    "filleuls": "Referees",
+    "commissions": "Commissions",
+    "totalEarned": "Total earned",
+    "unpayed": "Pending",
+    "payed": "Received",
+    "claimSection": "Claim my commissions",
+    "claimHelper": "You have {{amount}} XOF of pending commissions.",
+    "claimTitle": "Claim commissions",
+    "claimConfirm": "Transfer {{amount}} XOF to your balance?",
+    "claim": "Claim",
+    "noFilleuls": "No referees yet.",
+    "noCommissions": "No commissions yet.",
+    "loadError": "Unable to load data."
   }
 }

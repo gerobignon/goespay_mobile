@@ -41,13 +41,19 @@ export default api;
 export interface ApiPingResult {
   connected: boolean;
   offline: boolean;
+  backendAdmin: boolean;
 }
 
 export async function checkApiConnection(): Promise<ApiPingResult> {
   try {
-    const res = await api.get('/ping', { timeout: 5000 });
-    return { connected: true, offline: res.data?.offline === 1 };
+    // withCredentials sur web pour transmettre le cookie de session BackendUser (October CMS)
+    const res = await api.get('/ping', { timeout: 5000, withCredentials: true });
+    return {
+      connected: true,
+      offline: res.data?.offline === 1,
+      backendAdmin: res.data?.backend_admin === 1,
+    };
   } catch {
-    return { connected: false, offline: false };
+    return { connected: false, offline: false, backendAdmin: false };
   }
 }

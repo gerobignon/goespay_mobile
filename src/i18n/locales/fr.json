@@ -63,6 +63,8 @@
       "password": "Mot de passe",
       "passwordPlaceholder": "••••••••",
       "confirmPassword": "Confirmer le mot de passe",
+      "parrainCode": "Code de parrainage (optionnel)",
+      "parrainCodePlaceholder": "Code de votre parrain",
       "submit": "Créer mon compte",
       "alreadyAccount": "Déjà un compte ? Connexion",
       "termsAccept": "En créant votre compte, vous acceptez nos",
@@ -172,6 +174,7 @@
     "logout": "Se déconnecter",
     "logoutConfirm": "Déconnecter",
     "personalInfo": "Informations personnelles",
+    "referral": "Parrainage",
     "firstName": "Prénom",
     "lastName": "Nom",
     "phone": "Téléphone",
@@ -521,5 +524,28 @@
   "layout": {
     "connectionError": "Connexion impossible",
     "retry": "Réessayer"
+  },
+  "affiliation": {
+    "title": "Parrainage",
+    "yourCode": "Votre code de parrainage",
+    "description": "Partagez ce code ou ce lien avec vos amis. Lorsqu'ils s'inscrivent avec, ils deviennent vos filleuls et vous recevez des commissions sur leurs transactions.",
+    "copyLink": "Copier le lien",
+    "share": "Partager",
+    "shareMessage": "Rejoins-moi sur GoesPay : {{link}}",
+    "codeCopied": "Code copié",
+    "linkCopied": "Lien copié",
+    "filleuls": "Filleuls",
+    "commissions": "Commissions",
+    "totalEarned": "Total gagné",
+    "unpayed": "En attente",
+    "payed": "Reçu",
+    "claimSection": "Réclamer mes commissions",
+    "claimHelper": "Vous avez {{amount}} XOF de commissions en attente.",
+    "claimTitle": "Réclamer les commissions",
+    "claimConfirm": "Transférer {{amount}} XOF sur votre solde ?",
+    "claim": "Réclamer",
+    "noFilleuls": "Aucun filleul pour le moment.",
+    "noCommissions": "Aucune commission pour le moment.",
+    "loadError": "Impossible de charger les données."
   }
 }

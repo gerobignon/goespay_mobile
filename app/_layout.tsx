@@ -41,6 +41,7 @@ function RootInner() {
   const router = useRouter();
   const [apiStatus, setApiStatus] = useState<'checking' | 'ok' | 'error' | 'maintenance'>('checking');
   const [isMounted, setIsMounted] = useState(false);
+  const [showOfflineBanner, setShowOfflineBanner] = useState(false);
   const notifListenerRef = useRef<Notifications.Subscription | null>(null);
   const responseListenerRef = useRef<Notifications.Subscription | null>(null);
 
@@ -76,10 +77,18 @@ function RootInner() {
 
   // Vérification du statut API au montage et toutes les 60s sur web
   useEffect(() => {
-    const check = async (isInitial = false) => {
-      const { connected, offline: _offline } = await checkApiConnection();
+    let cancelled = false;
+    const check = async () => {
+      const { connected, offline: _offline, backendAdmin } = await checkApiConnection();
+      if (cancelled) return;
       // MAINTENANCE CHECK : redirection si serveur en maintenance
       if (_offline) {
+        // Sur web, un BackendUser (admin October CMS) avec session active passe outre
+        if (Platform.OS === 'web' && backendAdmin) {
+          setShowOfflineBanner(true);
+          setApiStatus((prev) => (prev === 'checking' || prev === 'error' || prev === 'maintenance' ? 'ok' : prev));
+          return;
+        }
         if (Platform.OS === 'web') {
           window.location.href = 'https://goespay.io/maintenance';
           return;
@@ -87,6 +96,7 @@ function RootInner() {
         setApiStatus('maintenance');
         return;
       }
+      setShowOfflineBanner(false);
       if (!connected) {
         setApiStatus('error');
       } else {
@@ -94,12 +104,18 @@ function RootInner() {
       }
     };
 
-    check(true);
+    check();
 
     if (Platform.OS === 'web') {
       const interval = setInterval(() => check(), 60_000);
-      return () => clearInterval(interval);
+      return () => {
+        cancelled = true;
+        clearInterval(interval);
+      };
     }
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Enregistrement des notifications push quand l'utilisateur est authentifié
@@ -149,15 +165,20 @@ function RootInner() {
 
   const retry = async () => {
     setApiStatus('checking');
-    const { connected, offline } = await checkApiConnection();
+    const { connected, offline, backendAdmin } = await checkApiConnection();
     if (!connected) {
       setApiStatus('error');
     } else if (offline) {
-      setApiStatus('maintenance');
-      if (Platform.OS === 'web') {
+      if (Platform.OS === 'web' && backendAdmin) {
+        setShowOfflineBanner(true);
+        setApiStatus('ok');
+      } else if (Platform.OS === 'web') {
         window.location.href = 'https://goespay.io/maintenance';
+      } else {
+        setApiStatus('maintenance');
       }
     } else {
+      setShowOfflineBanner(false);
       setApiStatus('ok');
       loadToken();
     }
@@ -241,11 +262,42 @@ function RootInner() {
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
+      {showOfflineBanner && Platform.OS === 'web' && <OfflineAdminBanner />}
       <Stack screenOptions={{ headerShown: false }} />
       <CustomAlert />
     </>
   );
 }
+
+function OfflineAdminBanner() {
+  return (
+    <View style={bannerStyles.container}>
+      <FontAwesome6 name="screwdriver-wrench" size={14} color="#fff" style={{ marginRight: 8 }} />
+      <Text style={bannerStyles.text}>
+        Site en maintenance — accès admin actif. Les utilisateurs standards sont redirigés.
+      </Text>
+    </View>
+  );
+}
+
+const bannerStyles = StyleSheet.create({
+  container: {
+    width: '100%',
+    backgroundColor: '#b45309',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9999,
+  },
+  text: {
+    color: '#fff',
+    fontSize: 13,
+    fontFamily: Fonts.semiBold,
+    textAlign: 'center',
+  },
+});
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   loading: {

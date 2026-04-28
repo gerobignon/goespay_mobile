@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Link, useRouter } from 'expo-router';
+import { Link, useRouter, useLocalSearchParams } from 'expo-router';
 import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
 import { authService } from '../../src/services/authService';
@@ -24,6 +24,7 @@ import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ ref?: string }>();
   const styles = useThemedStyles(createStyles);
   const { isDark } = useTheme();
   const { t } = useTranslation();
@@ -33,13 +34,21 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
+  const [parrainCode, setParrainCode] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (params.ref && typeof params.ref === 'string') {
+      setParrainCode(params.ref);
+    }
+  }, [params.ref]);
 
   const surnameRef = useRef<TextInput>(null);
   const nameRef = useRef<TextInput>(null);
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
   const passwordConfirmationRef = useRef<TextInput>(null);
+  const parrainRef = useRef<TextInput>(null);
 
   const fieldRefs: Record<string, React.RefObject<TextInput | null>> = {
     surname: surnameRef,
@@ -47,6 +56,7 @@ export default function RegisterScreen() {
     email: emailRef,
     password: passwordRef,
     password_confirmation: passwordConfirmationRef,
+    parrain_code: parrainRef,
   };
 
   const handleRegister = async () => {
@@ -75,6 +85,7 @@ export default function RegisterScreen() {
         email: email.trim(),
         password,
         password_confirmation: passwordConfirmation,
+        parrain_code: parrainCode.trim() || undefined,
       });
       showAlert(
         t('auth.register.successTitle', 'Inscription réussie'),
@@ -176,6 +187,16 @@ export default function RegisterScreen() {
               onChangeText={(v) => { setPasswordConfirmation(v); setFieldErrors((e) => ({ ...e, password_confirmation: '' })); }}
               secureTextEntry
               error={fieldErrors.password_confirmation}
+            />
+
+            <Input
+              ref={parrainRef}
+              label={t('auth.register.parrainCode')}
+              placeholder={t('auth.register.parrainCodePlaceholder')}
+              value={parrainCode}
+              onChangeText={(v) => { setParrainCode(v.replace(/[^0-9]/g, '')); setFieldErrors((e) => ({ ...e, parrain_code: '' })); }}
+              keyboardType="numeric"
+              error={fieldErrors.parrain_code}
             />
 
             <Button

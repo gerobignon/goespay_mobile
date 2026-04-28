@@ -1,0 +1,461 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Platform,
+  ImageBackground,
+  Share,
+  RefreshControl,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { FontAwesome6 } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
+import { Button } from '../../src/components/Button';
+import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
+import { useThemedStyles } from '../../src/hooks/useThemedStyles';
+import { useTheme } from '../../src/components/ThemeProvider';
+import { useTranslation } from 'react-i18next';
+import { useResponsive } from '../../src/hooks/useResponsive';
+import { useAuthStore } from '../../src/stores/authStore';
+import { useWalletStore } from '../../src/stores/walletStore';
+import { showAlert } from '../../src/stores/alertStore';
+import { CustomAlert } from '../../src/components/CustomAlert';
+import { affiliationService } from '../../src/services/affiliationService';
+import { formatAmount, formatDate } from '../../src/utils/format';
+import type { AffiliationStats, AffiliationChild, AffiliationHistoryItem } from '../../src/types';
+
+const REFERRAL_BASE_URL = 'https://goespay.io/register';
+
+export default function AffiliationScreen() {
+  const router = useRouter();
+  const { isDesktop } = useResponsive();
+  const styles = useThemedStyles(createStyles);
+  const { isDark } = useTheme();
+  const { t } = useTranslation();
+  const user = useAuthStore((s) => s.user);
+  const fetchBalance = useWalletStore((s) => s.fetchBalance);
+
+  const [stats, setStats] = useState<AffiliationStats | null>(null);
+  const [children, setChildren] = useState<AffiliationChild[]>([]);
+  const [history, setHistory] = useState<AffiliationHistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [tab, setTab] = useState<'children' | 'history'>('children');
+
+  const referralCode = stats?.referral_code || (user?.id ? String(user.id) : '');
+  const referralLink = referralCode ? `${REFERRAL_BASE_URL}?ref=${referralCode}` : '';
+
+  const loadAll = useCallback(async () => {
+    try {
+      const [s, c, h] = await Promise.all([
+        affiliationService.getStats(),
+        affiliationService.getChildren(1).catch(() => ({ data: [] as AffiliationChild[], current_page: 1, last_page: 1, per_page: 20, total: 0 })),
+        affiliationService.getHistory(1).catch(() => ({ data: [] as AffiliationHistoryItem[], current_page: 1, last_page: 1, per_page: 20, total: 0 })),
+      ]);
+      setStats(s);
+      setChildren(c.data);
+      setHistory(h.data);
+    } catch {
+      showAlert(t('common.error'), t('affiliation.loadError', 'Impossible de charger les données.'));
+    }
+  }, [t]);
+
+  useEffect(() => {
+    setLoading(true);
+    loadAll().finally(() => setLoading(false));
+  }, [loadAll]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadAll();
+    setRefreshing(false);
+  };
+
+  const handleCopyCode = async () => {
+    if (!referralCode) return;
+    await Clipboard.setStringAsync(referralCode);
+    showAlert(t('common.success'), t('affiliation.codeCopied', 'Code copié'));
+  };
+
+  const handleCopyLink = async () => {
+    if (!referralLink) return;
+    await Clipboard.setStringAsync(referralLink);
+    showAlert(t('common.success'), t('affiliation.linkCopied', 'Lien copié'));
+  };
+
+  const handleShare = async () => {
+    if (!referralLink) return;
+    try {
+      await Share.share({
+        message: t('affiliation.shareMessage', { link: referralLink, defaultValue: `Rejoins-moi sur GoesPay : ${referralLink}` }),
+      });
+    } catch {}
+  };
+
+  const handleClaim = () => {
+    if (!stats || stats.unpayed <= 0) return;
+    showAlert(
+      t('affiliation.claimTitle', 'Réclamer les commissions'),
+      t('affiliation.claimConfirm', { amount: formatAmount(stats.unpayed), defaultValue: `Transférer ${formatAmount(stats.unpayed)} XOF sur votre solde ?` }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('affiliation.claim', 'Réclamer'),
+          onPress: async () => {
+            setClaiming(true);
+            try {
+              const res = await affiliationService.claim();
+              showAlert(t('common.success'), res.message);
+              await Promise.all([loadAll(), fetchBalance()]);
+            } catch (e: any) {
+              const msg = e?.response?.data?.error || e?.response?.data?.message || t('common.error');
+              showAlert(t('common.error'), msg);
+            } finally {
+              setClaiming(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const content = (
+    <>
+      {!isDesktop && (
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.title}>{t('affiliation.title', 'Parrainage')}</Text>
+        </View>
+      )}
+      {isDesktop && <Text style={styles.title}>{t('affiliation.title', 'Parrainage')}</Text>}
+
+      {/* Code de parrainage */}
+      <View style={styles.formCard}>
+        <Text style={styles.sectionLabel}>{t('affiliation.yourCode', 'Votre code de parrainage')}</Text>
+        <View style={styles.codeBox}>
+          <Text style={styles.codeText}>{referralCode || '—'}</Text>
+          <TouchableOpacity style={styles.inlineIconBtn} onPress={handleCopyCode}>
+            <FontAwesome6 name="copy" size={14} color={Colors.primary} />
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.helperText}>{t('affiliation.description', 'Partagez ce code ou ce lien avec vos amis. Lorsqu\'ils s\'inscrivent avec, ils deviennent vos filleuls et vous recevez des commissions sur leurs transactions.')}</Text>
+
+        <View style={styles.actionsRow}>
+          <Button
+            title={t('affiliation.copyLink', 'Copier le lien')}
+            icon="link"
+            variant="outline"
+            onPress={handleCopyLink}
+            style={{ flex: 1 }}
+          />
+          <Button
+            title={t('affiliation.share', 'Partager')}
+            icon="share-nodes"
+            onPress={handleShare}
+            style={{ flex: 1 }}
+          />
+        </View>
+      </View>
+
+      {/* Stats */}
+      <View style={styles.statsGrid}>
+        <View style={styles.statCard}>
+          <FontAwesome6 name="users" size={16} color={Colors.primary} />
+          <Text style={styles.statValue}>{stats?.children ?? 0}</Text>
+          <Text style={styles.statLabel}>{t('affiliation.filleuls', 'Filleuls')}</Text>
+        </View>
+        <View style={styles.statCard}>
+          <FontAwesome6 name="coins" size={16} color={Colors.success} />
+          <Text style={styles.statValue}>{formatAmount(stats?.total ?? 0)}</Text>
+          <Text style={styles.statLabel}>{t('affiliation.totalEarned', 'Total gagné')} (XOF)</Text>
+        </View>
+        <View style={styles.statCard}>
+          <FontAwesome6 name="hourglass-half" size={16} color={Colors.secondary} />
+          <Text style={styles.statValue}>{formatAmount(stats?.unpayed ?? 0)}</Text>
+          <Text style={styles.statLabel}>{t('affiliation.unpayed', 'En attente')} (XOF)</Text>
+        </View>
+        <View style={styles.statCard}>
+          <FontAwesome6 name="circle-check" size={16} color={Colors.textMuted} />
+          <Text style={styles.statValue}>{formatAmount(stats?.payed ?? 0)}</Text>
+          <Text style={styles.statLabel}>{t('affiliation.payed', 'Reçu')} (XOF)</Text>
+        </View>
+      </View>
+
+      {/* Claim */}
+      {(stats?.unpayed ?? 0) > 0 && (
+        <View style={styles.formCard}>
+          <Text style={styles.sectionLabel}>{t('affiliation.claimSection', 'Réclamer mes commissions')}</Text>
+          <Text style={styles.helperText}>{t('affiliation.claimHelper', { amount: formatAmount(stats?.unpayed ?? 0), defaultValue: `Vous avez ${formatAmount(stats?.unpayed ?? 0)} XOF de commissions en attente.` })}</Text>
+          <Button
+            title={t('affiliation.claim', 'Réclamer')}
+            icon="wallet"
+            onPress={handleClaim}
+            loading={claiming}
+            style={{ marginTop: Spacing.sm }}
+          />
+        </View>
+      )}
+
+      {/* Tabs */}
+      <View style={styles.tabRow}>
+        <TouchableOpacity
+          style={[styles.tabBtn, tab === 'children' && styles.tabBtnActive]}
+          onPress={() => setTab('children')}
+        >
+          <Text style={[styles.tabBtnText, tab === 'children' && styles.tabBtnTextActive]}>
+            {t('affiliation.filleuls', 'Filleuls')}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabBtn, tab === 'history' && styles.tabBtnActive]}
+          onPress={() => setTab('history')}
+        >
+          <Text style={[styles.tabBtnText, tab === 'history' && styles.tabBtnTextActive]}>
+            {t('affiliation.commissions', 'Commissions')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* List */}
+      <View style={styles.formCard}>
+        {tab === 'children' ? (
+          children.length > 0 ? children.map((child) => (
+            <View key={child.id} style={styles.entryRow}>
+              <View style={styles.entryIcon}>
+                <FontAwesome6 name="user" size={14} color={Colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.entryTitle}>{child.name || child.email}</Text>
+                <Text style={styles.entrySub}>{child.email}</Text>
+              </View>
+              {child.created_at && <Text style={styles.entryDate}>{formatDate(child.created_at)}</Text>}
+            </View>
+          )) : (
+            <Text style={styles.emptyText}>{t('affiliation.noFilleuls', 'Aucun filleul pour le moment.')}</Text>
+          )
+        ) : (
+          history.length > 0 ? history.map((item) => (
+            <View key={item.id} style={styles.entryRow}>
+              <View style={[styles.entryIcon, { backgroundColor: item.payed === 'yes' ? Colors.success + '22' : Colors.secondary + '22' }]}>
+                <FontAwesome6 name={item.payed === 'yes' ? 'circle-check' : 'hourglass-half'} size={14} color={item.payed === 'yes' ? Colors.success : Colors.secondary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.entryTitle}>+ {formatAmount(item.commission)} XOF</Text>
+                <Text style={styles.entrySub}>{item.filleul_name || `#${item.filleul_id}`} · {item.type}</Text>
+              </View>
+              {item.created_at && <Text style={styles.entryDate}>{formatDate(item.created_at)}</Text>}
+            </View>
+          )) : (
+            <Text style={styles.emptyText}>{t('affiliation.noCommissions', 'Aucune commission pour le moment.')}</Text>
+          )
+        )}
+      </View>
+    </>
+  );
+
+  const refreshControl = (
+    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+  );
+
+  if (isDesktop) {
+    return (
+      <View style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={[styles.scroll, { paddingTop: 0 }]}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={refreshControl}
+        >
+          {content}
+        </ScrollView>
+        <CustomAlert />
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1 }}>
+      <ImageBackground
+        source={isDark ? require('../../assets/bg_page.jpg') : require('../../assets/bg_page_light.jpg')}
+        style={styles.background}
+      >
+        <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+          <ScrollView
+            contentContainerStyle={styles.scroll}
+            keyboardShouldPersistTaps="handled"
+            refreshControl={refreshControl}
+          >
+            {content}
+          </ScrollView>
+        </SafeAreaView>
+        <CustomAlert />
+      </ImageBackground>
+    </View>
+  );
+}
+
+const createStyles = (Colors: ColorPalette) => StyleSheet.create({
+  background: { flex: 1 },
+  scroll: {
+    flexGrow: 1,
+    padding: Spacing.lg,
+    paddingTop: Spacing.xxl + Spacing.lg,
+    gap: Spacing.md,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  title: {
+    fontSize: FontSize.xl,
+    fontFamily: Fonts.bold,
+    color: Colors.text,
+  },
+  formCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.surfaceBorder,
+  },
+  sectionLabel: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.semiBold,
+    marginBottom: Spacing.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  codeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.inputBg,
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  codeText: {
+    flex: 1,
+    fontSize: FontSize.lg,
+    fontFamily: Fonts.bold,
+    color: Colors.primary,
+    letterSpacing: 1,
+  },
+  helperText: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.regular,
+    lineHeight: 18,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  statCard: {
+    flexBasis: '48%',
+    flexGrow: 1,
+    backgroundColor: Colors.card,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.surfaceBorder,
+    gap: 4,
+  },
+  statValue: {
+    fontSize: FontSize.lg,
+    fontFamily: Fonts.bold,
+    color: Colors.text,
+  },
+  statLabel: {
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.regular,
+    color: Colors.textMuted,
+  },
+  tabRow: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.surfaceBorder,
+    alignItems: 'center',
+  },
+  tabBtnActive: {
+    backgroundColor: Colors.primary + '11',
+    borderColor: Colors.primary,
+  },
+  tabBtnText: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+    color: Colors.textMuted,
+  },
+  tabBtnTextActive: {
+    color: Colors.primary,
+  },
+  entryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  entryIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.primary + '22',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  entryTitle: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+    color: Colors.text,
+  },
+  entrySub: {
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.regular,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  entryDate: {
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.regular,
+    color: Colors.textMuted,
+  },
+  inlineIconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary + '22',
+  },
+  emptyText: {
+    color: Colors.textMuted,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.regular,
+    textAlign: 'center',
+    paddingVertical: Spacing.md,
+  },
+});

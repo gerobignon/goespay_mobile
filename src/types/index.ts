@@ -83,6 +83,32 @@ export interface RegisterRequest {
   email: string;
   password: string;
   password_confirmation: string;
+  parrain_code?: string;
+}
+
+export interface AffiliationStats {
+  unpayed: number;
+  payed: number;
+  total: number;
+  children: number;
+  referral_code: string;
+}
+
+export interface AffiliationChild {
+  id: number;
+  name: string;
+  email: string;
+  created_at: string | null;
+}
+
+export interface AffiliationHistoryItem {
+  id: number;
+  type: string;
+  commission: number;
+  payed: string;
+  filleul_id: number;
+  filleul_name: string | null;
+  created_at: string | null;
 }
 
 export interface DepositRequest {
