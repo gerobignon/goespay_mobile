@@ -409,7 +409,7 @@
     "infoLost": "Les informations saisies seront perdues.",
     "transferSuccess": "Transfert effectué avec succès.",
     "transferError": "Erreur lors du transfert.",
-    "requestTimeout": "La requête a expiré. Connexion lente ou service indisponible, réessayez.",
+    "requestTimeout": "La requête a expiré. Le transfert a peut-être abouti — vérifiez votre historique avant de réessayer.",
     "phoneSaved": "Numéro enregistré.",
     "phoneSaveError": "Impossible d'enregistrer ce numéro.",
     "title2": "Transfert d'argent",

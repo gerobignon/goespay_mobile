@@ -409,7 +409,7 @@
     "infoLost": "Entered information will be lost.",
     "transferSuccess": "Transfer completed successfully.",
     "transferError": "Error during transfer.",
-    "requestTimeout": "Request timed out. Slow connection or service unavailable, please retry.",
+    "requestTimeout": "Request timed out. The transfer may have gone through — please check your transaction history before retrying.",
     "phoneSaved": "Number saved.",
     "phoneSaveError": "Unable to save this number.",
     "title2": "Money transfer",

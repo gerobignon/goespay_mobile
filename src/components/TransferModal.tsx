@@ -209,10 +209,14 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
       setOperator('');
       setPhone('');
     } catch (error: any) {
-      const msg = error?.response?.data?.error
-        || error?.response?.data?.message
-        || (error?.code === 'ECONNABORTED' ? t('transferModal.requestTimeout') : null)
-        || t('transferModal.transferError');
+      // Le transfert peut avoir abouti côté serveur même si la requête a échoué
+      // (timeout passerelle, réponse mal formée, etc.). On rafraîchit le solde
+      // pour refléter l'état réel et on invite l'utilisateur à vérifier l'historique.
+      try { await fetchBalance(); } catch {}
+      const isTimeout = error?.code === 'ECONNABORTED' || /timeout/i.test(error?.message || '');
+      const serverMsg = error?.response?.data?.error || error?.response?.data?.message;
+      const msg = serverMsg
+        || (isTimeout ? t('transferModal.requestTimeout') : t('transferModal.transferError'));
       showAlert(t('common.error'), msg);
     } finally {
       setLoading(false);
