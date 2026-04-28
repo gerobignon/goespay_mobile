@@ -46,8 +46,7 @@ export interface ApiPingResult {
 
 export async function checkApiConnection(): Promise<ApiPingResult> {
   try {
-    // withCredentials sur web pour transmettre le cookie de session BackendUser (October CMS)
-    const res = await api.get('/ping', { timeout: 5000, withCredentials: true });
+    const res = await api.get('/ping', { timeout: 5000 });
     return {
       connected: true,
       offline: res.data?.offline === 1,
