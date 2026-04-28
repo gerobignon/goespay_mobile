@@ -51,7 +51,8 @@ export async function checkApiConnection(): Promise<ApiPingResult> {
     if (typeof document !== 'undefined') {
       const m = document.cookie.match(/(?:^|;\s*)goespay_admin=([^;]+)/);
       if (m) {
-        url += `?admin_token=${encodeURIComponent(m[1])}`;
+        // m[1] est déjà URL-encodé par setcookie() côté PHP, on l'envoie tel quel
+        url += `?admin_token=${m[1]}`;
       }
     }
     const res = await api.get(url, { timeout: 5000 });

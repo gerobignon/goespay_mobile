@@ -104,6 +104,11 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.text,
     fontSize: FontSize.xl,
     fontFamily: Fonts.bold,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    padding: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
   cellFilled: {
     borderColor: Colors.secondary,
