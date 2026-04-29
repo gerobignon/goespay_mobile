@@ -19,6 +19,10 @@ import i18n from '../../src/i18n';
 import { SUPPORTED_LANGUAGES, setLanguage } from '../../src/i18n';
 import { CustomAlert } from '../../src/components/CustomAlert';
 import { useResponsive } from '../../src/hooks/useResponsive';
+import { useCurrencyStore, SUPPORTED_CURRENCIES } from '../../src/stores/currencyStore';
+import { useAuthStore } from '../../src/stores/authStore';
+import { authService } from '../../src/services/authService';
+import { showAlert } from '../../src/stores/alertStore';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -26,9 +30,37 @@ export default function SettingsScreen() {
   const styles = useThemedStyles(createStyles);
   const { mode: themeMode, setMode: setThemeMode, isDark } = useTheme();
   const { t } = useTranslation();
+  const userCurrency = useCurrencyStore((s) => s.userCurrency);
+  const currencySource = useCurrencyStore((s) => s.currencySource);
+  const setUserCurrencyLocal = useCurrencyStore((s) => s.setUserCurrency);
+  const fetchRates = useCurrencyStore((s) => s.fetchRates);
+  const setUser = useAuthStore((s) => s.setUser);
+  const user = useAuthStore((s) => s.user);
+  const [savingCurrency, setSavingCurrency] = React.useState<string | null>(null);
 
   const changeLanguage = async (code: string) => {
     await setLanguage(code as any);
+  };
+
+  const changeCurrency = async (code: string) => {
+    if (code === userCurrency || savingCurrency) return;
+    setSavingCurrency(code);
+    try {
+      // Optimistic local update for instant feedback
+      await setUserCurrencyLocal(code, 'manual');
+      // Persist on backend
+      const updated = await authService.updateProfile({ currency: code } as any);
+      if (updated) setUser(updated);
+      // Refresh rates if needed
+      fetchRates();
+      showAlert(t('common.success'), t('account.currencyChanged'));
+    } catch (e: any) {
+      // Rollback on error
+      await setUserCurrencyLocal(user?.currency || 'XOF', user?.currency_source || 'auto');
+      showAlert(t('common.error'), t('account.currencyError'));
+    } finally {
+      setSavingCurrency(null);
+    }
   };
 
   const themeOptions: { key: ThemeMode; label: string; desc: string; icon: string }[] = [
@@ -44,15 +76,15 @@ export default function SettingsScreen() {
           <TouchableOpacity onPress={() => router.back()}>
             <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
           </TouchableOpacity>
-          <Text style={styles.title}>{t('account.appearance')}</Text>
+          <Text style={styles.title}>{t('account.customization')}</Text>
         </View>
       )}
-      {isDesktop && <Text style={styles.title}>{t('account.appearance')}</Text>}
+      {isDesktop && <Text style={styles.title}>{t('account.customization')}</Text>}
 
       {/* Thème */}
       <View style={styles.formCard}>
         <Text style={styles.sectionTitle}>
-          <FontAwesome6 name="palette" size={14} color={Colors.secondary} /> {t('account.appearance')}
+          <FontAwesome6 name="palette" size={14} color={Colors.secondary} /> {t('account.theme')}
         </Text>
         {themeOptions.map((opt) => (
           <TouchableOpacity
@@ -72,6 +104,45 @@ export default function SettingsScreen() {
             )}
           </TouchableOpacity>
         ))}
+      </View>
+
+      {/* Devise */}
+      <View style={[styles.formCard, { marginTop: Spacing.lg }]}>
+        <Text style={styles.sectionTitle}>
+          <FontAwesome6 name="coins" size={14} color={Colors.secondary} /> {t('account.currency')}
+        </Text>
+        <Text style={styles.sectionDesc}>{t('account.currencyDesc')}</Text>
+        {SUPPORTED_CURRENCIES.map((code) => {
+          const isActive = userCurrency === code;
+          const isSaving = savingCurrency === code;
+          return (
+            <TouchableOpacity
+              key={code}
+              style={styles.securityRow}
+              onPress={() => changeCurrency(code)}
+              disabled={!!savingCurrency}
+            >
+              <View style={styles.securityIcon}>
+                <Text style={{ fontFamily: Fonts.bold, fontSize: FontSize.xs, color: isActive ? Colors.primary : Colors.textMuted }}>
+                  {code}
+                </Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.securityLabel}>{code}</Text>
+                {isActive && (
+                  <Text style={styles.securityDesc}>
+                    {currencySource === 'manual' ? t('account.currencyManualTag') : t('account.currencyAutoTag')}
+                  </Text>
+                )}
+              </View>
+              {isSaving ? (
+                <FontAwesome6 name="spinner" size={16} color={Colors.textMuted} />
+              ) : isActive ? (
+                <FontAwesome6 name="circle-check" size={16} color={Colors.primary} />
+              ) : null}
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {/* Langue */}
@@ -156,6 +227,13 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     marginBottom: Spacing.md,
     textTransform: 'uppercase',
     letterSpacing: 1,
+  },
+  sectionDesc: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.regular,
+    marginTop: -Spacing.sm,
+    marginBottom: Spacing.md,
   },
   securityRow: {
     flexDirection: 'row',

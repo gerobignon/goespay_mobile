@@ -17,6 +17,8 @@ export interface User {
   group: string;
   referral_code?: string;
   created_at?: string;
+  currency?: string;
+  currency_source?: 'auto' | 'manual';
 }
 
 export interface Transaction {

@@ -31,6 +31,8 @@ import type { SavedPhone } from '../types';
 import { useTranslation } from 'react-i18next';
 
 import { useConfigStore } from '../stores/configStore';
+import { useCurrencyStore } from '../stores/currencyStore';
+import { useFormatXof, useCurrencyCode } from '../utils/format';
 
 interface DepositModalProps {
   visible: boolean;
@@ -58,6 +60,9 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   const user = useAuthStore((s) => s.user);
   const depositMin = useConfigStore((s) => s.deposit_min);
   const mobileMoneyCountriesConfig = useConfigStore((s) => s.mobile_money_countries);
+  const userCurrency = useCurrencyCode();
+  const convertToXof = useCurrencyStore((s) => s.convertToXof);
+  const fmtXof = useFormatXof();
   // Garde une trace si l'utilisateur a vidé/modifié le champ téléphone manuellement
   const phoneUserEditedRef = useRef(false);
   // Numéros enregistrés (type deposit)
@@ -278,9 +283,15 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   };
 
   const handleDeposit = async () => {
-    const numAmount = parseFloat(amount);
+    const numAmountDisplay = parseFloat(amount);
+    const numAmount = userCurrency === 'XOF'
+      ? Math.round(numAmountDisplay || 0)
+      : convertToXof(numAmountDisplay || 0);
     if (!numAmount || numAmount < depositMin) {
-      showAlert(t('common.error'), t('depositModal.minAmount'));
+      showAlert(
+        t('common.error'),
+        `${t('depositModal.minAmount')} (${fmtXof(depositMin)})`
+      );
       return;
     }
     if (!operator) {
@@ -445,7 +456,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
 
             <Input
               label={t('depositModal.amountLabel')}
-              placeholder={t('depositModal.minDeposit')}
+              placeholder={`${t('depositModal.minDeposit')} : ${fmtXof(depositMin)}`}
               value={amount}
               onChangeText={(t) => setAmount(t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
               keyboardType="numeric"
@@ -507,7 +518,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
 
             {!isCard && needsOtp && (
               <Input
-                label={t('depositModal.otpLabel')}
+                label={t('depositModal.otpLabel', { operator: OPERATORS.find((op) => op.id === operator)?.name ?? '' })}
                 placeholder={t('depositModal.refPlaceholder')}
                 value={otp}
                 onChangeText={setOtp}

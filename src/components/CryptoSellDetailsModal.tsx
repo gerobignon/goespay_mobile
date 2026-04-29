@@ -17,6 +17,7 @@ import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } fro
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { CustomAlert } from './CustomAlert';
 import { useTranslation } from 'react-i18next';
+import { useFormatXof } from '../utils/format';
 
 interface CryptoSellDetailsModalProps {
   visible: boolean;
@@ -42,6 +43,7 @@ export function CryptoSellDetailsModal({ visible, onClose, data }: CryptoSellDet
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();
+  const fmtXof = useFormatXof();
   const [timeLeft, setTimeLeft] = useState<{ hours: number; minutes: number; seconds: number } | null>(null);
   const [isCopied, setIsCopied] = useState(false);
 
@@ -109,7 +111,7 @@ export function CryptoSellDetailsModal({ visible, onClose, data }: CryptoSellDet
                   {'⚠️  Tout autre montant entraîne une perte définitive'}
                 </Text>
                 <Text style={styles.receiveText}>
-                  {t('cryptoModal.youWillReceive')}{Math.round(xofAmount).toLocaleString('fr-FR')}{' XOF'}
+                  {t('cryptoModal.youWillReceive')}{fmtXof(Math.round(xofAmount))}
                 </Text>
 
                 {/* QR */}

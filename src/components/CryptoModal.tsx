@@ -32,6 +32,8 @@ import type { SavedWallet } from '../types';
 import { useTranslation } from 'react-i18next';
 
 import { useConfigStore } from '../stores/configStore';
+import { useCurrencyStore } from '../stores/currencyStore';
+import { useFormatXof, useCurrencyCode } from '../utils/format';
 
 interface CryptoModalProps {
   visible: boolean;
@@ -71,6 +73,9 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
   const cryptoError = useCryptoStore((s) => s.error);
   const fetchRates = useCryptoStore((s) => s.fetchRates);
   const stablecoinCodes = useConfigStore((s) => s.stablecoin_codes);
+  const userCurrency = useCurrencyCode();
+  const convertToXof = useCurrencyStore((s) => s.convertToXof);
+  const fmtXof = useFormatXof();
 
   const [tab, setTab] = useState<Tab>('buy');
   const [selectedCurrency, setSelectedCurrency] = useState('');
@@ -216,28 +221,27 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
   };
 
   const computeConversion = (): string => {
-    const numAmount = parseFloat(amount);
-    if (!selectedRate || !numAmount || isNaN(numAmount)) return '';
+    const numAmountRaw = parseFloat(amount);
+    if (!selectedRate || !numAmountRaw || isNaN(numAmountRaw)) return '';
 
     const stablecoins = stablecoinCodes;
     const bubuy = stablecoins.includes(selectedCurrency) ? 1 : Number(selectedRate.live_rate);
 
     if (tab === 'buy') {
-      // User gives XOF, receives crypto
-      // Formula: (give / buy_rate) * bubuy  (buy_rate = XOF per $1, bubuy = crypto per $1)
+      // User gives display currency → converti en XOF puis formule
       const rate = getBuyRate(selectedRate);
       if (!rate) return '';
       if (!Number.isFinite(bubuy) || bubuy <= 0) return t('cryptoModal.loadingRate');
-      const cryptoAmount = (numAmount / rate) * bubuy;
+      const giveXof = userCurrency === 'XOF' ? numAmountRaw : convertToXof(numAmountRaw);
+      const cryptoAmount = (giveXof / rate) * bubuy;
       return `${t('cryptoModal.youWillReceive')}${cryptoAmount.toFixed(8)} ${formatCurrencyCode(selectedCurrency)}`;
     } else {
-      // User gives crypto, receives XOF
-      // Formula: (crypto * sell_rate) / bubuy  (sell_rate = XOF per $1, bubuy = crypto per $1)
+      // User gives crypto, receives XOF → on affiche dans la devise utilisateur
       const rate = getSellRate(selectedRate);
       if (!rate) return '';
       if (!Number.isFinite(bubuy) || bubuy <= 0) return t('cryptoModal.loadingRate');
-      const xofAmount = (numAmount * rate) / bubuy;
-      return `${t('cryptoModal.youWillReceive')}${Math.round(xofAmount).toLocaleString('fr-FR')} XOF`;
+      const xofAmount = (numAmountRaw * rate) / bubuy;
+      return `${t('cryptoModal.youWillReceive')}${fmtXof(Math.round(xofAmount))}`;
     }
   };
 
@@ -292,9 +296,10 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
       if (tab === 'buy') {
         const normalizedCurrency = formatCurrencyCode(selectedCurrency || '').trim();
         const normalizedAddress = walletAddress.trim();
+        const giveXof = userCurrency === 'XOF' ? numAmount : convertToXof(numAmount);
         const response = await api.post('/crypto/buy', {
           currency: selectedCurrency,
-          give: numAmount,
+          give: giveXof,
           address: normalizedAddress,
         });
         if (normalizedCurrency && normalizedAddress) {
@@ -500,8 +505,8 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                           </Text>
                           <Text style={styles.currencyChipRate} numberOfLines={1}>
                             {tab === 'buy'
-                              ? `${getBuyRate(item).toLocaleString('fr-FR')} XOF`
-                              : `${getSellRate(item).toLocaleString('fr-FR')} XOF`}
+                              ? fmtXof(getBuyRate(item))
+                              : fmtXof(getSellRate(item))}
                           </Text>
                         </View>
                         {selectedCurrency === item.code && (
@@ -542,8 +547,8 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                         </Text>
                         <Text style={styles.currencyRate}>
                           {tab === 'buy'
-                            ? `${getBuyRate(item).toLocaleString('fr-FR')} XOF`
-                            : `${getSellRate(item).toLocaleString('fr-FR')} XOF`}
+                            ? fmtXof(getBuyRate(item))
+                            : fmtXof(getSellRate(item))}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -684,7 +689,12 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
               <>
                 <Text style={styles.confirmAmountLabel}>{t('cryptoModal.amountToPayLabel')}</Text>
                 <Text style={styles.confirmAmount}>{parseFloat(amount || '0').toLocaleString('fr-FR').replace(/\s/g, '.')}</Text>
-                <Text style={styles.confirmAmountCurrency}>XOF</Text>
+                <Text style={styles.confirmAmountCurrency}>{userCurrency}</Text>
+                {userCurrency !== 'XOF' && (
+                  <Text style={[styles.confirmSubtitle, { marginTop: 4 }]}>
+                    ≈ {convertToXof(parseFloat(amount || '0')).toLocaleString('fr-FR')} XOF
+                  </Text>
+                )}
               </>
             ) : (
               <>
@@ -715,7 +725,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
               <View style={styles.confirmDetailBox}>
                 <Text style={styles.confirmDetailLabel}>{t('cryptoModal.appliedRate')}</Text>
                 <Text style={styles.confirmDetailValue}>
-                  $1 = {(tab === 'buy' ? getBuyRate(selectedRate) : getSellRate(selectedRate)).toLocaleString('fr-FR')} XOF
+                  $1 = {fmtXof(tab === 'buy' ? getBuyRate(selectedRate) : getSellRate(selectedRate))}
                 </Text>
               </View>
             )}

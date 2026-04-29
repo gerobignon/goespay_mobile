@@ -22,7 +22,7 @@ import { walletService } from '../../../src/services/walletService';
 import { Card } from '../../../src/components/Card';
 import { TransactionDetailRow } from '../../../src/components/TransactionDetailRow';
 import { TRANSACTION_STATUS, getTransactionStatus } from '../../../src/constants/config';
-import { formatCurrency, formatDate } from '../../../src/utils/format';
+import { formatCurrency, formatDate, useFormatXof, useCurrencyCode } from '../../../src/utils/format';
 import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../../../src/constants/theme';
 import type { ColorPalette } from '../../../src/constants/theme';
 import { useThemedStyles } from '../../../src/hooks/useThemedStyles';
@@ -35,6 +35,8 @@ export default function DepositDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { t } = useTranslation();
+  const fmtXof = useFormatXof();
+  const currencyCode = useCurrencyCode();
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const [tx, setTx] = useState<Transaction | null>(null);
@@ -197,8 +199,8 @@ export default function DepositDetailScreen() {
             </View>
           </View>
 
-          <Text style={styles.amount}>+{formatCurrency(tx.amount)}</Text>
-          <Text style={styles.currency}>XOF</Text>
+          <Text style={styles.amount}>+{fmtXof(tx.amount, { withCode: false })}</Text>
+          <Text style={styles.currency}>{currencyCode}</Text>
 
           <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
           <TransactionDetailRow label={t('transaction.type')} value={t('transaction.deposit')} badge badgeColor="#3ecf8e" badgeIcon="arrow-down" />
@@ -213,12 +215,12 @@ export default function DepositDetailScreen() {
           <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />
           <TransactionDetailRow
             label={t('transaction.balanceBefore')}
-            value={tx.avant != null ? `${formatCurrency(tx.avant)} XOF` : '—'}
+            value={tx.avant != null ? fmtXof(tx.avant) : '—'}
             mono
           />
           <TransactionDetailRow
             label={t('transaction.balanceAfter')}
-            value={tx.apres != null ? `${formatCurrency(tx.apres)} XOF` : '—'}
+            value={tx.apres != null ? fmtXof(tx.apres) : '—'}
             mono
             color={status.color}
           />

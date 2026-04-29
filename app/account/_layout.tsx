@@ -66,7 +66,7 @@ function DesktopAccountLayout() {
     { key: 'phones', label: t('account.savedPhones'), icon: 'address-book', route: '/account/phones' as const },
     { key: 'wallets', label: t('account.savedWallets'), icon: 'wallet', route: '/account/wallets' as const, cryptoOnly: true },
     { key: 'affiliation', label: t('account.referral', 'Parrainage'), icon: 'users', route: '/account/affiliation' as const },
-    { key: 'settings', label: t('account.appearance'), icon: 'gear', route: '/account/settings' as const },
+    { key: 'settings', label: t('account.customization'), icon: 'gear', route: '/account/settings' as const },
   ];
 
   const menuItems = allMenuItems.filter((item) => !(item.cryptoOnly && !isCryptoUser));

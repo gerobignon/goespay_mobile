@@ -18,7 +18,7 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { TransactionDetailModal, type TxType } from '../../src/components/TransactionDetailModal';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
 import { TRANSACTION_STATUS, getTransactionStatus } from '../../src/constants/config';
-import { formatAmount, formatDate } from '../../src/utils/format';
+import { formatAmount, formatDate, useFormatXof, useCurrencyCode } from '../../src/utils/format';
 import type { Transaction } from '../../src/types';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
@@ -220,6 +220,8 @@ function getRef(tx: Transaction): string {
 
 function DesktopTransactionRow({ tx, onPress, styles }: { tx: Transaction; onPress: (tx: Transaction) => void; styles: any }) {
   const { t } = useTranslation();
+  const fmtXof = useFormatXof();
+  const currencyCode = useCurrencyCode();
   const TYPE_LABELS = getTypeLabels(t);
   const normalizedStatut =
     tx.type === 'crypto'
@@ -260,21 +262,21 @@ function DesktopTransactionRow({ tx, onPress, styles }: { tx: Transaction; onPre
       {/* Solde avant */}
       <View style={styles.tdCol1}>
         <Text style={[styles.tdCell, { opacity: 0.55 }]} numberOfLines={1}>
-          {tx.avant != null ? `${formatAmount(tx.avant)}` : '—'}
+          {tx.avant != null ? fmtXof(tx.avant, { withCode: false }) : '—'}
         </Text>
       </View>
       {/* Solde après */}
       <View style={styles.tdCol1}>
         <Text style={[styles.tdCell, { opacity: 0.55 }]} numberOfLines={1}>
-          {tx.apres != null ? `${formatAmount(tx.apres)}` : '—'}
+          {tx.apres != null ? fmtXof(tx.apres, { withCode: false }) : '—'}
         </Text>
       </View>
       {/* Montant */}
       <View style={[styles.tdCol1, { alignItems: 'flex-end' }]}>
         <Text style={[styles.tdCell, { color: status.color, fontFamily: Fonts.bold }]}>
-          {tx.type === 'deposit' ? '+' : '-'}{formatAmount(tx.amount)}
+          {tx.type === 'deposit' ? '+' : '-'}{fmtXof(Number(tx.amount), { withCode: false })}
         </Text>
-        <Text style={[styles.tdModeLabel, { color: status.color, opacity: 0.7 }]}>XOF</Text>
+        <Text style={[styles.tdModeLabel, { color: status.color, opacity: 0.7 }]}>{currencyCode}</Text>
       </View>
       {/* Statut */}
       <View style={[styles.tdCol08, { alignItems: 'center' }]}>

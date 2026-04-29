@@ -22,6 +22,7 @@ import { showAlert } from '../../src/stores/alertStore';
 import { CustomAlert } from '../../src/components/CustomAlert';
 import { KycBanner } from '../../src/components/KycBanner';
 import { formatAmount } from '../../src/utils/format';
+import { useFormatXof, useCurrencyCode } from '../../src/utils/format';
 import {
   Colors,
   DarkColors,
@@ -49,6 +50,8 @@ export default function DashboardScreen() {
   const user = useAuthStore((s) => s.user);
   const refreshProfile = useAuthStore((s) => s.refreshProfile);
   const { balance, fetchBalance, isLoadingBalance, transactions, fetchTransactions, loadCachedData } = useWalletStore();
+  const fmtXof = useFormatXof();
+  const currencyCode = useCurrencyCode();
   const [refreshing, setRefreshing] = useState(false);
   const [depositVisible, setDepositVisible] = useState(false);
   const [transferVisible, setTransferVisible] = useState(false);
@@ -189,8 +192,8 @@ export default function DashboardScreen() {
               >
                 <View style={styles.balanceOverlay}>
                   <Text style={styles.balanceLabel}>{ t('home.balance') }</Text>
-                  <Text style={styles.balanceAmount}>{formatAmount(balance)}</Text>
-                  <Text style={styles.currency}>{ t('common.xof') }</Text>
+                  <Text style={styles.balanceAmount}>{fmtXof(balance, { withCode: false })}</Text>
+                  <Text style={styles.currency}>{currencyCode}</Text>
                   <View style={styles.balanceActions}>
                     {deposit_enabled && (
                     <TouchableOpacity
@@ -283,8 +286,8 @@ export default function DashboardScreen() {
             >
               <View style={styles.balanceOverlay}>
                 <Text style={styles.balanceLabel}>{ t('home.balance') }</Text>
-                <Text style={styles.balanceAmount}>{formatAmount(balance)}</Text>
-                <Text style={styles.currency}>{ t('common.xof') }</Text>
+                <Text style={styles.balanceAmount}>{fmtXof(balance, { withCode: false })}</Text>
+                <Text style={styles.currency}>{currencyCode}</Text>
                 <View style={styles.balanceActions}>
                   {deposit_enabled && (
                   <TouchableOpacity

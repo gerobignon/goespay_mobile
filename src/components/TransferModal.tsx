@@ -28,6 +28,8 @@ import type { SavedPhone } from '../types';
 import { useTranslation } from 'react-i18next';
 
 import { useConfigStore } from '../stores/configStore';
+import { useCurrencyStore } from '../stores/currencyStore';
+import { useFormatXof, useCurrencyCode } from '../utils/format';
 
 interface TransferModalProps {
   visible: boolean;
@@ -57,11 +59,18 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
   const user = useAuthStore((s) => s.user);
   const countryFees = useConfigStore((s) => s.country_fees);
   const transferFeeDefault = useConfigStore((s) => s.transfer_fee_default);
+  const userCurrency = useCurrencyCode();
+  const convertToXof = useCurrencyStore((s) => s.convertToXof);
+  const fmtXof = useFormatXof();
 
   const displayOperators = OPERATORS.filter((op) => op.withdraw);
 
-  // Calcul frais en live: basé sur le pays de l'utilisateur (expéditeur), aligné avec le backend
-  const numAmount = parseFloat(amount) || 0;
+  // L'utilisateur saisit en devise d'affichage. La conversion en XOF se fait
+  // ici (canonique) pour les frais, validations et l'envoi backend.
+  const numAmountDisplay = parseFloat(amount) || 0;
+  const numAmount = userCurrency === 'XOF'
+    ? Math.round(numAmountDisplay)
+    : convertToXof(numAmountDisplay);
   const selectedOp = OPERATORS.find((op) => op.id === operator);
   const userCountry = user?.country?.toUpperCase();
   const feeConfig = (userCountry && countryFees[userCountry]) || transferFeeDefault;
@@ -71,10 +80,10 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
   );
   const total = numAmount + fees;
   const feeLabel = feeConfig.fixed > 0
-    ? `${feeConfig.fixed} XOF + ${feeConfig.percent}%`
+    ? `${fmtXof(feeConfig.fixed, { approx: false })} + ${feeConfig.percent}%`
     : `${feeConfig.percent}%`;
 
-  const fmt = (n: number) => n.toLocaleString('fr-FR').replace(/\s/g, '.').replace(/,/g, '.');
+  const fmt = (n: number) => n.toLocaleString('fr-FR').replace(/\s/g, '.');
 
   const showFees = numAmount > 0 && operator;
 
@@ -202,7 +211,7 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
       }
       await fetchBalance();
       const msg = result?.message
-        ? `${result.message}\n${t('transferModal.amountSentDetail')}: ${result.amount_sent} XOF\n${t('transferModal.feesDetail')}: ${result.fees} XOF`
+        ? `${result.message}\n${t('transferModal.amountSentDetail')}: ${fmtXof(Number(result.amount_sent))}\n${t('transferModal.feesDetail')}: ${fmtXof(Number(result.fees))}`
         : t('transferModal.transferSuccess');
       showAlert(t('common.success'), msg, [{ text: 'OK', onPress: onClose }]);
       setAmount('');
@@ -246,31 +255,57 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
               </View>
             )}
             <Text style={styles.operatorLabel}>{t('transferModal.chooseOperator')}</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.operatorScroll}
-              contentContainerStyle={styles.operatorScrollContent}
-            >
-              {displayOperators.map((op) => (
-                <TouchableOpacity
-                  key={op.id}
-                  style={[styles.operatorCard, operator === op.id && styles.operatorSelected]}
-                  onPress={() => setOperator(op.id)}
-                >
-                  <Image source={op.logo} style={styles.operatorLogo} resizeMode="contain" />
-                  <Text style={styles.operatorFlag}>{op.flag}</Text>
-                  <Text style={[styles.operatorName, operator === op.id && styles.operatorNameSelected]}>
-                    {op.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            {isDesktop ? (
+              <View style={styles.operatorChipGrid}>
+                {displayOperators.map((op) => (
+                  <TouchableOpacity
+                    key={op.id}
+                    style={[
+                      styles.operatorChip,
+                      operator === op.id && styles.operatorChipSelected,
+                    ]}
+                    onPress={() => setOperator(op.id)}
+                  >
+                    <Image source={op.logo} style={styles.operatorChipLogo} resizeMode="contain" />
+                    <Text
+                      style={[
+                        styles.operatorChipText,
+                        operator === op.id && styles.operatorChipTextSelected,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {op.flag} {op.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.operatorScroll}
+                contentContainerStyle={styles.operatorScrollContent}
+              >
+                {displayOperators.map((op) => (
+                  <TouchableOpacity
+                    key={op.id}
+                    style={[styles.operatorCard, operator === op.id && styles.operatorSelected]}
+                    onPress={() => setOperator(op.id)}
+                  >
+                    <Image source={op.logo} style={styles.operatorLogo} resizeMode="contain" />
+                    <Text style={styles.operatorFlag}>{op.flag}</Text>
+                    <Text style={[styles.operatorName, operator === op.id && styles.operatorNameSelected]}>
+                      {op.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
 
             <View style={styles.balanceRow}>
               <FontAwesome6 name="wallet" size={12} color={Colors.textMuted} />
               <Text style={styles.balanceText}>{t('transferModal.availableBalance')} : </Text>
-              <Text style={styles.balanceAmount}>{fmt(balance ?? 0)} XOF</Text>
+              <Text style={styles.balanceAmount}>{fmtXof(balance ?? 0)}</Text>
             </View>
 
             <Input
@@ -286,11 +321,11 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
               <View style={styles.feesBox}>
                 <View style={styles.feesRow}>
                   <Text style={styles.feesLabel}>{t('transferModal.fees')} ({feeLabel})</Text>
-                  <Text style={[styles.feesValue, { color: Colors.error }]}>+ {fmt(fees)} XOF</Text>
+                  <Text style={[styles.feesValue, { color: Colors.error }]}>+ {fmtXof(fees)}</Text>
                 </View>
                 <View style={[styles.feesRow, styles.feesTotalRow]}>
                   <Text style={styles.feesTotalLabel}>{t('transferModal.totalDebited')}</Text>
-                  <Text style={styles.feesTotalValue}>{fmt(total)} XOF</Text>
+                  <Text style={styles.feesTotalValue}>{fmtXof(total)}</Text>
                 </View>
               </View>
             ) : null}
@@ -369,8 +404,13 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
             <Text style={styles.confirmSubtitle}>{t('transferModal.confirmHint')}</Text>
 
             <Text style={styles.confirmAmountLabel}>{t('transferModal.amountSent')}</Text>
-            <Text style={styles.confirmAmount}>{fmt(numAmount)}</Text>
-            <Text style={styles.confirmAmountCurrency}>XOF</Text>
+            <Text style={styles.confirmAmount}>{fmtXof(numAmount, { withCode: false })}</Text>
+            <Text style={styles.confirmAmountCurrency}>{userCurrency}</Text>
+            {userCurrency !== 'XOF' && (
+              <Text style={[styles.confirmSubtitle, { marginTop: 4 }]}>
+                ≈ {numAmount.toLocaleString('fr-FR')} XOF
+              </Text>
+            )}
 
             <Text style={styles.confirmPhoneLabel}>{t('transferModal.recipient')}</Text>
             <Text style={styles.confirmPhone}>{phone || '—'}</Text>
@@ -385,11 +425,11 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
             <View style={styles.confirmFeesBox}>
               <View style={styles.feesRow}>
                 <Text style={styles.feesLabel}>{t('transferModal.fees')} ({feeLabel})</Text>
-                <Text style={[styles.feesValue, { color: Colors.error }]}>+ {fmt(fees)} XOF</Text>
+                <Text style={[styles.feesValue, { color: Colors.error }]}>+ {fmtXof(fees)}</Text>
               </View>
               <View style={[styles.feesRow, styles.feesTotalRow]}>
                 <Text style={styles.feesTotalLabel}>{t('transferModal.totalDebited')}</Text>
-                <Text style={styles.feesTotalValue}>{fmt(total)} XOF</Text>
+                <Text style={styles.feesTotalValue}>{fmtXof(total)}</Text>
               </View>
             </View>
 
@@ -534,6 +574,42 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderWidth: 2,
     borderColor: Colors.border,
     gap: Spacing.xs,
+  },
+  operatorChipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+    marginBottom: Spacing.md,
+  },
+  operatorChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 7,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.pill,
+    backgroundColor: Colors.inputBg,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+  },
+  operatorChipSelected: {
+    borderColor: Colors.secondary,
+    backgroundColor: 'rgba(244,178,40,0.12)',
+  },
+  operatorChipLogo: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+  },
+  operatorChipText: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.medium ?? Fonts.regular,
+    color: Colors.text,
+    flexShrink: 1,
+  },
+  operatorChipTextSelected: {
+    color: Colors.secondary,
+    fontFamily: Fonts.semiBold,
   },
   operatorSelected: {
     borderColor: Colors.secondary,

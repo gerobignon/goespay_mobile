@@ -16,7 +16,7 @@ import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { walletService } from '../../../src/services/walletService';
 import { Card } from '../../../src/components/Card';
-import { formatCurrency, formatDate } from '../../../src/utils/format';
+import { formatCurrency, formatDate, useFormatXof, useCurrencyCode } from '../../../src/utils/format';
 import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../../../src/constants/theme';
 import type { ColorPalette } from '../../../src/constants/theme';
 import { useThemedStyles } from '../../../src/hooks/useThemedStyles';
@@ -49,6 +49,8 @@ export default function CryptoDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { t } = useTranslation();
+  const fmtXof = useFormatXof();
+  const currencyCode = useCurrencyCode();
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const [tx, setTx] = useState<Transaction | null>(null);
@@ -145,8 +147,8 @@ export default function CryptoDetailScreen() {
             </View>
           </View>
 
-          <Text style={styles.amount}>{isBuy ? '-' : '+'}{formatCurrency(xofAmount)}</Text>
-          <Text style={styles.currency}>XOF</Text>
+          <Text style={styles.amount}>{isBuy ? '-' : '+'}{fmtXof(xofAmount, { withCode: false })}</Text>
+          <Text style={styles.currency}>{currencyCode}</Text>
 
           <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
           <TransactionDetailRow label={t('transaction.type')} value={isBuy ? t('transaction.buyType') : t('transaction.sellType')} badge badgeColor={Colors.secondary} badgeIcon="bitcoin-sign" />
@@ -157,8 +159,8 @@ export default function CryptoDetailScreen() {
           )}
           <TransactionDetailRow label={t('transaction.address')} value={tx.address ?? '—'} copyable mono />
           {tx.cp_hash && <TransactionDetailRow label={t('transaction.txHash')} value={tx.cp_hash} copyable mono />}
-          <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? `${formatCurrency(tx.avant)} XOF` : '—'} mono />
-          <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? `${formatCurrency(tx.apres)} XOF` : '—'} mono color={status.color} />
+          <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '—'} mono />
+          <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '—'} mono color={status.color} />
           <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
           {tx.updated_at && tx.updated_at !== tx.created_at && (
             <TransactionDetailRow label={t('transaction.updatedAt')} value={formatDate(tx.updated_at)} />

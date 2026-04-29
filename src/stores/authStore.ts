@@ -5,6 +5,7 @@ import type { User } from '../types';
 import { authService } from '../services/authService';
 import { clearPin, setLockMethod } from '../services/secureAuthService';
 import { clearCredentials } from '../services/secureAuthService';
+import { useCurrencyStore } from './currencyStore';
 
 const REMEMBER_KEY = 'remember_me';
 const CACHED_USER_KEY = 'cached_user';
@@ -45,6 +46,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: true,
       rememberMe: remember,
     });
+    // Hydrate la devise depuis le profil + récupère les taux
+    const cs = useCurrencyStore.getState();
+    await cs.hydrateFromUser(response.user?.currency, response.user?.currency_source);
+    cs.fetchRates();
   },
 
   loginWithToken: async (token, user, remember = false) => {
@@ -54,6 +59,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await AsyncStorage.setItem(CACHED_USER_KEY, JSON.stringify(user));
     }
     set({ user, token, isAuthenticated: true, rememberMe: remember });
+    const cs = useCurrencyStore.getState();
+    await cs.hydrateFromUser(user?.currency, user?.currency_source);
+    cs.fetchRates();
   },
 
   logout: async () => {
@@ -70,6 +78,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const token = await SafeStorage.getItem('auth_token');
       const remember = (await AsyncStorage.getItem(REMEMBER_KEY)) === '1';
 
+      // Hydrate la devise depuis le cache (rapide, avant fetch profil)
+      await useCurrencyStore.getState().init();
+
       if (!token) {
         set({ isLoading: false });
         return;
@@ -79,11 +90,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (remember) {
         const cachedUser = await AsyncStorage.getItem(CACHED_USER_KEY);
         if (cachedUser) {
-          set({ token, user: JSON.parse(cachedUser), isAuthenticated: true, isLoading: false, rememberMe: true });
+          const u: User = JSON.parse(cachedUser);
+          set({ token, user: u, isAuthenticated: true, isLoading: false, rememberMe: true });
+          await useCurrencyStore.getState().hydrateFromUser(u.currency, u.currency_source);
+          useCurrencyStore.getState().fetchRates();
           // Refresh profile in background
           authService.getProfile().then((user) => {
             set({ user });
             AsyncStorage.setItem(CACHED_USER_KEY, JSON.stringify(user));
+            useCurrencyStore.getState().hydrateFromUser(user.currency, user.currency_source);
           }).catch(() => {});
           return;
         }
@@ -95,6 +110,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await AsyncStorage.setItem(CACHED_USER_KEY, JSON.stringify(user));
       }
       set({ token, user, isAuthenticated: true, isLoading: false, rememberMe: remember });
+      await useCurrencyStore.getState().hydrateFromUser(user.currency, user.currency_source);
+      useCurrencyStore.getState().fetchRates();
     } catch {
       // If not remembered, clear everything
       const remember = (await AsyncStorage.getItem(REMEMBER_KEY)) === '1';
@@ -123,6 +140,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (remember) {
         await AsyncStorage.setItem(CACHED_USER_KEY, JSON.stringify(user));
       }
+      await useCurrencyStore.getState().hydrateFromUser(user.currency, user.currency_source);
     } catch {
       // silently fail
     }

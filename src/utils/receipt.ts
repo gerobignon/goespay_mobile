@@ -1,6 +1,6 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { formatCurrency, formatDate } from './format';
+import { formatXof, formatDate, currentCurrencyCode } from './format';
 import type { Transaction } from '../types';
 
 interface ReceiptRow {
@@ -16,13 +16,13 @@ function buildRows(tx: Transaction, type: 'deposit' | 'withdraw' | 'transfer'): 
   ];
 
   if (type === 'withdraw' || type === 'transfer') {
-    rows.push({ label: 'Montant total', value: `${formatCurrency(tx.amount)} XOF` });
+    rows.push({ label: 'Montant total', value: formatXof(tx.amount) });
     if (tx.amount_sent != null && tx.amount_sent !== tx.amount) {
-      rows.push({ label: 'Montant envoyé', value: `${formatCurrency(tx.amount_sent)} XOF` });
-      rows.push({ label: 'Frais', value: `${formatCurrency(tx.amount - tx.amount_sent)} XOF` });
+      rows.push({ label: 'Montant envoyé', value: formatXof(tx.amount_sent) });
+      rows.push({ label: 'Frais', value: formatXof(tx.amount - tx.amount_sent) });
     }
   } else {
-    rows.push({ label: 'Montant', value: `${formatCurrency(tx.amount)} XOF` });
+    rows.push({ label: 'Montant', value: formatXof(tx.amount) });
   }
 
   if (tx.mode) rows.push({ label: 'Mode', value: tx.mode });
@@ -31,8 +31,8 @@ function buildRows(tx: Transaction, type: 'deposit' | 'withdraw' | 'transfer'): 
   if (tx.receiver_name) rows.push({ label: 'Destinataire', value: tx.receiver_name });
   if (tx.receiver_email) rows.push({ label: 'Email', value: tx.receiver_email });
   if (tx.reference) rows.push({ label: 'Référence', value: tx.reference });
-  if (tx.avant != null) rows.push({ label: 'Solde avant', value: `${formatCurrency(tx.avant)} XOF` });
-  if (tx.apres != null) rows.push({ label: 'Solde après', value: `${formatCurrency(tx.apres)} XOF` });
+  if (tx.avant != null) rows.push({ label: 'Solde avant', value: formatXof(tx.avant) });
+  if (tx.apres != null) rows.push({ label: 'Solde après', value: formatXof(tx.apres) });
 
   rows.push({ label: 'Date', value: formatDate(tx.created_at) });
   if (tx.updated_at && tx.updated_at !== tx.created_at) {
@@ -73,8 +73,8 @@ export async function shareReceipt(tx: Transaction, type: 'deposit' | 'withdraw'
         </div>
         <div style="text-align:center"><span class="badge">✓ Succès</span></div>
         <div class="amount-box">
-          <div class="amount">${formatCurrency(tx.amount)}</div>
-          <div class="currency">XOF</div>
+          <div class="amount">${formatXof(tx.amount, { withCode: false })}</div>
+          <div class="currency">${currentCurrencyCode()}</div>
         </div>
         <table>
           ${rows.map((r) => `<tr><td class="label">${r.label}</td><td class="value">${r.value}</td></tr>`).join('')}

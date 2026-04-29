@@ -79,6 +79,14 @@ function RootInner() {
   useEffect(() => {
     let cancelled = false;
     const check = async () => {
+      // En dev (Metro), on saute le check offline/maintenance pour ne pas bloquer
+      // le test sur device réel quand le backend prod renvoie offline=1.
+      if (__DEV__) {
+        if (cancelled) return;
+        setShowOfflineBanner(false);
+        setApiStatus((prev) => (prev === 'checking' || prev === 'error' || prev === 'maintenance' ? 'ok' : prev));
+        return;
+      }
       const { connected, offline: _offline, backendAdmin } = await checkApiConnection();
       if (cancelled) return;
       // MAINTENANCE CHECK : redirection si serveur en maintenance
@@ -165,6 +173,12 @@ function RootInner() {
 
   const retry = async () => {
     setApiStatus('checking');
+    if (__DEV__) {
+      setShowOfflineBanner(false);
+      setApiStatus('ok');
+      loadToken();
+      return;
+    }
     const { connected, offline, backendAdmin } = await checkApiConnection();
     if (!connected) {
       setApiStatus('error');

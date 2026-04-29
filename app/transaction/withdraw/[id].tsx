@@ -21,7 +21,7 @@ import { walletService } from '../../../src/services/walletService';
 import { Card } from '../../../src/components/Card';
 import { TransactionDetailRow } from '../../../src/components/TransactionDetailRow';
 import { TRANSACTION_STATUS, getTransactionStatus } from '../../../src/constants/config';
-import { formatCurrency, formatDate } from '../../../src/utils/format';
+import { formatCurrency, formatDate, useFormatXof, useCurrencyCode } from '../../../src/utils/format';
 import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../../../src/constants/theme';
 import type { ColorPalette } from '../../../src/constants/theme';
 import { useThemedStyles } from '../../../src/hooks/useThemedStyles';
@@ -32,6 +32,8 @@ export default function WithdrawDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { t } = useTranslation();
+  const fmtXof = useFormatXof();
+  const currencyCode = useCurrencyCode();
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const [tx, setTx] = useState<Transaction | null>(null);
@@ -132,8 +134,8 @@ export default function WithdrawDetailScreen() {
             </View>
           </View>
 
-          <Text style={styles.amount}>-{formatCurrency(tx.amount_sent ?? tx.amount)}</Text>
-          <Text style={styles.currency}>XOF</Text>
+          <Text style={styles.amount}>-{fmtXof(tx.amount_sent ?? tx.amount, { withCode: false })}</Text>
+          <Text style={styles.currency}>{currencyCode}</Text>
 
           <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
           <TransactionDetailRow label={t('transaction.type')} value={t('transaction.withdraw')} badge badgeColor={Colors.error} badgeIcon="arrow-up" />
@@ -144,21 +146,21 @@ export default function WithdrawDetailScreen() {
             badgeColor={status.color}
             badgeIcon={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'}
           />
-          <TransactionDetailRow label={t('transaction.total')} value={`${formatCurrency(tx.amount)} XOF`} mono />
+          <TransactionDetailRow label={t('transaction.total')} value={fmtXof(tx.amount)} mono />
           {tx.amount_sent != null && tx.amount_sent !== tx.amount && (
-            <TransactionDetailRow label={t('transaction.fees')} value={`${formatCurrency(tx.amount - tx.amount_sent)} XOF`} mono color={Colors.error} />
+            <TransactionDetailRow label={t('transaction.fees')} value={fmtXof(tx.amount - tx.amount_sent)} mono color={Colors.error} />
           )}
           <TransactionDetailRow label={t('transaction.operator')} value={tx.mode ?? '—'} badge badgeColor={Colors.secondary} />
           <TransactionDetailRow label={t('transaction.receiver')} value={tx.phone ?? '—'} copyable mono />
           <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />
           <TransactionDetailRow
             label={t('transaction.balanceBefore')}
-            value={tx.avant != null ? `${formatCurrency(tx.avant)} XOF` : '—'}
+            value={tx.avant != null ? fmtXof(tx.avant) : '—'}
             mono
           />
           <TransactionDetailRow
             label={t('transaction.balanceAfter')}
-            value={tx.apres != null ? `${formatCurrency(tx.apres)} XOF` : '—'}
+            value={tx.apres != null ? fmtXof(tx.apres) : '—'}
             mono
             color={status.color}
           />

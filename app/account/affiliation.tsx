@@ -25,7 +25,7 @@ import { useWalletStore } from '../../src/stores/walletStore';
 import { showAlert } from '../../src/stores/alertStore';
 import { CustomAlert } from '../../src/components/CustomAlert';
 import { affiliationService } from '../../src/services/affiliationService';
-import { formatAmount, formatDate } from '../../src/utils/format';
+import { formatAmount, formatDate, useFormatXof, useCurrencyCode } from '../../src/utils/format';
 import type { AffiliationStats, AffiliationChild, AffiliationHistoryItem } from '../../src/types';
 
 const REFERRAL_BASE_URL = 'https://goespay.io/register';
@@ -36,6 +36,8 @@ export default function AffiliationScreen() {
   const styles = useThemedStyles(createStyles);
   const { isDark } = useTheme();
   const { t } = useTranslation();
+  const fmtXof = useFormatXof();
+  const currencyCode = useCurrencyCode();
   const user = useAuthStore((s) => s.user);
   const fetchBalance = useWalletStore((s) => s.fetchBalance);
 
@@ -101,7 +103,7 @@ export default function AffiliationScreen() {
     if (!stats || stats.unpayed <= 0) return;
     showAlert(
       t('affiliation.claimTitle', 'Réclamer les commissions'),
-      t('affiliation.claimConfirm', { amount: formatAmount(stats.unpayed), defaultValue: `Transférer ${formatAmount(stats.unpayed)} XOF sur votre solde ?` }),
+      t('affiliation.claimConfirm', { amount: fmtXof(stats.unpayed, { withCode: false }), defaultValue: `Transférer ${fmtXof(stats.unpayed)} sur votre solde ?` }),
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
@@ -173,18 +175,18 @@ export default function AffiliationScreen() {
         </View>
         <View style={styles.statCard}>
           <FontAwesome6 name="coins" size={16} color={Colors.success} />
-          <Text style={styles.statValue}>{formatAmount(stats?.total ?? 0)}</Text>
-          <Text style={styles.statLabel}>{t('affiliation.totalEarned', 'Total gagné')} (XOF)</Text>
+          <Text style={styles.statValue}>{fmtXof(stats?.total ?? 0, { withCode: false })}</Text>
+          <Text style={styles.statLabel}>{t('affiliation.totalEarned', 'Total gagné')} ({currencyCode})</Text>
         </View>
         <View style={styles.statCard}>
           <FontAwesome6 name="hourglass-half" size={16} color={Colors.secondary} />
-          <Text style={styles.statValue}>{formatAmount(stats?.unpayed ?? 0)}</Text>
-          <Text style={styles.statLabel}>{t('affiliation.unpayed', 'En attente')} (XOF)</Text>
+          <Text style={styles.statValue}>{fmtXof(stats?.unpayed ?? 0, { withCode: false })}</Text>
+          <Text style={styles.statLabel}>{t('affiliation.unpayed', 'En attente')} ({currencyCode})</Text>
         </View>
         <View style={styles.statCard}>
           <FontAwesome6 name="circle-check" size={16} color={Colors.textMuted} />
-          <Text style={styles.statValue}>{formatAmount(stats?.payed ?? 0)}</Text>
-          <Text style={styles.statLabel}>{t('affiliation.payed', 'Reçu')} (XOF)</Text>
+          <Text style={styles.statValue}>{fmtXof(stats?.payed ?? 0, { withCode: false })}</Text>
+          <Text style={styles.statLabel}>{t('affiliation.payed', 'Reçu')} ({currencyCode})</Text>
         </View>
       </View>
 
@@ -192,7 +194,7 @@ export default function AffiliationScreen() {
       {(stats?.unpayed ?? 0) > 0 && (
         <View style={styles.formCard}>
           <Text style={styles.sectionLabel}>{t('affiliation.claimSection', 'Réclamer mes commissions')}</Text>
-          <Text style={styles.helperText}>{t('affiliation.claimHelper', { amount: formatAmount(stats?.unpayed ?? 0), defaultValue: `Vous avez ${formatAmount(stats?.unpayed ?? 0)} XOF de commissions en attente.` })}</Text>
+          <Text style={styles.helperText}>{t('affiliation.claimHelper', { amount: fmtXof(stats?.unpayed ?? 0, { withCode: false }), defaultValue: `Vous avez ${fmtXof(stats?.unpayed ?? 0)} de commissions en attente.` })}</Text>
           <Button
             title={t('affiliation.claim', 'Réclamer')}
             icon="wallet"
@@ -247,7 +249,7 @@ export default function AffiliationScreen() {
                 <FontAwesome6 name={item.payed === 'yes' ? 'circle-check' : 'hourglass-half'} size={14} color={item.payed === 'yes' ? Colors.success : Colors.secondary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.entryTitle}>+ {formatAmount(item.commission)} XOF</Text>
+                <Text style={styles.entryTitle}>+ {fmtXof(item.commission)}</Text>
                 <Text style={styles.entrySub}>{item.filleul_name || `#${item.filleul_id}`} · {item.type}</Text>
               </View>
               {item.created_at && <Text style={styles.entryDate}>{formatDate(item.created_at)}</Text>}

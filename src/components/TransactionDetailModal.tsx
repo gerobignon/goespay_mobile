@@ -20,7 +20,7 @@ import { CustomAlert } from './CustomAlert';
 import { walletService } from '../services/walletService';
 import { showAlert } from '../stores/alertStore';
 import { TRANSACTION_STATUS, getTransactionStatus } from '../constants/config';
-import { formatCurrency, formatDate } from '../utils/format';
+import { formatCurrency, formatDate, useFormatXof, useCurrencyCode } from '../utils/format';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import type { Transaction } from '../types';
@@ -55,6 +55,8 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
   const visible = txId !== null && txType !== null;
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();
+  const fmtXof = useFormatXof();
+  const currencyCode = useCurrencyCode();
 
   const [tx, setTx] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(false);
@@ -254,15 +256,15 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
                 <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
               </View>
             </View>
-            <Text style={[styles.amount, { color: Colors.secondary }]}>+{formatCurrency(tx.amount)}</Text>
-            <Text style={styles.currency}>XOF</Text>
+            <Text style={[styles.amount, { color: Colors.secondary }]}>+{fmtXof(tx.amount, { withCode: false })}</Text>
+            <Text style={styles.currency}>{currencyCode}</Text>
             <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
             <TransactionDetailRow label={t('transaction.type')} value={t('transaction.deposit')} badge badgeColor="#3ecf8e" badgeIcon="arrow-down" />
             <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'} />
             <TransactionDetailRow label={t('transaction.operator')} value={tx.mode ?? '—'} badge badgeColor={Colors.secondary} />
             <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />
-            <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? `${formatCurrency(tx.avant)} XOF` : '—'} mono />
-            <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? `${formatCurrency(tx.apres)} XOF` : '—'} mono color={status.color} />
+            <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '—'} mono />
+            <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '—'} mono color={status.color} />
             {tx.note && <TransactionDetailRow label={t('transaction.note')} value={tx.note} />}
             <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
             {tx.updated_at && tx.updated_at !== tx.created_at && (
@@ -321,20 +323,20 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
                 <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
               </View>
             </View>
-            <Text style={[styles.amount, { color: Colors.error }]}>-{formatCurrency(tx.amount_sent ?? tx.amount)}</Text>
-            <Text style={styles.currency}>XOF</Text>
+            <Text style={[styles.amount, { color: Colors.error }]}>-{fmtXof(tx.amount_sent ?? tx.amount, { withCode: false })}</Text>
+            <Text style={styles.currency}>{currencyCode}</Text>
             <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
             <TransactionDetailRow label={t('transaction.type')} value={t('transaction.withdraw')} badge badgeColor={Colors.error} badgeIcon="arrow-up" />
             <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'} />
-            <TransactionDetailRow label={t('transaction.total')} value={`${formatCurrency(tx.amount)} XOF`} mono />
+            <TransactionDetailRow label={t('transaction.total')} value={fmtXof(tx.amount)} mono />
             {tx.amount_sent != null && tx.amount_sent !== tx.amount && (
-              <TransactionDetailRow label={t('transaction.fees')} value={`${formatCurrency(tx.amount - tx.amount_sent)} XOF`} mono color={Colors.error} />
+              <TransactionDetailRow label={t('transaction.fees')} value={fmtXof(tx.amount - tx.amount_sent)} mono color={Colors.error} />
             )}
             <TransactionDetailRow label={t('transaction.operator')} value={tx.mode ?? '—'} badge badgeColor={Colors.secondary} />
             <TransactionDetailRow label={t('transaction.receiver')} value={tx.phone ?? '—'} copyable mono />
             <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />
-            <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? `${formatCurrency(tx.avant)} XOF` : '—'} mono />
-            <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? `${formatCurrency(tx.apres)} XOF` : '—'} mono color={status.color} />
+            <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '—'} mono />
+            <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '—'} mono color={status.color} />
             <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
             {tx.updated_at && tx.updated_at !== tx.created_at && (
               <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.updated_at)} />
@@ -392,16 +394,16 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
                 <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
               </View>
             </View>
-            <Text style={[styles.amount, { color: Colors.secondary }]}>-{formatCurrency(tx.amount)}</Text>
-            <Text style={styles.currency}>XOF</Text>
+            <Text style={[styles.amount, { color: Colors.secondary }]}>-{fmtXof(tx.amount, { withCode: false })}</Text>
+            <Text style={styles.currency}>{currencyCode}</Text>
             <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
             <TransactionDetailRow label={t('transaction.type')} value={t('transaction.transfer')} badge badgeColor={Colors.secondary} badgeIcon="right-left" />
             <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'} />
             <TransactionDetailRow label={t('transaction.receiver')} value={tx.receiver_name ?? '—'} />
             <TransactionDetailRow label="Email" value={tx.receiver_email ?? '—'} copyable />
             <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />
-            <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? `${formatCurrency(tx.avant)} XOF` : '—'} mono />
-            <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? `${formatCurrency(tx.apres)} XOF` : '—'} mono color={status.color} />
+            <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '—'} mono />
+            <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '—'} mono color={status.color} />
             <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
             {tx.updated_at && tx.updated_at !== tx.created_at && (
               <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.updated_at)} />
@@ -461,8 +463,8 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
                 <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
               </View>
             </View>
-            <Text style={[styles.amount, { color: Colors.error }]}>{isBuy ? '-' : '+'}{formatCurrency(tx.amount)}</Text>
-            <Text style={styles.currency}>XOF</Text>
+            <Text style={[styles.amount, { color: Colors.error }]}>{isBuy ? '-' : '+'}{fmtXof(tx.amount, { withCode: false })}</Text>
+            <Text style={styles.currency}>{currencyCode}</Text>
             <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
             <TransactionDetailRow label={t('transaction.type')} value={isBuy ? t('transaction.buyType') : t('transaction.sellType')} badge badgeColor={Colors.secondary} badgeIcon="bitcoin-sign" />
             <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={status.icon} />
@@ -472,8 +474,8 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
             )}
             <TransactionDetailRow label={t('transaction.address')} value={tx.address ?? '—'} copyable mono />
             {tx.cp_hash && <TransactionDetailRow label={t('transaction.txHash')} value={tx.cp_hash} copyable mono />}
-            <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? `${formatCurrency(tx.avant)} XOF` : '—'} mono />
-            <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? `${formatCurrency(tx.apres)} XOF` : '—'} mono color={status.color} />
+            <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '—'} mono />
+            <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '—'} mono color={status.color} />
             <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
             {tx.updated_at && tx.updated_at !== tx.created_at && (
               <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.updated_at)} />

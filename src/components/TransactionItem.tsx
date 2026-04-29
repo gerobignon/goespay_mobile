@@ -5,7 +5,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { Colors, type ColorPalette, BorderRadius, FontSize, Spacing, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { TRANSACTION_STATUS, getTransactionStatus, OPERATORS } from '../constants/config';
-import { formatAmount, formatDate } from '../utils/format';
+import { formatAmount, formatDate, useFormatXof } from '../utils/format';
 import type { Transaction } from '../types';
 
 interface TransactionItemProps {
@@ -152,6 +152,7 @@ const STATUS_ICONS: Record<string, string> = {
 
 export function TransactionItem({ transaction, onPress, padded = false }: TransactionItemProps) {
   const { t } = useTranslation();
+  const fmtXof = useFormatXof();
   const normalizedStatut =
     transaction.type === 'crypto'
       ? transaction.statut == 1 ? 'success' : transaction.statut == 0 ? 'failed' : 'wait'
@@ -194,7 +195,7 @@ export function TransactionItem({ transaction, onPress, padded = false }: Transa
           ]}
         >
           {transaction.type === 'deposit' ? '+' : '-'}
-          {formatAmount(transaction.amount)} XOF
+          {fmtXof(Number(transaction.amount))}
         </Text>
         <View style={[styles.badge, { backgroundColor: status.color + '30' }]}>
           <Text style={[styles.badgeText, { color: status.color }]}>
