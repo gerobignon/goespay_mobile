@@ -10,11 +10,10 @@ const DEV_API = Platform.select({
   default: 'http://192.168.100.185:8002/api/mobile/v1',
 });
 
-const TEMP_API = 'https://coffee-woods-neon-secret.trycloudflare.com/api/mobile/v1';
+// const PROD_API = 'https://potato-workflow-glen-individuals.trycloudflare.com/api/mobile/v1';
 const PROD_API = 'https://goespay.io/api/mobile/v1';
 
-export const API_BASE_URL = TEMP_API ? TEMP_API : __DEV__ ? DEV_API : PROD_API;
-// export const API_BASE_URL = PROD_API;
+export const API_BASE_URL = __DEV__ ? DEV_API : PROD_API;
 
 export const OPERATORS = [
   // Bénin
