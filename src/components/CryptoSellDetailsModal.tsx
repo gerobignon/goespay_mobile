@@ -118,8 +118,8 @@ export function CryptoSellDetailsModal({ visible, onClose, data }: CryptoSellDet
                       <FontAwesome6 name="paper-plane" size={16} color={Colors.primary} solid />
                     </View>
                     <View>
-                      <Text style={styles.title}>{t('cryptoSellDetails.title') || 'Infos de transfert'}</Text>
-                      <Text style={styles.subtitle}>{t('cryptoSellDetails.subtitle') || 'Envoyez exactement le montant indiqué'}</Text>
+                      <Text style={styles.title}>{t('cryptoSellDetails.title')}</Text>
+                      <Text style={styles.subtitle}>{t('cryptoSellDetails.subtitle')}</Text>
                     </View>
                   </View>
                   <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -131,7 +131,7 @@ export function CryptoSellDetailsModal({ visible, onClose, data }: CryptoSellDet
 
                   {/* Carte montant */}
                   <View style={styles.amountCard}>
-                    <Text style={styles.amountLabel}>{t('cryptoSellDetails.sendExactly') || 'ENVOYER EXACTEMENT'}</Text>
+                    <Text style={styles.amountLabel}>{t('cryptoSellDetails.sendExactly')}</Text>
                     <View style={styles.amountRow}>
                       <Text style={styles.depositAmount}>{depositAmount}</Text>
                       <View style={styles.currencyBadge}>
@@ -141,7 +141,7 @@ export function CryptoSellDetailsModal({ visible, onClose, data }: CryptoSellDet
                     <View style={styles.divider} />
                     <View style={styles.receiveRow}>
                       <FontAwesome6 name="arrow-down" size={11} color={Colors.secondary} />
-                      <Text style={styles.receiveLabel}>{t('cryptoModal.youWillReceive') || 'Vous recevrez '}</Text>
+                      <Text style={styles.receiveLabel}>{t('cryptoModal.youWillReceive')}</Text>
                       <Text style={styles.receiveAmount}>{fmtXof(Math.round(xofAmount))}</Text>
                     </View>
                   </View>
@@ -150,30 +150,30 @@ export function CryptoSellDetailsModal({ visible, onClose, data }: CryptoSellDet
                   <View style={styles.warningBox}>
                     <FontAwesome6 name="triangle-exclamation" size={13} color={Colors.error} solid />
                     <Text style={styles.warningText}>
-                      {t('cryptoSellDetails.warning') || 'Tout autre montant entraînera une perte définitive.'}
+                      {t('cryptoSellDetails.warning')}
                     </Text>
                   </View>
 
-                  {/* QR + Adresse côte à côte sur desktop */}
-                  <View style={[styles.qrAddressBlock, isDesktop && styles.qrAddressBlockDesktop]}>
+                  {/* QR centré + adresse en dessous (mobile et desktop) */}
+                  <View style={styles.qrAddressBlock}>
                     {!!qrcodeUrl && (
-                      <View style={[styles.qrSection, isDesktop && styles.qrSectionDesktop]}>
+                      <View style={styles.qrSection}>
                         <View style={styles.qrWrapper}>
                           <Image source={{ uri: qrcodeUrl }} style={styles.qrCode} resizeMode="contain" />
                         </View>
-                        <Text style={styles.qrCaption}>{t('cryptoSellDetails.scanQr') || 'Scannez le QR code'}</Text>
+                        <Text style={styles.qrCaption}>{t('cryptoSellDetails.scanQr')}</Text>
                       </View>
                     )}
 
-                    <View style={[styles.addressSection, isDesktop && styles.addressSectionDesktop]}>
-                      <Text style={styles.fieldLabel}>{t('cryptoSellDetails.depositAddress') || 'Adresse de dépôt'}</Text>
+                    <View style={styles.addressSection}>
+                      <Text style={styles.fieldLabel}>{t('cryptoSellDetails.depositAddress')}</Text>
                       <TouchableOpacity style={[styles.addressBox, isCopied && styles.addressBoxCopied]} onPress={handleCopy} activeOpacity={0.7}>
                         <Text style={styles.addressText} selectable>{address}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity style={[styles.copyBtn, isCopied && styles.copyBtnCopied]} onPress={handleCopy} activeOpacity={0.8}>
                         <FontAwesome6 name={isCopied ? 'check' : 'copy'} size={13} color={Colors.white} solid />
                         <Text style={styles.copyBtnText}>
-                          {isCopied ? (t('common.addressCopied') || 'Adresse copiée') : (t('common.tapToCopy') || 'Copier l\'adresse')}
+                          {isCopied ? t('common.addressCopied') : t('common.tapToCopy')}
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -186,7 +186,7 @@ export function CryptoSellDetailsModal({ visible, onClose, data }: CryptoSellDet
                         <View style={styles.infoPill}>
                           <FontAwesome6 name="circle-check" size={14} color={Colors.primary} solid />
                           <View style={{ flex: 1 }}>
-                            <Text style={styles.infoPillLabel}>{t('cryptoSellDetails.confirmsNeeded') || 'Confirmations'}</Text>
+                            <Text style={styles.infoPillLabel}>{t('cryptoSellDetails.confirmsNeeded')}</Text>
                             <Text style={styles.infoPillValue}>{confirmsNeeded}</Text>
                           </View>
                         </View>
@@ -195,7 +195,7 @@ export function CryptoSellDetailsModal({ visible, onClose, data }: CryptoSellDet
                         <View style={[styles.infoPill, styles.infoPillWarning]}>
                           <FontAwesome6 name="clock" size={14} color={Colors.warning} solid />
                           <View style={{ flex: 1 }}>
-                            <Text style={styles.infoPillLabel}>{t('cryptoSellDetails.validity') || 'Validité'}</Text>
+                            <Text style={styles.infoPillLabel}>{t('cryptoSellDetails.validity')}</Text>
                             <Text style={[styles.infoPillValue, { color: Colors.secondary }]}>
                               {pad(timeLeft.hours)}:{pad(timeLeft.minutes)}:{pad(timeLeft.seconds)}
                             </Text>
@@ -209,7 +209,7 @@ export function CryptoSellDetailsModal({ visible, onClose, data }: CryptoSellDet
                   <View style={styles.noteBox}>
                     <FontAwesome6 name="circle-info" size={13} color={Colors.textMuted} />
                     <Text style={styles.noteText}>
-                      {t('cryptoSellDetails.creditNote') || 'Après confirmation réseau, le crédit peut prendre jusqu\'à 30 minutes.'}
+                      {t('cryptoSellDetails.creditNote')}
                     </Text>
                   </View>
 
@@ -389,19 +389,11 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
 
   qrAddressBlock: {
     marginBottom: Spacing.md,
-  },
-  qrAddressBlockDesktop: {
-    flexDirection: 'row',
-    gap: Spacing.lg,
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   qrSection: {
     alignItems: 'center',
     marginBottom: Spacing.md,
-  },
-  qrSectionDesktop: {
-    marginBottom: 0,
-    flexShrink: 0,
   },
   qrWrapper: {
     backgroundColor: Colors.white,
@@ -420,9 +412,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
 
   addressSection: {
     width: '100%',
-  },
-  addressSectionDesktop: {
-    flex: 1,
+    maxWidth: 520,
   },
   fieldLabel: {
     fontSize: FontSize.xs,

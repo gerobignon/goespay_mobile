@@ -512,6 +512,17 @@
     "completePayment": "Veuillez compléter le paiement.",
     "sellInitiated": "Votre vente crypto a été initiée."
   },
+  "cryptoSellDetails": {
+    "title": "Infos de transfert",
+    "subtitle": "Envoyez exactement le montant indiqué",
+    "sendExactly": "ENVOYER EXACTEMENT",
+    "warning": "Tout autre montant entraînera une perte définitive des fonds.",
+    "scanQr": "Scannez le QR code avec votre wallet",
+    "depositAddress": "Adresse de dépôt",
+    "confirmsNeeded": "Confirmations",
+    "validity": "Validité",
+    "creditNote": "Après confirmation réseau, le crédit peut prendre jusqu'à 30 minutes."
+  },
   "kyc": {
     "title": "Vérification KYC",
     "step1": "Pièce d'identité",
