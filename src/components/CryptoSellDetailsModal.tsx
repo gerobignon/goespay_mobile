@@ -20,6 +20,7 @@ import { useResponsive } from '../hooks/useResponsive';
 import { CustomAlert } from './CustomAlert';
 import { useTranslation } from 'react-i18next';
 import { useFormatXof } from '../utils/format';
+import { useCryptoStore } from '../stores/cryptoStore';
 
 interface CryptoSellDetailsModalProps {
   visible: boolean;
@@ -41,14 +42,6 @@ interface CryptoSellDetailsModalProps {
   };
 }
 
-const CURRENCY_LABELS: Record<string, string> = {
-  'BNB.BSC': 'BNB',
-  'USDT.TRC20': 'USDT',
-  'BUSD.BEP20': 'BUSD',
-};
-
-const formatCode = (code: string) => CURRENCY_LABELS[code] ?? code;
-
 const buildQrUrl = (data: string, size = 320) =>
   `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(data)}&size=${size}x${size}&margin=8&qzone=1`;
 
@@ -58,6 +51,13 @@ export function CryptoSellDetailsModal({ visible, onClose, data }: CryptoSellDet
   const { isDesktop } = useResponsive();
   const { t } = useTranslation();
   const fmtXof = useFormatXof();
+  const cryptoRates = useCryptoStore((s) => s.rates);
+  const formatCode = (code: string): string => {
+    if (!code) return '';
+    const norm = code.trim().toUpperCase();
+    const rate = cryptoRates.find((r) => (r.code || '').trim().toUpperCase() === norm);
+    return rate?.name?.trim() || norm;
+  };
   const [timeLeft, setTimeLeft] = useState<{ hours: number; minutes: number; seconds: number } | null>(null);
   const [isCopied, setIsCopied] = useState(false);
 
