@@ -488,6 +488,7 @@
     "sellBlockedSub": "You can use an account in an eligible country or contact support.",
     "loadingRates": "Loading rates...",
     "loadRatesError": "Unable to load rates",
+    "noActiveCrypto": "No cryptocurrency is available at the moment. Please try again later.",
     "retry": "Retry",
     "cryptocurrency": "Cryptocurrency",
     "walletAddressLabel": "Wallet address",

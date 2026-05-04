@@ -488,6 +488,7 @@
     "sellBlockedSub": "Vous pouvez utiliser un compte dans un pays éligible ou contacter le support.",
     "loadingRates": "Chargement des taux...",
     "loadRatesError": "Impossible de charger les taux",
+    "noActiveCrypto": "Aucune cryptomonnaie n'est disponible pour le moment. Veuillez réessayer plus tard.",
     "retry": "Réessayer",
     "cryptocurrency": "Crypto-monnaie",
     "walletAddressLabel": "Adresse du portefeuille",

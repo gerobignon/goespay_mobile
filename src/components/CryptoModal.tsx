@@ -498,13 +498,19 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
             ) : cryptoError && rates.length === 0 ? (
               <View style={styles.loadingContainer}>
                 <FontAwesome6 name="triangle-exclamation" size={32} color={Colors.error} />
-                <Text style={styles.loadingText}>{t('cryptoModal.loadRatesError')}</Text>
-                <Button
-                  title={t('cryptoModal.retry')}
-                  onPress={() => fetchRates(true)}
-                  icon="rotate-right"
-                  style={{ marginTop: Spacing.md }}
-                />
+                <Text style={styles.loadingText}>
+                  {cryptoError === 'NO_ACTIVE_CRYPTO'
+                    ? t('cryptoModal.noActiveCrypto')
+                    : t('cryptoModal.loadRatesError')}
+                </Text>
+                {cryptoError !== 'NO_ACTIVE_CRYPTO' && (
+                  <Button
+                    title={t('cryptoModal.retry')}
+                    onPress={() => fetchRates(true)}
+                    icon="rotate-right"
+                    style={{ marginTop: Spacing.md }}
+                  />
+                )}
               </View>
             ) : (
               <>

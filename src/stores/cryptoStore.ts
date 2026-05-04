@@ -60,7 +60,8 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       if (list.length > 0) {
         set({ rates: list, lastFetchedAt: Date.now(), error: null });
       } else {
-        set({ error: 'Aucun taux disponible' });
+        // API succeeded but no active crypto — distinct from a network error
+        set({ rates: [], lastFetchedAt: Date.now(), error: 'NO_ACTIVE_CRYPTO' });
       }
     } catch (e: any) {
       const msg = e?.message || 'Erreur réseau';
