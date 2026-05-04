@@ -238,14 +238,16 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
       if (!rate) return '';
       if (!Number.isFinite(bubuy) || bubuy <= 0) return t('cryptoModal.loadingRate');
       const giveXof = userCurrency === 'XOF' ? numAmountRaw : convertToXof(numAmountRaw);
-      const cryptoAmount = (giveXof / rate) * bubuy;
+      // bubuy (live_rate) = USD par unité crypto. rate = XOF par USD. Donc crypto = (XOF/rate)/bubuy.
+      const cryptoAmount = (giveXof / rate) / bubuy;
       return `${t('cryptoModal.youWillReceive')}${cryptoAmount.toFixed(8)} ${formatCurrencyCode(selectedCurrency)}`;
     } else {
       // User gives crypto, receives XOF → on affiche dans la devise utilisateur
       const rate = getSellRate(selectedRate);
       if (!rate) return '';
       if (!Number.isFinite(bubuy) || bubuy <= 0) return t('cryptoModal.loadingRate');
-      const xofAmount = (numAmountRaw * rate) / bubuy;
+      // XOF reçu = (crypto * USD/crypto) * XOF/USD
+      const xofAmount = (numAmountRaw * rate) * bubuy;
       return `${t('cryptoModal.youWillReceive')}${fmtXof(Math.round(xofAmount))}`;
     }
   };
