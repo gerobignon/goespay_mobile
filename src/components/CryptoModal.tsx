@@ -80,6 +80,8 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
   const stablecoinCodes = useConfigStore((s) => s.stablecoin_codes);
   const userCurrency = useCurrencyCode();
   const convertToXof = useCurrencyStore((s) => s.convertToXof);
+  const convertFromXof = useCurrencyStore((s) => s.convertFromXof);
+  const formatFromXof = useCurrencyStore((s) => s.formatFromXof);
   const fmtXof = useFormatXof();
 
   const [tab, setTab] = useState<Tab>('buy');
@@ -248,7 +250,13 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
       if (!Number.isFinite(bubuy) || bubuy <= 0) return t('cryptoModal.loadingRate');
       // XOF reçu = (crypto * USD/crypto) * XOF/USD
       const xofAmount = (numAmountRaw * rate) * bubuy;
-      return `${t('cryptoModal.youWillReceive')}${fmtXof(Math.round(xofAmount))}`;
+      const xofRounded = Math.round(xofAmount);
+      // Affichage dans la devise utilisateur (≈ XOF si différente), comme pour l'achat
+      if (userCurrency === 'XOF') {
+        return `${t('cryptoModal.youWillReceive')}${fmtXof(xofRounded)}`;
+      }
+      const userAmount = formatFromXof(xofRounded);
+      return `${t('cryptoModal.youWillReceive')}${userAmount} (≈ ${fmtXof(xofRounded)})`;
     }
   };
 
