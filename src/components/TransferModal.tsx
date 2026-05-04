@@ -31,6 +31,7 @@ import { useConfigStore } from '../stores/configStore';
 import { useCurrencyStore } from '../stores/currencyStore';
 import { useFormatXof, useCurrencyCode } from '../utils/format';
 import { AdminDisabledBanner } from './AdminDisabledBanner';
+import { GatewayBadge } from './GatewayBadge';
 
 interface TransferModalProps {
   visible: boolean;
@@ -289,6 +290,7 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
                     >
                       {op.flag} {op.name}
                     </Text>
+                    <GatewayBadge op={op} visible={isAdmin} size={14} />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -310,6 +312,7 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
                     <Text style={[styles.operatorName, operator === op.id && styles.operatorNameSelected]}>
                       {op.name}
                     </Text>
+                    <GatewayBadge op={op} visible={isAdmin} size={16} />
                   </TouchableOpacity>
                 ))}
               </ScrollView>

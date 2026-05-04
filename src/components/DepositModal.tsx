@@ -34,6 +34,7 @@ import { useConfigStore } from '../stores/configStore';
 import { useCurrencyStore } from '../stores/currencyStore';
 import { useFormatXof, useCurrencyCode } from '../utils/format';
 import { AdminDisabledBanner } from './AdminDisabledBanner';
+import { GatewayBadge } from './GatewayBadge';
 
 interface DepositModalProps {
   visible: boolean;
@@ -433,6 +434,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
                     >
                       {op.flag} {op.name}
                     </Text>
+                    <GatewayBadge op={op} visible={isAdmin} size={14} />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -462,6 +464,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
                     >
                       {op.name}
                     </Text>
+                    <GatewayBadge op={op} visible={isAdmin} size={16} />
                   </TouchableOpacity>
                 ))}
               </ScrollView>
