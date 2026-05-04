@@ -59,11 +59,14 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
   const user = useAuthStore((s) => s.user);
   const countryFees = useConfigStore((s) => s.country_fees);
   const transferFeeDefault = useConfigStore((s) => s.transfer_fee_default);
+  const afribapayEnabled = useConfigStore((s) => s.afribapay_enabled);
   const userCurrency = useCurrencyCode();
   const convertToXof = useCurrencyStore((s) => s.convertToXof);
   const fmtXof = useFormatXof();
 
-  const displayOperators = OPERATORS.filter((op) => op.withdraw);
+  const displayOperators = OPERATORS.filter(
+    (op) => op.withdraw && (afribapayEnabled || !(op as any).afribapay)
+  );
 
   // L'utilisateur saisit en devise d'affichage. La conversion en XOF se fait
   // ici (canonique) pour les frais, validations et l'envoi backend.
@@ -472,7 +475,7 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
             <Text style={styles.saveOpLabel}>{t('transferModal.operatorRequired')}</Text>
             {isDesktop ? (
               <View style={styles.saveOpGrid}>
-                {OPERATORS.filter((op) => op.withdraw).map((op) => (
+                {displayOperators.map((op) => (
                   <TouchableOpacity
                     key={op.id}
                     style={[styles.saveOpChip, savePhoneOperator === op.id && styles.saveOpChipSelected]}
@@ -487,7 +490,7 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
               </View>
             ) : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.saveOpScroll} contentContainerStyle={styles.saveOpScrollContent}>
-                {OPERATORS.filter((op) => op.withdraw).map((op) => (
+                {displayOperators.map((op) => (
                   <TouchableOpacity
                     key={op.id}
                     style={[styles.saveOpChip, savePhoneOperator === op.id && styles.saveOpChipSelected]}

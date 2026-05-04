@@ -6,6 +6,7 @@ interface FeatureFlags {
   transfer_enabled: boolean;
   crypto_buy_enabled: boolean;
   crypto_sell_enabled: boolean;
+  afribapay_enabled: boolean;
 }
 
 export interface FeeConfig {
@@ -43,6 +44,7 @@ const defaultFlags: FeatureFlags = {
   transfer_enabled: true,
   crypto_buy_enabled: true,
   crypto_sell_enabled: true,
+  afribapay_enabled: true,
 };
 
 export const DEFAULT_APP_CONFIG: AppConfig = {

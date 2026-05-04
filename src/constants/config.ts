@@ -40,34 +40,34 @@ export const OPERATORS = [
 
   // ─── AfribaPay ──────────────────────────────────────────────────────────
   // Niger (XOF)
-  { id: 'airtel-ne', name: 'Airtel Money Niger', flag: '🇳🇪', country: 'NE', withdraw: true, logo: require('../../assets/operators/pay_airtel.png') },
-  { id: 'moov-ne', name: 'Moov Money Niger', flag: '🇳🇪', country: 'NE', withdraw: true, logo: require('../../assets/operators/pay_moov.png') },
+  { id: 'airtel-ne', name: 'Airtel Money Niger', flag: '🇳🇪', country: 'NE', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_airtel.png') },
+  { id: 'moov-ne', name: 'Moov Money Niger', flag: '🇳🇪', country: 'NE', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_moov.png') },
   // Guinée Conakry (GNF)
-  { id: 'orange-gn', name: 'Orange Money Guinée', flag: '🇬🇳', country: 'GN', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
-  { id: 'mtn-gn', name: 'MTN Mobile Money Guinée', flag: '🇬🇳', country: 'GN', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
+  { id: 'orange-gn', name: 'Orange Money Guinée', flag: '🇬🇳', country: 'GN', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'mtn-gn', name: 'MTN Mobile Money Guinée', flag: '🇬🇳', country: 'GN', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_mtn.png') },
   // Guinée Bissau (XOF)
-  { id: 'orange-gw', name: 'Orange Money Guinée-Bissau', flag: '🇬🇼', country: 'GW', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'orange-gw', name: 'Orange Money Guinée-Bissau', flag: '🇬🇼', country: 'GW', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
   // Gambie (GMD)
-  { id: 'afrimoney-gm', name: 'Africell Money Gambie', flag: '🇬🇲', country: 'GM', withdraw: true, logo: require('../../assets/operators/pay_afrimoney.png') },
+  { id: 'afrimoney-gm', name: 'Africell Money Gambie', flag: '🇬🇲', country: 'GM', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_afrimoney.png') },
   // Tchad (XAF)
-  { id: 'airtel-td', name: 'Airtel Money Tchad', flag: '🇹🇩', country: 'TD', withdraw: true, logo: require('../../assets/operators/pay_airtel.png') },
-  { id: 'moov-td', name: 'Moov Money Tchad', flag: '🇹🇩', country: 'TD', withdraw: true, logo: require('../../assets/operators/pay_moov.png') },
+  { id: 'airtel-td', name: 'Airtel Money Tchad', flag: '🇹🇩', country: 'TD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_airtel.png') },
+  { id: 'moov-td', name: 'Moov Money Tchad', flag: '🇹🇩', country: 'TD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_moov.png') },
   // Gabon (XAF)
-  { id: 'airtel-ga', name: 'Airtel Money Gabon', flag: '🇬🇦', country: 'GA', withdraw: true, logo: require('../../assets/operators/pay_airtel.png') },
-  { id: 'moov-ga', name: 'Moov Money Gabon', flag: '🇬🇦', country: 'GA', withdraw: true, logo: require('../../assets/operators/pay_moov.png') },
+  { id: 'airtel-ga', name: 'Airtel Money Gabon', flag: '🇬🇦', country: 'GA', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_airtel.png') },
+  { id: 'moov-ga', name: 'Moov Money Gabon', flag: '🇬🇦', country: 'GA', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_moov.png') },
   // Congo Brazzaville (XAF)
-  { id: 'mtn-cg', name: 'MTN Mobile Money Congo', flag: '🇨🇬', country: 'CG', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
-  { id: 'airtel-cg', name: 'Airtel Money Congo', flag: '🇨🇬', country: 'CG', withdraw: true, logo: require('../../assets/operators/pay_airtel.png') },
+  { id: 'mtn-cg', name: 'MTN Mobile Money Congo', flag: '🇨🇬', country: 'CG', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_mtn.png') },
+  { id: 'airtel-cg', name: 'Airtel Money Congo', flag: '🇨🇬', country: 'CG', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_airtel.png') },
   // Centrafrique (XAF)
-  { id: 'orange-cf', name: 'Orange Money Centrafrique', flag: '🇨🇫', country: 'CF', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'orange-cf', name: 'Orange Money Centrafrique', flag: '🇨🇫', country: 'CF', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
   // RDC (CDF)
-  { id: 'mpesa-cd', name: 'M-Pesa RDC', flag: '🇨🇩', country: 'CD', withdraw: true, logo: require('../../assets/operators/pay_mpesa.jpg') },
-  { id: 'orange-cd', name: 'Orange Money RDC', flag: '🇨🇩', country: 'CD', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
-  { id: 'airtel-cd', name: 'Airtel Money RDC', flag: '🇨🇩', country: 'CD', withdraw: true, logo: require('../../assets/operators/pay_airtel.png') },
-  { id: 'africell-cd', name: 'Africell Money RDC', flag: '🇨🇩', country: 'CD', withdraw: true, logo: require('../../assets/operators/pay_africell.png') },
+  { id: 'mpesa-cd', name: 'M-Pesa RDC', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_mpesa.jpg') },
+  { id: 'orange-cd', name: 'Orange Money RDC', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'airtel-cd', name: 'Airtel Money RDC', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_airtel.png') },
+  { id: 'africell-cd', name: 'Africell Money RDC', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_africell.png') },
   // Cameroun (XAF, AfribaPay — coexiste avec mtn-cameroun PayDunya)
-  { id: 'mtn-cm', name: 'MTN Mobile Money Cameroun', flag: '🇨🇲', country: 'CM', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
-  { id: 'orange-cm', name: 'Orange Money Cameroun', flag: '🇨🇲', country: 'CM', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'mtn-cm', name: 'MTN Mobile Money Cameroun', flag: '🇨🇲', country: 'CM', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_mtn.png') },
+  { id: 'orange-cm', name: 'Orange Money Cameroun', flag: '🇨🇲', country: 'CM', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
 
   // Carte bancaire (international, dépôt uniquement)
   { id: 'card', name: 'Carte Bancaire', flag: '🌍', country: 'INTL', withdraw: false, logo: require('../../assets/operators/pay_card.jpg') },

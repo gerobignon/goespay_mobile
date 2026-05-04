@@ -179,13 +179,17 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   const isKycValidated = user?.validate === 1;
   const mobileMoneyCountries = mobileMoneyCountriesConfig;
   const showCard = isAdmin || !isKycValidated || !mobileMoneyCountries.includes(userCountry);
+  const afribapayEnabled = useConfigStore((s) => s.afribapay_enabled);
+  const operatorsBase = OPERATORS.filter(
+    (op) => afribapayEnabled || !(op as any).afribapay
+  );
   const filteredOperators = (isAdmin || !isKycValidated)
-    ? [...OPERATORS]
+    ? [...operatorsBase]
     : [
-        ...OPERATORS.filter((op) => op.country === userCountry),
-        ...(showCard ? OPERATORS.filter((op) => op.id === 'card') : []),
+        ...operatorsBase.filter((op) => op.country === userCountry),
+        ...(showCard ? operatorsBase.filter((op) => op.id === 'card') : []),
       ];
-  const displayOperators = filteredOperators.length > 0 ? filteredOperators : OPERATORS;
+  const displayOperators = filteredOperators.length > 0 ? filteredOperators : operatorsBase;
 
   const needsOtp = ['orange-money-burkina', 'orange-money-ci', 'orange-money-senegal', 'orange-gn'].includes(operator);
   const isCard = operator === 'card';
