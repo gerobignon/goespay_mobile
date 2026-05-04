@@ -73,6 +73,36 @@ export const OPERATORS = [
   { id: 'card', name: 'Carte Bancaire', flag: '🌍', country: 'INTL', withdraw: false, logo: require('../../assets/operators/pay_card.jpg') },
 ] as const;
 
+// Identifie le réseau mobile money depuis le nom de l'opérateur. Utilisé pour
+// dédupliquer les paires (pays, réseau) servies à la fois par Softpay/PayDunya
+// et par AfribaPay : on privilégie systématiquement Softpay/PayDunya.
+export function getOperatorNetwork(op: { name: string; id: string }): string {
+  const n = op.name.toLowerCase();
+  if (n.includes('mtn')) return 'mtn';
+  if (n.includes('moov')) return 'moov';
+  if (n.includes('orange')) return 'orange';
+  if (n.includes('airtel')) return 'airtel';
+  if (n.includes('wave')) return 'wave';
+  if (n.includes('t-money') || n.includes('tmoney')) return 'tmoney';
+  if (n.includes('m-pesa') || n.includes('mpesa')) return 'mpesa';
+  if (n.includes('africell') || n.includes('afrimoney')) return 'africell';
+  return op.id;
+}
+
+// Clés "country:network" déjà couvertes par un opérateur non-AfribaPay
+// (Softpay/PayDunya). Un opérateur AfribaPay dont la clé est ici est considéré
+// comme un doublon et doit être masqué.
+const SOFTPAY_NETWORK_KEYS = new Set(
+  OPERATORS
+    .filter((op) => !(op as { afribapay?: true }).afribapay && op.id !== 'card')
+    .map((op) => `${op.country}:${getOperatorNetwork(op)}`)
+);
+
+export function isAfribapayDuplicate(op: { afribapay?: true; country: string; name: string; id: string }): boolean {
+  if (!op.afribapay) return false;
+  return SOFTPAY_NETWORK_KEYS.has(`${op.country}:${getOperatorNetwork(op)}`);
+}
+
 export const TRANSACTION_STATUS: Record<string, { label: string; color: string }> = {
   success: { label: 'Succès', color: '#3176FE' },
   wait: { label: 'En attente', color: '#F4B228' },

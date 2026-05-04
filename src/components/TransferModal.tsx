@@ -18,7 +18,7 @@ import { ResponsiveModal } from './ResponsiveModal';
 import { walletService } from '../services/walletService';
 import { useWalletStore } from '../stores/walletStore';
 import { useAuthStore } from '../stores/authStore';
-import { OPERATORS } from '../constants/config';
+import { OPERATORS, isAfribapayDuplicate } from '../constants/config';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { useResponsive } from '../hooks/useResponsive';
@@ -65,7 +65,7 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
   const fmtXof = useFormatXof();
 
   const displayOperators = OPERATORS.filter(
-    (op) => op.withdraw && (afribapayEnabled || !(op as any).afribapay)
+    (op) => op.withdraw && !isAfribapayDuplicate(op) && (afribapayEnabled || !(op as any).afribapay)
   );
 
   // L'utilisateur saisit en devise d'affichage. La conversion en XOF se fait

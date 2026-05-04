@@ -21,7 +21,7 @@ import { Button } from './Button';
 import { walletService } from '../services/walletService';
 import { useWalletStore } from '../stores/walletStore';
 import { useAuthStore } from '../stores/authStore';
-import { OPERATORS } from '../constants/config';
+import { OPERATORS, isAfribapayDuplicate } from '../constants/config';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { useResponsive } from '../hooks/useResponsive';
@@ -181,7 +181,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   const showCard = isAdmin || !isKycValidated || !mobileMoneyCountries.includes(userCountry);
   const afribapayEnabled = useConfigStore((s) => s.afribapay_enabled);
   const operatorsBase = OPERATORS.filter(
-    (op) => afribapayEnabled || !(op as any).afribapay
+    (op) => !isAfribapayDuplicate(op) && (afribapayEnabled || !(op as any).afribapay)
   );
   const filteredOperators = (isAdmin || !isKycValidated)
     ? [...operatorsBase]
