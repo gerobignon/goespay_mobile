@@ -30,6 +30,7 @@ import { useTranslation } from 'react-i18next';
 import { useConfigStore } from '../stores/configStore';
 import { useCurrencyStore } from '../stores/currencyStore';
 import { useFormatXof, useCurrencyCode } from '../utils/format';
+import { AdminDisabledBanner } from './AdminDisabledBanner';
 
 interface TransferModalProps {
   visible: boolean;
@@ -60,12 +61,15 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
   const countryFees = useConfigStore((s) => s.country_fees);
   const transferFeeDefault = useConfigStore((s) => s.transfer_fee_default);
   const afribapayEnabled = useConfigStore((s) => s.afribapay_enabled);
+  const transferEnabled = useConfigStore((s) => s.transfer_enabled);
+  const isAdmin = user?.group === 'admin';
   const userCurrency = useCurrencyCode();
   const convertToXof = useCurrencyStore((s) => s.convertToXof);
   const fmtXof = useFormatXof();
 
+  // Admin bypass : voit toutes les passerelles, y compris désactivées (bandeau rouge en haut).
   const displayOperators = OPERATORS.filter(
-    (op) => op.withdraw && !isAfribapayDuplicate(op) && (afribapayEnabled || !(op as any).afribapay)
+    (op) => op.withdraw && !isAfribapayDuplicate(op) && (afribapayEnabled || isAdmin || !(op as any).afribapay)
   );
 
   // L'utilisateur saisit en devise d'affichage. La conversion en XOF se fait
@@ -251,6 +255,12 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ paddingBottom: Spacing.xl }}>
+            {isAdmin && !transferEnabled && (
+              <AdminDisabledBanner message={t('admin.bannerTransfer')} />
+            )}
+            {isAdmin && transferEnabled && !afribapayEnabled && (
+              <AdminDisabledBanner message={t('admin.bannerAfribapay')} />
+            )}
             {user?.validate !== 1 && (
               <View style={styles.kycBanner}>
                 <FontAwesome6 name="triangle-exclamation" size={14} color={Colors.warning} style={{ marginRight: 8 }} />

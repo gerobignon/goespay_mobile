@@ -62,8 +62,12 @@ export default function DashboardScreen() {
 
   const { logout } = useAuthStore();
   const { deposit_enabled, transfer_enabled, crypto_buy_enabled, crypto_sell_enabled, fetchConfig } = useConfigStore();
-  const isCryptoUser = user?.group === 'admin' || user?.group === 'crypto';
-  const showCrypto = isCryptoUser && (crypto_buy_enabled || crypto_sell_enabled);
+  const isAdmin = user?.group === 'admin';
+  const isCryptoUser = isAdmin || user?.group === 'crypto';
+  // L'admin voit tous les services même désactivés (un bandeau s'affiche dans le modal concerné).
+  const showDeposit = isAdmin || deposit_enabled;
+  const showTransfer = isAdmin || transfer_enabled;
+  const showCrypto = isCryptoUser && (isAdmin || crypto_buy_enabled || crypto_sell_enabled);
   const isValidated = user?.validate === 1;
   const prefetchRates = useCryptoStore((s) => s.fetchRates);
   const { isWide, isDesktop, contentMaxWidth } = useResponsive();
@@ -195,7 +199,7 @@ export default function DashboardScreen() {
                   <Text style={styles.balanceAmount}>{fmtXof(balance, { withCode: false })}</Text>
                   <Text style={styles.currency}>{currencyCode}</Text>
                   <View style={styles.balanceActions}>
-                    {deposit_enabled && (
+                    {showDeposit && (
                     <TouchableOpacity
                       style={[styles.actionBtn, { backgroundColor: DarkColors.secondary }, !isValidated && { opacity: 0.4 }]}
                       onPress={() => isValidated && setDepositVisible(true)}
@@ -204,7 +208,7 @@ export default function DashboardScreen() {
                       <Text style={styles.actionLabel}>{ t('home.deposit') }</Text>
                     </TouchableOpacity>
                     )}
-                    {transfer_enabled && (
+                    {showTransfer && (
                     <TouchableOpacity
                       style={[styles.actionBtn, { backgroundColor: Colors.primary }, !isValidated && { opacity: 0.4 }]}
                       onPress={() => isValidated && setTransferVisible(true)}
@@ -219,7 +223,7 @@ export default function DashboardScreen() {
 
               <Text style={styles.sectionTitle}>{ t('home.quickActions', 'Services') }</Text>
               <View style={styles.quickActions}>
-                {deposit_enabled && (
+                {showDeposit && (
                 <TouchableOpacity style={styles.quickBtn} onPress={() => setDepositVisible(true)}>
                   <View style={[styles.quickIcon, { backgroundColor: Colors.success + '45' }]}>
                     <FontAwesome6 name="arrow-down" size={20} color={Colors.success} />
@@ -227,7 +231,7 @@ export default function DashboardScreen() {
                   <Text style={styles.quickLabel}>{ t('home.deposit') }</Text>
                 </TouchableOpacity>
                 )}
-                {transfer_enabled && (
+                {showTransfer && (
                 <TouchableOpacity style={styles.quickBtn} onPress={() => setTransferVisible(true)}>
                   <View style={[styles.quickIcon, { backgroundColor: Colors.primary + '45' }]}>
                     <FontAwesome6 name="paper-plane" size={20} color={Colors.primary} />
@@ -289,7 +293,7 @@ export default function DashboardScreen() {
                 <Text style={styles.balanceAmount}>{fmtXof(balance, { withCode: false })}</Text>
                 <Text style={styles.currency}>{currencyCode}</Text>
                 <View style={styles.balanceActions}>
-                  {deposit_enabled && (
+                  {showDeposit && (
                   <TouchableOpacity
                     style={[styles.actionBtn, { backgroundColor: DarkColors.secondary }, !isValidated && { opacity: 0.4 }]}
                     onPress={() => isValidated && setDepositVisible(true)}
@@ -298,7 +302,7 @@ export default function DashboardScreen() {
                     <Text style={styles.actionLabel}>{ t('home.deposit') }</Text>
                   </TouchableOpacity>
                   )}
-                  {transfer_enabled && (
+                  {showTransfer && (
                   <TouchableOpacity
                     style={[styles.actionBtn, { backgroundColor: Colors.primary }, !isValidated && { opacity: 0.4 }]}
                     onPress={() => isValidated && setTransferVisible(true)}
@@ -313,7 +317,7 @@ export default function DashboardScreen() {
 
             <Text style={styles.sectionTitle}>{ t('home.quickActions', 'Services') }</Text>
             <View style={styles.quickActions}>
-              {deposit_enabled && (
+              {showDeposit && (
               <TouchableOpacity style={styles.quickBtn} onPress={() => setDepositVisible(true)}>
                 <View style={[styles.quickIcon, { backgroundColor: Colors.success + '45' }]}>
                   <FontAwesome6 name="arrow-down" size={20} color={Colors.success} />
@@ -321,7 +325,7 @@ export default function DashboardScreen() {
                 <Text style={styles.quickLabel}>{ t('home.deposit') }</Text>
               </TouchableOpacity>
               )}
-              {transfer_enabled && (
+              {showTransfer && (
               <TouchableOpacity style={styles.quickBtn} onPress={() => setTransferVisible(true)}>
                 <View style={[styles.quickIcon, { backgroundColor: Colors.primary + '45' }]}>
                   <FontAwesome6 name="paper-plane" size={20} color={Colors.primary} />
@@ -369,13 +373,13 @@ export default function DashboardScreen() {
         )}
       </ScrollView>
 
-      {deposit_enabled && (
+      {showDeposit && (
       <DepositModal
         visible={depositVisible}
         onClose={() => setDepositVisible(false)}
       />
       )}
-      {transfer_enabled && (
+      {showTransfer && (
       <TransferModal
         visible={transferVisible}
         onClose={() => setTransferVisible(false)}

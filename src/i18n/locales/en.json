@@ -1,4 +1,12 @@
 {
+  "admin": {
+    "bannerDeposit": "Admin mode — Deposits are disabled for users.",
+    "bannerTransfer": "Admin mode — Withdrawals are disabled for users.",
+    "bannerCryptoBuy": "Admin mode — Crypto buy is disabled for users.",
+    "bannerCryptoSell": "Admin mode — Crypto sell is disabled for users.",
+    "bannerCryptoBoth": "Admin mode — Crypto buy and sell are disabled for users.",
+    "bannerAfribapay": "Admin mode — AfribaPay is disabled for users."
+  },
   "common": {
     "loading": "Loading...",
     "save": "Save",

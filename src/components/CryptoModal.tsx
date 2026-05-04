@@ -34,6 +34,7 @@ import { useTranslation } from 'react-i18next';
 import { useConfigStore } from '../stores/configStore';
 import { useCurrencyStore } from '../stores/currencyStore';
 import { useFormatXof, useCurrencyCode } from '../utils/format';
+import { AdminDisabledBanner } from './AdminDisabledBanner';
 
 interface CryptoModalProps {
   visible: boolean;
@@ -67,6 +68,10 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
   const { isDesktop } = useResponsive();
 
   const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.group === 'admin';
+  // L'admin peut toujours utiliser le service même s'il est désactivé : on affiche un bandeau d'avertissement.
+  const buyAvailable = buyEnabled || isAdmin;
+  const sellAvailable = sellEnabled || isAdmin;
   const fetchBalance = useWalletStore((s) => s.fetchBalance);
   const rates = useCryptoStore((s) => s.rates);
   const cryptoLoading = useCryptoStore((s) => s.loading);
@@ -112,7 +117,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
       setSelectedCurrency('');
       setAmount('');
       setWalletAddress('');
-      setTab(buyEnabled ? 'buy' : 'sell');
+      setTab(buyAvailable ? 'buy' : 'sell');
       loadSavedWallets();
     }
   }, [visible]);
@@ -399,7 +404,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
 
           {/* Tabs */}
           <View style={styles.tabs}>
-            {buyEnabled && (
+            {buyAvailable && (
             <TouchableOpacity
               style={[styles.tab, tab === 'buy' && styles.tabActive]}
               onPress={() => {
@@ -418,7 +423,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
               </Text>
             </TouchableOpacity>
             )}
-            {sellEnabled && (
+            {sellAvailable && (
             <TouchableOpacity
               style={[styles.tab, tab === 'sell' && styles.tabActive]}
               onPress={() => {
@@ -440,6 +445,15 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
+            {isAdmin && !buyEnabled && !sellEnabled && (
+              <AdminDisabledBanner message={t('admin.bannerCryptoBoth')} />
+            )}
+            {isAdmin && !buyEnabled && sellEnabled && (
+              <AdminDisabledBanner message={t('admin.bannerCryptoBuy')} />
+            )}
+            {isAdmin && buyEnabled && !sellEnabled && (
+              <AdminDisabledBanner message={t('admin.bannerCryptoSell')} />
+            )}
             {user?.validate !== 1 && (
               <View style={styles.kycBanner}>
                 <FontAwesome6 name="triangle-exclamation" size={14} color={Colors.warning} style={{ marginRight: 8 }} />

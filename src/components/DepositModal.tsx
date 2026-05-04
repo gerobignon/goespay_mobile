@@ -33,6 +33,7 @@ import { useTranslation } from 'react-i18next';
 import { useConfigStore } from '../stores/configStore';
 import { useCurrencyStore } from '../stores/currencyStore';
 import { useFormatXof, useCurrencyCode } from '../utils/format';
+import { AdminDisabledBanner } from './AdminDisabledBanner';
 
 interface DepositModalProps {
   visible: boolean;
@@ -180,8 +181,10 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   const mobileMoneyCountries = mobileMoneyCountriesConfig;
   const showCard = isAdmin || !isKycValidated || !mobileMoneyCountries.includes(userCountry);
   const afribapayEnabled = useConfigStore((s) => s.afribapay_enabled);
+  const depositEnabled = useConfigStore((s) => s.deposit_enabled);
+  // Admin bypass : voit toutes les passerelles, y compris désactivées (bandeau rouge en haut).
   const operatorsBase = OPERATORS.filter(
-    (op) => !isAfribapayDuplicate(op) && (afribapayEnabled || !(op as any).afribapay)
+    (op) => !isAfribapayDuplicate(op) && (afribapayEnabled || isAdmin || !(op as any).afribapay)
   );
   const filteredOperators = (isAdmin || !isKycValidated)
     ? [...operatorsBase]
@@ -396,6 +399,12 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
           )}
 
           {pollingState === 'idle' && <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
+            {isAdmin && !depositEnabled && (
+              <AdminDisabledBanner message={t('admin.bannerDeposit')} />
+            )}
+            {isAdmin && depositEnabled && !afribapayEnabled && (
+              <AdminDisabledBanner message={t('admin.bannerAfribapay')} />
+            )}
             {user?.validate !== 1 && (
               <View style={styles.kycBanner}>
                 <FontAwesome6 name="triangle-exclamation" size={14} color={Colors.warning} style={{ marginRight: 8 }} />

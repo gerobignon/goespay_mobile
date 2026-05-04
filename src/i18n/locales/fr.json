@@ -1,4 +1,12 @@
 {
+  "admin": {
+    "bannerDeposit": "Mode admin — Les dépôts sont désactivés pour les utilisateurs.",
+    "bannerTransfer": "Mode admin — Les retraits sont désactivés pour les utilisateurs.",
+    "bannerCryptoBuy": "Mode admin — L'achat crypto est désactivé pour les utilisateurs.",
+    "bannerCryptoSell": "Mode admin — La vente crypto est désactivée pour les utilisateurs.",
+    "bannerCryptoBoth": "Mode admin — L'achat et la vente crypto sont désactivés pour les utilisateurs.",
+    "bannerAfribapay": "Mode admin — AfribaPay est désactivé pour les utilisateurs."
+  },
   "common": {
     "loading": "Chargement...",
     "save": "Enregistrer",
