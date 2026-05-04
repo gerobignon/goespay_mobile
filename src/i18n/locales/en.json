@@ -385,6 +385,9 @@
   "depositModal": {
     "title": "Mobile Money Deposit",
     "chooseOperator": "Choose operator",
+    "chooseCountry": "Choose a country",
+    "changeCountry": "Change",
+    "bankCard": "Bank card",
     "paymentFailed": "Payment failed. Please try again.",
     "cancelDeposit": "Cancel deposit?",
     "infoLost": "Entered information will be lost.",
@@ -433,6 +436,8 @@
     "availableBalance": "Available balance",
     "kycRequired": "KYC verification required to make transactions.",
     "chooseOperator": "Choose operator",
+    "chooseCountry": "Choose a country",
+    "changeCountry": "Change",
     "fees": "Fees",
     "totalDebited": "Total debited",
     "savedNumbers": "Saved numbers",

@@ -32,6 +32,7 @@ import { useCurrencyStore } from '../stores/currencyStore';
 import { useFormatXof, useCurrencyCode } from '../utils/format';
 import { AdminDisabledBanner } from './AdminDisabledBanner';
 import { GatewayBadge } from './GatewayBadge';
+import { CountryPickerStep } from './CountryPickerStep';
 
 interface TransferModalProps {
   visible: boolean;
@@ -46,6 +47,7 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
 
   const [amount, setAmount] = useState('');
   const [operator, setOperator] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
@@ -72,6 +74,10 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
   const displayOperators = OPERATORS.filter(
     (op) => op.withdraw && !isAfribapayDuplicate(op) && (afribapayEnabled || isAdmin || !(op as any).afribapay)
   );
+
+  const operatorsForStep = selectedCountry
+    ? displayOperators.filter((op) => op.country === selectedCountry)
+    : [];
 
   // L'utilisateur saisit en devise d'affichage. La conversion en XOF se fait
   // ici (canonique) pour les frais, validations et l'envoi backend.
@@ -110,6 +116,8 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
   useEffect(() => {
     if (!visible) return;
     loadSavedPhones();
+    setSelectedCountry(null);
+    setOperator('');
   }, [visible]);
 
   const saveCurrentPhone = async () => {
@@ -269,9 +277,24 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
               </View>
             )}
             <Text style={styles.operatorLabel}>{t('transferModal.chooseOperator')}</Text>
-            {isDesktop ? (
+            {!selectedCountry ? (
+              <CountryPickerStep
+                operators={displayOperators}
+                onSelectCountry={(code) => { setSelectedCountry(code); setOperator(''); }}
+                label={t('transferModal.chooseCountry')}
+              />
+            ) : (
+              <>
+                <TouchableOpacity
+                  onPress={() => { setSelectedCountry(null); setOperator(''); }}
+                  style={styles.changeCountryBtn}
+                >
+                  <FontAwesome6 name="arrow-left" size={12} color={Colors.secondary} />
+                  <Text style={styles.changeCountryText}>{t('transferModal.changeCountry')}</Text>
+                </TouchableOpacity>
+                {isDesktop ? (
               <View style={styles.operatorChipGrid}>
-                {displayOperators.map((op) => (
+                {operatorsForStep.map((op) => (
                   <TouchableOpacity
                     key={op.id}
                     style={[
@@ -301,7 +324,7 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
                 style={styles.operatorScroll}
                 contentContainerStyle={styles.operatorScrollContent}
               >
-                {displayOperators.map((op) => (
+                {operatorsForStep.map((op) => (
                   <TouchableOpacity
                     key={op.id}
                     style={[styles.operatorCard, operator === op.id && styles.operatorSelected]}
@@ -316,6 +339,8 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
                   </TouchableOpacity>
                 ))}
               </ScrollView>
+                )}
+              </>
             )}
 
             <View style={styles.balanceRow}>
@@ -571,6 +596,20 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: FontSize.sm,
     fontFamily: Fonts.semiBold,
     marginBottom: Spacing.sm,
+  },
+  changeCountryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    marginBottom: Spacing.sm,
+  },
+  changeCountryText: {
+    color: Colors.secondary,
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.semiBold,
   },
   operatorScroll: {
     marginBottom: Spacing.md,

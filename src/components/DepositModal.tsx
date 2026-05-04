@@ -35,6 +35,7 @@ import { useCurrencyStore } from '../stores/currencyStore';
 import { useFormatXof, useCurrencyCode } from '../utils/format';
 import { AdminDisabledBanner } from './AdminDisabledBanner';
 import { GatewayBadge } from './GatewayBadge';
+import { CountryPickerStep } from './CountryPickerStep';
 
 interface DepositModalProps {
   visible: boolean;
@@ -50,6 +51,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
 
   const [amount, setAmount] = useState('');
   const [operator, setOperator] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
@@ -80,6 +82,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
     if (!visible) return;
     setAmount(prefill?.amount ?? '');
     setOperator(prefill?.operator ?? '');
+    setSelectedCountry(null);
     setOtp('');
     setPollingState('idle');
     setPollingMessage('');
@@ -194,6 +197,16 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
         ...(showCard ? operatorsBase.filter((op) => op.id === 'card') : []),
       ];
   const displayOperators = filteredOperators.length > 0 ? filteredOperators : operatorsBase;
+
+  // Étape pays uniquement en mode admin (les utilisateurs réguliers ont déjà une liste filtrée par pays).
+  const useCountryStep = isAdmin;
+  const operatorsForStep = useCountryStep
+    ? (selectedCountry === '__CARD__'
+        ? displayOperators.filter((op) => op.id === 'card')
+        : selectedCountry
+          ? displayOperators.filter((op) => op.country === selectedCountry)
+          : [])
+    : displayOperators;
 
   const needsOtp = ['orange-money-burkina', 'orange-money-ci', 'orange-money-senegal', 'orange-gn'].includes(operator);
   const isCard = operator === 'card';
@@ -413,9 +426,29 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
               </View>
             )}
             <Text style={styles.operatorLabel}>{t('depositModal.chooseOperator')}</Text>
-            {isDesktop ? (
+            {useCountryStep && !selectedCountry ? (
+              <CountryPickerStep
+                operators={displayOperators}
+                showCardTile={showCard}
+                cardLabel={t('depositModal.bankCard')}
+                onSelectCountry={(code) => { setSelectedCountry(code); setOperator(''); }}
+                onSelectCard={() => { setSelectedCountry('__CARD__'); setOperator('card'); }}
+                label={t('depositModal.chooseCountry')}
+              />
+            ) : (
+              <>
+                {useCountryStep && (
+                  <TouchableOpacity
+                    onPress={() => { setSelectedCountry(null); setOperator(''); }}
+                    style={styles.changeCountryBtn}
+                  >
+                    <FontAwesome6 name="arrow-left" size={12} color={Colors.secondary} />
+                    <Text style={styles.changeCountryText}>{t('depositModal.changeCountry')}</Text>
+                  </TouchableOpacity>
+                )}
+                {isDesktop ? (
               <View style={styles.operatorChipGrid}>
-                {displayOperators.map((op) => (
+                {operatorsForStep.map((op) => (
                   <TouchableOpacity
                     key={op.id}
                     style={[
@@ -445,7 +478,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
                 style={styles.operatorScroll}
                 contentContainerStyle={styles.operatorScrollContent}
               >
-                {displayOperators.map((op) => (
+                {operatorsForStep.map((op) => (
                   <TouchableOpacity
                     key={op.id}
                     style={[
@@ -468,6 +501,8 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
                   </TouchableOpacity>
                 ))}
               </ScrollView>
+                )}
+              </>
             )}
 
             <Input
@@ -671,6 +706,20 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: FontSize.sm,
     fontFamily: Fonts.semiBold,
     marginBottom: Spacing.sm,
+  },
+  changeCountryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    marginBottom: Spacing.sm,
+  },
+  changeCountryText: {
+    color: Colors.secondary,
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.semiBold,
   },
   operatorScroll: {
     marginBottom: Spacing.md,
