@@ -124,6 +124,15 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
     }
   }, [visible]);
 
+  // Auto-select unique active currency: when the API returns only one rate, preselect it.
+  useEffect(() => {
+    if (!visible) return;
+    if (selectedCurrency) return;
+    if (rates.length === 1 && rates[0]?.code) {
+      setSelectedCurrency(rates[0].code);
+    }
+  }, [visible, rates, selectedCurrency]);
+
   const getBuyRate = (item: CryptoRate): number => {
     if (country === 'NG' && item.buy_rate_ng) return item.buy_rate_ng;
     if (country === 'CM' && item.buy_rate_cm) return item.buy_rate_cm;
