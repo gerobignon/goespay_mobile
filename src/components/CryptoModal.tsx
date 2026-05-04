@@ -251,7 +251,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
       const giveXof = userCurrency === 'XOF' ? numAmountRaw : convertToXof(numAmountRaw);
       // bubuy (live_rate) = USD par unité crypto. rate = XOF par USD. Donc crypto = (XOF/rate)/bubuy.
       const cryptoAmount = (giveXof / rate) / bubuy;
-      return `${t('cryptoModal.youWillReceive')}${cryptoAmount.toFixed(8)} ${formatCurrencyCode(selectedCurrency)}`;
+      return `${t('cryptoModal.youWillReceive')}${cryptoAmount.toFixed(8)} ${getCurrencyName(selectedCurrency)}`;
     } else {
       // User gives crypto, receives XOF → on affiche dans la devise utilisateur
       const rate = getSellRate(selectedRate);
@@ -281,6 +281,13 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
 
   function formatCurrencyCode(code: string): string {
     return (code || '').trim().toUpperCase();
+  }
+
+  function getCurrencyName(code: string): string {
+    if (!code) return '';
+    const normalized = formatCurrencyCode(code);
+    const rate = rates.find((r) => formatCurrencyCode(r.code) === normalized);
+    return rate?.name?.trim() || normalized;
   }
 
   const handlePressSubmit = () => {
@@ -536,7 +543,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                             ]}
                             numberOfLines={1}
                           >
-                            {formatCurrencyCode(item.code)}
+                            {getCurrencyName(item.code)}
                           </Text>
                           <Text style={styles.currencyChipRate} numberOfLines={1}>
                             {tab === 'buy'
@@ -578,7 +585,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                           ]}
                           numberOfLines={1}
                         >
-                          {formatCurrencyCode(item.code)}
+                          {getCurrencyName(item.code)}
                         </Text>
                         <Text style={styles.currencyRate}>
                           {tab === 'buy'
@@ -592,7 +599,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
 
                 {/* Amount */}
                 <Input
-                  label={tab === 'buy' ? t('cryptoModal.amountToPay') : t('cryptoModal.amountIn', { currency: formatCurrencyCode(selectedCurrency) || 'crypto' })}
+                  label={tab === 'buy' ? t('cryptoModal.amountToPay') : t('cryptoModal.amountIn', { currency: getCurrencyName(selectedCurrency) || 'crypto' })}
                   placeholder={tab === 'buy' ? t('cryptoModal.exAmount') : t('cryptoModal.exCryptoAmount')}
                   value={amount}
                   onChangeText={(t) => setAmount(t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
@@ -658,7 +665,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                                 }}
                               >
                                 <Text style={[styles.savedChipText, selected && styles.savedChipTextSelected]} numberOfLines={1}>
-                                  {item.name?.trim() ? `${item.name} · ` : ''}{formatCurrencyCode(item.currency)}: {item.address}
+                                  {item.name?.trim() ? `${item.name} · ` : ''}{getCurrencyName(item.currency)}: {item.address}
                                 </Text>
                               </TouchableOpacity>
                             );
@@ -716,7 +723,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                 {CRYPTO_IMAGES[selectedCurrency] ? (
                   <Image source={CRYPTO_IMAGES[selectedCurrency]} style={styles.confirmCryptoLogo} resizeMode="contain" />
                 ) : null}
-                <Text style={styles.confirmCryptoName}>{formatCurrencyCode(selectedCurrency)}</Text>
+                <Text style={styles.confirmCryptoName}>{getCurrencyName(selectedCurrency)}</Text>
               </View>
             )}
 
@@ -735,7 +742,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
               <>
                 <Text style={styles.confirmAmountLabel}>{t('cryptoModal.amountToSellLabel')}</Text>
                 <Text style={styles.confirmAmount}>{amount}</Text>
-                <Text style={styles.confirmAmountCurrency}>{formatCurrencyCode(selectedCurrency)}</Text>
+                <Text style={styles.confirmAmountCurrency}>{getCurrencyName(selectedCurrency)}</Text>
               </>
             )}
 
@@ -812,7 +819,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                       <Image source={CRYPTO_IMAGES[item.code]} style={{ width: 16, height: 16 }} resizeMode="contain" />
                     ) : null}
                     <Text style={[styles.saveWalletChipText, isSelected && styles.saveWalletChipTextSelected]}>
-                      {formatCurrencyCode(item.code)}
+                      {getCurrencyName(item.code)}
                     </Text>
                   </TouchableOpacity>
                 );
