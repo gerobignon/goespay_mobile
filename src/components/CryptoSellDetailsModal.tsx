@@ -148,7 +148,9 @@ export function CryptoSellDetailsModal({ visible, onClose, data }: CryptoSellDet
 
                   {/* Avertissement */}
                   <View style={styles.warningBox}>
-                    <FontAwesome6 name="triangle-exclamation" size={13} color={Colors.error} solid />
+                    <View style={styles.warningIconWrap}>
+                      <FontAwesome6 name="triangle-exclamation" size={13} color={Colors.error} solid />
+                    </View>
                     <Text style={styles.warningText}>
                       {t('cryptoSellDetails.warning')}
                     </Text>
@@ -185,7 +187,7 @@ export function CryptoSellDetailsModal({ visible, onClose, data }: CryptoSellDet
                       {confirmsNeeded > 0 && (
                         <View style={styles.infoPill}>
                           <FontAwesome6 name="circle-check" size={14} color={Colors.primary} solid />
-                          <View style={{ flex: 1 }}>
+                          <View style={styles.infoPillContent}>
                             <Text style={styles.infoPillLabel}>{t('cryptoSellDetails.confirmsNeeded')}</Text>
                             <Text style={styles.infoPillValue}>{confirmsNeeded}</Text>
                           </View>
@@ -194,7 +196,7 @@ export function CryptoSellDetailsModal({ visible, onClose, data }: CryptoSellDet
                       {!!timeLeft && (
                         <View style={[styles.infoPill, styles.infoPillWarning]}>
                           <FontAwesome6 name="clock" size={14} color={Colors.warning} solid />
-                          <View style={{ flex: 1 }}>
+                          <View style={styles.infoPillContent}>
                             <Text style={styles.infoPillLabel}>{t('cryptoSellDetails.validity')}</Text>
                             <Text style={[styles.infoPillValue, { color: Colors.secondary }]}>
                               {pad(timeLeft.hours)}:{pad(timeLeft.minutes)}:{pad(timeLeft.seconds)}
@@ -369,22 +371,31 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
 
   warningBox: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.error + '12',
+    backgroundColor: Colors.error + '10',
     borderRadius: BorderRadius.md,
-    padding: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
     marginBottom: Spacing.md,
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.error,
+    borderWidth: 1,
+    borderColor: Colors.error + '40',
+    gap: 6,
+  },
+  warningIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.error + '18',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
   },
   warningText: {
-    flex: 1,
     fontSize: FontSize.xs,
     fontFamily: Fonts.semiBold,
     color: Colors.error,
     lineHeight: 18,
+    textAlign: 'center',
   },
 
   qrAddressBlock: {
@@ -421,6 +432,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     marginBottom: 6,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
+    textAlign: 'center',
   },
   addressBox: {
     backgroundColor: Colors.inputBg,
@@ -439,6 +451,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: FontSize.sm,
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
     lineHeight: 20,
+    textAlign: 'center',
   },
   copyBtn: {
     flexDirection: 'row',
@@ -461,13 +474,16 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
 
   infoRow: {
     flexDirection: 'row',
+    justifyContent: 'center',
     gap: Spacing.sm,
     marginBottom: Spacing.md,
   },
   infoPill: {
     flex: 1,
+    maxWidth: 220,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: Spacing.sm,
     borderWidth: 1,
     borderColor: Colors.primary + '40',
@@ -479,16 +495,18 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderColor: Colors.warning + '60',
     backgroundColor: Colors.warning + '10',
   },
-  infoPillLabel: { fontSize: FontSize.xs, color: Colors.textMuted, fontFamily: Fonts.regular },
-  infoPillValue: { fontSize: FontSize.md, color: Colors.primary, fontFamily: Fonts.bold, marginTop: 1 },
+  infoPillLabel: { fontSize: FontSize.xs, color: Colors.textMuted, fontFamily: Fonts.regular, textAlign: 'center' },
+  infoPillValue: { fontSize: FontSize.md, color: Colors.primary, fontFamily: Fonts.bold, marginTop: 1, textAlign: 'center' },
+  infoPillContent: { alignItems: 'center' },
 
   noteBox: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: Spacing.sm,
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.md,
     padding: Spacing.sm,
   },
-  noteText: { flex: 1, fontSize: FontSize.xs, color: Colors.textMuted, fontFamily: Fonts.regular, lineHeight: 18 },
+  noteText: { fontSize: FontSize.xs, color: Colors.textMuted, fontFamily: Fonts.regular, lineHeight: 18, textAlign: 'center', flexShrink: 1 },
 });
