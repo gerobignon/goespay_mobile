@@ -280,11 +280,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
   }
 
   function formatCurrencyCode(code: string): string {
-    const normalized = (code || '').trim().toUpperCase();
-    if (normalized === 'BNB.BSC') return 'BNB';
-    if (normalized === 'USDT.TRC20') return 'USDT';
-    if (normalized === 'BUSD.BEP20') return 'BUSD';
-    return normalized;
+    return (code || '').trim().toUpperCase();
   }
 
   const handlePressSubmit = () => {
