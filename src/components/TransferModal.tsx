@@ -43,7 +43,7 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
-  const { isDesktop } = useResponsive();
+  const { isDesktop, isWide } = useResponsive();
 
   const [amount, setAmount] = useState('');
   const [operator, setOperator] = useState('');
@@ -252,10 +252,10 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
     <ResponsiveModal visible={visible} onClose={handleClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: Platform.OS === 'web' ? undefined : 1 }}
+        style={{ flex: (Platform.OS === 'web' && isWide) ? undefined : 1 }}
         enabled={Platform.OS !== 'web'}
       >
-          <View style={[styles.sheet, { flex: Platform.OS === 'web' ? undefined : 1, paddingBottom: Math.max(insets.bottom, Spacing.lg), paddingTop: Spacing.lg }]}>
+          <View style={[styles.sheet, { flex: (Platform.OS === 'web' && isWide) ? undefined : 1, paddingBottom: Math.max(insets.bottom, Spacing.lg), paddingTop: Spacing.lg }]}>
           <View style={styles.header}>
             <Text style={styles.title}>{t('transferModal.title2')}</Text>
             <TouchableOpacity onPress={handleClose}>
@@ -276,7 +276,6 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
                 <Text style={styles.kycBannerText}>{t('transferModal.kycRequired')}</Text>
               </View>
             )}
-            <Text style={styles.operatorLabel}>{t('transferModal.chooseOperator')}</Text>
             {!selectedCountry ? (
               <CountryPickerStep
                 operators={displayOperators}
@@ -285,6 +284,7 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
               />
             ) : (
               <>
+                <Text style={styles.operatorLabel}>{t('transferModal.chooseOperator')}</Text>
                 <TouchableOpacity
                   onPress={() => { setSelectedCountry(null); setOperator(''); }}
                   style={styles.changeCountryBtn}

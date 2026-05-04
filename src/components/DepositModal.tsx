@@ -47,7 +47,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
-  const { isDesktop } = useResponsive();
+  const { isDesktop, isWide } = useResponsive();
 
   const [amount, setAmount] = useState('');
   const [operator, setOperator] = useState('');
@@ -364,10 +364,10 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
     <ResponsiveModal visible={visible} onClose={handleClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: Platform.OS === 'web' ? undefined : 1 }}
+        style={{ flex: (Platform.OS === 'web' && isWide) ? undefined : 1 }}
         enabled={Platform.OS !== 'web'}
       >
-          <View style={[styles.sheet, { flex: Platform.OS === 'web' ? undefined : 1, paddingBottom: Math.max(insets.bottom, Spacing.lg), paddingTop: Spacing.lg }]}>
+          <View style={[styles.sheet, { flex: (Platform.OS === 'web' && isWide) ? undefined : 1, paddingBottom: Math.max(insets.bottom, Spacing.lg), paddingTop: Spacing.lg }]}>
               <View style={styles.header}>
                 <Text style={styles.title}>{t('depositModal.title')}</Text>
                 <TouchableOpacity onPress={handleClose}>
@@ -425,7 +425,6 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
                 <Text style={styles.kycBannerText}>{t('depositModal.kycRequired')}</Text>
               </View>
             )}
-            <Text style={styles.operatorLabel}>{t('depositModal.chooseOperator')}</Text>
             {useCountryStep && !selectedCountry ? (
               <CountryPickerStep
                 operators={displayOperators}
@@ -437,6 +436,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
               />
             ) : (
               <>
+                <Text style={styles.operatorLabel}>{t('depositModal.chooseOperator')}</Text>
                 {useCountryStep && (
                   <TouchableOpacity
                     onPress={() => { setSelectedCountry(null); setOperator(''); }}
