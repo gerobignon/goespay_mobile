@@ -232,7 +232,6 @@
     "appearance": "Apparence",
     "customization": "Personnalisation",
     "theme": "Thème",
-    "currency": "Devise",
     "currencyDesc": "Devise utilisée pour afficher les montants",
     "currencyAuto": "Automatique (selon votre pays)",
     "currencyAutoTag": "Auto",
@@ -581,5 +580,24 @@
     "noFilleuls": "Aucun filleul pour le moment.",
     "noCommissions": "Aucune commission pour le moment.",
     "loadError": "Impossible de charger les données."
+  },
+  "countries": {
+    "BF": "Burkina Faso",
+    "BJ": "Bénin",
+    "CD": "République démocratique du Congo",
+    "CF": "République centrafricaine",
+    "CG": "République du Congo",
+    "CI": "Côte d'Ivoire",
+    "CM": "Cameroun",
+    "GA": "Gabon",
+    "GM": "Gambie",
+    "GN": "Guinée",
+    "GW": "Guinée-Bissau",
+    "ML": "Mali",
+    "NE": "Niger",
+    "SN": "Sénégal",
+    "TD": "Tchad",
+    "TG": "Togo",
+    "NG": "Nigeria"
   }
 }

@@ -35,11 +35,14 @@ export function CountryPickerStep({ operators, showCardTile, cardLabel, onSelect
       if (op.id === 'card') return;
       if (!map.has(op.country)) {
         const c = ALL_COUNTRIES.find((x) => x.code === op.country);
-        map.set(op.country, { code: op.country, flag: op.flag, name: c?.name ?? op.country });
+        // i18n : `countries.<ISO>` ; fallback sur le nom anglais de ALL_COUNTRIES.
+        const fallback = c?.name ?? op.country;
+        const translated = t(`countries.${op.country}`, { defaultValue: fallback });
+        map.set(op.country, { code: op.country, flag: op.flag, name: translated });
       }
     });
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [operators]);
+  }, [operators, t]);
 
   const Tiles = (
     <>
