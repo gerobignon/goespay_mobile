@@ -14,8 +14,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { ScreenBackground } from '../src/components/ScreenBackground';
+import { useResponsive } from '../src/hooks/useResponsive';
 import { FontAwesome6 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { authService } from '../src/services/authService';
@@ -41,6 +41,7 @@ export default function KycScreen() {
   const { user, refreshProfile } = useAuthStore();
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();
+  const { contentMaxWidth } = useResponsive();
 
   const DOC_TYPES = DOC_TYPES_KEYS.map((d) => ({ value: d.value, label: t(d.key) }));
 
@@ -49,7 +50,10 @@ export default function KycScreen() {
   const [city, setCity] = useState(user?.city ?? '');
   const [address, setAddress] = useState(user?.address ?? '');
   const [idnumber, setIdnumber] = useState(user?.idnumber ?? '');
-  const [idexp, setIdexp] = useState(user?.idexp ?? '');
+  // Date d'expiration : mois + année séparés
+  const existingParts = (user?.idexp ?? '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  const [idexpMonth, setIdexpMonth] = useState(existingParts ? existingParts[2] : '');
+  const [idexpYear, setIdexpYear] = useState(existingParts ? existingParts[3] : '');
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [telegram, setTelegram] = useState(user?.telegram ?? '');
 
@@ -58,7 +62,6 @@ export default function KycScreen() {
   const [fileUri, setFileUri] = useState<string | null>(null);
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Country picker modal
   const [countryModalVisible, setCountryModalVisible] = useState(false);
@@ -98,7 +101,11 @@ export default function KycScreen() {
     if (!city.trim()) { showAlert('Erreur', 'Veuillez entrer votre ville.'); return; }
     if (!address.trim()) { showAlert('Erreur', 'Veuillez entrer votre adresse.'); return; }
     if (!idnumber.trim()) { showAlert('Erreur', 'Veuillez entrer le numéro de votre pièce.'); return; }
-    if (!idexp.trim()) { showAlert('Erreur', "Veuillez entrer la date d'expiration."); return; }
+    if (!idexpMonth.trim() || !idexpYear.trim()) { showAlert('Erreur', "Veuillez entrer la date d'expiration."); return; }
+    const monthNum = parseInt(idexpMonth, 10);
+    if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) { showAlert('Erreur', 'Mois invalide (1-12).'); return; }
+    if (idexpYear.length !== 4) { showAlert('Erreur', 'Année invalide (4 chiffres).'); return; }
+    const idexp = `${idexpMonth.padStart(2, '0')}/${idexpYear}`;
     if (!phone.trim()) { showAlert('Erreur', 'Veuillez entrer votre numéro de téléphone.'); return; }
     if (!docType) { showAlert('Erreur', 'Veuillez choisir un type de document.'); return; }
     if (!fileUri) { showAlert('Erreur', "Veuillez ajouter la photo de votre pièce d'identité."); return; }
@@ -217,7 +224,7 @@ export default function KycScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
+        <View style={{ maxWidth: contentMaxWidth, width: '100%', alignSelf: 'center' }}>
           <TouchableOpacity onPress={() => router.back()}>
             <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
           </TouchableOpacity>
@@ -271,62 +278,25 @@ export default function KycScreen() {
 
           {/* Date d'expiration */}
           <Text style={styles.fieldLabel}>{t('kyc.expiryDate')}</Text>
-          <TouchableOpacity
-            style={styles.countryPicker}
-            onPress={() => setShowDatePicker(true)}
-            activeOpacity={0.7}
-          >
-            <Text style={idexp ? styles.countryPickerText : styles.countryPickerPlaceholder}>
-              {idexp || t('kyc.selectDate')}
-            </Text>
-            <FontAwesome6 name="calendar" size={14} color={Colors.textMuted} />
-          </TouchableOpacity>
-          {showDatePicker && (
-            Platform.OS === 'ios' ? (
-              <Modal transparent animationType="slide">
-                <View style={styles.dateModalOverlay}>
-                  <View style={styles.dateModalContent}>
-                    <View style={styles.dateModalHeader}>
-                      <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                        <Text style={styles.dateModalDone}>OK</Text>
-                      </TouchableOpacity>
-                    </View>
-                    <DateTimePicker
-                      value={idexp ? new Date(idexp.split('/').reverse().join('-')) : new Date()}
-                      mode="date"
-                      display="spinner"
-                      minimumDate={new Date()}
-                      themeVariant="dark"
-                      onChange={(_, date) => {
-                        if (date) {
-                          const d = date.getDate().toString().padStart(2, '0');
-                          const m = (date.getMonth() + 1).toString().padStart(2, '0');
-                          const y = date.getFullYear();
-                          setIdexp(`${d}/${m}/${y}`);
-                        }
-                      }}
-                    />
-                  </View>
-                </View>
-              </Modal>
-            ) : (
-              <DateTimePicker
-                value={idexp ? new Date(idexp.split('/').reverse().join('-')) : new Date()}
-                mode="date"
-                display="default"
-                minimumDate={new Date()}
-                onChange={(_, date) => {
-                  setShowDatePicker(false);
-                  if (date) {
-                    const d = date.getDate().toString().padStart(2, '0');
-                    const m = (date.getMonth() + 1).toString().padStart(2, '0');
-                    const y = date.getFullYear();
-                    setIdexp(`${d}/${m}/${y}`);
-                  }
-                }}
+          <View style={styles.expiryRow}>
+            <View style={styles.expiryField}>
+              <Input
+                placeholder="MM"
+                value={idexpMonth}
+                onChangeText={(v) => setIdexpMonth(v.replace(/[^0-9]/g, '').slice(0, 2))}
+                keyboardType="number-pad"
               />
-            )
-          )}
+            </View>
+            <Text style={styles.expirySep}>/</Text>
+            <View style={styles.expiryFieldWide}>
+              <Input
+                placeholder="AAAA"
+                value={idexpYear}
+                onChangeText={(v) => setIdexpYear(v.replace(/[^0-9]/g, '').slice(0, 4))}
+                keyboardType="number-pad"
+              />
+            </View>
+          </View>
 
           {/* Téléphone */}
           <Text style={styles.fieldLabel}>{t('kyc.whatsapp')} {prefix ? `(${prefix})` : ''}</Text>
@@ -440,7 +410,7 @@ export default function KycScreen() {
           onPress={handleSubmit}
           icon="fingerprint"
           loading={loading}
-          disabled={!docType || !fileUri || !selfieUri || !city || !address || !idnumber || !idexp || !phone}
+          disabled={!docType || !fileUri || !selfieUri || !city || !address || !idnumber || !idexpMonth || !idexpYear || !phone}
           style={{ marginTop: Spacing.xl, marginBottom: Spacing.xxl }}
         />
 
@@ -452,6 +422,7 @@ export default function KycScreen() {
           <FontAwesome6 name="rectangle-xmark" size={14} color={Colors.textMuted} />
           <Text style={styles.laterText}>{t('common.completeLater')}</Text>
         </TouchableOpacity>
+        </View>{/* /maxWidth wrapper */}
       </ScrollView>\n      </KeyboardAvoidingView>
 
       {/* Country picker modal */}
@@ -541,28 +512,21 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     marginTop: Spacing.lg,
     marginBottom: Spacing.sm,
   },
-  // Date picker modal (iOS)
-  dateModalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  dateModalContent: {
-    backgroundColor: Colors.background,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingBottom: Spacing.xl,
-  },
-  dateModalHeader: {
+  // Date d'expiration : deux champs côte à côte
+  expiryRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    padding: Spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.border,
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
-  dateModalDone: {
-    color: Colors.primary,
-    fontSize: FontSize.md,
+  expiryField: {
+    width: 80,
+  },
+  expiryFieldWide: {
+    flex: 1,
+  },
+  expirySep: {
+    fontSize: FontSize.lg,
+    color: Colors.textMuted,
     fontFamily: Fonts.bold,
   },
   // Field labels & country picker
