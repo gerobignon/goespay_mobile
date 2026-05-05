@@ -10,7 +10,6 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  Linking,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { ResponsiveModal } from './ResponsiveModal';
@@ -23,6 +22,7 @@ import { TRANSACTION_STATUS, getTransactionStatus } from '../constants/config';
 import { formatCurrency, formatDate, useFormatXof, useCurrencyCode } from '../utils/format';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
+import { downloadInvoice } from '../utils/invoice';
 import type { Transaction } from '../types';
 
 const CRYPTO_STATUS_STATIC: Record<string | number, { color: string; icon: string }> = {
@@ -70,6 +70,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
   const [showNote, setShowNote] = useState(false);
   const [noteMessage, setNoteMessage] = useState('');
   const [noteLoading, setNoteLoading] = useState(false);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
 
   useEffect(() => {
     if (!visible) {
@@ -139,6 +140,17 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
     }
   };
 
+  const handleDownloadInvoice = async (type: 'deposit' | 'withdraw' | 'crypto', id: number) => {
+    setInvoiceLoading(true);
+    try {
+      await downloadInvoice(type, id);
+    } catch {
+      showAlert('Erreur', 'Impossible de générer la facture.');
+    } finally {
+      setInvoiceLoading(false);
+    }
+  };
+
   const renderContent = () => {
     if (loading) {
       return (
@@ -155,10 +167,11 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
       return (
         <>
           <View style={styles.actionRow}>
-            {tx.statut === 'success' && tx.reference && (
+            {tx.statut === 'success' && (
               <TouchableOpacity
-                style={styles.invoiceBtn}
-                onPress={() => Linking.openURL(`https://paydunya.com/checkout/receipt/pdf/${tx.reference}.pdf`)}
+                style={[styles.invoiceBtn, invoiceLoading && { opacity: 0.6 }]}
+                onPress={() => handleDownloadInvoice('deposit', tx.id)}
+                disabled={invoiceLoading}
                 activeOpacity={0.7}
               >
                 <FontAwesome6 name="file-invoice-dollar" size={12} color={Colors.white} />
@@ -281,6 +294,17 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
       return (
         <>
           <View style={styles.actionRow}>
+            {tx.statut === 'success' && (
+              <TouchableOpacity
+                style={[styles.invoiceBtn, invoiceLoading && { opacity: 0.6 }]}
+                onPress={() => handleDownloadInvoice('withdraw', tx.id)}
+                disabled={invoiceLoading}
+                activeOpacity={0.7}
+              >
+                <FontAwesome6 name="file-invoice-dollar" size={12} color={Colors.white} />
+                <Text style={styles.invoiceBtnText}>{t('transaction.viewInvoice')}</Text>
+              </TouchableOpacity>
+            )}
             {tx.statut !== 'success' && (
               <TouchableOpacity style={styles.claimBtn} onPress={() => setShowClaim(!showClaim)} activeOpacity={0.7}>
                 <FontAwesome6 name="triangle-exclamation" size={12} color={Colors.white} />
@@ -421,6 +445,17 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
       return (
         <>
           <View style={styles.actionRow}>
+            {(tx.statut === 'success' || tx.statut === 1) && (
+              <TouchableOpacity
+                style={[styles.invoiceBtn, invoiceLoading && { opacity: 0.6 }]}
+                onPress={() => handleDownloadInvoice('crypto', tx.id)}
+                disabled={invoiceLoading}
+                activeOpacity={0.7}
+              >
+                <FontAwesome6 name="file-invoice-dollar" size={12} color={Colors.white} />
+                <Text style={styles.invoiceBtnText}>{t('transaction.viewInvoice')}</Text>
+              </TouchableOpacity>
+            )}
             {tx.statut !== 'success' && tx.statut !== 1 && (
               <TouchableOpacity style={styles.claimBtn} onPress={() => setShowClaim(!showClaim)} activeOpacity={0.7}>
                 <FontAwesome6 name="triangle-exclamation" size={12} color={Colors.white} />

@@ -23,6 +23,7 @@ import { TransactionDetailRow } from '../../../src/components/TransactionDetailR
 import { TRANSACTION_STATUS, getTransactionStatus } from '../../../src/constants/config';
 import { formatCurrency, formatDate, useFormatXof, useCurrencyCode } from '../../../src/utils/format';
 import { shareReceipt } from '../../../src/utils/receipt';
+import { downloadInvoice } from '../../../src/utils/invoice';
 import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../../../src/constants/theme';
 import type { ColorPalette } from '../../../src/constants/theme';
 import { useThemedStyles } from '../../../src/hooks/useThemedStyles';
@@ -116,7 +117,7 @@ export default function WithdrawDetailScreen() {
               style={[styles.invoiceBtn, invoiceLoading && { opacity: 0.6 }]}
               onPress={async () => {
                 setInvoiceLoading(true);
-                try { await shareReceipt(tx, 'withdraw'); } catch { showAlert('Erreur', 'Impossible de générer le reçu.'); }
+                try { await downloadInvoice('withdraw', tx.id); } catch { showAlert('Erreur', 'Impossible de générer le reçu.'); }
                 finally { setInvoiceLoading(false); }
               }}
               activeOpacity={0.7}

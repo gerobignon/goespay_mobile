@@ -18,6 +18,7 @@ import { walletService } from '../../../src/services/walletService';
 import { Card } from '../../../src/components/Card';
 import { formatCurrency, formatDate, useFormatXof, useCurrencyCode } from '../../../src/utils/format';
 import { shareReceipt } from '../../../src/utils/receipt';
+import { downloadInvoice } from '../../../src/utils/invoice';
 import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../../../src/constants/theme';
 import type { ColorPalette } from '../../../src/constants/theme';
 import { useThemedStyles } from '../../../src/hooks/useThemedStyles';
@@ -134,7 +135,7 @@ export default function CryptoDetailScreen() {
               style={[styles.invoiceBtn, invoiceLoading && { opacity: 0.6 }]}
               onPress={async () => {
                 setInvoiceLoading(true);
-                try { await shareReceipt(tx, 'crypto'); } catch { showAlert('Erreur', 'Impossible de générer le reçu.'); }
+                try { await downloadInvoice('crypto', tx.id); } catch { showAlert('Erreur', 'Impossible de générer le reçu.'); }
                 finally { setInvoiceLoading(false); }
               }}
               activeOpacity={0.7}
