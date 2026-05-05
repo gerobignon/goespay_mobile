@@ -311,7 +311,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
     if (!numAmount || numAmount < depositMin) {
       showAlert(
         t('common.error'),
-        `${t('depositModal.minAmount')} (${fmtXof(depositMin)})`
+        `${t('depositModal.minAmount')} ${fmtXof(depositMin)}`
       );
       return;
     }
@@ -506,7 +506,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
             )}
 
             <Input
-              label={t('depositModal.amountLabel')}
+              label={t('depositModal.amountLabel', { currency: userCurrency })}
               placeholder={`${t('depositModal.minDeposit')} : ${fmtXof(depositMin)}`}
               value={amount}
               onChangeText={(t) => setAmount(t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}

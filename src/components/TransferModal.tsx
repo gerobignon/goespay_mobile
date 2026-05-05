@@ -350,7 +350,7 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
             </View>
 
             <Input
-              label={t('transferModal.amountLabel')}
+              label={t('transferModal.amountLabel', { currency: userCurrency })}
               placeholder={t('transferModal.amountPlaceholder')}
               value={amount}
               onChangeText={(t) => setAmount(t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
@@ -447,11 +447,6 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
             <Text style={styles.confirmAmountLabel}>{t('transferModal.amountSent')}</Text>
             <Text style={styles.confirmAmount}>{fmtXof(numAmount, { withCode: false })}</Text>
             <Text style={styles.confirmAmountCurrency}>{userCurrency}</Text>
-            {userCurrency !== 'XOF' && (
-              <Text style={[styles.confirmSubtitle, { marginTop: 4 }]}>
-                ≈ {numAmount.toLocaleString('fr-FR')} XOF
-              </Text>
-            )}
 
             <Text style={styles.confirmPhoneLabel}>{t('transferModal.recipient')}</Text>
             <Text style={styles.confirmPhone}>{phone || '—'}</Text>

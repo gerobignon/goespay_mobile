@@ -103,7 +103,7 @@ export default function AffiliationScreen() {
     if (!stats || stats.unpayed <= 0) return;
     showAlert(
       t('affiliation.claimTitle', 'Réclamer les commissions'),
-      t('affiliation.claimConfirm', { amount: fmtXof(stats.unpayed, { withCode: false }), defaultValue: `Transférer ${fmtXof(stats.unpayed)} sur votre solde ?` }),
+      t('affiliation.claimConfirm', { amount: fmtXof(stats.unpayed), defaultValue: `Transférer ${fmtXof(stats.unpayed)} sur votre solde ?` }),
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
@@ -194,7 +194,7 @@ export default function AffiliationScreen() {
       {(stats?.unpayed ?? 0) > 0 && (
         <View style={styles.formCard}>
           <Text style={styles.sectionLabel}>{t('affiliation.claimSection', 'Réclamer mes commissions')}</Text>
-          <Text style={styles.helperText}>{t('affiliation.claimHelper', { amount: fmtXof(stats?.unpayed ?? 0, { withCode: false }), defaultValue: `Vous avez ${fmtXof(stats?.unpayed ?? 0)} de commissions en attente.` })}</Text>
+          <Text style={styles.helperText}>{t('affiliation.claimHelper', { amount: fmtXof(stats?.unpayed ?? 0), defaultValue: `Vous avez ${fmtXof(stats?.unpayed ?? 0)} de commissions en attente.` })}</Text>
           <Button
             title={t('affiliation.claim', 'Réclamer')}
             icon="wallet"

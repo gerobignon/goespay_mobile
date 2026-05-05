@@ -599,7 +599,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
 
                 {/* Amount */}
                 <Input
-                  label={tab === 'buy' ? t('cryptoModal.amountToPay') : t('cryptoModal.amountIn', { currency: getCurrencyName(selectedCurrency) || 'crypto' })}
+                  label={tab === 'buy' ? t('cryptoModal.amountToPay', { currency: userCurrency }) : t('cryptoModal.amountIn', { currency: getCurrencyName(selectedCurrency) || 'crypto' })}
                   placeholder={tab === 'buy' ? t('cryptoModal.exAmount') : t('cryptoModal.exCryptoAmount')}
                   value={amount}
                   onChangeText={(t) => setAmount(t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
@@ -732,11 +732,6 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                 <Text style={styles.confirmAmountLabel}>{t('cryptoModal.amountToPayLabel')}</Text>
                 <Text style={styles.confirmAmount}>{parseFloat(amount || '0').toLocaleString('fr-FR').replace(/\s/g, '.')}</Text>
                 <Text style={styles.confirmAmountCurrency}>{userCurrency}</Text>
-                {userCurrency !== 'XOF' && (
-                  <Text style={[styles.confirmSubtitle, { marginTop: 4 }]}>
-                    ≈ {convertToXof(parseFloat(amount || '0')).toLocaleString('fr-FR')} XOF
-                  </Text>
-                )}
               </>
             ) : (
               <>
