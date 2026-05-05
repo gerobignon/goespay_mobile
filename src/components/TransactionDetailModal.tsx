@@ -522,7 +522,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   root: {
-    flex: Platform.OS === 'web' ? undefined : 1,
+    flex: 1,
     backgroundColor: Colors.background,
   },
   header: {
@@ -540,7 +540,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.text,
   },
   scroll: {
-    flex: Platform.OS === 'web' ? undefined : 1,
+    flex: 1,
   },
   scrollContent: {
     padding: Spacing.lg,
