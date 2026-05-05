@@ -32,7 +32,7 @@ import {
   BorderRadius,
   Fonts,
 } from '../../src/constants/theme';
-import { API_BASE_URL } from '../../src/constants/config';
+import { API_BASE_URL, COUNTRIES } from '../../src/constants/config';
 import { DepositModal } from '../../src/components/DepositModal';
 import { TransferModal } from '../../src/components/TransferModal';
 import { CryptoModal } from '../../src/components/CryptoModal';
@@ -63,7 +63,8 @@ export default function DashboardScreen() {
   const { logout } = useAuthStore();
   const { deposit_enabled, transfer_enabled, crypto_buy_enabled, crypto_sell_enabled, fetchConfig } = useConfigStore();
   const isAdmin = user?.group === 'admin';
-  const isCryptoUser = isAdmin || user?.group === 'crypto';
+  const isSupportedCountry = user?.country ? COUNTRIES.some((c) => c.code === user.country) : false;
+  const isCryptoUser = isAdmin || user?.group === 'crypto' || isSupportedCountry;
   // L'admin voit tous les services même désactivés (un bandeau s'affiche dans le modal concerné).
   const showDeposit = isAdmin || deposit_enabled;
   const showTransfer = isAdmin || transfer_enabled;
@@ -181,7 +182,17 @@ export default function DashboardScreen() {
         {user?.validate !== 1 && (
           <KycBanner
             status={user?.validate as 0 | 2}
+            expired={user?.validate === 0 && !!user?.idexp_expired}
             onPress={user?.validate === 0 ? () => router.push('/kyc') : undefined}
+          />
+        )}
+        {/* KYC Expiring soon (validate=1 mais <=30j) */}
+        {user?.validate === 1 && user?.idexp_warning && (
+          <KycBanner
+            status={0}
+            expiringSoon
+            daysLeft={user?.idexp_days_left ?? null}
+            onPress={() => router.push('/kyc')}
           />
         )}
 

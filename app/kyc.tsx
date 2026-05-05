@@ -49,7 +49,16 @@ export default function KycScreen() {
   const [city, setCity] = useState(user?.city ?? '');
   const [address, setAddress] = useState(user?.address ?? '');
   const [idnumber, setIdnumber] = useState(user?.idnumber ?? '');
-  const [idexp, setIdexp] = useState(user?.idexp ?? '');
+  // idexp stocké en DD/MM/YYYY pour l'affichage. Backend attend YYYY-MM-DD.
+  const idexpFromUser = (() => {
+    const v = user?.idexp ?? '';
+    if (!v) return '';
+    // YYYY-MM-DD → DD/MM/YYYY
+    const m = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+    return v;
+  })();
+  const [idexp, setIdexp] = useState(idexpFromUser);
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [telegram, setTelegram] = useState(user?.telegram ?? '');
 
@@ -106,13 +115,18 @@ export default function KycScreen() {
 
     setLoading(true);
     try {
+      // Convert DD/MM/YYYY → YYYY-MM-DD for backend
+      const idexpIso = (() => {
+        const m = idexp.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        return m ? `${m[3]}-${m[2]}-${m[1]}` : idexp.trim();
+      })();
       await authService.uploadKyc(
         {
           type: docType,
           city: city.trim(),
           address: address.trim(),
           idnumber: idnumber.trim(),
-          idexp: idexp.trim(),
+          idexp: idexpIso,
           phone: phone.trim(),
           country,
           telegram: telegram.trim(),
@@ -295,7 +309,7 @@ export default function KycScreen() {
                       value={idexp ? new Date(idexp.split('/').reverse().join('-')) : new Date()}
                       mode="date"
                       display="spinner"
-                      minimumDate={new Date()}
+                      minimumDate={new Date(Date.now() + 24*60*60*1000)}
                       themeVariant="dark"
                       onChange={(_, date) => {
                         if (date) {
@@ -314,7 +328,7 @@ export default function KycScreen() {
                 value={idexp ? new Date(idexp.split('/').reverse().join('-')) : new Date()}
                 mode="date"
                 display="default"
-                minimumDate={new Date()}
+                minimumDate={new Date(Date.now() + 24*60*60*1000)}
                 onChange={(_, date) => {
                   setShowDatePicker(false);
                   if (date) {

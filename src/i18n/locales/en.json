@@ -191,6 +191,8 @@
     "address": "Address",
     "idNumber": "ID number",
     "idExpiry": "Expiry date",
+    "expired": "Expired",
+    "daysLeft": "{{days}} days left",
     "telegram": "Telegram",
     "savedPhones": "Saved numbers",
     "noPhones": "No saved numbers.",
@@ -552,7 +554,12 @@
     "identityCard": "Identity card",
     "driverLicense": "Driver's license",
     "pendingReview": "Your documents are being reviewed. Please wait.",
-    "notValidated": "Your account is not yet verified. Verify your identity."
+    "notValidated": "Your account is not yet verified. Verify your identity.",
+    "expiredMessage": "Your ID document has expired. Please renew your KYC.",
+    "expiringSoon": "Your ID document expires in {{days}} day(s). Renew now.",
+    "expiringSoonGeneric": "Your ID document expires soon. Renew now.",
+    "blockedExpired": "Your ID document has expired. You must renew your KYC to continue.",
+    "blockedRequired": "Your KYC must be validated to perform this operation."
   },
   "layout": {
     "connectionError": "Connection failed",

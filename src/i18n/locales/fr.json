@@ -191,6 +191,8 @@
     "address": "Adresse",
     "idNumber": "N° pièce d'identité",
     "idExpiry": "Date d'expiration",
+    "expired": "Expirée",
+    "daysLeft": "{{days}} j restants",
     "telegram": "Telegram",
     "savedPhones": "Numéros enregistrés",
     "noPhones": "Aucun numéro enregistré.",
@@ -552,7 +554,12 @@
     "identityCard": "Carte d'identité",
     "driverLicense": "Permis de conduire",
     "pendingReview": "Votre dossier est en cours de vérification. Veuillez patienter.",
-    "notValidated": "Votre compte n'est pas encore validé. Vérifiez votre identité."
+    "notValidated": "Votre compte n'est pas encore validé. Vérifiez votre identité.",
+    "expiredMessage": "Votre pièce d'identité a expiré. Renouvelez votre KYC.",
+    "expiringSoon": "Votre pièce d'identité expire dans {{days}} jour(s). Renouvelez maintenant.",
+    "expiringSoonGeneric": "Votre pièce d'identité expire bientôt. Renouvelez maintenant.",
+    "blockedExpired": "Votre pièce d'identité a expiré. Vous devez renouveler votre KYC pour continuer.",
+    "blockedRequired": "Votre KYC doit être validé pour effectuer cette opération."
   },
   "layout": {
     "connectionError": "Connexion impossible",

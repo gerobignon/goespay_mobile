@@ -142,7 +142,19 @@ export default function ProfileScreen() {
                   <Input label={t('account.idNumber')} value={user.idnumber} editable={false} />
                 ) : null}
                 {user?.idexp ? (
-                  <Input label={t('account.idExpiry')} value={user.idexp} editable={false} />
+                  <Input
+                    label={t('account.idExpiry')}
+                    value={(() => {
+                      const m = (user.idexp || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+                      const display = m ? `${m[3]}/${m[2]}/${m[1]}` : (user.idexp || '');
+                      if (user.idexp_expired) return `${display}  •  ⚠️ ${t('account.expired')}`;
+                      if (user.idexp_warning && typeof user.idexp_days_left === 'number') {
+                        return `${display}  •  ${t('account.daysLeft', { days: user.idexp_days_left })}`;
+                      }
+                      return display;
+                    })()}
+                    editable={false}
+                  />
                 ) : null}
                 <Input
                   label={t('account.telegram')}

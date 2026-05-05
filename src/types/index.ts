@@ -11,6 +11,9 @@ export interface User {
   address?: string;
   idnumber?: string;
   idexp?: string;
+  idexp_expired?: boolean;
+  idexp_days_left?: number | null;
+  idexp_warning?: boolean;
   avatar?: string;
   balance?: number;
   validate: 0 | 1 | 2;
