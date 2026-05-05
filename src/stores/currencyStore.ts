@@ -8,11 +8,11 @@ const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
 
 // Décimales par devise (rule canonique #8)
 const DECIMALS: Record<string, number> = {
-  XOF: 0, XAF: 0, GNF: 0, SLE: 0, LRD: 0,
+  XOF: 0, XAF: 0, GNF: 0, SLE: 0, LRD: 0, CDF: 0,
   NGN: 2, GHS: 2, GMD: 2, USD: 2, EUR: 2,
 };
 
-const SUPPORTED = ['XOF', 'XAF', 'NGN', 'GHS', 'GMD', 'SLE', 'LRD', 'GNF', 'USD', 'EUR'] as const;
+const SUPPORTED = ['XOF', 'XAF', 'NGN', 'GHS', 'GMD', 'SLE', 'LRD', 'GNF', 'CDF', 'USD', 'EUR'] as const;
 export type SupportedCurrency = typeof SUPPORTED[number];
 
 interface RatesResponse {
