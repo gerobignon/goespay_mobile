@@ -415,10 +415,10 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
     <ResponsiveModal visible={visible} onClose={handleClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: Platform.OS === 'web' ? undefined : 1 }}
+        style={{ flex: 1 }}
         enabled={Platform.OS !== 'web'}
       >
-          <View style={[styles.sheet, { flex: Platform.OS === 'web' ? undefined : 1, paddingBottom: Math.max(insets.bottom, Spacing.lg), paddingTop: Spacing.lg }]}>
+          <View style={[styles.sheet, { flex: 1, paddingBottom: Math.max(insets.bottom, Spacing.lg), paddingTop: Spacing.lg }]}>
               <View style={styles.header}>
                 <Text style={styles.title}>{t('transaction.crypto')}</Text>
                 <TouchableOpacity onPress={handleClose}>
@@ -468,7 +468,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
             )}
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
             {isAdmin && !buyEnabled && !sellEnabled && (
               <AdminDisabledBanner message={t('admin.bannerCryptoBoth')} />
             )}
@@ -605,7 +605,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                   placeholder={tab === 'buy' ? `Min. ${fmtXof(selectedCurrency === 'BTC' ? cryptoBuyMinBtc : cryptoBuyMinDefault)}` : t('cryptoModal.exCryptoAmount')}
                   value={amount}
                   onChangeText={(t) => setAmount(t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
-                  keyboardType="numeric"
+                  keyboardType="decimal-pad"
                 />
 
                 {/* Conversion preview */}
@@ -638,6 +638,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                         icon="bookmark"
                         title={t('account.addWallet')}
                         onPress={saveCurrentWallet}
+                        disabled={!!existingSelectedWallet}
                         style={styles.saveBtnSmall}
                         textStyle={styles.saveBtnText}
                       />

@@ -364,10 +364,10 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
     <ResponsiveModal visible={visible} onClose={handleClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: (Platform.OS === 'web' && isWide) ? undefined : 1 }}
+        style={{ flex: 1 }}
         enabled={Platform.OS !== 'web'}
       >
-          <View style={[styles.sheet, { flex: (Platform.OS === 'web' && isWide) ? undefined : 1, paddingBottom: Math.max(insets.bottom, Spacing.lg), paddingTop: Spacing.lg }]}>
+          <View style={[styles.sheet, { flex: 1, paddingBottom: Math.max(insets.bottom, Spacing.lg), paddingTop: Spacing.lg }]}>
               <View style={styles.header}>
                 <Text style={styles.title}>{t('depositModal.title')}</Text>
                 <TouchableOpacity onPress={handleClose}>
@@ -412,7 +412,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
             </View>
           )}
 
-          {pollingState === 'idle' && <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
+          {pollingState === 'idle' && <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
             {isAdmin && !depositEnabled && (
               <AdminDisabledBanner message={t('admin.bannerDeposit')} />
             )}
@@ -510,7 +510,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
               placeholder={`${t('depositModal.minDeposit')} ${fmtXof(depositMin)}`}
               value={amount}
               onChangeText={(t) => setAmount(t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
-              keyboardType="numeric"
+              keyboardType="decimal-pad"
             />
 
             {!isCard && (

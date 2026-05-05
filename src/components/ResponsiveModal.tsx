@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { Modal, View, ScrollView, StyleSheet, Pressable, Platform, KeyboardAvoidingView } from 'react-native';
+import { Modal, View, StyleSheet, Pressable, Platform, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useResponsive } from '../hooks/useResponsive';
 import { useThemedStyles } from '../hooks/useThemedStyles';
@@ -54,14 +54,9 @@ export function ResponsiveModal({ visible, onClose, children }: ResponsiveModalP
           style={[styles.panel, { width: modalWidth }]}
           onPress={(e) => e.stopPropagation()}
         >
-          <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={{ flexGrow: 0 }}
-            showsVerticalScrollIndicator
-            bounces={false}
-          >
+          <View style={styles.scroll}>
             {children}
-          </ScrollView>
+          </View>
         </Pressable>
       </Pressable>
     </Modal>
@@ -84,8 +79,11 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
     maxHeight: '80%',
-  },
+    display: 'flex',
+    flexDirection: 'column',
+  } as any,
   scroll: {
-    maxHeight: '100%',
-  },
+    flex: 1,
+    minHeight: 0,
+  } as any,
 });
