@@ -225,6 +225,7 @@ export default function KycScreen() {
       >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={{ maxWidth: contentMaxWidth, width: '100%', alignSelf: 'center' }}>
+        <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
             <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
           </TouchableOpacity>
