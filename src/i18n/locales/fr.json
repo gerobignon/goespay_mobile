@@ -410,7 +410,7 @@
     "paymentMethod": "Moyen de paiement *",
     "savePhoneLabel": "Ex: Mon compte MTN",
     "phoneNumber": "Ex: 97000000",
-    "minDeposit": "Min. 1000",
+    "minDeposit": "Min.",
     "refPlaceholder": "Ex: 123456",
     "checkLater": "Vérifier plus tard",
     "deposit": "Déposer",

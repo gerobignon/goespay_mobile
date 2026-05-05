@@ -507,7 +507,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
 
             <Input
               label={t('depositModal.amountLabel', { currency: userCurrency })}
-              placeholder={`${t('depositModal.minDeposit')} : ${fmtXof(depositMin)}`}
+              placeholder={`${t('depositModal.minDeposit')} ${fmtXof(depositMin)}`}
               value={amount}
               onChangeText={(t) => setAmount(t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
               keyboardType="numeric"
