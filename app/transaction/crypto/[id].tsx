@@ -17,6 +17,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { walletService } from '../../../src/services/walletService';
 import { Card } from '../../../src/components/Card';
 import { formatCurrency, formatDate, useFormatXof, useCurrencyCode } from '../../../src/utils/format';
+import { shareReceipt } from '../../../src/utils/receipt';
 import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../../../src/constants/theme';
 import type { ColorPalette } from '../../../src/constants/theme';
 import { useThemedStyles } from '../../../src/hooks/useThemedStyles';
@@ -58,6 +59,7 @@ export default function CryptoDetailScreen() {
   const [claimVisible, setClaimVisible] = useState(false);
   const [claimMessage, setClaimMessage] = useState('');
   const [claimLoading, setClaimLoading] = useState(false);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -127,6 +129,21 @@ export default function CryptoDetailScreen() {
 
         {/* Action button */}
         <View style={styles.actionRow}>
+          {(tx.statut === 'success' || tx.statut === 1) && (
+            <TouchableOpacity
+              style={[styles.invoiceBtn, invoiceLoading && { opacity: 0.6 }]}
+              onPress={async () => {
+                setInvoiceLoading(true);
+                try { await shareReceipt(tx, 'crypto'); } catch { showAlert('Erreur', 'Impossible de générer le reçu.'); }
+                finally { setInvoiceLoading(false); }
+              }}
+              activeOpacity={0.7}
+              disabled={invoiceLoading}
+            >
+              <FontAwesome6 name="file-invoice-dollar" size={12} color={Colors.white} />
+              <Text style={styles.invoiceBtnText}>{t('transaction.viewInvoice')}</Text>
+            </TouchableOpacity>
+          )}
           {tx.statut !== 'success' && tx.statut !== 1 && (
             <TouchableOpacity
               style={styles.claimBtn}
@@ -275,6 +292,22 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderRadius: BorderRadius.md,
   },
   claimBtnText: {
+    fontFamily: Fonts.semiBold,
+    fontSize: FontSize.sm,
+    color: Colors.white,
+  },
+  invoiceBtn: {
+    flex: 1,
+    minWidth: 160,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    backgroundColor: '#198754',
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+  },
+  invoiceBtnText: {
     fontFamily: Fonts.semiBold,
     fontSize: FontSize.sm,
     color: Colors.white,

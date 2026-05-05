@@ -10,7 +10,6 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  Linking,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
@@ -23,6 +22,7 @@ import { Card } from '../../../src/components/Card';
 import { TransactionDetailRow } from '../../../src/components/TransactionDetailRow';
 import { TRANSACTION_STATUS, getTransactionStatus } from '../../../src/constants/config';
 import { formatCurrency, formatDate, useFormatXof, useCurrencyCode } from '../../../src/utils/format';
+import { shareReceipt } from '../../../src/utils/receipt';
 import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../../../src/constants/theme';
 import type { ColorPalette } from '../../../src/constants/theme';
 import { useThemedStyles } from '../../../src/hooks/useThemedStyles';
@@ -43,6 +43,7 @@ export default function DepositDetailScreen() {
   const [loading, setLoading] = useState(true);
 
   const [retryVisible, setRetryVisible] = useState(false);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
 
   // Claim modal
   const [claimVisible, setClaimVisible] = useState(false);
@@ -154,11 +155,16 @@ export default function DepositDetailScreen() {
               <Text style={styles.retryBtnText}>{t('common.retry', 'Réessayer')}</Text>
             </TouchableOpacity>
           )}
-          {tx.statut === 'success' && tx.reference && (
+          {tx.statut === 'success' && (
             <TouchableOpacity
-              style={styles.invoiceBtn}
-              onPress={() => Linking.openURL(`https://paydunya.com/checkout/receipt/pdf/${tx.reference}.pdf`)}
+              style={[styles.invoiceBtn, invoiceLoading && { opacity: 0.6 }]}
+              onPress={async () => {
+                setInvoiceLoading(true);
+                try { await shareReceipt(tx, 'deposit'); } catch { showAlert('Erreur', 'Impossible de générer le reçu.'); }
+                finally { setInvoiceLoading(false); }
+              }}
               activeOpacity={0.7}
+              disabled={invoiceLoading}
             >
               <FontAwesome6 name="file-invoice-dollar" size={12} color={Colors.white} />
               <Text style={styles.invoiceBtnText}>{t('transaction.viewInvoice')}</Text>

@@ -8,14 +8,23 @@ interface ReceiptRow {
   value: string;
 }
 
-function buildRows(tx: Transaction, type: 'deposit' | 'withdraw' | 'transfer'): ReceiptRow[] {
+function buildRows(tx: Transaction, type: 'deposit' | 'withdraw' | 'transfer' | 'crypto'): ReceiptRow[] {
   const rows: ReceiptRow[] = [
     { label: 'Transaction ID', value: `#${tx.id}` },
-    { label: 'Type', value: type === 'deposit' ? 'Dépôt' : type === 'withdraw' ? 'Retrait' : 'Transfert' },
+    {
+      label: 'Type',
+      value: type === 'deposit' ? 'Dépôt' : type === 'withdraw' ? 'Retrait' : type === 'transfer' ? 'Transfert' : (tx.mode === 'Buy' ? 'Achat de monnaie numérique' : 'Vente de monnaie numérique'),
+    },
     { label: 'Statut', value: 'Succès' },
   ];
 
-  if (type === 'withdraw' || type === 'transfer') {
+  if (type === 'crypto') {
+    rows.push({ label: 'Montant payé', value: formatXof(tx.amount) });
+    if (tx.dollar != null) rows.push({ label: 'Quantité crypto', value: `${tx.dollar} ${tx.currency_src ?? ''}`.trim() });
+    if (tx.currency_src) rows.push({ label: 'Monnaie numérique', value: tx.currency_src });
+    if (tx.address) rows.push({ label: 'Adresse portefeuille', value: tx.address });
+    if (tx.cp_hash) rows.push({ label: 'Hash transaction', value: tx.cp_hash });
+  } else if (type === 'withdraw' || type === 'transfer') {
     rows.push({ label: 'Montant total', value: formatXof(tx.amount) });
     if (tx.amount_sent != null && tx.amount_sent !== tx.amount) {
       rows.push({ label: 'Montant envoyé', value: formatXof(tx.amount_sent) });
@@ -25,14 +34,19 @@ function buildRows(tx: Transaction, type: 'deposit' | 'withdraw' | 'transfer'): 
     rows.push({ label: 'Montant', value: formatXof(tx.amount) });
   }
 
-  if (tx.mode) rows.push({ label: 'Mode', value: tx.mode });
-  if (tx.de) rows.push({ label: 'De', value: tx.de });
-  if (tx.phone) rows.push({ label: 'Destinataire', value: tx.phone });
-  if (tx.receiver_name) rows.push({ label: 'Destinataire', value: tx.receiver_name });
-  if (tx.receiver_email) rows.push({ label: 'Email', value: tx.receiver_email });
-  if (tx.reference) rows.push({ label: 'Référence', value: tx.reference });
-  if (tx.avant != null) rows.push({ label: 'Solde avant', value: formatXof(tx.avant) });
-  if (tx.apres != null) rows.push({ label: 'Solde après', value: formatXof(tx.apres) });
+  if (type !== 'crypto') {
+    if (tx.mode) rows.push({ label: 'Mode', value: tx.mode });
+    if (tx.de) rows.push({ label: 'De', value: tx.de });
+    if (tx.phone) rows.push({ label: 'Destinataire', value: tx.phone });
+    if (tx.receiver_name) rows.push({ label: 'Destinataire', value: tx.receiver_name });
+    if (tx.receiver_email) rows.push({ label: 'Email', value: tx.receiver_email });
+    if (tx.reference) rows.push({ label: 'Référence', value: tx.reference });
+    if (tx.avant != null) rows.push({ label: 'Solde avant', value: formatXof(tx.avant) });
+    if (tx.apres != null) rows.push({ label: 'Solde après', value: formatXof(tx.apres) });
+  } else {
+    if (tx.avant != null) rows.push({ label: 'Solde avant', value: formatXof(tx.avant) });
+    if (tx.apres != null) rows.push({ label: 'Solde après', value: formatXof(tx.apres) });
+  }
 
   rows.push({ label: 'Date', value: formatDate(tx.created_at) });
   if (tx.updated_at && tx.updated_at !== tx.created_at) {
@@ -42,9 +56,13 @@ function buildRows(tx: Transaction, type: 'deposit' | 'withdraw' | 'transfer'): 
   return rows;
 }
 
-export async function shareReceipt(tx: Transaction, type: 'deposit' | 'withdraw' | 'transfer') {
+export async function shareReceipt(tx: Transaction, type: 'deposit' | 'withdraw' | 'transfer' | 'crypto') {
   const rows = buildRows(tx, type);
-  const typeLabel = type === 'deposit' ? 'Dépôt' : type === 'withdraw' ? 'Retrait' : 'Transfert';
+  const typeLabel =
+    type === 'deposit' ? 'Dépôt' :
+    type === 'withdraw' ? 'Retrait' :
+    type === 'transfer' ? 'Transfert' :
+    (tx.mode === 'Buy' ? 'Achat crypto' : 'Vente crypto');
 
   const html = `
     <html>

@@ -22,6 +22,7 @@ import { Card } from '../../../src/components/Card';
 import { TransactionDetailRow } from '../../../src/components/TransactionDetailRow';
 import { TRANSACTION_STATUS, getTransactionStatus } from '../../../src/constants/config';
 import { formatCurrency, formatDate, useFormatXof, useCurrencyCode } from '../../../src/utils/format';
+import { shareReceipt } from '../../../src/utils/receipt';
 import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../../../src/constants/theme';
 import type { ColorPalette } from '../../../src/constants/theme';
 import { useThemedStyles } from '../../../src/hooks/useThemedStyles';
@@ -43,6 +44,7 @@ export default function TransferDetailScreen() {
   const [claimVisible, setClaimVisible] = useState(false);
   const [claimMessage, setClaimMessage] = useState('');
   const [claimLoading, setClaimLoading] = useState(false);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -110,6 +112,21 @@ export default function TransferDetailScreen() {
 
         {/* Action button */}
         <View style={styles.actionRow}>
+          {tx.statut === 'success' && (
+            <TouchableOpacity
+              style={[styles.invoiceBtn, invoiceLoading && { opacity: 0.6 }]}
+              onPress={async () => {
+                setInvoiceLoading(true);
+                try { await shareReceipt(tx, 'transfer'); } catch { showAlert('Erreur', 'Impossible de générer le reçu.'); }
+                finally { setInvoiceLoading(false); }
+              }}
+              activeOpacity={0.7}
+              disabled={invoiceLoading}
+            >
+              <FontAwesome6 name="file-invoice-dollar" size={12} color={Colors.white} />
+              <Text style={styles.invoiceBtnText}>{t('transaction.viewInvoice')}</Text>
+            </TouchableOpacity>
+          )}
           {tx.statut !== 'success' && (
             <TouchableOpacity
               style={styles.claimBtn}
@@ -281,6 +298,22 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderRadius: BorderRadius.md,
   },
   claimBtnText: {
+    fontFamily: Fonts.semiBold,
+    fontSize: FontSize.sm,
+    color: Colors.white,
+  },
+  invoiceBtn: {
+    flex: 1,
+    minWidth: 160,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    backgroundColor: '#198754',
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+  },
+  invoiceBtnText: {
     fontFamily: Fonts.semiBold,
     fontSize: FontSize.sm,
     color: Colors.white,
