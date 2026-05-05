@@ -1,77 +1,77 @@
 import { Tabs } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, Platform } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { DarkColors, FontSize, Fonts } from '../../src/constants/theme';
 import { useColors } from '../../src/components/ThemeProvider';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { DesktopHeader } from '../../src/components/DesktopHeader';
 import { DesktopFooter } from '../../src/components/DesktopFooter';
 import { useTranslation } from 'react-i18next';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+
+const ICON_FOR_ROUTE: Record<string, string> = {
+  index: 'house',
+  history: 'clock-rotate-left',
+  support: 'headset',
+};
+
+function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const insets = useSafeAreaInsets();
+  const bottomPad = insets.bottom > 0 ? insets.bottom : 8;
+
+  return (
+    <View style={[styles.bar, { paddingBottom: bottomPad }]}>
+      {state.routes.map((route, index) => {
+        const { options } = descriptors[route.key];
+        const label = (options.title ?? route.name) as string;
+        const isFocused = state.index === index;
+        const color = isFocused ? DarkColors.secondary : DarkColors.textMuted;
+        const iconName = ICON_FOR_ROUTE[route.name] ?? 'circle';
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+          if (!isFocused && !event.defaultPrevented) {
+            (navigation.navigate as any)(route.name, route.params);
+          }
+        };
+
+        return (
+          <Pressable
+            key={route.key}
+            onPress={onPress}
+            accessibilityRole="button"
+            accessibilityState={isFocused ? { selected: true } : {}}
+            style={styles.item}
+          >
+            <FontAwesome6 name={iconName as any} size={20} color={color} />
+            <Text style={[styles.label, { color }]} numberOfLines={1}>
+              {label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
 
 export default function TabsLayout() {
-  const insets = useSafeAreaInsets();
   const { isDesktop } = useResponsive();
   const colors = useColors();
   const { t } = useTranslation();
 
   const tabs = (
     <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: isDesktop
-          ? { display: 'none' }
-          : {
-              // Mobile / Tablet: bottom tabs
-              backgroundColor: DarkColors.background,
-              borderTopColor: DarkColors.border,
-              borderTopWidth: 1,
-              height: 76 + insets.bottom,
-              paddingBottom: insets.bottom > 0 ? insets.bottom + 6 : 14,
-              paddingTop: 10,
-            },
-        tabBarActiveTintColor: DarkColors.secondary,
-        tabBarInactiveTintColor: DarkColors.textMuted,
-        tabBarLabelStyle: {
-          fontSize: FontSize.xs,
-          fontFamily: Fonts.semiBold,
-          lineHeight: 16,
-          marginTop: 4,
-          paddingBottom: 0,
-          includeFontPadding: false,
-        },
-        tabBarIconStyle: {
-          marginBottom: 0,
-        },
-      }}
+      tabBar={isDesktop ? () => null : (props) => <CustomTabBar {...props} />}
+      screenOptions={{ headerShown: false }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: t('tabs.home'),
-          tabBarIcon: ({ color }) => (
-            <FontAwesome6 name="house" size={20} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="history"
-        options={{
-          title: t('tabs.history'),
-          tabBarIcon: ({ color }) => (
-            <FontAwesome6 name="clock-rotate-left" size={20} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="support"
-        options={{
-          title: t('tabs.support'),
-          tabBarIcon: ({ color }) => (
-            <FontAwesome6 name="headset" size={20} color={color} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="index" options={{ title: t('tabs.home') }} />
+      <Tabs.Screen name="history" options={{ title: t('tabs.history') }} />
+      <Tabs.Screen name="support" options={{ title: t('tabs.support') }} />
     </Tabs>
   );
 
@@ -85,3 +85,25 @@ export default function TabsLayout() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  bar: {
+    flexDirection: 'row',
+    backgroundColor: DarkColors.background,
+    borderTopColor: DarkColors.border,
+    borderTopWidth: 1,
+    paddingTop: 8,
+  },
+  item: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 4,
+  },
+  label: {
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.semiBold,
+    lineHeight: 14,
+  },
+});
