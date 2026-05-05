@@ -423,7 +423,8 @@ export default function KycScreen() {
           <Text style={styles.laterText}>{t('common.completeLater')}</Text>
         </TouchableOpacity>
         </View>{/* /maxWidth wrapper */}
-      </ScrollView>\n      </KeyboardAvoidingView>
+      </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Country picker modal */}
       <Modal visible={countryModalVisible} animationType="slide" transparent={false}>
