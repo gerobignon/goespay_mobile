@@ -63,6 +63,8 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
   const user = useAuthStore((s) => s.user);
   const countryFees = useConfigStore((s) => s.country_fees);
   const transferFeeDefault = useConfigStore((s) => s.transfer_fee_default);
+  const transferMin = useConfigStore((s) => s.transfer_min);
+  const transferMinNg = useConfigStore((s) => s.transfer_min_ng);
   const afribapayEnabled = useConfigStore((s) => s.afribapay_enabled);
   const transferEnabled = useConfigStore((s) => s.transfer_enabled);
   const isAdmin = user?.group === 'admin';
@@ -351,7 +353,7 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
 
             <Input
               label={t('transferModal.amountLabel', { currency: userCurrency })}
-              placeholder={t('transferModal.amountPlaceholder')}
+              placeholder={`Min. ${fmtXof((user?.country ?? '').toUpperCase() === 'NG' ? transferMinNg : transferMin)}`}
               value={amount}
               onChangeText={(t) => setAmount(t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
               keyboardType="numeric"

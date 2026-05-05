@@ -78,6 +78,8 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
   const cryptoError = useCryptoStore((s) => s.error);
   const fetchRates = useCryptoStore((s) => s.fetchRates);
   const stablecoinCodes = useConfigStore((s) => s.stablecoin_codes);
+  const cryptoBuyMinDefault = useConfigStore((s) => s.crypto_buy_min_default);
+  const cryptoBuyMinBtc = useConfigStore((s) => s.crypto_buy_min_btc);
   const userCurrency = useCurrencyCode();
   const convertToXof = useCurrencyStore((s) => s.convertToXof);
   const convertFromXof = useCurrencyStore((s) => s.convertFromXof);
@@ -600,7 +602,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                 {/* Amount */}
                 <Input
                   label={tab === 'buy' ? t('cryptoModal.amountToPay', { currency: userCurrency }) : t('cryptoModal.amountIn', { currency: getCurrencyName(selectedCurrency) || 'crypto' })}
-                  placeholder={tab === 'buy' ? t('cryptoModal.exAmount') : t('cryptoModal.exCryptoAmount')}
+                  placeholder={tab === 'buy' ? `Min. ${fmtXof(selectedCurrency === 'BTC' ? cryptoBuyMinBtc : cryptoBuyMinDefault)}` : t('cryptoModal.exCryptoAmount')}
                   value={amount}
                   onChangeText={(t) => setAmount(t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
                   keyboardType="numeric"
