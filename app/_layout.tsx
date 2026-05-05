@@ -73,6 +73,20 @@ function RootInner() {
     loadToken();
     initialize();
     initLanguage();
+    // Patch viewport meta on web pour activer env(safe-area-inset-*) sur iOS notch/PWA
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      const meta = document.querySelector('meta[name="viewport"]');
+      if (meta) {
+        meta.setAttribute(
+          'content',
+          'width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover'
+        );
+      }
+      // 100dvh (dynamic viewport) pour suivre la barre d'URL mobile
+      const styleEl = document.createElement('style');
+      styleEl.innerHTML = 'html, body, #root { height: 100dvh !important; }';
+      document.head.appendChild(styleEl);
+    }
   }, []);
 
   // Vérification du statut API au montage et toutes les 60s sur web

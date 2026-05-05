@@ -49,8 +49,8 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: t('tabs.home'),
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesome6 name="house" size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <FontAwesome6 name="house" size={20} color={color} />
           ),
         }}
       />
@@ -58,8 +58,8 @@ export default function TabsLayout() {
         name="history"
         options={{
           title: t('tabs.history'),
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesome6 name="clock-rotate-left" size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <FontAwesome6 name="clock-rotate-left" size={20} color={color} />
           ),
         }}
       />
@@ -67,8 +67,8 @@ export default function TabsLayout() {
         name="support"
         options={{
           title: t('tabs.support'),
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesome6 name="headset" size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <FontAwesome6 name="headset" size={20} color={color} />
           ),
         }}
       />
