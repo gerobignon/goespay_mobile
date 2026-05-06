@@ -719,10 +719,10 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   guideImage: {
     width: '100%',
     height: undefined,
-    aspectRatio: 16 / 9,
+    aspectRatio: 2.4,
     resizeMode: 'contain',
     borderRadius: BorderRadius.md,
-    marginBottom: Spacing.md,
+    marginVertical: Spacing.xs,
   },
   selfieHint: {
     flex: 1,
