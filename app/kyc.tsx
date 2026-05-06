@@ -9,8 +9,6 @@ import {
   Modal,
   FlatList,
   TextInput,
-  Platform,
-  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -223,10 +221,6 @@ export default function KycScreen() {
   // --- État: validate == 0 (non vérifié) ---
   return (
     <ScreenBackground>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={[styles.contentWrapper, { maxWidth: contentMaxWidth }]}>
         <View style={styles.header}>
@@ -429,7 +423,6 @@ export default function KycScreen() {
         </TouchableOpacity>
         </View>{/* /maxWidth wrapper */}
       </ScrollView>
-      </KeyboardAvoidingView>
 
       {/* Country picker modal */}
       <Modal visible={countryModalVisible} animationType="slide" transparent={false}>
@@ -492,6 +485,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   contentWrapper: {
     width: '100%',
     alignSelf: 'center',
+    overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',
