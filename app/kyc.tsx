@@ -16,6 +16,7 @@ import { ScreenBackground } from '../src/components/ScreenBackground';
 import { useResponsive } from '../src/hooks/useResponsive';
 import { FontAwesome6 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { authService } from '../src/services/authService';
 import { useAuthStore } from '../src/stores/authStore';
 import { Input } from '../src/components/Input';
@@ -88,7 +89,12 @@ export default function KycScreen() {
         quality: 0.8,
       });
       if (!result.canceled && result.assets[0]) {
-        setter(result.assets[0].uri);
+        const compressed = await ImageManipulator.manipulateAsync(
+          result.assets[0].uri,
+          [{ resize: { width: 1600 } }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+        );
+        setter(compressed.uri);
       }
     } catch {
       showAlert('Caméra indisponible', 'Veuillez vérifier que la caméra est accessible.');
