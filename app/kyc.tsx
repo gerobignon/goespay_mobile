@@ -680,10 +680,10 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   // Image pickers
   imagePicker: {
     height: 180,
-    backgroundColor: Colors.inputBg,
+    backgroundColor: Colors.surfaceAlt || Colors.inputBg,
     borderRadius: BorderRadius.lg,
     borderWidth: 2,
-    borderColor: Colors.border,
+    borderColor: Colors.primary,
     borderStyle: 'dashed',
     overflow: 'hidden',
   },
@@ -716,7 +716,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     height: '100%',
     resizeMode: 'cover',
   },
-  // Image guide "process" (vali1.png) : 596x342, ratio 1.74
+  // Image guide "process" (vali1.png et vali2.png) : 596x342, ratio 1.74
   guideImage: {
     width: '100%',
     maxWidth: 420,
@@ -733,7 +733,6 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     alignSelf: 'center',
     resizeMode: 'contain',
     borderRadius: BorderRadius.md,
-    marginVertical: Spacing.sm,
   },
   selfieHint: {
     flex: 1,
