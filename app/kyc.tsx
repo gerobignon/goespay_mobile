@@ -733,6 +733,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     alignSelf: 'center',
     resizeMode: 'contain',
     borderRadius: BorderRadius.md,
+    marginVertical: Spacing.sm,
   },
   selfieHint: {
     flex: 1,
