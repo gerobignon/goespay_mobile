@@ -10,12 +10,13 @@ interface ResponsiveModalProps {
   visible: boolean;
   onClose: () => void;
   children: ReactNode;
+  width?: number;
 }
 
 /**
  * Full-screen modal on mobile, centered panel with backdrop on tablet/desktop.
  */
-export function ResponsiveModal({ visible, onClose, children }: ResponsiveModalProps) {
+export function ResponsiveModal({ visible, onClose, children, width }: ResponsiveModalProps) {
   const { isWide, modalWidth } = useResponsive();
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
@@ -51,7 +52,7 @@ export function ResponsiveModal({ visible, onClose, children }: ResponsiveModalP
     >
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable
-          style={[styles.panel, { width: modalWidth }]}
+          style={[styles.panel, { width: width ?? modalWidth }]}
           onPress={(e) => e.stopPropagation()}
         >
           <View style={styles.scroll}>

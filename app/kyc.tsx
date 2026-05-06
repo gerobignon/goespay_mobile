@@ -466,7 +466,7 @@ export default function KycScreen() {
       </ScrollView>
 
       {/* Country picker modal */}
-      <ResponsiveModal visible={countryModalVisible} onClose={() => { setCountryModalVisible(false); setCountrySearch(''); }}>
+      <ResponsiveModal visible={countryModalVisible} onClose={() => { setCountryModalVisible(false); setCountrySearch(''); }} width={420}>
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{t('kyc.selectCountry')}</Text>
