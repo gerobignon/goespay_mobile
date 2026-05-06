@@ -103,6 +103,14 @@ export default function KycScreen() {
     const monthNum = parseInt(idexpMonth, 10);
     if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) { showAlert('Erreur', 'Mois invalide (1-12).'); return; }
     if (idexpYear.length !== 4) { showAlert('Erreur', 'Année invalide (4 chiffres).'); return; }
+    const yearNum = parseInt(idexpYear, 10);
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth() + 1;
+    if (yearNum < curYear || (yearNum === curYear && monthNum < curMonth)) {
+      showAlert('Erreur', "La date d'expiration doit être postérieure à aujourd'hui.");
+      return;
+    }
     const idexp = `${idexpMonth.padStart(2, '0')}/${idexpYear}`;
     if (!phone.trim()) { showAlert('Erreur', 'Veuillez entrer votre numéro de téléphone.'); return; }
     if (!docType) { showAlert('Erreur', 'Veuillez choisir un type de document.'); return; }
@@ -288,7 +296,15 @@ export default function KycScreen() {
               <Input
                 placeholder="MM"
                 value={idexpMonth}
-                onChangeText={(v) => setIdexpMonth(v.replace(/[^0-9]/g, '').slice(0, 2))}
+                onChangeText={(v) => {
+                  const digits = v.replace(/[^0-9]/g, '').slice(0, 2);
+                  if (digits.length === 2) {
+                    const n = parseInt(digits, 10);
+                    if (n < 1) { setIdexpMonth('01'); return; }
+                    if (n > 12) { setIdexpMonth('12'); return; }
+                  }
+                  setIdexpMonth(digits);
+                }}
                 keyboardType="number-pad"
                 maxLength={2}
               />

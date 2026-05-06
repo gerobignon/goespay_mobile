@@ -21,17 +21,18 @@ interface InputProps extends TextInputProps {
 }
 
 export const Input = forwardRef<RNTextInput, InputProps>(function Input(
-  { label, error, containerStyle, style, secureTextEntry, rightAction, prefix, ...props },
+  { label, error, containerStyle, style, secureTextEntry, rightAction, prefix, onFocus, onBlur, ...props },
   ref
 ) {
   const styles = useThemedStyles(createStyles);
   const [showPassword, setShowPassword] = useState(false);
+  const [focused, setFocused] = useState(false);
   const isPassword = secureTextEntry;
 
   return (
     <View style={[styles.container, containerStyle]}>
       {label && <Text style={styles.label}>{label}</Text>}
-      <View style={[styles.inputRow, error && styles.inputError]}>
+      <View style={[styles.inputRow, focused && styles.inputFocused, error && styles.inputError]}>
         {prefix && <Text style={styles.prefixText}>{prefix}</Text>}
         <RNTextInput
           ref={ref}
@@ -39,6 +40,8 @@ export const Input = forwardRef<RNTextInput, InputProps>(function Input(
           placeholderTextColor={Colors.textMuted}
           selectionColor={Colors.secondary}
           secureTextEntry={isPassword && !showPassword}
+          onFocus={(e) => { setFocused(true); onFocus?.(e); }}
+          onBlur={(e) => { setFocused(false); onBlur?.(e); }}
           {...props}
         />
         {isPassword && (
@@ -98,6 +101,8 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     fontSize: FontSize.md,
+    // @ts-expect-error web-only: kill browser default focus ring
+    outlineStyle: 'none',
   },
   prefixText: {
     color: Colors.textMuted,
@@ -110,6 +115,9 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   inputError: {
     borderColor: Colors.error,
+  },
+  inputFocused: {
+    borderColor: Colors.secondary,
   },
   error: {
     color: Colors.error,
