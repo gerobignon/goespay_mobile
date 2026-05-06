@@ -7,6 +7,7 @@ import {
   TextInputProps,
   ViewStyle,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Colors, type ColorPalette, BorderRadius, FontSize, Spacing, Fonts } from '../constants/theme';
@@ -101,9 +102,8 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     fontSize: FontSize.md,
-    // @ts-expect-error web-only: kill browser default focus ring
-    outlineStyle: 'none',
-  },
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' as any } : {}),
+  } as any,
   prefixText: {
     color: Colors.textMuted,
     fontSize: FontSize.md,

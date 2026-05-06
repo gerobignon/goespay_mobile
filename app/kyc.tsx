@@ -6,13 +6,12 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Modal,
   FlatList,
   TextInput,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ScreenBackground } from '../src/components/ScreenBackground';
+import { ResponsiveModal } from '../src/components/ResponsiveModal';
 import { useResponsive } from '../src/hooks/useResponsive';
 import { FontAwesome6 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -467,8 +466,8 @@ export default function KycScreen() {
       </ScrollView>
 
       {/* Country picker modal */}
-      <Modal visible={countryModalVisible} animationType="slide" transparent={false}>
-        <SafeAreaView style={[styles.modalContainer, { flex: 1 }]} edges={['top', 'bottom']}>
+      <ResponsiveModal visible={countryModalVisible} onClose={() => { setCountryModalVisible(false); setCountrySearch(''); }}>
+        <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{t('kyc.selectCountry')}</Text>
             <TouchableOpacity onPress={() => { setCountryModalVisible(false); setCountrySearch(''); }}>
@@ -514,8 +513,8 @@ export default function KycScreen() {
               </TouchableOpacity>
             )}
           />
-        </SafeAreaView>
-      </Modal>
+        </View>
+      </ResponsiveModal>
     </ScreenBackground>
   );
 }
@@ -607,6 +606,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   // Country modal
   modalContainer: {
     flex: 1,
+    minHeight: 0,
     backgroundColor: Colors.background,
   },
   modalHeader: {
@@ -716,7 +716,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   // Image pickers
   imagePicker: {
     height: 180,
-    backgroundColor: Colors.surfaceAlt || Colors.inputBg,
+    backgroundColor: Colors.inputBg,
     borderRadius: BorderRadius.lg,
     borderWidth: 2,
     borderColor: Colors.primary,
