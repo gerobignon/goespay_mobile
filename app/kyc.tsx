@@ -718,8 +718,10 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   guideImage: {
     width: '100%',
+    maxWidth: 500,
+    alignSelf: 'center',
     height: undefined,
-    aspectRatio: 2.4,
+    aspectRatio: 1.74,
     resizeMode: 'contain',
     borderRadius: BorderRadius.md,
     marginVertical: Spacing.xs,
