@@ -149,6 +149,7 @@ export default function KycScreen() {
     return (
       <ScreenBackground>
         <ScrollView contentContainerStyle={styles.scroll}>
+          <View style={[styles.contentWrapper, { maxWidth: contentMaxWidth }]}>
           <View style={styles.header}>
             <TouchableOpacity onPress={() => router.back()}>
               <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
@@ -175,6 +176,7 @@ export default function KycScreen() {
             icon="house"
             style={{ marginTop: Spacing.xl }}
           />
+          </View>
         </ScrollView>
       </ScreenBackground>
     );
@@ -185,6 +187,7 @@ export default function KycScreen() {
     return (
       <ScreenBackground>
         <ScrollView contentContainerStyle={styles.scroll}>
+          <View style={[styles.contentWrapper, { maxWidth: contentMaxWidth }]}>
           <View style={styles.header}>
             <TouchableOpacity onPress={() => router.back()}>
               <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
@@ -211,6 +214,7 @@ export default function KycScreen() {
             icon="arrow-left"
             style={{ marginTop: Spacing.xl }}
           />
+          </View>
         </ScrollView>
       </ScreenBackground>
     );
@@ -224,7 +228,7 @@ export default function KycScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={{ maxWidth: contentMaxWidth, width: '100%', alignSelf: 'center' }}>
+        <View style={[styles.contentWrapper, { maxWidth: contentMaxWidth }]}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
             <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
@@ -484,6 +488,10 @@ export default function KycScreen() {
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   scroll: {
     padding: Spacing.lg,
+  },
+  contentWrapper: {
+    width: '100%',
+    alignSelf: 'center',
   },
   header: {
     flexDirection: 'row',
