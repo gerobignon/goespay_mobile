@@ -357,7 +357,7 @@ export default function KycScreen() {
               <FontAwesome6 name="camera" size={14} color={Colors.secondary} />
               {'  '}Photo de la pièce d'identité
             </Text>
-            <Image source={require('../assets/vali0.jpg')} style={styles.guideImage} />
+            <Image source={require('../assets/vali0.jpg')} style={styles.guideImageDoc} />
             <TouchableOpacity
               style={styles.imagePicker}
               onPress={() => takePhoto(setFileUri)}
@@ -716,15 +716,25 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     height: '100%',
     resizeMode: 'cover',
   },
+  // Image guide "process" (vali1.png) : 596x342, ratio 1.74
   guideImage: {
     width: '100%',
-    maxWidth: 500,
+    maxWidth: 420,
+    height: 200,
     alignSelf: 'center',
-    height: undefined,
-    aspectRatio: 1.74,
     resizeMode: 'contain',
     borderRadius: BorderRadius.md,
-    marginVertical: Spacing.xs,
+    marginVertical: 0,
+  },
+  // Image guide "exemples piece" (vali0.jpg) : 1201x836, ratio 1.44
+  guideImageDoc: {
+    width: '100%',
+    maxWidth: 420,
+    height: 220,
+    alignSelf: 'center',
+    resizeMode: 'contain',
+    borderRadius: BorderRadius.md,
+    marginVertical: 0,
   },
   selfieHint: {
     flex: 1,
