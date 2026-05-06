@@ -220,8 +220,12 @@ export default function KycScreen() {
 
   // --- État: validate == 0 (non vérifié) ---
   return (
-    <ScreenBackground>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+    <ScreenBackground style={{ overflow: 'hidden' }}>
+      <ScrollView
+        style={{ flex: 1, width: '100%' }}
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={[styles.contentWrapper, { maxWidth: contentMaxWidth }]}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
@@ -518,20 +522,17 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     marginTop: Spacing.lg,
     marginBottom: Spacing.sm,
   },
-  // Date d'expiration : deux champs côte à côte
+  // Date d'expiration : deux champs côte à côte (largeurs fixes pour éviter débordement web)
   expiryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    width: '100%',
   },
   expiryField: {
-    width: 80,
-    minWidth: 0,
+    width: 70,
   },
   expiryFieldWide: {
-    flex: 1,
-    minWidth: 0,
+    width: 110,
   },
   expirySep: {
     fontSize: FontSize.lg,
