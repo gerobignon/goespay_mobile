@@ -739,6 +739,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     alignSelf: 'center',
     borderRadius: BorderRadius.md,
     overflow: 'hidden',
+    marginVertical: Spacing.md,
   },
   guideImageFill: {
     width: '100%',
