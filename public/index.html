@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>GoesPay</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="icon" href="/favicon.ico" />
+    <style>
+      /* Verrouille le document : seuls les ScrollView internes scrollent.
+         Empêche iOS Safari de décaler la page au focus d'un input. */
+      html, body, #root {
+        height: 100%;
+        max-height: 100%;
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        overscroll-behavior: none;
+        -webkit-overflow-scrolling: touch;
+        touch-action: manipulation;
+      }
+      /* Empêche l'auto-zoom iOS sur focus d'un input (font-size >= 16px requis) */
+      input, textarea, select {
+        font-size: 16px !important;
+      }
+      input:focus, textarea:focus, select:focus {
+        font-size: 16px !important;
+      }
+    </style>
+  </head>
+  <body>
+    <noscript>JavaScript est requis pour utiliser GoesPay.</noscript>
+    <div id="root"></div>
+  </body>
+</html>
