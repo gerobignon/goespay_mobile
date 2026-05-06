@@ -113,14 +113,14 @@ export const authService = {
   ): Promise<{ message: string; validate: number }> => {
     const formData = new FormData();
     const appendFile = async (key: string, uri: string) => {
-      const filename = uri.split('/').pop()?.split('?')[0] || `${key}.jpg`;
-      const match = /\.(\w+)$/.exec(filename);
-      const ext = match ? match[1].toLowerCase() : 'jpg';
-      const type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+      // Always use a deterministic .jpg filename so October/Laravel's
+      // UploadedFile->getClientOriginalExtension() returns a clean ext.
+      const filename = `kyc-${key}.jpg`;
+      const type = 'image/jpeg';
       if (Platform.OS === 'web') {
         const res = await fetch(uri);
         const blob = await res.blob();
-        const file = new File([blob], filename, { type: blob.type || type });
+        const file = new File([blob], filename, { type });
         formData.append(key, file);
       } else {
         formData.append(key, { uri, name: filename, type } as unknown as Blob);
