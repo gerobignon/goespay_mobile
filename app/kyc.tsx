@@ -140,9 +140,17 @@ export default function KycScreen() {
         [{ text: 'OK', onPress: () => router.back() }]
       );
     } catch (error: any) {
-      const msg = error?.response?.data?.error
-        || error?.response?.data?.message
-        || (error?.response?.data?.errors ? Object.values(error.response.data.errors).flat().join('\n') : null)
+      console.error('[KYC] upload failed', {
+        status: error?.response?.status,
+        data: error?.response?.data,
+        message: error?.message,
+      });
+      const data = error?.response?.data;
+      const msg = data?.error
+        || data?.message
+        || (data?.errors ? Object.values(data.errors).flat().join('\n') : null)
+        || (typeof data === 'string' ? data.slice(0, 200) : null)
+        || error?.message
         || "Erreur lors de l'envoi des documents.";
       showAlert('Erreur', msg as string);
     } finally {

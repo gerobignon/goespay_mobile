@@ -140,7 +140,9 @@ export const authService = {
     await appendFile('tof', selfieUri);
 
     const response = await api.post('/me/kyc', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: Platform.OS === 'web'
+        ? { 'Content-Type': undefined as any }
+        : { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
   },
