@@ -720,21 +720,19 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   guideImage: {
     width: '100%',
     maxWidth: 420,
-    height: 200,
+    aspectRatio: 596 / 342,
     alignSelf: 'center',
     resizeMode: 'contain',
     borderRadius: BorderRadius.md,
-    marginVertical: 0,
   },
   // Image guide "exemples piece" (vali0.jpg) : 1201x836, ratio 1.44
   guideImageDoc: {
     width: '100%',
     maxWidth: 420,
-    height: 220,
+    aspectRatio: 1201 / 836,
     alignSelf: 'center',
     resizeMode: 'contain',
     borderRadius: BorderRadius.md,
-    marginVertical: 0,
   },
   selfieHint: {
     flex: 1,

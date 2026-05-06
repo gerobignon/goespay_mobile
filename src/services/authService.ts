@@ -112,11 +112,19 @@ export const authService = {
     selfieUri: string
   ): Promise<{ message: string; validate: number }> => {
     const formData = new FormData();
-    const appendFile = (key: string, uri: string) => {
-      const filename = uri.split('/').pop() || `${key}.jpg`;
+    const appendFile = async (key: string, uri: string) => {
+      const filename = uri.split('/').pop()?.split('?')[0] || `${key}.jpg`;
       const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : 'image/jpeg';
-      formData.append(key, { uri, name: filename, type } as unknown as Blob);
+      const ext = match ? match[1].toLowerCase() : 'jpg';
+      const type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+      if (Platform.OS === 'web') {
+        const res = await fetch(uri);
+        const blob = await res.blob();
+        const file = new File([blob], filename, { type: blob.type || type });
+        formData.append(key, file);
+      } else {
+        formData.append(key, { uri, name: filename, type } as unknown as Blob);
+      }
     };
     // Infos personnelles
     formData.append('type', data.type);
@@ -128,8 +136,8 @@ export const authService = {
     if (data.country) formData.append('country', data.country);
     if (data.telegram) formData.append('telegram', data.telegram);
     // Fichiers
-    appendFile('file', fileUri);
-    appendFile('tof', selfieUri);
+    await appendFile('file', fileUri);
+    await appendFile('tof', selfieUri);
 
     const response = await api.post('/me/kyc', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
