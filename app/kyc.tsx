@@ -284,6 +284,7 @@ export default function KycScreen() {
                 value={idexpMonth}
                 onChangeText={(v) => setIdexpMonth(v.replace(/[^0-9]/g, '').slice(0, 2))}
                 keyboardType="number-pad"
+                maxLength={2}
               />
             </View>
             <Text style={styles.expirySep}>/</Text>
@@ -293,6 +294,7 @@ export default function KycScreen() {
                 value={idexpYear}
                 onChangeText={(v) => setIdexpYear(v.replace(/[^0-9]/g, '').slice(0, 4))}
                 keyboardType="number-pad"
+                maxLength={4}
               />
             </View>
           </View>
@@ -521,12 +523,15 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+    width: '100%',
   },
   expiryField: {
     width: 80,
+    minWidth: 0,
   },
   expiryFieldWide: {
     flex: 1,
+    minWidth: 0,
   },
   expirySep: {
     fontSize: FontSize.lg,
