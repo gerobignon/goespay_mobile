@@ -246,7 +246,9 @@ export default function KycScreen() {
         </Card>
 
         {/* Aperçu du processus */}
-        <Image source={require('../assets/vali1.png')} style={styles.guideImage} />
+        <View style={styles.guideImageWrapper}>
+          <Image source={require('../assets/vali1.png')} style={styles.guideImageFill} />
+        </View>
 
         {/* ── Informations personnelles ── */}
         <Text style={styles.sectionTitle}>
@@ -357,7 +359,9 @@ export default function KycScreen() {
               <FontAwesome6 name="camera" size={14} color={Colors.secondary} />
               {'  '}Photo de la pièce d'identité
             </Text>
-            <Image source={require('../assets/vali0.jpg')} style={styles.guideImageDoc} />
+            <View style={styles.guideImageDocWrapper}>
+              <Image source={require('../assets/vali0.jpg')} style={styles.guideImageFill} />
+            </View>
             <TouchableOpacity
               style={styles.imagePicker}
               onPress={() => takePhoto(setFileUri)}
@@ -381,7 +385,9 @@ export default function KycScreen() {
               <FontAwesome6 name="user" size={14} color={Colors.secondary} />
               {'  '}Selfie avec la pièce + "GOESPAY"
             </Text>
-            <Image source={require('../assets/vali2.png')} style={styles.guideImage} />
+            <View style={styles.guideImageWrapper}>
+              <Image source={require('../assets/vali2.png')} style={styles.guideImageFill} />
+            </View>
             <Card style={{ marginBottom: Spacing.sm, paddingVertical: Spacing.sm }}>
               <View style={styles.instructionRow}>
                 <FontAwesome6 name="circle-info" size={14} color={Colors.secondary} />
@@ -716,23 +722,28 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     height: '100%',
     resizeMode: 'cover',
   },
-  // Image guide "process" (vali1.png et vali2.png) : 596x342, ratio 1.74
-  guideImage: {
+  // Image guide "process" (vali1.png et vali2.png) : 596x342
+  guideImageWrapper: {
     width: '100%',
     maxWidth: 420,
     aspectRatio: 596 / 342,
     alignSelf: 'center',
-    resizeMode: 'contain',
     borderRadius: BorderRadius.md,
+    overflow: 'hidden',
   },
-  // Image guide "exemples piece" (vali0.jpg) : 1201x836, ratio 1.44
-  guideImageDoc: {
+  // Image guide "exemples piece" (vali0.jpg) : 1201x836
+  guideImageDocWrapper: {
     width: '100%',
     maxWidth: 420,
     aspectRatio: 1201 / 836,
     alignSelf: 'center',
-    resizeMode: 'contain',
     borderRadius: BorderRadius.md,
+    overflow: 'hidden',
+  },
+  guideImageFill: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain',
   },
   selfieHint: {
     flex: 1,
