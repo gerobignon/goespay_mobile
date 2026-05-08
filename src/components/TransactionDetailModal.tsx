@@ -508,6 +508,22 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
               <TransactionDetailRow label={t('transaction.amount')} value={`${tx.dollar} ${cryptoCode}`} mono />
             )}
             <TransactionDetailRow label={t('transaction.address')} value={tx.address ?? '—'} copyable mono />
+            {tx.tx_id && (
+              <TransactionDetailRow
+                label={tx.provider === 'nowpayments' ? t('transaction.npReference') : t('transaction.cpReference')}
+                value={tx.tx_id}
+                copyable
+                mono
+              />
+            )}
+            {tx.cp_id && tx.cp_id !== tx.tx_id && (
+              <TransactionDetailRow
+                label={tx.provider === 'nowpayments' ? t('transaction.npReference') : t('transaction.cpReference')}
+                value={tx.cp_id}
+                copyable
+                mono
+              />
+            )}
             {tx.cp_hash && <TransactionDetailRow label={t('transaction.txHash')} value={tx.cp_hash} copyable mono />}
             <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '—'} mono />
             <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '—'} mono color={status.color} />
