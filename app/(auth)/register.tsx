@@ -86,7 +86,8 @@ export default function RegisterScreen() {
         password,
         password_confirmation: passwordConfirmation,
         parrain_code: parrainCode.trim() || undefined,
-      });
+        hp_field: '',
+      } as any);
       showAlert(
         t('auth.register.successTitle', 'Inscription réussie'),
         t('auth.register.successMessage', 'Un code de vérification a été envoyé à votre adresse email.'),
