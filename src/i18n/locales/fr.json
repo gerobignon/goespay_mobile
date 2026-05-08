@@ -583,6 +583,54 @@
     "noCommissions": "Aucune commission pour le moment.",
     "loadError": "Impossible de charger les données."
   },
+  "pwa": {
+    "title": "Installer GoesPay",
+    "subtitle": "Accès rapide depuis votre écran d'accueil — sans passer par le navigateur.",
+    "install": "Installer",
+    "howTo": "Voir comment",
+    "browser": "votre navigateur",
+    "helpTitle": "Installer sur {{browser}}",
+    "gotIt": "C'est compris",
+    "step": {
+      "ios": {
+        "1": "Ouvrez ce site dans Safari.",
+        "2": "Touchez l'icône Partager (carré avec une flèche vers le haut) en bas de l'écran.",
+        "3": "Faites défiler et choisissez « Sur l'écran d'accueil ».",
+        "4": "Touchez « Ajouter ». L'app apparaît sur votre écran d'accueil."
+      },
+      "macSafari": {
+        "1": "Dans la barre de menu : Fichier → Ajouter au Dock.",
+        "2": "Confirmez le nom et l'icône.",
+        "3": "GoesPay s'ouvre désormais en application autonome."
+      },
+      "androidChrome": {
+        "1": "Touchez le menu ⋮ en haut à droite de Chrome.",
+        "2": "Choisissez « Ajouter à l'écran d'accueil » ou « Installer l'application ».",
+        "3": "Confirmez. L'icône apparaît avec vos autres applications."
+      },
+      "desktopChrome": {
+        "1": "Cliquez sur l'icône Installer (⊕) dans la barre d'adresse, ou Menu ⋮ → Installer GoesPay.",
+        "2": "Confirmez. GoesPay s'ouvre comme une vraie app."
+      },
+      "edge": {
+        "1": "Cliquez sur Menu ··· → Applications → Installer ce site en tant qu'application.",
+        "2": "Confirmez l'installation."
+      },
+      "samsung": {
+        "1": "Touchez le menu ☰ en bas de Samsung Internet.",
+        "2": "Choisissez « Ajouter la page à » → « Écran d'accueil ».",
+        "3": "Confirmez l'ajout."
+      },
+      "firefox": {
+        "1": "Firefox ne supporte pas l'installation native sur cette plateforme.",
+        "2": "Astuce : utilisez Chrome (Android) ou Safari (iOS) pour une meilleure expérience."
+      },
+      "other": {
+        "1": "Votre navigateur ne supporte pas encore l'installation directe.",
+        "2": "Essayez Chrome (Android, ordinateur) ou Safari (iOS) pour ajouter GoesPay à votre écran d'accueil."
+      }
+    }
+  },
   "countries": {
     "BF": "Burkina Faso",
     "BJ": "Bénin",

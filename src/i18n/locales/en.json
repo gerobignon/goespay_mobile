@@ -583,6 +583,54 @@
     "noCommissions": "No commissions yet.",
     "loadError": "Unable to load data."
   },
+  "pwa": {
+    "title": "Install GoesPay",
+    "subtitle": "Quick access from your home screen — no browser tab needed.",
+    "install": "Install",
+    "howTo": "How to install",
+    "browser": "your browser",
+    "helpTitle": "Install on {{browser}}",
+    "gotIt": "Got it",
+    "step": {
+      "ios": {
+        "1": "Open this site in Safari.",
+        "2": "Tap the Share icon (square with an up arrow) at the bottom.",
+        "3": "Scroll down and pick \"Add to Home Screen\".",
+        "4": "Tap \"Add\". The app will appear on your home screen."
+      },
+      "macSafari": {
+        "1": "Menu bar: File → Add to Dock.",
+        "2": "Confirm the name and icon.",
+        "3": "GoesPay now opens as a standalone app."
+      },
+      "androidChrome": {
+        "1": "Tap the ⋮ menu at the top right of Chrome.",
+        "2": "Pick \"Add to Home screen\" or \"Install app\".",
+        "3": "Confirm. The icon appears alongside your other apps."
+      },
+      "desktopChrome": {
+        "1": "Click the Install icon (⊕) in the address bar, or Menu ⋮ → Install GoesPay.",
+        "2": "Confirm. GoesPay opens like a real app."
+      },
+      "edge": {
+        "1": "Click Menu ··· → Apps → Install this site as an app.",
+        "2": "Confirm the install."
+      },
+      "samsung": {
+        "1": "Tap the ☰ menu at the bottom of Samsung Internet.",
+        "2": "Pick \"Add page to\" → \"Home screen\".",
+        "3": "Confirm."
+      },
+      "firefox": {
+        "1": "Firefox does not currently support native installation on this platform.",
+        "2": "Tip: use Chrome (Android) or Safari (iOS) for a better experience."
+      },
+      "other": {
+        "1": "Your browser does not yet support direct installation.",
+        "2": "Try Chrome (Android, desktop) or Safari (iOS) to add GoesPay to your home screen."
+      }
+    }
+  },
   "countries": {
     "BF": "Burkina Faso",
     "BJ": "Benin",

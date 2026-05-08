@@ -1,0 +1,16 @@
+{
+  "name": "GoesPay",
+  "short_name": "GoesPay",
+  "description": "Wallet mobile money & crypto pour l'UEMOA",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0d1a",
+  "theme_color": "#3176FE",
+  "lang": "fr",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

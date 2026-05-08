@@ -18,6 +18,7 @@ import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../src/cons
 import { useThemedStyles } from '../src/hooks/useThemedStyles';
 import { API_BASE_URL } from '../src/constants/config';
 import { CustomAlert } from '../src/components/CustomAlert';
+import { PwaInstallBanner } from '../src/components/PwaInstallBanner';
 import { ThemeProvider, useTheme } from '../src/components/ThemeProvider';
 import '../src/i18n';  // initialize i18next
 import { initLanguage } from '../src/i18n';
@@ -306,6 +307,7 @@ function RootInner() {
       {showOfflineBanner && Platform.OS === 'web' && <OfflineAdminBanner />}
       <Stack screenOptions={{ headerShown: false }} />
       <CustomAlert />
+      <PwaInstallBanner />
     </>
   );
 }
