@@ -61,6 +61,15 @@ const CRYPTO_IMAGES: Record<string, ImageSourcePropType> = {
   LTCT: require('../../assets/crypto/ltc.png'),
 };
 
+function pickCryptoSource(rate?: { code?: string; img?: string | null } | null): ImageSourcePropType | null {
+  if (rate?.img && typeof rate.img === 'string' && rate.img.length > 0) {
+    return { uri: rate.img };
+  }
+  const code = rate?.code;
+  if (code && CRYPTO_IMAGES[code]) return CRYPTO_IMAGES[code];
+  return null;
+}
+
 export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled = true }: CryptoModalProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -546,11 +555,14 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                         ]}
                         onPress={() => setSelectedCurrency(item.code)}
                       >
-                        {CRYPTO_IMAGES[item.code] ? (
-                          <Image source={CRYPTO_IMAGES[item.code]} style={styles.currencyChipLogo} resizeMode="contain" />
-                        ) : (
-                          <Text style={styles.currencyIcon}>{getCryptoIcon(item.code)}</Text>
-                        )}
+                        {(() => {
+                          const src = pickCryptoSource(item);
+                          return src ? (
+                            <Image source={src} style={styles.currencyChipLogo} resizeMode="contain" />
+                          ) : (
+                            <Text style={styles.currencyIcon}>{getCryptoIcon(item.code)}</Text>
+                          );
+                        })()}
                         <View style={{ flex: 1 }}>
                           <Text
                             style={[
@@ -589,11 +601,14 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                         ]}
                         onPress={() => setSelectedCurrency(item.code)}
                       >
-                        {CRYPTO_IMAGES[item.code] ? (
-                          <Image source={CRYPTO_IMAGES[item.code]} style={styles.currencyLogo} resizeMode="contain" />
-                        ) : (
-                          <Text style={styles.currencyIcon}>{getCryptoIcon(item.code)}</Text>
-                        )}
+                        {(() => {
+                          const src = pickCryptoSource(item);
+                          return src ? (
+                            <Image source={src} style={styles.currencyLogo} resizeMode="contain" />
+                          ) : (
+                            <Text style={styles.currencyIcon}>{getCryptoIcon(item.code)}</Text>
+                          );
+                        })()}
                         <Text
                           style={[
                             styles.currencyName,
@@ -763,9 +778,12 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
             {/* Crypto icon + name */}
             {selectedRate && (
               <View style={styles.confirmCryptoRow}>
-                {CRYPTO_IMAGES[selectedCurrency] ? (
-                  <Image source={CRYPTO_IMAGES[selectedCurrency]} style={styles.confirmCryptoLogo} resizeMode="contain" />
-                ) : null}
+                {(() => {
+                  const src = pickCryptoSource(selectedRate);
+                  return src ? (
+                    <Image source={src} style={styles.confirmCryptoLogo} resizeMode="contain" />
+                  ) : null;
+                })()}
                 <Text style={styles.confirmCryptoName}>{getCurrencyName(selectedCurrency)}</Text>
               </View>
             )}
@@ -853,9 +871,12 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                     style={[styles.saveWalletChip, isSelected && styles.saveWalletChipSelected]}
                     onPress={() => setSaveWalletCurrency(item.code)}
                   >
-                    {CRYPTO_IMAGES[item.code] ? (
-                      <Image source={CRYPTO_IMAGES[item.code]} style={{ width: 16, height: 16 }} resizeMode="contain" />
-                    ) : null}
+                    {(() => {
+                      const src = pickCryptoSource(item);
+                      return src ? (
+                        <Image source={src} style={{ width: 16, height: 16 }} resizeMode="contain" />
+                      ) : null;
+                    })()}
                     <Text style={[styles.saveWalletChipText, isSelected && styles.saveWalletChipTextSelected]}>
                       {getCurrencyName(item.code)}
                     </Text>
