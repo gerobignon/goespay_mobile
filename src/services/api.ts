@@ -29,8 +29,16 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
-    if (error.response?.status === 401) {
-      await SafeStorage.removeItem('auth_token');
+    const status = error.response?.status;
+    const data = error.response?.data;
+    if (status === 401 || (status === 403 && data?.account_suspended)) {
+      // Dynamic import pour éviter une boucle circulaire api <-> authStore.
+      try {
+        const { useAuthStore } = await import('../stores/authStore');
+        await useAuthStore.getState().logout();
+      } catch {
+        await SafeStorage.removeItem('auth_token');
+      }
     }
     return Promise.reject(error);
   }
