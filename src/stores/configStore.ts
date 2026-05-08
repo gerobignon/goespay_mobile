@@ -29,6 +29,9 @@ export interface AppConfig {
   crypto_buy_min_btc: number;
   crypto_buy_min_default: number;
   crypto_sell_min_receive: number;
+  // Min en XOF par code crypto, défini en /admin (override les globaux)
+  crypto_min_buy_xof: Record<string, number>;
+  crypto_min_sell_xof: Record<string, number>;
   // Listes dynamiques
   stablecoin_codes: string[];
   mobile_money_countries: string[];
@@ -67,6 +70,8 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   crypto_buy_min_btc: 50000,
   crypto_buy_min_default: 2500,
   crypto_sell_min_receive: 1000,
+  crypto_min_buy_xof: {},
+  crypto_min_sell_xof: {},
   stablecoin_codes: ['PM', 'PAYEER', 'USDT.TRC20', 'BUSD.BEP20', 'USDT', 'BUSD'],
   mobile_money_countries: ['BJ', 'BF', 'CI', 'TG', 'SN', 'ML', 'CM'],
 };
