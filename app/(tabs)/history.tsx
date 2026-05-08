@@ -17,12 +17,13 @@ import { TransactionItem, getTransactionLogo, getModeName } from '../../src/comp
 import { useAuthStore } from '../../src/stores/authStore';
 import { TransactionDetailModal, type TxType } from '../../src/components/TransactionDetailModal';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
-import { TRANSACTION_STATUS, getTransactionStatus } from '../../src/constants/config';
+import { TRANSACTION_STATUS, getTransactionStatus, COUNTRIES } from '../../src/constants/config';
 import { formatAmount, formatDate, useFormatXof, useCurrencyCode } from '../../src/utils/format';
 import type { Transaction } from '../../src/types';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useTranslation } from 'react-i18next';
+import { useConfigStore } from '../../src/stores/configStore';
 
 // 8 colonnes sur 12 à 1200px max
 const DESKTOP_MAX_WIDTH = 1100;
@@ -53,8 +54,13 @@ export default function HistoryScreen() {
     loadMoreTransactions,
   } = useWalletStore();
   const { user } = useAuthStore();
-  const isCryptoUser = user?.group === 'admin' || user?.group === 'crypto';
-  const filteredFilterKeys = FILTER_KEYS.filter((f) => f.key !== 'crypto' || isCryptoUser);
+  const crypto_buy_enabled = useConfigStore((s) => s.crypto_buy_enabled);
+  const isAdmin = user?.group === 'admin';
+  const isSupportedCountry = COUNTRIES.some((c) => c.code === user?.country);
+  const isCryptoUser = isAdmin || user?.group === 'crypto' || isSupportedCountry;
+  // crypto_buy_enabled est prioritaire : si off, seuls les admins voient le filtre Crypto.
+  const showCrypto = isAdmin || (isCryptoUser && crypto_buy_enabled);
+  const filteredFilterKeys = FILTER_KEYS.filter((f) => f.key !== 'crypto' || showCrypto);
   const [activeFilter, setActiveFilter] = useState<string | undefined>(undefined);
   const [refreshing, setRefreshing] = useState(false);
   const hasFetchedRef = useRef(false);

@@ -68,7 +68,7 @@ export default function DashboardScreen() {
   // L'admin voit tous les services même désactivés (un bandeau s'affiche dans le modal concerné).
   const showDeposit = isAdmin || deposit_enabled;
   const showTransfer = isAdmin || transfer_enabled;
-  const showCrypto = isCryptoUser && (isAdmin || crypto_buy_enabled || crypto_sell_enabled);
+  const showCrypto = isAdmin || (isCryptoUser && crypto_buy_enabled);
   const isValidated = user?.validate === 1;
   const prefetchRates = useCryptoStore((s) => s.fetchRates);
   const { isWide, isDesktop, contentMaxWidth } = useResponsive();
