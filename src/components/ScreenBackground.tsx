@@ -18,7 +18,7 @@ export function ScreenBackground({ children, edges = ['top', 'bottom'], style }:
   return (
     <ImageBackground
       source={isDark ? bgDark : bgLight}
-      style={styles.background}
+      style={[styles.background, { backgroundColor: colors.background }]}
     >
       <SafeAreaView
         style={[styles.overlay, { backgroundColor: isDark ? 'rgba(23,30,43,0.25)' : 'rgba(240,242,245,0.3)' }, style]}
