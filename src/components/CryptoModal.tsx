@@ -135,18 +135,29 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
     }
   }, [visible, rates, selectedCurrency]);
 
+  const toRate = (v: unknown): number => {
+    if (typeof v === 'number') return v;
+    if (typeof v === 'string') {
+      const n = parseFloat(v.replace(',', '.'));
+      return isNaN(n) ? 0 : n;
+    }
+    return 0;
+  };
+
   const getBuyRate = (item: CryptoRate): number => {
-    if (!country) return item.buy_rate;
+    const fallback = toRate(item.buy_rate);
+    if (!country) return fallback;
     const key = `buy_rate_${country.toLowerCase()}` as keyof CryptoRate;
-    const v = item[key];
-    return typeof v === 'number' && v > 0 ? v : item.buy_rate;
+    const v = toRate(item[key]);
+    return v > 0 ? v : fallback;
   };
 
   const getSellRate = (item: CryptoRate): number => {
-    if (!country) return item.sell_rate;
+    const fallback = toRate(item.sell_rate);
+    if (!country) return fallback;
     const key = `sell_rate_${country.toLowerCase()}` as keyof CryptoRate;
-    const v = item[key];
-    return typeof v === 'number' && v > 0 ? v : item.sell_rate;
+    const v = toRate(item[key]);
+    return v > 0 ? v : fallback;
   };
 
   const selectedRate = rates.find((r) => r.code === selectedCurrency);
