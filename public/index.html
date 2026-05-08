@@ -24,8 +24,14 @@
         touch-action: manipulation;
         background-color: #0b0d1a;
       }
+      body {
+        display: flex;
+        flex-direction: column;
+      }
       #root {
-        height: 100%;
+        flex: 1 1 auto;
+        min-height: 0;
+        height: auto;
         width: 100%;
         display: flex;
         flex-direction: column;
