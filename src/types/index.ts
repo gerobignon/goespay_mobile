@@ -44,6 +44,7 @@ export interface Transaction {
   cp_id?: string;
   cp_hash?: string;
   provider?: string;
+  tx_id?: string;
   avant?: number;
   apres?: number;
   created_at: string;

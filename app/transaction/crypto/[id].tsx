@@ -176,7 +176,15 @@ export default function CryptoDetailScreen() {
             <TransactionDetailRow label={t('transaction.amount')} value={`${cryptoAmount} ${cryptoCode}`} mono />
           )}
           <TransactionDetailRow label={t('transaction.address')} value={tx.address ?? '—'} copyable mono />
-          {tx.cp_id && (
+          {tx.tx_id && (
+            <TransactionDetailRow
+              label={tx.provider === 'nowpayments' ? t('transaction.npReference') : t('transaction.cpReference')}
+              value={tx.tx_id}
+              copyable
+              mono
+            />
+          )}
+          {tx.cp_id && tx.cp_id !== tx.tx_id && (
             <TransactionDetailRow
               label={tx.provider === 'nowpayments' ? t('transaction.npReference') : t('transaction.cpReference')}
               value={tx.cp_id}
