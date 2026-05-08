@@ -63,7 +63,6 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   const fetchBalance = useWalletStore((s) => s.fetchBalance);
   const user = useAuthStore((s) => s.user);
   const depositMin = useConfigStore((s) => s.deposit_min);
-  const mobileMoneyCountriesConfig = useConfigStore((s) => s.mobile_money_countries);
   const userCurrency = useCurrencyCode();
   const convertToXof = useCurrencyStore((s) => s.convertToXof);
   const fmtXof = useFormatXof();
@@ -182,14 +181,16 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   const userCountry = user?.country ?? '';
   const isAdmin = user?.group === 'admin';
   const isKycValidated = user?.validate === 1;
-  const mobileMoneyCountries = mobileMoneyCountriesConfig;
-  const showCard = isAdmin || !isKycValidated || !mobileMoneyCountries.includes(userCountry);
   const afribapayEnabled = useConfigStore((s) => s.afribapay_enabled);
   const depositEnabled = useConfigStore((s) => s.deposit_enabled);
   // Admin bypass : voit toutes les passerelles, y compris désactivées (bandeau rouge en haut).
   const operatorsBase = OPERATORS.filter(
     (op) => !isAfribapayDuplicate(op) && (afribapayEnabled || isAdmin || !(op as any).afribapay)
   );
+  // "Has mobile money for country" est dérivé de la réelle présence d'un opérateur MM (≠ card)
+  // pour ce pays — le backend `mobile_money_countries` inclut tous les pays tarifés (y compris NG sans MM).
+  const hasMomoForCountry = operatorsBase.some((op) => op.id !== 'card' && op.country === userCountry);
+  const showCard = isAdmin || !isKycValidated || !hasMomoForCountry;
   const filteredOperators = (isAdmin || !isKycValidated)
     ? [...operatorsBase]
     : [
