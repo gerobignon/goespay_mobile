@@ -120,7 +120,13 @@ function RootInner() {
       }
       setShowOfflineBanner(false);
       if (!connected) {
-        setApiStatus('error');
+        // Sur web, on délègue la détection de connexion internet au navigateur :
+        // pas d'écran d'erreur custom, on laisse les requêtes échouer naturellement.
+        if (Platform.OS === 'web') {
+          setApiStatus((prev) => (prev === 'checking' || prev === 'error' || prev === 'maintenance' ? 'ok' : prev));
+        } else {
+          setApiStatus('error');
+        }
       } else {
         setApiStatus((prev) => (prev === 'checking' || prev === 'error' || prev === 'maintenance' ? 'ok' : prev));
       }
@@ -195,7 +201,14 @@ function RootInner() {
     }
     const { connected, offline, backendAdmin } = await checkApiConnection();
     if (!connected) {
-      setApiStatus('error');
+      // Sur web : laisser le navigateur gérer l'absence de connexion
+      if (Platform.OS === 'web') {
+        setShowOfflineBanner(false);
+        setApiStatus('ok');
+        loadToken();
+      } else {
+        setApiStatus('error');
+      }
     } else if (offline) {
       if (Platform.OS === 'web' && backendAdmin) {
         setShowOfflineBanner(true);
