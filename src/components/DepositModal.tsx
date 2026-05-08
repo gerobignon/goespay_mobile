@@ -324,6 +324,10 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
       return;
     }
     setLoading(true);
+    let cardWindow: Window | null = null;
+    if (isCard && Platform.OS === 'web' && typeof window !== 'undefined') {
+      cardWindow = window.open('about:blank', '_blank');
+    }
     try {
       const payload: any = { amount: numAmount, moyen: operator };
       if (!isCard) payload.tel = phone.trim();
@@ -332,7 +336,15 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
 
       const redirectUrl = result?.checkout_url || result?.url;
       if (redirectUrl) {
-        Linking.openURL(redirectUrl).catch(() => {});
+        if (cardWindow && !cardWindow.closed) {
+          cardWindow.location.href = redirectUrl;
+        } else if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          window.location.href = redirectUrl;
+        } else {
+          Linking.openURL(redirectUrl).catch(() => {});
+        }
+      } else if (cardWindow && !cardWindow.closed) {
+        cardWindow.close();
       }
 
       if (result?.deposit_id) {
@@ -350,6 +362,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
       setPhone('');
       setOtp('');
     } catch (error: any) {
+      if (cardWindow && !cardWindow.closed) cardWindow.close();
       const msg = error?.response?.data?.error
         || error?.response?.data?.message
         || (error?.response?.data?.errors ? Object.values(error.response.data.errors).flat().join('\n') : null)
