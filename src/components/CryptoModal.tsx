@@ -632,17 +632,20 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                 <Input
                   label={tab === 'buy' ? t('cryptoModal.amountToPay', { currency: userCurrency }) : t('cryptoModal.amountIn', { currency: getCurrencyName(selectedCurrency) || 'crypto' })}
                   placeholder={(() => {
+                    const lookupMin = (m: Record<string, number>, c: string): number => {
+                      if (!m || !c) return 0;
+                      return Number(m[c] ?? m[c.toUpperCase()] ?? m[c.toLowerCase()] ?? 0);
+                    };
                     if (tab === 'buy') {
-                      const override = cryptoMinBuyXof[selectedCurrency];
-                      const minXof = override && override > 0
+                      const override = lookupMin(cryptoMinBuyXof, selectedCurrency);
+                      const minXof = override > 0
                         ? override
                         : (selectedCurrency === 'BTC' ? cryptoBuyMinBtc : cryptoBuyMinDefault);
                       return `Min. ${fmtXof(minXof)}`;
                     }
                     // Sell : convertir le min XOF en montant crypto via les rates live
-                    const minXof = cryptoMinSellXof[selectedCurrency] && cryptoMinSellXof[selectedCurrency] > 0
-                      ? cryptoMinSellXof[selectedCurrency]
-                      : cryptoSellMinReceive;
+                    const sellOverride = lookupMin(cryptoMinSellXof, selectedCurrency);
+                    const minXof = sellOverride > 0 ? sellOverride : cryptoSellMinReceive;
                     if (selectedRate) {
                       const sellRate = getSellRate(selectedRate);
                       const liveRate = stablecoinCodes.includes(selectedCurrency)
