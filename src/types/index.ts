@@ -41,7 +41,9 @@ export interface Transaction {
   dollar?: number;
   currency_dest?: string;
   address?: string;
+  cp_id?: string;
   cp_hash?: string;
+  provider?: string;
   avant?: number;
   apres?: number;
   created_at: string;
