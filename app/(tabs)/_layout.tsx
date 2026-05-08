@@ -67,7 +67,10 @@ export default function TabsLayout() {
   const tabs = (
     <Tabs
       tabBar={isDesktop ? () => null : (props) => <CustomTabBar {...props} />}
-      screenOptions={{ headerShown: false }}
+      screenOptions={{
+        headerShown: false,
+        sceneStyle: { backgroundColor: colors.background },
+      }}
     >
       <Tabs.Screen name="index" options={{ title: t('tabs.home') }} />
       <Tabs.Screen name="history" options={{ title: t('tabs.history') }} />
