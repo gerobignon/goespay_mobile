@@ -28,7 +28,7 @@ import { affiliationService } from '../../src/services/affiliationService';
 import { formatAmount, formatDate, useFormatXof, useCurrencyCode } from '../../src/utils/format';
 import type { AffiliationStats, AffiliationChild, AffiliationHistoryItem } from '../../src/types';
 
-const REFERRAL_BASE_URL = 'https://goespay.io/register';
+const REFERRAL_BASE_URL = 'https://app.goespay.io/register';
 
 export default function AffiliationScreen() {
   const router = useRouter();
