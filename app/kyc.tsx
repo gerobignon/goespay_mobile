@@ -412,7 +412,7 @@ export default function KycScreen() {
             {/* ── Selfie avec la pièce ── */}
             <Text style={styles.sectionTitle}>
               <FontAwesome6 name="user" size={14} color={Colors.secondary} />
-              {'  '}Selfie avec la pièce + "GOESPAY"
+              {'  '}Selfie avec la pièce
             </Text>
             <View style={styles.guideImageWrapper}>
               <Image source={require('../assets/vali2.png')} style={styles.guideImageFill} />
@@ -421,7 +421,7 @@ export default function KycScreen() {
               <View style={styles.instructionRow}>
                 <FontAwesome6 name="circle-info" size={14} color={Colors.secondary} />
                 <Text style={styles.selfieHint}>
-                  Prenez un selfie en tenant votre pièce d'identité et un papier écrit "GOESPAY" visible.
+                  Prenez un selfie en tenant clairement votre pièce d'identité à côté de votre visage.
                 </Text>
               </View>
             </Card>
