@@ -30,6 +30,21 @@ import type { AffiliationStats, AffiliationChild, AffiliationHistoryItem } from 
 
 const REFERRAL_BASE_URL = 'https://goespay.io/register';
 
+// Masque un nom complet en gardant la 1ère et dernière lettre de chaque mot.
+// Ex: "Erol Bignon" → "E**l B****n", "Jo" → "J*", "X" → "X"
+function maskName(full?: string | null): string {
+  if (!full) return '';
+  return full
+    .trim()
+    .split(/\s+/)
+    .map((w) => {
+      if (w.length <= 1) return w;
+      if (w.length === 2) return w[0] + '*';
+      return w[0] + '*'.repeat(Math.max(1, w.length - 2)) + w[w.length - 1];
+    })
+    .join(' ');
+}
+
 export default function AffiliationScreen() {
   const router = useRouter();
   const { isDesktop } = useResponsive();
@@ -234,8 +249,7 @@ export default function AffiliationScreen() {
                 <FontAwesome6 name="user" size={14} color={Colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.entryTitle}>{child.name || child.email}</Text>
-                <Text style={styles.entrySub}>{child.email}</Text>
+                <Text style={styles.entryTitle}>{maskName(child.name) || `#${child.id}`}</Text>
               </View>
               {child.created_at && <Text style={styles.entryDate}>{formatDate(child.created_at)}</Text>}
             </View>
@@ -250,7 +264,7 @@ export default function AffiliationScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.entryTitle}>+ {fmtXof(item.commission)}</Text>
-                <Text style={styles.entrySub}>{item.filleul_name || `#${item.filleul_id}`} · {item.type}</Text>
+                <Text style={styles.entrySub}>{maskName(item.filleul_name) || `#${item.filleul_id}`} · {item.type}</Text>
               </View>
               {item.created_at && <Text style={styles.entryDate}>{formatDate(item.created_at)}</Text>}
             </View>
