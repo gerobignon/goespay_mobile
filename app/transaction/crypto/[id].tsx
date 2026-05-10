@@ -171,7 +171,7 @@ export default function CryptoDetailScreen() {
           <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
           <TransactionDetailRow label={t('transaction.type')} value={isBuy ? t('transaction.buyType') : t('transaction.sellType')} badge badgeColor={Colors.secondary} badgeIcon="bitcoin-sign" />
           <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={status.icon} />
-          <TransactionDetailRow label={t('transaction.currency')} value={cryptoCode} badge badgeColor={Colors.textMuted} />
+          <TransactionDetailRow label={t('transaction.currency')} value={cryptoCode} badge badgeColor={Colors.secondary} />
           {cryptoAmount != null && (
             <TransactionDetailRow label={t('transaction.amount')} value={`${cryptoAmount} ${cryptoCode}`} mono />
           )}
