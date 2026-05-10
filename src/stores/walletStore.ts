@@ -47,7 +47,6 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     set({ isLoadingBalance: true });
     try {
       const data = await walletService.getBalance();
-      if (__DEV__) try { console.log('[WalletStore] balance response:', JSON.stringify(data)); } catch {}
       const balance = data.balance ?? 0;
       set({ balance, isLoadingBalance: false });
       AsyncStorage.setItem(CACHED_BALANCE_KEY, String(balance));
@@ -61,7 +60,6 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     try {
       const data: PaginatedResponse<Transaction> =
         await walletService.getTransactions(page, type);
-      if (__DEV__) try { console.log('[WalletStore] transactions response:', String(JSON.stringify(data)).substring(0, 500)); } catch {}
       const transactions = data.data ?? [];
       set({
         transactions,
