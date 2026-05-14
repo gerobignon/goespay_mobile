@@ -171,11 +171,11 @@ export default function DashboardScreen() {
                 <Text style={styles.subGreeting}>{t('home.welcome')}</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={() => setDropdownVisible(true)} style={styles.avatarRow} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <View style={styles.menuHint}>
-                <FontAwesome6 name="bars" size={14} color={Colors.textMuted} />
-              </View>
+            <TouchableOpacity onPress={() => setDropdownVisible(true)} style={styles.avatarWrap} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Image source={avatarSource} style={styles.avatar} />
+              <View style={styles.avatarBadge}>
+                <FontAwesome6 name="chevron-down" size={9} color={Colors.background} />
+              </View>
             </TouchableOpacity>
           </View>
         )}
@@ -494,20 +494,21 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderRadius: 22,
     backgroundColor: Colors.inputBg,
   },
-  avatarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
+  avatarWrap: {
+    position: 'relative',
   },
-  menuHint: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+  avatarBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.inputBg,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    backgroundColor: Colors.secondary,
+    borderWidth: 2,
+    borderColor: Colors.background,
   },
   balanceCard: {
     borderRadius: BorderRadius.xl,
