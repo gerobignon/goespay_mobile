@@ -457,6 +457,7 @@
     "labelPlaceholder": "e.g. Mom",
     "amountLabel": "Amount ({{currency}})",
     "phoneLabel": "Recipient number",
+    "phoneHint": "Enter the number without the country code",
     "transfer": "Transfer",
     "nameLabel": "Name / label",
     "amountSentDetail": "Amount sent",

@@ -457,6 +457,7 @@
     "labelPlaceholder": "Ex: Maman",
     "amountLabel": "Montant ({{currency}})",
     "phoneLabel": "Numéro du destinataire",
+    "phoneHint": "Saisissez le numéro sans l'indicatif du pays",
     "transfer": "Transférer",
     "nameLabel": "Nom / libellé",
     "amountSentDetail": "Montant envoyé",

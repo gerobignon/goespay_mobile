@@ -21,6 +21,7 @@ import { walletService } from '../services/walletService';
 import { useWalletStore } from '../stores/walletStore';
 import { useAuthStore } from '../stores/authStore';
 import { OPERATORS, isAfribapayDuplicate } from '../constants/config';
+import { ALL_COUNTRIES } from '../constants/countries';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { useResponsive } from '../hooks/useResponsive';
@@ -109,6 +110,12 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
   const fmt = (n: number) => n.toLocaleString('fr-FR').replace(/\s/g, '.');
 
   const showFees = numAmount > 0 && operator;
+
+  const dialCode = useMemo(() => {
+    if (!selectedCountry) return '';
+    const c = ALL_COUNTRIES.find((c) => c.code === selectedCountry);
+    return c ? `+${c.phone}` : '';
+  }, [selectedCountry]);
 
   const normalizedPhone = phone.replace(/\s+/g, '').trim();
 
@@ -539,7 +546,11 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
+              prefix={dialCode || undefined}
             />
+            {dialCode ? (
+              <Text style={styles.phoneHint}>{t('transferModal.phoneHint')}</Text>
+            ) : null}
 
             <View style={styles.savedActionsRow}>
               {!!normalizedPhone && !savedPhones.some((item) => item.tel.replace(/\s+/g, '') === normalizedPhone) && (
@@ -897,6 +908,14 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   savedChipTextSelected: {
     color: Colors.secondary,
+  },
+  phoneHint: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.regular,
+    marginTop: -Spacing.sm,
+    marginBottom: Spacing.sm,
+    fontStyle: 'italic',
   },
   savedActionsRow: {
     flexDirection: 'row',
