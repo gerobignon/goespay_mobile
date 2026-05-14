@@ -61,6 +61,7 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
   const [savePhoneOperator, setSavePhoneOperator] = useState('');
   const [savePhoneLoading, setSavePhoneLoading] = useState(false);
   const [pollingState, setPollingState] = useState<'idle' | 'pending' | 'success' | 'failed' | 'timeout'>('idle');
+  const [pendingDetails, setPendingDetails] = useState<{ amount_sent: number; fees: number; phone: string } | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollingTransferIdRef = useRef<number | null>(null);
   const consecutiveErrorsRef = useRef(0);
@@ -127,6 +128,7 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
     setSelectedCountry(null);
     setOperator('');
     setPollingState('idle');
+    setPendingDetails(null);
   }, [visible]);
 
   const stopPolling = useCallback(() => {
@@ -322,6 +324,11 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
       setPhone('');
 
       if (result?.transfer_id) {
+        setPendingDetails({
+          amount_sent: Number(result.amount_sent) || numAmount,
+          fees: Number(result.fees) || fees,
+          phone: normalizedPhone,
+        });
         startPolling(result.transfer_id);
       } else {
         // Fallback rétrocompat si le backend ne renvoie pas encore transfer_id
@@ -374,7 +381,29 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
               <FontAwesome6 name="circle-check" size={64} color={Colors.success} />
               <Text style={[styles.pollingTitle, { color: Colors.success }]}>{t('transferModal.transferConfirmed')}</Text>
               <Text style={styles.pollingMessage}>{t('transferModal.transferConfirmedMsg')}</Text>
-              <Button title={t('common.close')} onPress={() => { setPollingState('idle'); onClose(); }} style={{ marginTop: Spacing.lg }} />
+              {pendingDetails && (
+                <View style={[styles.feesBox, { width: '100%' }]}>
+                  {!!pendingDetails.phone && (
+                    <View style={styles.feesRow}>
+                      <Text style={styles.feesLabel}>{t('transferModal.recipient')}</Text>
+                      <Text style={styles.feesValue}>{pendingDetails.phone}</Text>
+                    </View>
+                  )}
+                  <View style={styles.feesRow}>
+                    <Text style={styles.feesLabel}>{t('transferModal.amountSentDetail')}</Text>
+                    <Text style={styles.feesValue}>{fmtXof(pendingDetails.amount_sent)}</Text>
+                  </View>
+                  <View style={styles.feesRow}>
+                    <Text style={styles.feesLabel}>{t('transferModal.feesDetail')}</Text>
+                    <Text style={styles.feesValue}>{fmtXof(pendingDetails.fees)}</Text>
+                  </View>
+                  <View style={[styles.feesRow, styles.feesTotalRow]}>
+                    <Text style={styles.feesTotalLabel}>{t('transferModal.totalDebited')}</Text>
+                    <Text style={styles.feesTotalValue}>{fmtXof(pendingDetails.amount_sent + pendingDetails.fees)}</Text>
+                  </View>
+                </View>
+              )}
+              <Button title={t('common.close')} onPress={() => { setPollingState('idle'); setPendingDetails(null); onClose(); }} style={{ marginTop: Spacing.lg }} />
             </View>
           )}
 
