@@ -129,6 +129,81 @@ export interface TransferRequest {
   tel: string;
 }
 
+// ── Merchant ──────────────────────────────────────────────────────
+
+export interface MerchantConfig {
+  business_name: string;
+  slug: string;
+  description?: string;
+  logo?: string;
+  website?: string;
+  webhook_url?: string;
+  commission_rate: number;
+  is_verified: boolean;
+  is_active: boolean;
+  api_key?: string;
+  created_at?: string;
+}
+
+export interface PaymentLink {
+  id: number;
+  slug: string;
+  title: string;
+  description?: string;
+  amount?: number;
+  currency: string;
+  status: 'active' | 'disabled' | 'expired';
+  expires_at?: string;
+  max_uses?: number;
+  uses_count: number;
+  pay_url: string;
+  is_usable: boolean;
+  created_at?: string;
+}
+
+export interface MerchantPayment {
+  id: number;
+  payment_link_id: number;
+  merchant_id: number;
+  payer_name?: string;
+  payer_phone?: string;
+  payer_email?: string;
+  amount: number;
+  fees: number;
+  net_amount: number;
+  gateway: string;
+  reference: string;
+  status: 'pending' | 'success' | 'failed' | 'expired';
+  created_at: string;
+  payment_link?: { id: number; title: string; slug: string };
+}
+
+export interface MerchantStats {
+  balance: number;
+  total_received: number;
+  total_fees: number;
+  total_payments: number;
+  today_received: number;
+  today_count: number;
+  week_received: number;
+  week_count: number;
+  month_received: number;
+  month_count: number;
+  links_count: number;
+  active_links_count: number;
+}
+
+export interface CreatePaymentLinkRequest {
+  title: string;
+  description?: string;
+  amount?: number;
+  currency?: string;
+  max_uses?: number;
+  expires_at?: string;
+  redirect_url?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface PaginatedResponse<T> {
   data: T[];
   current_page: number;

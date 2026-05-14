@@ -171,10 +171,12 @@ export default function DashboardScreen() {
                 <Text style={styles.subGreeting}>{t('home.welcome')}</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={() => setDropdownVisible(true)} style={styles.avatarWrap} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Image source={avatarSource} style={styles.avatar} />
-              <View style={styles.avatarBadge}>
-                <FontAwesome6 name="chevron-down" size={9} color={Colors.background} />
+            <TouchableOpacity onPress={() => setDropdownVisible(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <View style={styles.avatarWrap}>
+                <Image source={avatarSource} style={styles.avatar} />
+                <View style={styles.avatarBadge}>
+                  <FontAwesome6 name="chevron-down" size={9} color={Colors.background} />
+                </View>
               </View>
             </TouchableOpacity>
           </View>
@@ -495,6 +497,8 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     backgroundColor: Colors.inputBg,
   },
   avatarWrap: {
+    width: 44,
+    height: 44,
     position: 'relative',
   },
   avatarBadge: {
