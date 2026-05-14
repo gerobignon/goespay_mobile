@@ -21,8 +21,8 @@ try { Notifications.setNotificationHandler({
  * Retourne null si les permissions sont refusées ou si ce n'est pas un device physique.
  */
 export async function registerForPushNotifications(): Promise<string | null> {
-  // Les notifs push ne marchent que sur un device physique
-  if (!Device.isDevice) {
+  // Sur mobile, les notifs push ne marchent que sur un device physique (pas émulateur)
+  if (Platform.OS !== 'web' && !Device.isDevice) {
     return null;
   }
 
