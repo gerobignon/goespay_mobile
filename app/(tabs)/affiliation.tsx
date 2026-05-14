@@ -10,6 +10,7 @@ import {
   Share,
   RefreshControl,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -45,6 +46,7 @@ function maskName(full?: string | null): string {
 }
 
 export default function AffiliationScreen() {
+  const router = useRouter();
   const { isDesktop } = useResponsive();
   const styles = useThemedStyles(createStyles);
   const { isDark } = useTheme();
@@ -139,9 +141,17 @@ export default function AffiliationScreen() {
     );
   };
 
+  const headerBlock = (
+    <View style={styles.header}>
+      <TouchableOpacity onPress={() => router.back()}>
+        <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
+      </TouchableOpacity>
+      <Text style={styles.title}>{t('affiliation.title', 'Parrainage')}</Text>
+    </View>
+  );
+
   const content = (
     <>
-      <Text style={styles.title}>{t('affiliation.title', 'Parrainage')}</Text>
 
       {/* Code de parrainage */}
       <View style={styles.formCard}>
@@ -273,6 +283,7 @@ export default function AffiliationScreen() {
   if (isDesktop) {
     return (
       <View style={{ flex: 1 }}>
+        {headerBlock}
         <ScrollView
           contentContainerStyle={[styles.scroll, { paddingTop: 0 }]}
           keyboardShouldPersistTaps="handled"
@@ -292,8 +303,9 @@ export default function AffiliationScreen() {
         style={styles.background}
       >
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+          {headerBlock}
           <ScrollView
-            contentContainerStyle={styles.scroll}
+            contentContainerStyle={[styles.scroll, { paddingTop: 0 }]}
             keyboardShouldPersistTaps="handled"
             refreshControl={refreshControl}
           >
@@ -318,6 +330,9 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xxl,
+    paddingBottom: Spacing.lg,
   },
   title: {
     fontSize: FontSize.xl,
