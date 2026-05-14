@@ -14,6 +14,7 @@ const bgPage = require('../../assets/bg_page.jpg');
 const NAV_ITEMS = [
   { path: '/(tabs)', labelKey: 'tabs.home', icon: 'house' },
   { path: '/(tabs)/history', labelKey: 'tabs.history', icon: 'clock-rotate-left' },
+  { path: '/(tabs)/affiliation', labelKey: 'account.referral', icon: 'users' },
   { path: '/(tabs)/support', labelKey: 'tabs.support', icon: 'headset' },
 ];
 
