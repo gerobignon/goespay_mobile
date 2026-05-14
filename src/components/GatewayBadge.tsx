@@ -7,6 +7,7 @@ const AFRIBAPAY = require('../../assets/operators/afribapay.png');
 interface OperatorLike {
   id: string;
   afribapay?: true;
+  fincra?: true;
 }
 
 interface Props {
@@ -24,7 +25,7 @@ interface Props {
  */
 export function GatewayBadge({ op, visible, size = 16, style }: Props) {
   if (!visible) return null;
-  if (op.id === 'card') return null;
+  if (op.id === 'card' || op.fincra) return null;
   const source = op.afribapay ? AFRIBAPAY : PAYDUNYA;
   const imgStyle: ImageStyle = { width: size, height: size, borderRadius: size / 2 };
   return (

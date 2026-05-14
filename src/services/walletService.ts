@@ -16,6 +16,15 @@ export const walletService = {
     return { balance: body.data ?? body ?? 0 };
   },
 
+  getFincraBalance: async (): Promise<number> => {
+    try {
+      const { data } = await api.get('/balance/fincra');
+      return data.fincra_balance ?? 0;
+    } catch {
+      return 0;
+    }
+  },
+
   getTransactions: async (
     page = 1,
     type?: string

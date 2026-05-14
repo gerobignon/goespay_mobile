@@ -145,6 +145,7 @@
     "greeting": "Bonjour, {{name}}",
     "welcome": "Bienvenue sur GoesPay",
     "balance": "SOLDE DISPONIBLE",
+    "fincraBalance": "SOLDE FINCRA",
     "deposit": "Dépôt",
     "transfer": "Transfert",
     "recentTransactions": "Dernières transactions",
