@@ -467,7 +467,7 @@
     "transferConfirmed": "Transfer confirmed!",
     "transferConfirmedMsg": "The recipient has been credited.",
     "transferFailedTitle": "Transfer failed",
-    "transferFailedMsg": "Your balance has been restored.",
+    "transferFailedMsg": "Your balance is unchanged. Please double-check the recipient phone number and other details before trying again.",
     "pollingTimeout": "The transfer is taking longer than expected.\nCheck your history in a few minutes.",
     "viewHistory": "View history",
     "checkLater": "Check later"

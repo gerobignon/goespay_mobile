@@ -467,7 +467,7 @@
     "transferConfirmed": "Transfert confirmé !",
     "transferConfirmedMsg": "Le destinataire a bien été crédité.",
     "transferFailedTitle": "Transfert échoué",
-    "transferFailedMsg": "Votre solde a été restitué.",
+    "transferFailedMsg": "Votre solde reste inchangé. Vérifiez les informations saisies, notamment le numéro du destinataire, puis réessayez.",
     "pollingTimeout": "Le transfert prend plus de temps que prévu.\nVérifiez votre historique dans quelques minutes.",
     "viewHistory": "Voir l'historique",
     "checkLater": "Vérifier plus tard"
