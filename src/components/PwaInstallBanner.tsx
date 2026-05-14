@@ -48,6 +48,15 @@ export const PwaInstallBanner: React.FC = () => {
       if (window.sessionStorage.getItem(SESSION_KEY) === '1') return;
     } catch {}
 
+    // Le script inline dans index.html capture beforeinstallprompt avant
+    // que React monte. On le récupère ici pour avoir le bouton install
+    // direct dès l'affichage du banner.
+    const earlyPrompt = (window as any).__pwaDeferredPrompt;
+    if (earlyPrompt) {
+      setDeferredPrompt(earlyPrompt);
+      setVisible(true);
+    }
+
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -90,6 +99,7 @@ export const PwaInstallBanner: React.FC = () => {
         }
       } catch {}
       setDeferredPrompt(null);
+      try { delete (window as any).__pwaDeferredPrompt; } catch {}
     } else {
       setShowHelp(true);
     }

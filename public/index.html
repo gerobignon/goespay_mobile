@@ -3,6 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <title>GoesPay</title>
+    <script>
+      // Capture beforeinstallprompt before React mounts; the in-app banner
+      // reads window.__pwaDeferredPrompt on mount so the install button
+      // works on Chrome even when the event fires before the component.
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        window.__pwaDeferredPrompt = e;
+      });
+    </script>
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover"
