@@ -460,7 +460,17 @@
     "transfer": "Transfer",
     "nameLabel": "Name / label",
     "amountSentDetail": "Amount sent",
-    "feesDetail": "Fees"
+    "feesDetail": "Fees",
+    "processing": "Transfer in progress…",
+    "processingTitle": "Transfer in progress",
+    "waitingConfirmation": "Waiting for operator confirmation…",
+    "transferConfirmed": "Transfer confirmed!",
+    "transferConfirmedMsg": "The recipient has been credited.",
+    "transferFailedTitle": "Transfer failed",
+    "transferFailedMsg": "Your balance has been restored.",
+    "pollingTimeout": "The transfer is taking longer than expected.\nCheck your history in a few minutes.",
+    "viewHistory": "View history",
+    "checkLater": "Check later"
   },
   "cryptoModal": {
     "title": "Crypto",

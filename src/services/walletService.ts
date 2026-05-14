@@ -68,6 +68,11 @@ export const walletService = {
     return response.data;
   },
 
+  getTransferStatus: async (transferId: number): Promise<{ transfer_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; amount_sent: number; mode: string }> => {
+    const response = await api.get(`/transfer/status/${transferId}`);
+    return response.data;
+  },
+
   submitClaim: async (data: { transaction_id: number; type: string; message: string }): Promise<any> => {
     const response = await api.post('/claim', data);
     return response.data;

@@ -460,7 +460,17 @@
     "transfer": "Transférer",
     "nameLabel": "Nom / libellé",
     "amountSentDetail": "Montant envoyé",
-    "feesDetail": "Frais"
+    "feesDetail": "Frais",
+    "processing": "Transfert en cours…",
+    "processingTitle": "Transfert en cours",
+    "waitingConfirmation": "En attente de confirmation de l'opérateur…",
+    "transferConfirmed": "Transfert confirmé !",
+    "transferConfirmedMsg": "Le destinataire a bien été crédité.",
+    "transferFailedTitle": "Transfert échoué",
+    "transferFailedMsg": "Votre solde a été restitué.",
+    "pollingTimeout": "Le transfert prend plus de temps que prévu.\nVérifiez votre historique dans quelques minutes.",
+    "viewHistory": "Voir l'historique",
+    "checkLater": "Vérifier plus tard"
   },
   "cryptoModal": {
     "title": "Crypto",

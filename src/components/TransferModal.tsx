@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Modal,
@@ -10,6 +10,8 @@ import {
   Image,
   ScrollView,
   KeyboardAvoidingView,
+  ActivityIndicator,
+  AppState,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Input } from './Input';
@@ -58,6 +60,10 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
   const [savePhoneName, setSavePhoneName] = useState('');
   const [savePhoneOperator, setSavePhoneOperator] = useState('');
   const [savePhoneLoading, setSavePhoneLoading] = useState(false);
+  const [pollingState, setPollingState] = useState<'idle' | 'pending' | 'success' | 'failed' | 'timeout'>('idle');
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollingTransferIdRef = useRef<number | null>(null);
+  const consecutiveErrorsRef = useRef(0);
   const fetchBalance = useWalletStore((s) => s.fetchBalance);
   const balance = useWalletStore((s) => s.balance);
   const user = useAuthStore((s) => s.user);
@@ -120,7 +126,84 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
     loadSavedPhones();
     setSelectedCountry(null);
     setOperator('');
+    setPollingState('idle');
   }, [visible]);
+
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+    pollingTransferIdRef.current = null;
+    consecutiveErrorsRef.current = 0;
+  }, []);
+
+  const checkStatus = useCallback(async (transferId: number): Promise<boolean> => {
+    try {
+      const res = await walletService.getTransferStatus(transferId);
+      consecutiveErrorsRef.current = 0;
+      if (res.statut === 'success') {
+        stopPolling();
+        setPollingState('success');
+        fetchBalance().catch(() => {});
+        return true;
+      } else if (res.statut === 'fail' || res.statut === 'failed') {
+        stopPolling();
+        setPollingState('failed');
+        fetchBalance().catch(() => {});
+        return true;
+      }
+    } catch {
+      consecutiveErrorsRef.current++;
+      if (consecutiveErrorsRef.current >= 5) {
+        stopPolling();
+        setPollingState('timeout');
+        return true;
+      }
+    }
+    return false;
+  }, [fetchBalance, stopPolling]);
+
+  const startPolling = useCallback((transferId: number) => {
+    let attempts = 0;
+    const MAX_ATTEMPTS = 60; // 5 min max (toutes les 5s)
+    setPollingState('pending');
+    pollingTransferIdRef.current = transferId;
+    consecutiveErrorsRef.current = 0;
+
+    const poll = async () => {
+      attempts++;
+      const resolved = await checkStatus(transferId);
+      if (resolved) return;
+      if (attempts >= MAX_ATTEMPTS) {
+        stopPolling();
+        setPollingState('timeout');
+      }
+    };
+
+    poll();
+    pollingRef.current = setInterval(poll, 5000);
+  }, [checkStatus, stopPolling]);
+
+  // Vérification immédiate au retour foreground (mobile) ou onglet visible (web)
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active' && pollingTransferIdRef.current && pollingState === 'pending') {
+        checkStatus(pollingTransferIdRef.current);
+      }
+    });
+    return () => sub.remove();
+  }, [checkStatus, pollingState]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && pollingTransferIdRef.current && pollingState === 'pending') {
+        checkStatus(pollingTransferIdRef.current);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [checkStatus, pollingState]);
+
+  useEffect(() => () => stopPolling(), [stopPolling]);
 
   const saveCurrentPhone = async () => {
     if (!normalizedPhone) return;
@@ -189,6 +272,12 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
   };
 
   const handleClose = () => {
+    if (pollingState !== 'idle') {
+      stopPolling();
+      setPollingState('idle');
+      onClose();
+      return;
+    }
     const hasUserInput = !!amount.trim() || !!phone.trim();
     if (hasUserInput) {
       showAlert(
@@ -228,13 +317,19 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
         setSavedPhones((prev) => [created, ...prev]);
       }
       await fetchBalance();
-      const msg = result?.message
-        ? `${result.message}\n${t('transferModal.amountSentDetail')}: ${fmtXof(Number(result.amount_sent))}\n${t('transferModal.feesDetail')}: ${fmtXof(Number(result.fees))}`
-        : t('transferModal.transferSuccess');
-      showAlert(t('common.success'), msg, [{ text: 'OK', onPress: onClose }]);
       setAmount('');
       setOperator('');
       setPhone('');
+
+      if (result?.transfer_id) {
+        startPolling(result.transfer_id);
+      } else {
+        // Fallback rétrocompat si le backend ne renvoie pas encore transfer_id
+        const msg = result?.message
+          ? `${result.message}\n${t('transferModal.amountSentDetail')}: ${fmtXof(Number(result.amount_sent))}\n${t('transferModal.feesDetail')}: ${fmtXof(Number(result.fees))}`
+          : t('transferModal.transferSuccess');
+        showAlert(t('common.success'), msg, [{ text: 'OK', onPress: onClose }]);
+      }
     } catch (error: any) {
       // Le transfert peut avoir abouti côté serveur même si la requête a échoué
       // (timeout passerelle, réponse mal formée, etc.). On rafraîchit le solde
@@ -265,7 +360,43 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ paddingBottom: Spacing.xl }}>
+          {pollingState === 'pending' && (
+            <View style={styles.pollingContainer}>
+              <ActivityIndicator size="large" color={Colors.primary} />
+              <Text style={styles.pollingTitle}>{t('transferModal.processingTitle')}</Text>
+              <Text style={styles.pollingMessage}>{t('transferModal.waitingConfirmation')}</Text>
+              <Button title={t('transferModal.checkLater')} onPress={() => { stopPolling(); setPollingState('idle'); onClose(); }} style={{ marginTop: Spacing.lg }} />
+            </View>
+          )}
+
+          {pollingState === 'success' && (
+            <View style={styles.pollingContainer}>
+              <FontAwesome6 name="circle-check" size={64} color={Colors.success} />
+              <Text style={[styles.pollingTitle, { color: Colors.success }]}>{t('transferModal.transferConfirmed')}</Text>
+              <Text style={styles.pollingMessage}>{t('transferModal.transferConfirmedMsg')}</Text>
+              <Button title={t('common.close')} onPress={() => { setPollingState('idle'); onClose(); }} style={{ marginTop: Spacing.lg }} />
+            </View>
+          )}
+
+          {pollingState === 'failed' && (
+            <View style={styles.pollingContainer}>
+              <FontAwesome6 name="circle-xmark" size={64} color={Colors.error ?? '#e53935'} />
+              <Text style={[styles.pollingTitle, { color: Colors.error ?? '#e53935' }]}>{t('transferModal.transferFailedTitle')}</Text>
+              <Text style={styles.pollingMessage}>{t('transferModal.transferFailedMsg')}</Text>
+              <Button title={t('common.close')} onPress={() => { setPollingState('idle'); onClose(); }} style={{ marginTop: Spacing.lg }} />
+            </View>
+          )}
+
+          {pollingState === 'timeout' && (
+            <View style={styles.pollingContainer}>
+              <FontAwesome6 name="clock" size={64} color={Colors.warning ?? '#F4B228'} />
+              <Text style={[styles.pollingTitle, { color: Colors.warning ?? '#F4B228' }]}>{t('transferModal.processingTitle')}</Text>
+              <Text style={styles.pollingMessage}>{t('transferModal.pollingTimeout')}</Text>
+              <Button title={t('transferModal.viewHistory')} onPress={() => { setPollingState('idle'); onClose(); }} style={{ marginTop: Spacing.lg }} />
+            </View>
+          )}
+
+          {pollingState === 'idle' && <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ paddingBottom: Spacing.xl }}>
             {isAdmin && !transferEnabled && (
               <AdminDisabledBanner message={t('admin.bannerTransfer')} />
             )}
@@ -435,7 +566,7 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
               disabled={!amount || !operator || !phone}
               style={{ marginTop: Spacing.lg }}
             />
-          </ScrollView>
+          </ScrollView>}
           </View>
       </KeyboardAvoidingView>
 
@@ -573,6 +704,25 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: FontSize.xl,
     fontFamily: Fonts.bold,
     color: Colors.text,
+  },
+  pollingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.md,
+  },
+  pollingTitle: {
+    fontSize: FontSize.xl,
+    fontFamily: Fonts.bold,
+    color: Colors.text,
+    textAlign: 'center',
+  },
+  pollingMessage: {
+    fontSize: FontSize.md,
+    color: Colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 22,
   },
   kycBanner: {
     flexDirection: 'row',
