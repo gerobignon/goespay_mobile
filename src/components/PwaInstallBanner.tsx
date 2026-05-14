@@ -217,7 +217,7 @@ const createStyles = (C: ColorPalette) => StyleSheet.create({
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.surface,
+    backgroundColor: C.cardSolid,
     borderRadius: BorderRadius.lg,
     padding: 12,
     paddingRight: 8,
@@ -260,7 +260,7 @@ const createStyles = (C: ColorPalette) => StyleSheet.create({
   },
   modalCard: {
     width: '100%', maxWidth: 440,
-    backgroundColor: C.surface,
+    backgroundColor: C.cardSolid,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     ...Shadow.card,
