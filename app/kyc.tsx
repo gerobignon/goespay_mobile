@@ -124,13 +124,18 @@ export default function KycScreen() {
 
     setLoading(true);
     try {
+      // Convert DD/MM/YYYY → YYYY-MM-DD for backend
+      const idexpIso = (() => {
+        const m = idexp.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        return m ? `${m[3]}-${m[2]}-${m[1]}` : idexp.trim();
+      })();
       await authService.uploadKyc(
         {
           type: docType,
           city: city.trim(),
           address: address.trim(),
           idnumber: idnumber.trim(),
-          idexp: idexp.trim(),
+          idexp: idexpIso,
           phone: phone.trim(),
           country,
           telegram: telegram.trim(),

@@ -184,7 +184,17 @@ export default function DashboardScreen() {
         {user?.validate !== 1 && (
           <KycBanner
             status={user?.validate as 0 | 2}
+            expired={user?.validate === 0 && !!user?.idexp_expired}
             onPress={user?.validate === 0 ? () => router.push('/kyc') : undefined}
+          />
+        )}
+        {/* KYC Expiring soon (validate=1 mais <=30j) */}
+        {user?.validate === 1 && user?.idexp_warning && (
+          <KycBanner
+            status={0}
+            expiringSoon
+            daysLeft={user?.idexp_days_left ?? null}
+            onPress={() => router.push('/kyc')}
           />
         )}
 

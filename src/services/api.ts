@@ -40,6 +40,11 @@ api.interceptors.response.use(
         await SafeStorage.removeItem('auth_token');
       }
     }
+    // KYC bloqué (expiré ou non actif) → flag pour l'UI
+    const code = error.response?.data?.code;
+    if (error.response?.status === 403 && (code === 'KYC_EXPIRED' || code === 'KYC_REQUIRED')) {
+      error.kycBlocked = code;
+    }
     return Promise.reject(error);
   }
 );

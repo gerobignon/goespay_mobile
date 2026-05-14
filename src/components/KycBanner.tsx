@@ -9,34 +9,55 @@ import { useTranslation } from 'react-i18next';
 interface KycBannerProps {
   onPress?: () => void;
   status?: 0 | 2;
+  /** true si la pièce a expiré (validate=0 + idexp passée) */
+  expired?: boolean;
+  /** true si la pièce expire dans <= 30 jours (validate=1 mais bientôt expirée) */
+  expiringSoon?: boolean;
+  /** Nombre de jours restants (>= 0) si expiringSoon */
+  daysLeft?: number | null;
 }
 
-export function KycBanner({ onPress, status = 0 }: KycBannerProps) {
+export function KycBanner({ onPress, status = 0, expired = false, expiringSoon = false, daysLeft = null }: KycBannerProps) {
   const styles = useThemedStyles(createStyles);
   const { isDark } = useTheme();
   const { t } = useTranslation();
   const isPending = status === 2;
-  const message = isPending
-    ? t('kyc.pendingReview')
-    : t('kyc.notValidated');
-  const color = isPending ? Colors.info ?? '#3b82f6' : Colors.warning;
+
+  let message: string;
+  let color: string;
+  let icon: string;
+  let interactive = true;
+
+  if (expired) {
+    message = t('kyc.expiredMessage');
+    color = Colors.error ?? '#dc2626';
+    icon = 'circle-exclamation';
+  } else if (expiringSoon) {
+    const d = typeof daysLeft === 'number' && daysLeft >= 0 ? daysLeft : null;
+    message = d !== null ? t('kyc.expiringSoon', { days: d }) : t('kyc.expiringSoonGeneric');
+    color = Colors.warning;
+    icon = 'triangle-exclamation';
+  } else if (isPending) {
+    message = t('kyc.pendingReview');
+    color = Colors.info ?? '#3b82f6';
+    icon = 'clock';
+    interactive = false;
+  } else {
+    message = t('kyc.notValidated');
+    color = Colors.warning;
+    icon = 'triangle-exclamation';
+  }
   const bgOpacity = isDark ? '20' : '33';
 
   return (
     <TouchableOpacity
       style={[styles.container, { backgroundColor: color + bgOpacity }]}
-      onPress={isPending ? undefined : onPress}
-      activeOpacity={isPending ? 1 : 0.7}
+      onPress={interactive ? onPress : undefined}
+      activeOpacity={interactive ? 0.7 : 1}
     >
-      <FontAwesome6
-        name={isPending ? 'clock' : 'triangle-exclamation'}
-        size={16}
-        color={color}
-      />
-      <Text style={[styles.text, { color }]}>
-        {message}
-      </Text>
-      {!isPending && (
+      <FontAwesome6 name={icon as any} size={16} color={color} />
+      <Text style={[styles.text, { color }]}>{message}</Text>
+      {interactive && (
         <FontAwesome6 name="chevron-right" size={12} color={color} />
       )}
     </TouchableOpacity>
