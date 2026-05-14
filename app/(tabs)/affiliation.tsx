@@ -10,7 +10,6 @@ import {
   Share,
   RefreshControl,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -46,7 +45,6 @@ function maskName(full?: string | null): string {
 }
 
 export default function AffiliationScreen() {
-  const router = useRouter();
   const { isDesktop } = useResponsive();
   const styles = useThemedStyles(createStyles);
   const { isDark } = useTheme();
@@ -143,15 +141,7 @@ export default function AffiliationScreen() {
 
   const content = (
     <>
-      {!isDesktop && (
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.title}>{t('affiliation.title', 'Parrainage')}</Text>
-        </View>
-      )}
-      {isDesktop && <Text style={styles.title}>{t('affiliation.title', 'Parrainage')}</Text>}
+      <Text style={styles.title}>{t('affiliation.title', 'Parrainage')}</Text>
 
       {/* Code de parrainage */}
       <View style={styles.formCard}>

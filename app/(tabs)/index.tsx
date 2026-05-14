@@ -118,7 +118,6 @@ export default function DashboardScreen() {
     { key: 'security', label: t('account.security'), icon: 'shield-halved', route: '/account/security' as const },
     { key: 'phones', label: t('account.savedPhones'), icon: 'address-book', route: '/account/phones' as const },
     { key: 'wallets', label: t('account.savedWallets'), icon: 'wallet', route: '/account/wallets' as const, cryptoOnly: true },
-    { key: 'affiliation', label: t('account.referral', 'Parrainage'), icon: 'users', route: '/account/affiliation' as const },
     { key: 'settings', label: t('account.appearance'), icon: 'gear', route: '/account/settings' as const },
   ];
 
@@ -172,7 +171,10 @@ export default function DashboardScreen() {
                 <Text style={styles.subGreeting}>{t('home.welcome')}</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={() => setDropdownVisible(true)}>
+            <TouchableOpacity onPress={() => setDropdownVisible(true)} style={styles.avatarRow} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <View style={styles.menuHint}>
+                <FontAwesome6 name="bars" size={14} color={Colors.textMuted} />
+              </View>
               <Image source={avatarSource} style={styles.avatar} />
             </TouchableOpacity>
           </View>
@@ -491,6 +493,21 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     height: 44,
     borderRadius: 22,
     backgroundColor: Colors.inputBg,
+  },
+  avatarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  menuHint: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.inputBg,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   balanceCard: {
     borderRadius: BorderRadius.xl,
