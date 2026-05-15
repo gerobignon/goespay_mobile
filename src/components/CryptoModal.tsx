@@ -435,7 +435,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
   };
 
   return (
-    <ResponsiveModal visible={visible} onClose={handleClose}>
+    <ResponsiveModal visible={visible} onClose={handleClose} disableBackdropClose={loading}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}

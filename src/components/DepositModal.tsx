@@ -400,7 +400,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   };
 
   return (
-    <ResponsiveModal visible={visible} onClose={handleClose}>
+    <ResponsiveModal visible={visible} onClose={handleClose} disableBackdropClose={pollingState === 'pending' || loading}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}

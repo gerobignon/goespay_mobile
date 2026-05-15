@@ -11,12 +11,13 @@ interface ResponsiveModalProps {
   onClose: () => void;
   children: ReactNode;
   width?: number;
+  disableBackdropClose?: boolean;
 }
 
 /**
  * Full-screen modal on mobile, centered panel with backdrop on tablet/desktop.
  */
-export function ResponsiveModal({ visible, onClose, children, width }: ResponsiveModalProps) {
+export function ResponsiveModal({ visible, onClose, children, width, disableBackdropClose }: ResponsiveModalProps) {
   const { isWide, modalWidth } = useResponsive();
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
@@ -50,7 +51,7 @@ export function ResponsiveModal({ visible, onClose, children, width }: Responsiv
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <Pressable style={styles.backdrop} onPress={disableBackdropClose ? undefined : onClose}>
         <Pressable
           style={[styles.panel, { width: width ?? modalWidth }]}
           onPress={(e) => e.stopPropagation()}
