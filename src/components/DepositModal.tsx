@@ -105,6 +105,17 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   // Vérification unique du statut (utilisée par le polling et au retour foreground)
   const checkStatus = useCallback(async (depositId: number): Promise<boolean> => {
     try {
+      // Fincra : check directement auprès de Fincra (pas de webhook fiable)
+      if (isFincra) {
+        const fRes = await walletService.getFincraDepositStatus(depositId);
+        consecutiveErrorsRef.current = 0;
+        if (fRes.status === 'success') {
+          stopPolling(); setPollingState('success'); fetchBalance().catch(() => {}); return true;
+        } else if (fRes.status === 'fail') {
+          stopPolling(); setPollingState('failed'); return true;
+        }
+        return false;
+      }
       const res = await walletService.getDepositStatus(depositId);
       consecutiveErrorsRef.current = 0;
       if (res.statut === 'success') {
