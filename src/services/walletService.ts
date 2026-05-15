@@ -7,7 +7,7 @@ import type {
 } from '../types';
 
 export const walletService = {
-  getBalance: async (): Promise<{ balance: number }> => {
+  getBalance: async (): Promise<{ balance: number; balance_fincra?: number }> => {
     const response = await api.get('/wallet/balance');
     // Handle both { balance: 123 } and { data: { balance: 123 } }
     const body = response.data;

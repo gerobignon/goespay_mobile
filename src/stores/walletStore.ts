@@ -51,7 +51,8 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     try {
       const data = await walletService.getBalance();
       const balance = data.balance ?? 0;
-      set({ balance, isLoadingBalance: false });
+      const fincraBalance = data.balance_fincra ?? 0;
+      set({ balance, fincraBalance, isLoadingBalance: false });
       AsyncStorage.setItem(CACHED_BALANCE_KEY, String(balance));
     } catch (e) {
       set({ isLoadingBalance: false });
