@@ -387,7 +387,6 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
         showAlert(t('common.success'), result?.message || 'Votre dépôt a été initié.', [{ text: 'OK', onPress: onClose }]);
       }
       setAmount('');
-      setOperator('');
       setPhone('');
       setOtp('');
     } catch (error: any) {
