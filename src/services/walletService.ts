@@ -70,8 +70,8 @@ export const walletService = {
     return response.data;
   },
 
-  getFincraDepositStatus: async (depositId: number): Promise<{ status: 'wait' | 'success' | 'fail' }> => {
-    const response = await api.get(`/deposit/fincra/status/${depositId}`);
+  getFincraDepositStatus: async (ref: string): Promise<{ status: 'wait' | 'success' | 'fail' }> => {
+    const response = await api.get(`/deposit/fincra/status/${ref}`);
     return response.data;
   },
 

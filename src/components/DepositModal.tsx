@@ -60,6 +60,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   const [pollingMessage, setPollingMessage] = useState('');
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollingDepositIdRef = useRef<number | null>(null);
+  const pollingRefRef = useRef<string | null>(null);
   const consecutiveErrorsRef = useRef(0);
   const fetchBalance = useWalletStore((s) => s.fetchBalance);
   const user = useAuthStore((s) => s.user);
@@ -99,15 +100,16 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   const stopPolling = useCallback(() => {
     if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
     pollingDepositIdRef.current = null;
+    pollingRefRef.current = null;
     consecutiveErrorsRef.current = 0;
   }, []);
 
   // Vérification unique du statut (utilisée par le polling et au retour foreground)
   const checkStatus = useCallback(async (depositId: number): Promise<boolean> => {
     try {
-      // Fincra : check directement auprès de Fincra (pas de webhook fiable)
-      if (isFincra) {
-        const fRes = await walletService.getFincraDepositStatus(depositId);
+      // Fincra : check directement auprès de Fincra via la référence
+      if (isFincra && pollingRefRef.current) {
+        const fRes = await walletService.getFincraDepositStatus(pollingRefRef.current);
         consecutiveErrorsRef.current = 0;
         if (fRes.status === 'success') {
           stopPolling(); setPollingState('success'); fetchBalance().catch(() => {}); return true;
@@ -352,7 +354,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
           method: 'checkout',
         };
         const { data } = await api.post('/deposit/fincra', fincraPayload);
-        result = { checkout_url: data.payment_url, deposit_id: data.deposit_id };
+        result = { checkout_url: data.payment_url, deposit_id: data.deposit_id, reference: data.reference };
       } else {
         const payload: any = { amount: numAmount, moyen: operator };
         if (!isCard) payload.tel = phone.trim();
@@ -374,6 +376,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
       }
 
       if (result?.deposit_id) {
+        pollingRefRef.current = result.reference ?? null;
         setPollingMessage(redirectUrl
           ? t('depositModal.waitingConfirmation')
           : t('depositModal.checkPhone')
