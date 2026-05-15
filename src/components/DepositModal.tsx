@@ -367,7 +367,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
         if (cardWindow && !cardWindow.closed) {
           cardWindow.location.href = redirectUrl;
         } else if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          window.location.href = redirectUrl;
+          window.open(redirectUrl, '_blank') || (window.location.href = redirectUrl);
         } else {
           Linking.openURL(redirectUrl).catch(() => {});
         }
