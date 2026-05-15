@@ -108,8 +108,9 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   const checkStatus = useCallback(async (depositId: number): Promise<boolean> => {
     try {
       // Fincra : check directement auprès de Fincra via la référence
-      if (isFincra && pollingRefRef.current) {
-        const fRes = await walletService.getFincraDepositStatus(pollingRefRef.current);
+      const fincraRef = pollingRefRef.current;
+      if (fincraRef && fincraRef.startsWith('FCD-')) {
+        const fRes = await walletService.getFincraDepositStatus(fincraRef);
         consecutiveErrorsRef.current = 0;
         if (fRes.status === 'success') {
           stopPolling(); setPollingState('success'); fetchBalance().catch(() => {}); return true;

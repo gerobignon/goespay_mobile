@@ -19,6 +19,9 @@ import { useThemedStyles } from '../src/hooks/useThemedStyles';
 import { API_BASE_URL } from '../src/constants/config';
 import { CustomAlert } from '../src/components/CustomAlert';
 import { PwaInstallBanner } from '../src/components/PwaInstallBanner';
+import { walletService } from '../src/services/walletService';
+import { showAlert } from '../src/stores/alertStore';
+import { useWalletStore } from '../src/stores/walletStore';
 import { ThemeProvider, useTheme } from '../src/components/ThemeProvider';
 import '../src/i18n';  // initialize i18next
 import { initLanguage } from '../src/i18n';
@@ -158,10 +161,6 @@ function RootInner() {
     window.history.replaceState({}, '', window.location.pathname);
 
     // Vérifier le statut auprès de Fincra via le backend
-    const { walletService } = require('../src/services/walletService');
-    const { showAlert } = require('../src/stores/alertStore');
-    const { useWalletStore } = require('../src/stores/walletStore');
-
     walletService.getFincraDepositStatus(ref)
       .then((res: { status: string }) => {
         if (res.status === 'success') {
