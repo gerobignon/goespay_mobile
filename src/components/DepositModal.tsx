@@ -19,6 +19,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { Input } from './Input';
 import { Button } from './Button';
 import { walletService } from '../services/walletService';
+import api from '../services/api';
 import { useWalletStore } from '../stores/walletStore';
 import { useAuthStore } from '../stores/authStore';
 import { OPERATORS, isAfribapayDuplicate } from '../constants/config';
@@ -210,7 +211,9 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
     : displayOperators;
 
   const needsOtp = ['orange-money-burkina', 'orange-money-ci', 'orange-money-senegal', 'orange-gn'].includes(operator);
-  const isCard = operator === 'card';
+  const selectedOp = OPERATORS.find((op) => op.id === operator);
+  const isFincra = !!(selectedOp as any)?.fincra;
+  const isCard = operator === 'card' || isFincra;
 
   const normalizedPhone = phone.replace(/\s+/g, '').trim();
 
@@ -330,10 +333,21 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
       cardWindow = window.open('about:blank', '_blank');
     }
     try {
-      const payload: any = { amount: numAmount, moyen: operator };
-      if (!isCard) payload.tel = phone.trim();
-      if (needsOtp && otp) payload.otp = otp;
-      const result = await walletService.deposit(payload);
+      let result: any;
+      if (isFincra) {
+        const fincraPayload = {
+          amount: numAmount,
+          currency: (selectedOp as any)?.currency || 'XOF',
+          method: 'checkout',
+        };
+        const { data } = await api.post('/deposit/fincra', fincraPayload);
+        result = { checkout_url: data.payment_url, deposit_id: data.deposit_id };
+      } else {
+        const payload: any = { amount: numAmount, moyen: operator };
+        if (!isCard) payload.tel = phone.trim();
+        if (needsOtp && otp) payload.otp = otp;
+        result = await walletService.deposit(payload);
+      }
 
       const redirectUrl = result?.checkout_url || result?.url;
       if (redirectUrl) {
