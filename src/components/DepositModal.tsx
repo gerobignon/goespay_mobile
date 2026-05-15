@@ -431,7 +431,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
               <FontAwesome6 name="circle-check" size={64} color={Colors.success} />
               <Text style={[styles.pollingTitle, { color: Colors.success }]}>{t('depositModal.paymentConfirmed')}</Text>
               <Text style={styles.pollingMessage}>{t('depositModal.balanceUpdated')}</Text>
-              <Button title={t('common.close')} onPress={() => { setPollingState('idle'); onClose(); }} style={{ marginTop: Spacing.lg }} />
+              <Button title={t('common.close')} onPress={() => { setPollingState('idle'); setOperator(''); fetchBalance(); useWalletStore.getState().fetchTransactions(1); onClose(); }} style={{ marginTop: Spacing.lg }} />
             </View>
           )}
 
