@@ -23,6 +23,7 @@ export interface AppConfig {
   deposit_min: number;
   transfer_min: number;
   transfer_max: number;
+  transfer_min_world: number;
   transfer_min_ng: number;
   transfer_max_ng: number;
   crypto_buy_max: number;
@@ -64,6 +65,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   deposit_min: 1000,
   transfer_min: 2500,
   transfer_max: 500000,
+  transfer_min_world: 5000,
   transfer_min_ng: 25000,
   transfer_max_ng: 250000,
   crypto_buy_max: 250000,
