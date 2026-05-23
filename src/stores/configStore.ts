@@ -25,7 +25,6 @@ export interface AppConfig {
   transfer_max: number;
   transfer_min_world: number;
   transfer_min_ng: number;
-  transfer_max_ng: number;
   crypto_buy_max: number;
   crypto_buy_min_btc: number;
   crypto_buy_min_default: number;
@@ -67,7 +66,6 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   transfer_max: 500000,
   transfer_min_world: 5000,
   transfer_min_ng: 25000,
-  transfer_max_ng: 250000,
   crypto_buy_max: 250000,
   crypto_buy_min_btc: 50000,
   crypto_buy_min_default: 2500,
