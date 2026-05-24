@@ -19,6 +19,9 @@ import { useThemedStyles } from '../src/hooks/useThemedStyles';
 import { API_BASE_URL } from '../src/constants/config';
 import { CustomAlert } from '../src/components/CustomAlert';
 import { PwaInstallBanner } from '../src/components/PwaInstallBanner';
+import { walletService } from '../src/services/walletService';
+import { showAlert } from '../src/stores/alertStore';
+import { useWalletStore } from '../src/stores/walletStore';
 import { ThemeProvider, useTheme } from '../src/components/ThemeProvider';
 import '../src/i18n';  // initialize i18next
 import { initLanguage } from '../src/i18n';
@@ -145,6 +148,32 @@ function RootInner() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // Plan C Fincra : détecter ?reference=FCD-xxx dans l'URL après redirect Fincra
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('reference');
+    if (!ref || !ref.startsWith('FCD-')) return;
+
+    // Nettoyer l'URL
+    window.history.replaceState({}, '', window.location.pathname);
+
+    // Vérifier le statut auprès de Fincra via le backend
+    walletService.getFincraDepositStatus(ref)
+      .then((res: { status: string }) => {
+        if (res.status === 'success') {
+          showAlert('✅', 'Dépôt Fincra crédité avec succès.');
+          useWalletStore.getState().fetchBalance();
+          useWalletStore.getState().fetchFincraBalance();
+        } else if (res.status === 'fail') {
+          showAlert('❌', 'Le dépôt Fincra a échoué.');
+        } else {
+          showAlert('⏳', 'Dépôt en cours de vérification...');
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Enregistrement des notifications push quand l'utilisateur est authentifié

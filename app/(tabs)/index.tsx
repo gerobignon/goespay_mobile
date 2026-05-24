@@ -49,7 +49,7 @@ export default function DashboardScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const refreshProfile = useAuthStore((s) => s.refreshProfile);
-  const { balance, fetchBalance, isLoadingBalance, transactions, fetchTransactions, loadCachedData } = useWalletStore();
+  const { balance, fincraBalance, fetchBalance, isLoadingBalance, transactions, fetchTransactions, loadCachedData } = useWalletStore();
   const fmtXof = useFormatXof();
   const currencyCode = useCurrencyCode();
   const [refreshing, setRefreshing] = useState(false);
@@ -211,6 +211,12 @@ export default function DashboardScreen() {
                   <Text style={styles.balanceLabel}>{ t('home.balance') }</Text>
                   <Text style={styles.balanceAmount}>{fmtXof(balance, { withCode: false })}</Text>
                   <Text style={styles.currency}>{currencyCode}</Text>
+                  {fincraBalance > 0 && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                      <Text style={[styles.balanceLabel, { fontSize: FontSize.xs }]}>{ t('home.fincraBalance') }</Text>
+                      <Text style={[styles.balanceAmount, { fontSize: FontSize.lg }]}>{fmtXof(fincraBalance, { withCode: false })}</Text>
+                    </View>
+                  )}
                   <View style={styles.balanceActions}>
                     {showDeposit && (
                     <TouchableOpacity

@@ -19,6 +19,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { Input } from './Input';
 import { Button } from './Button';
 import { walletService } from '../services/walletService';
+import api from '../services/api';
 import { useWalletStore } from '../stores/walletStore';
 import { useAuthStore } from '../stores/authStore';
 import { OPERATORS, isAfribapayDuplicate } from '../constants/config';
@@ -60,6 +61,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   const [pollingMessage, setPollingMessage] = useState('');
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollingDepositIdRef = useRef<number | null>(null);
+  const pollingRefRef = useRef<string | null>(null);
   const consecutiveErrorsRef = useRef(0);
   const fetchBalance = useWalletStore((s) => s.fetchBalance);
   const user = useAuthStore((s) => s.user);
@@ -99,12 +101,25 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   const stopPolling = useCallback(() => {
     if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
     pollingDepositIdRef.current = null;
+    pollingRefRef.current = null;
     consecutiveErrorsRef.current = 0;
   }, []);
 
   // Vérification unique du statut (utilisée par le polling et au retour foreground)
   const checkStatus = useCallback(async (depositId: number): Promise<boolean> => {
     try {
+      // Fincra : check directement auprès de Fincra via la référence
+      const fincraRef = pollingRefRef.current;
+      if (fincraRef && fincraRef.startsWith('FCD-')) {
+        const fRes = await walletService.getFincraDepositStatus(fincraRef);
+        consecutiveErrorsRef.current = 0;
+        if (fRes.status === 'success') {
+          stopPolling(); setPollingState('success'); fetchBalance().catch(() => {}); return true;
+        } else if (fRes.status === 'fail') {
+          stopPolling(); setPollingState('failed'); return true;
+        }
+        return false;
+      }
       const res = await walletService.getDepositStatus(depositId);
       consecutiveErrorsRef.current = 0;
       if (res.statut === 'success') {
@@ -211,7 +226,9 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
     : displayOperators;
 
   const needsOtp = ['orange-money-burkina', 'orange-money-ci', 'orange-money-senegal', 'orange-gn'].includes(operator);
-  const isCard = operator === 'card';
+  const selectedOp = OPERATORS.find((op) => op.id === operator);
+  const isFincra = !!(selectedOp as any)?.fincra;
+  const isCard = operator === 'card' || isFincra;
 
   const normalizedPhone = phone.replace(/\s+/g, '').trim();
 
@@ -331,17 +348,28 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
       cardWindow = window.open('about:blank', '_blank');
     }
     try {
-      const payload: any = { amount: numAmount, moyen: operator };
-      if (!isCard) payload.tel = phone.trim();
-      if (needsOtp && otp) payload.otp = otp;
-      const result = await walletService.deposit(payload);
+      let result: any;
+      if (isFincra) {
+        const fincraPayload = {
+          amount: numAmount,
+          currency: (selectedOp as any)?.currency || 'XOF',
+          method: 'checkout',
+        };
+        const { data } = await api.post('/deposit/fincra', fincraPayload);
+        result = { checkout_url: data.payment_url, deposit_id: data.deposit_id, reference: data.reference };
+      } else {
+        const payload: any = { amount: numAmount, moyen: operator };
+        if (!isCard) payload.tel = phone.trim();
+        if (needsOtp && otp) payload.otp = otp;
+        result = await walletService.deposit(payload);
+      }
 
       const redirectUrl = result?.checkout_url || result?.url;
       if (redirectUrl) {
         if (cardWindow && !cardWindow.closed) {
           cardWindow.location.href = redirectUrl;
         } else if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          window.location.href = redirectUrl;
+          window.open(redirectUrl, '_blank') || (window.location.href = redirectUrl);
         } else {
           Linking.openURL(redirectUrl).catch(() => {});
         }
@@ -350,6 +378,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
       }
 
       if (result?.deposit_id) {
+        pollingRefRef.current = result.reference ?? null;
         setPollingMessage(redirectUrl
           ? t('depositModal.waitingConfirmation')
           : t('depositModal.checkPhone')
@@ -360,7 +389,6 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
         showAlert(t('common.success'), result?.message || 'Votre dépôt a été initié.', [{ text: 'OK', onPress: onClose }]);
       }
       setAmount('');
-      setOperator('');
       setPhone('');
       setOtp('');
     } catch (error: any) {
@@ -376,7 +404,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   };
 
   return (
-    <ResponsiveModal visible={visible} onClose={handleClose}>
+    <ResponsiveModal visible={visible} onClose={handleClose} disableBackdropClose={pollingState === 'pending' || loading}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -404,7 +432,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
               <FontAwesome6 name="circle-check" size={64} color={Colors.success} />
               <Text style={[styles.pollingTitle, { color: Colors.success }]}>{t('depositModal.paymentConfirmed')}</Text>
               <Text style={styles.pollingMessage}>{t('depositModal.balanceUpdated')}</Text>
-              <Button title={t('common.close')} onPress={() => { setPollingState('idle'); onClose(); }} style={{ marginTop: Spacing.lg }} />
+              <Button title={t('common.close')} onPress={() => { setPollingState('idle'); setOperator(''); fetchBalance(); useWalletStore.getState().fetchTransactions(1); onClose(); }} style={{ marginTop: Spacing.lg }} />
             </View>
           )}
 

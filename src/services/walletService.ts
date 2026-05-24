@@ -7,13 +7,22 @@ import type {
 } from '../types';
 
 export const walletService = {
-  getBalance: async (): Promise<{ balance: number }> => {
+  getBalance: async (): Promise<{ balance: number; balance_fincra?: number }> => {
     const response = await api.get('/wallet/balance');
     // Handle both { balance: 123 } and { data: { balance: 123 } }
     const body = response.data;
     if (body.balance !== undefined) return body;
     if (body.data?.balance !== undefined) return body.data;
     return { balance: body.data ?? body ?? 0 };
+  },
+
+  getFincraBalance: async (): Promise<number> => {
+    try {
+      const { data } = await api.get('/balance/fincra');
+      return data.fincra_balance ?? 0;
+    } catch {
+      return 0;
+    }
   },
 
   getTransactions: async (
@@ -58,6 +67,11 @@ export const walletService = {
 
   getDepositStatus: async (depositId: number): Promise<{ deposit_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; type: string }> => {
     const response = await api.get(`/deposit/status/${depositId}`);
+    return response.data;
+  },
+
+  getFincraDepositStatus: async (ref: string): Promise<{ status: 'wait' | 'success' | 'fail' }> => {
+    const response = await api.get(`/deposit/fincra/status/${ref}`);
     return response.data;
   },
 

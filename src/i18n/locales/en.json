@@ -145,6 +145,7 @@
     "greeting": "Hello, {{name}}",
     "welcome": "Welcome to GoesPay",
     "balance": "AVAILABLE BALANCE",
+    "fincraBalance": "FINCRA BALANCE",
     "deposit": "Deposit",
     "transfer": "Transfer",
     "recentTransactions": "Recent transactions",

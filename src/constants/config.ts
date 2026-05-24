@@ -5,9 +5,9 @@ import { Platform } from 'react-native';
 //   → retrouve-la avec : ipconfig getifaddr en0
 // En prod : PROD_API est utilisé automatiquement
 const DEV_API = Platform.select({
-  android: 'http://192.168.100.185:8002/api/mobile/v1',
-  ios: 'http://localhost:8002/api/mobile/v1',
-  default: 'http://192.168.100.185:8002/api/mobile/v1',
+  android: 'http://192.168.1.26:8000/api/mobile/v1',
+  ios: 'http://localhost:8000/api/mobile/v1',
+  default: 'http://localhost:8000/api/mobile/v1',
 });
 
 // const PROD_API = 'https://potato-workflow-glen-individuals.trycloudflare.com/api/mobile/v1';
@@ -71,6 +71,17 @@ export const OPERATORS = [
 
   // Carte bancaire (international, dépôt uniquement)
   { id: 'card', name: 'Carte Bancaire', flag: '🌍', country: 'INTL', withdraw: false, logo: require('../../assets/operators/pay_card.jpg') },
+
+  // Fincra — multi-rail, multi-devise (solde taggé séparé)
+  { id: 'fincra-ngn', name: 'Fincra Nigeria', flag: '🇳🇬', country: 'NG', withdraw: true, fincra: true, currency: 'NGN', logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-ghs', name: 'Fincra Ghana', flag: '🇬🇭', country: 'GH', withdraw: true, fincra: true, currency: 'GHS', logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-kes', name: 'Fincra Kenya', flag: '🇰🇪', country: 'KE', withdraw: true, fincra: true, currency: 'KES', logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-xof', name: 'Fincra UEMOA', flag: '🌍', country: 'XOF', withdraw: true, fincra: true, currency: 'XOF', logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-xaf', name: 'Fincra CEMAC', flag: '🌍', country: 'XAF', withdraw: true, fincra: true, currency: 'XAF', logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-usd', name: 'Fincra USD', flag: '🇺🇸', country: 'US', withdraw: true, fincra: true, currency: 'USD', logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-eur', name: 'Fincra EUR', flag: '🇪🇺', country: 'EU', withdraw: true, fincra: true, currency: 'EUR', logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-gbp', name: 'Fincra GBP', flag: '🇬🇧', country: 'GB', withdraw: true, fincra: true, currency: 'GBP', logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-cad', name: 'Fincra CAD', flag: '🇨🇦', country: 'CA', withdraw: true, fincra: true, currency: 'CAD', logo: require('../../assets/operators/pay_fincra.png') },
 ] as const;
 
 // Identifie le réseau mobile money depuis le nom de l'opérateur. Utilisé pour
