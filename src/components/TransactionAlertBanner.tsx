@@ -40,7 +40,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     marginBottom: Spacing.md,
   },
   info:    { backgroundColor: Colors.success },
-  warning: { backgroundColor: Colors.warning },
+  warning: { backgroundColor: Colors.pending },
   danger:  { backgroundColor: Colors.error },
   text: {
     flex: 1,
