@@ -34,6 +34,7 @@ import { useConfigStore } from '../stores/configStore';
 import { useCurrencyStore } from '../stores/currencyStore';
 import { useFormatXof, useCurrencyCode } from '../utils/format';
 import { AdminDisabledBanner } from './AdminDisabledBanner';
+import { TransactionAlertBanner } from './TransactionAlertBanner';
 import { GatewayBadge } from './GatewayBadge';
 import { CountryPickerStep } from './CountryPickerStep';
 
@@ -434,6 +435,7 @@ export function TransferModal({ visible, onClose }: TransferModalProps) {
           )}
 
           {pollingState === 'idle' && <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ paddingBottom: Spacing.xl }}>
+            <TransactionAlertBanner type="transfer" />
             {isAdmin && !transferEnabled && (
               <AdminDisabledBanner message={t('admin.bannerTransfer')} />
             )}

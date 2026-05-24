@@ -14,6 +14,14 @@ export interface FeeConfig {
   percent: number; // Pourcentage (ex: 3.5 = 3.5%)
 }
 
+export type AlertLevel = 'info' | 'warning' | 'danger';
+export interface TransactionAlert {
+  message: string;
+  level: AlertLevel;
+}
+export type AlertType = 'deposit' | 'withdraw' | 'transfer' | 'crypto_buy' | 'crypto_sell';
+export type TransactionAlerts = Record<AlertType, TransactionAlert>;
+
 export interface AppConfig {
   // Frais par défaut (fixe + pourcentage)
   transfer_fee_default: FeeConfig;
@@ -35,6 +43,8 @@ export interface AppConfig {
   // Listes dynamiques
   stablecoin_codes: string[];
   mobile_money_countries: string[];
+  // Bandeaux d'alerte par type de transaction (configurés via /admin/settings)
+  transaction_alerts: TransactionAlerts;
 }
 
 interface ConfigState extends FeatureFlags, AppConfig {
@@ -74,6 +84,13 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   crypto_min_sell_xof: {},
   stablecoin_codes: ['PM', 'PAYEER', 'USDT.TRC20', 'BUSD.BEP20', 'USDT', 'BUSD'],
   mobile_money_countries: ['BJ', 'BF', 'CI', 'TG', 'SN', 'ML', 'CM'],
+  transaction_alerts: {
+    deposit:     { message: '', level: 'info' },
+    withdraw:    { message: '', level: 'info' },
+    transfer:    { message: '', level: 'info' },
+    crypto_buy:  { message: '', level: 'info' },
+    crypto_sell: { message: '', level: 'info' },
+  },
 };
 
 export const useConfigStore = create<ConfigState>((set) => ({

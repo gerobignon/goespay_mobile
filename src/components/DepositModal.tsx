@@ -34,6 +34,7 @@ import { useConfigStore } from '../stores/configStore';
 import { useCurrencyStore } from '../stores/currencyStore';
 import { useFormatXof, useCurrencyCode } from '../utils/format';
 import { AdminDisabledBanner } from './AdminDisabledBanner';
+import { TransactionAlertBanner } from './TransactionAlertBanner';
 import { GatewayBadge } from './GatewayBadge';
 import { CountryPickerStep } from './CountryPickerStep';
 
@@ -427,6 +428,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
           )}
 
           {pollingState === 'idle' && <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
+            <TransactionAlertBanner type="deposit" />
             {isAdmin && !depositEnabled && (
               <AdminDisabledBanner message={t('admin.bannerDeposit')} />
             )}

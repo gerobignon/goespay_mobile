@@ -35,6 +35,7 @@ import { useConfigStore } from '../stores/configStore';
 import { useCurrencyStore } from '../stores/currencyStore';
 import { useFormatXof, useCurrencyCode } from '../utils/format';
 import { AdminDisabledBanner } from './AdminDisabledBanner';
+import { TransactionAlertBanner } from './TransactionAlertBanner';
 
 interface CryptoModalProps {
   visible: boolean;
@@ -492,6 +493,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
           </View>
 
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
+            <TransactionAlertBanner type={tab === 'sell' ? 'crypto_sell' : 'crypto_buy'} />
             {isAdmin && !buyEnabled && !sellEnabled && (
               <AdminDisabledBanner message={t('admin.bannerCryptoBoth')} />
             )}
