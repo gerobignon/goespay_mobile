@@ -17,6 +17,7 @@ const SOCIALS = [
   { icon: 'youtube', url: 'https://youtube.com/channel/UCxooykyhvHYo_zAI1yckRsw', darkColor: '#FF0000', lightColor: '#FF0000' },
   { icon: 'telegram', url: 'https://t.me/goespaay', darkColor: '#26A5E4', lightColor: '#26A5E4' },
   { icon: 'whatsapp', url: 'https://wa.me/237659939340', darkColor: '#25D366', lightColor: '#25D366' },
+  { icon: 'whatsapp', url: 'https://whatsapp.com/channel/0029Vb7k55BI7Be5dTCpti2v', darkColor: '#25D366', lightColor: '#25D366' },
 ];
 
 export function DesktopFooter() {
