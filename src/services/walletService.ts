@@ -6,6 +6,46 @@ import type {
   PaginatedResponse,
 } from '../types';
 
+export type FincraRail = 'mobile_money' | 'bank_transfer' | 'SWIFT' | 'SEPA';
+
+export interface FincraBeneficiary {
+  firstName?: string;
+  lastName?: string;
+  accountHolderName?: string;
+  accountNumber?: string;
+  bankCode?: string;
+  bankSwiftCode?: string;
+  bankName?: string;
+  bankCountry?: string;
+  country?: string;
+  swiftCode?: string;
+  iban?: string;
+  bic?: string;
+  type?: 'individual' | 'corporate';
+}
+
+export interface FincraPayoutRequest {
+  amount: number;
+  currency: string;
+  rail: FincraRail;
+  sourceCurrency?: string;
+  phone?: string;
+  operator?: string;
+  country?: string;
+  beneficiary?: FincraBeneficiary;
+}
+
+export interface FincraPayoutResponse {
+  message?: string;
+  status: 'wait' | 'success' | 'fail';
+  reference: string;
+  transfer_id: number;
+  amount: number;
+  amount_sent: number;
+  fees: number;
+  fincra_balance: number;
+}
+
 export const walletService = {
   getBalance: async (): Promise<{ balance: number; balance_fincra?: number }> => {
     const response = await api.get('/wallet/balance');
@@ -16,14 +56,6 @@ export const walletService = {
     return { balance: body.data ?? body ?? 0 };
   },
 
-  getFincraBalance: async (): Promise<number> => {
-    try {
-      const { data } = await api.get('/balance/fincra');
-      return data.fincra_balance ?? 0;
-    } catch {
-      return 0;
-    }
-  },
 
   getTransactions: async (
     page = 1,
@@ -84,6 +116,45 @@ export const walletService = {
 
   getTransferStatus: async (transferId: number): Promise<{ transfer_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; amount_sent: number; mode: string }> => {
     const response = await api.get(`/transfer/status/${transferId}`);
+    return response.data;
+  },
+
+  fincraPayout: async (payload: FincraPayoutRequest): Promise<FincraPayoutResponse> => {
+    const response = await api.post('/payout/fincra', payload, { timeout: 70000 });
+    return response.data;
+  },
+
+  getFincraPayoutStatus: async (reference: string): Promise<{ transfer_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; amount_sent: number; mode: string }> => {
+    const response = await api.get(`/payout/fincra/status/${encodeURIComponent(reference)}`);
+    return response.data;
+  },
+
+  getFincraPayoutRails: async (currency: string): Promise<{ currency: string; rails: FincraRail[] }> => {
+    const response = await api.get('/fincra/payout-rails', { params: { currency } });
+    return response.data;
+  },
+
+  getFincraBanks: async (currency: string, country: string): Promise<{ currency: string; country: string; banks: { code: string; name: string; swiftCode?: string }[] }> => {
+    const response = await api.get('/fincra/banks', { params: { currency, country } });
+    return response.data;
+  },
+
+  // Taux de conversion Fincra : 1 unité de `currency` = N XOF (pivot du wallet).
+  // Triangulé via USD côté backend, taux mid unique (cf. /fincra/rates).
+  getFincraRate: async (currency: string): Promise<{ currency: string; rate_to_xof: number }> => {
+    const response = await api.get('/fincra/rates', { params: { currency } });
+    return response.data;
+  },
+
+  resolveFincraAccount: async (payload: {
+    accountNumber?: string;
+    bankCode?: string;
+    type: 'nuban' | 'bank_account' | 'mobile_money' | 'iban';
+    currency: string;
+    bankSwiftCode?: string;
+    iban?: string;
+  }): Promise<{ resolved: boolean; accountName: string | null; raw: any }> => {
+    const response = await api.post('/fincra/resolve-account', payload);
     return response.data;
   },
 

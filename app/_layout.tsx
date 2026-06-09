@@ -166,7 +166,6 @@ function RootInner() {
         if (res.status === 'success') {
           showAlert('✅', 'Dépôt Fincra crédité avec succès.');
           useWalletStore.getState().fetchBalance();
-          useWalletStore.getState().fetchFincraBalance();
         } else if (res.status === 'fail') {
           showAlert('❌', 'Le dépôt Fincra a échoué.');
         } else {

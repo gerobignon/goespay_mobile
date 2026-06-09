@@ -8,7 +8,6 @@ const CACHED_BALANCE_KEY = 'cached_balance';
 
 interface WalletState {
   balance: number;
-  fincraBalance: number;
   transactions: Transaction[];
   currentPage: number;
   lastPage: number;
@@ -16,7 +15,6 @@ interface WalletState {
   isLoadingTransactions: boolean;
 
   fetchBalance: () => Promise<void>;
-  fetchFincraBalance: () => Promise<void>;
   fetchTransactions: (page?: number, type?: string) => Promise<void>;
   loadMoreTransactions: (type?: string) => Promise<void>;
   loadCachedData: () => Promise<void>;
@@ -25,7 +23,6 @@ interface WalletState {
 
 export const useWalletStore = create<WalletState>((set, get) => ({
   balance: 0,
-  fincraBalance: 0,
   transactions: [],
   currentPage: 1,
   lastPage: 1,
@@ -51,20 +48,10 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     try {
       const data = await walletService.getBalance();
       const balance = data.balance ?? 0;
-      const fincraBalance = data.balance_fincra ?? 0;
-      set({ balance, fincraBalance, isLoadingBalance: false });
+      set({ balance, isLoadingBalance: false });
       AsyncStorage.setItem(CACHED_BALANCE_KEY, String(balance));
     } catch (e) {
       set({ isLoadingBalance: false });
-    }
-  },
-
-  fetchFincraBalance: async () => {
-    try {
-      const fincraBalance = await walletService.getFincraBalance();
-      set({ fincraBalance });
-    } catch {
-      // ignore
     }
   },
 

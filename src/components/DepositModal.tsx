@@ -22,7 +22,9 @@ import { walletService } from '../services/walletService';
 import api from '../services/api';
 import { useWalletStore } from '../stores/walletStore';
 import { useAuthStore } from '../stores/authStore';
-import { OPERATORS, isAfribapayDuplicate } from '../constants/config';
+import { OPERATORS, FINCRA_ZONES, operatorServesCountry } from '../constants/config';
+import { ALL_COUNTRIES } from '../constants/countries';
+import { useCorridorStore } from '../stores/corridorStore';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { useResponsive } from '../hooks/useResponsive';
@@ -33,19 +35,29 @@ import { useTranslation } from 'react-i18next';
 
 import { useConfigStore } from '../stores/configStore';
 import { useCurrencyStore } from '../stores/currencyStore';
+import { useCryptoStore } from '../stores/cryptoStore';
 import { useFormatXof, useCurrencyCode } from '../utils/format';
+import { useFincraRate } from '../stores/fincraRateStore';
+import { getApiErrorMessage } from '../utils/apiError';
+import { formatFincraPhone, resolveFincraZone, type FincraCollectionRail } from '../utils/fincraPhone';
 import { AdminDisabledBanner } from './AdminDisabledBanner';
 import { TransactionAlertBanner } from './TransactionAlertBanner';
 import { GatewayBadge } from './GatewayBadge';
 import { CountryPickerStep } from './CountryPickerStep';
+import { OperatorLogo } from './OperatorLogo';
+import { pickCryptoSource } from '../utils/cryptoLogos';
 
 interface DepositModalProps {
   visible: boolean;
   onClose: () => void;
   prefill?: { amount?: string; operator?: string; phone?: string };
+  /** Affiche le groupe « Crypto-monnaies » (vente) dans le dépôt. */
+  cryptoEnabled?: boolean;
+  /** Lance le flux de vente crypto (crédite le wallet) pour la crypto choisie. */
+  onSellCrypto?: (currency?: string) => void;
 }
 
-export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
+export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false, onSellCrypto }: DepositModalProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
@@ -54,11 +66,34 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   const [amount, setAmount] = useState('');
   const [operator, setOperator] = useState('');
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+  // Sous-pays Fincra : pour XOF/XAF, l'utilisateur choisit son pays (et son
+  // indicatif téléphonique) dans la zone. Reset à null quand l'op change.
+  const [fincraZoneCountry, setFincraZoneCountry] = useState<string | null>(null);
+  // « Autres » : sous-liste des zones internationales (Fincra) + carte, pour les
+  // pays non couverts par un moyen local.
+  const [othersOpen, setOthersOpen] = useState(false);
+  // « Crypto-monnaies » : sous-liste des cryptos actives (vente → crédite le wallet).
+  const [cryptoOpen, setCryptoOpen] = useState(false);
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [pollingState, setPollingState] = useState<'idle' | 'pending' | 'success' | 'failed' | 'timeout'>('idle');
   const [pollingMessage, setPollingMessage] = useState('');
+  // Si Safari bloque window.open malgré le user-gesture (cas connu avec RN Web),
+  // on expose un vrai <a target="_blank"> dans la modal — cliquable manuellement.
+  const [manualPaymentUrl, setManualPaymentUrl] = useState<string | null>(null);
+  // Fincra direct-charge bank_transfer : virtual account à afficher en attendant le virement.
+  const [bankTransferInfo, setBankTransferInfo] = useState<{
+    bankName: string;
+    accountNumber: string;
+    accountName: string;
+    amountNet: number;       // Montant demandé par l'utilisateur (crédité au wallet)
+    fee: number;             // Frais Fincra
+    vat: number;             // TVA
+    amountExpected: number;  // Total à virer = net + fee + vat (+ taxes éventuelles)
+    currency: string;
+  } | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollingDepositIdRef = useRef<number | null>(null);
   const pollingRefRef = useRef<string | null>(null);
@@ -66,8 +101,11 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   const fetchBalance = useWalletStore((s) => s.fetchBalance);
   const user = useAuthStore((s) => s.user);
   const depositMin = useConfigStore((s) => s.deposit_min);
+  const cryptoRates = useCryptoStore((s) => s.rates);
+  const fetchCryptoRates = useCryptoStore((s) => s.fetchRates);
   const userCurrency = useCurrencyCode();
   const convertToXof = useCurrencyStore((s) => s.convertToXof);
+  const currencyRates = useCurrencyStore((s) => s.rates);
   const fmtXof = useFormatXof();
   // Garde une trace si l'utilisateur a vidé/modifié le champ téléphone manuellement
   const phoneUserEditedRef = useRef(false);
@@ -85,9 +123,15 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
     setAmount(prefill?.amount ?? '');
     setOperator(prefill?.operator ?? '');
     setSelectedCountry(null);
+    setFincraZoneCountry(null);
+    setOthersOpen(false);
+    setCryptoOpen(false);
     setOtp('');
     setPollingState('idle');
     setPollingMessage('');
+    setManualPaymentUrl(null);
+    setBankTransferInfo(null);
+    setCopiedField(null);
     setSavedPhones([]);
     setSavedPhonesLoadError(null);
     setSavePhoneModalVisible(false);
@@ -97,6 +141,12 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
     const defaultPhone = prefill?.phone ?? (user?.phone ?? '').trim();
     setPhone(defaultPhone);
   }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset le sous-pays Fincra à chaque changement d'opérateur.
+  useEffect(() => { setFincraZoneCountry(null); }, [operator]);
+
+  // Charge les taux crypto quand on ouvre le groupe « Crypto-monnaies ».
+  useEffect(() => { if (cryptoOpen) fetchCryptoRates(cryptoRates.length === 0); }, [cryptoOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stopPolling = useCallback(() => {
     if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
@@ -200,37 +250,123 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
   const afribapayEnabled = useConfigStore((s) => s.afribapay_enabled);
   const depositEnabled = useConfigStore((s) => s.deposit_enabled);
   // Admin bypass : voit toutes les passerelles, y compris désactivées (bandeau rouge en haut).
-  const operatorsBase = OPERATORS.filter(
-    (op) => !isAfribapayDuplicate(op) && (afribapayEnabled || isAdmin || !(op as any).afribapay)
-  );
-  // "Has mobile money for country" est dérivé de la réelle présence d'un opérateur MM (≠ card)
-  // pour ce pays — le backend `mobile_money_countries` inclut tous les pays tarifés (y compris NG sans MM).
-  const hasMomoForCountry = operatorsBase.some((op) => op.id !== 'card' && op.country === userCountry);
+  // Fincra USD/EUR/GBP : payout-only (SWIFT/SEPA) — Fincra ne supporte pas le checkout
+  // pour ces devises. On les exclut du DepositModal pour éviter un 500 backend.
+  // Corridors server-driven (aggregator_routing) : masquage payin temps réel.
+  const corridorsLoaded = useCorridorStore((s) => s.isLoaded);
+  const isCodeEnabled = useCorridorStore((s) => s.isCodeEnabled);
+
+  // Plus de dédup statique PayDunya : la visibilité d'un moyen dépend UNIQUEMENT
+  // de son corridor activé dans le routing admin (isCodeEnabled). L'admin n'active
+  // qu'un seul agrégateur par (pays, réseau), donc un seul moyen visible par opérateur.
+  // Fallback statique tant que les corridors ne sont pas chargés (évite un écran vide).
+  const operatorsBase = OPERATORS.filter((op) => {
+    if (!corridorsLoaded && !afribapayEnabled && !isAdmin && (op as any).afribapay) return false;
+    return true;
+  });
+  // "Has mobile money for country" : on accepte op.country === userCountry OU
+  // op.countries[] inclut userCountry (zones Fincra XOF/XAF).
+  const hasMomoForCountry = operatorsBase.some((op) => op.id !== 'card' && operatorServesCountry(op as any, userCountry || ''));
   const showCard = isAdmin || !isKycValidated || !hasMomoForCountry;
   const filteredOperators = (isAdmin || !isKycValidated)
     ? [...operatorsBase]
     : [
-        ...operatorsBase.filter((op) => op.country === userCountry),
+        ...operatorsBase.filter(
+          (op) => operatorServesCountry(op as any, userCountry || '') && (isAdmin || isCodeEnabled(op.id, 'payin'))
+        ),
         ...(showCard ? operatorsBase.filter((op) => op.id === 'card') : []),
       ];
   const displayOperators = filteredOperators.length > 0 ? filteredOperators : operatorsBase;
 
   // Étape pays uniquement en mode admin (les utilisateurs réguliers ont déjà une liste filtrée par pays).
   const useCountryStep = isAdmin;
-  const operatorsForStep = useCountryStep
-    ? (selectedCountry === '__CARD__'
-        ? displayOperators.filter((op) => op.id === 'card')
-        : selectedCountry
-          ? displayOperators.filter((op) => op.country === selectedCountry)
-          : [])
+
+  // « Autres » regroupe les rails NON rattachés à un pays unique :
+  // - Carte bancaire générique (KKiapay)
+  // - Zones multi-pays Fincra (UEMOA/XOF, CEMAC/XAF)
+  // - Devises internationales Fincra (EUR/USD/GBP)
+  const ZONE_CURRENCIES = ['XOF', 'XAF', 'EUR', 'USD', 'GBP'];
+  const isZoneFincra = (op: any) => !!op.fincra && ZONE_CURRENCIES.includes(op.currency);
+  const isOtherOp = (op: any) => op.id === 'card' || isZoneFincra(op);
+  // Libellé enrichi affiché dans « Autres » pour distinguer les rails zone/devise
+  // (ex: deux "Mobile Money" → "Mobile Money (UEMOA · XOF)" vs "Mobile Money (CEMAC · XAF)").
+  const operatorOthersLabel = (op: any): string => {
+    if (!op?.fincra) return op?.name ?? '';
+    const cur = op.currency as string;
+    const zoneTag = cur === 'XOF' ? 'UEMOA · XOF'
+                  : cur === 'XAF' ? 'CEMAC · XAF'
+                  : cur;
+    // On n'ajoute la devise dans le nom que si pas déjà présente.
+    return (op.name as string).includes(cur) ? op.name : `${op.name} (${zoneTag})`;
+  };
+  const otherOps = operatorsBase.filter(isOtherOp);
+
+  const baseForStep = useCountryStep
+    ? (selectedCountry ? displayOperators.filter((op) => operatorServesCountry(op as any, selectedCountry)) : [])
     : displayOperators;
+  const primaryOps = baseForStep.filter((op) => !isOtherOp(op));
+  const operatorsForStep = othersOpen ? otherOps : primaryOps;
+  // Entrée « Autres » : accessible uniquement depuis le picker pays initial.
+  // Une fois un pays sélectionné, on n'affiche QUE ses opérateurs (pas de bouton
+  // "Autres" qui sortirait du contexte pays).
+  const showOthersEntry = otherOps.length > 0 && !selectedCountry && (showCard || primaryOps.length === 0);
 
   const needsOtp = ['orange-money-burkina', 'orange-money-ci', 'orange-money-senegal', 'orange-gn'].includes(operator);
   const selectedOp = OPERATORS.find((op) => op.id === operator);
   const isFincra = !!(selectedOp as any)?.fincra;
-  const isCard = operator === 'card' || isFincra;
+  // Routing Fincra : le rail est désormais porté directement par l'opérateur
+  // (cf. OPERATORS dans config.ts). 1 opérateur = 1 rail, plus de sélecteur.
+  const fincraCurrency = isFincra ? ((selectedOp as any)?.currency || 'XOF') : '';
+  const fincraMethod: FincraCollectionRail | null = isFincra
+    ? ((selectedOp as any)?.rail as FincraCollectionRail) ?? null
+    : null;
+  const isFincraBT = fincraMethod === 'bank_transfer';
+  const isFincraMM = fincraMethod === 'mobile_money';
+  const isFincraCH = fincraMethod === 'checkout';
+  // Pour Fincra MM en zone XOF/XAF, l'utilisateur choisit son pays — l'indicatif
+  // est dérivé de cette sélection (et utilisé pour préfixer le téléphone).
+  const fincraZoneList = isFincraMM ? FINCRA_ZONES[fincraCurrency] : undefined;
+  const fincraDialCode = isFincraMM
+    ? resolveFincraZone(fincraCurrency, fincraZoneCountry).dialCode
+    : undefined;
+  // isCard : flows hosted (vraie carte PayDunya + Fincra forex checkout).
+  // Fincra MM utilise le champ téléphone, Fincra BT n'a besoin de rien.
+  const isCard = operator === 'card' || isFincraCH;
+  // Champ téléphone : affiché sauf pour les flows hosted ET Fincra BT (qui n'en a pas besoin).
+  const showPhoneField = !isCard && !isFincraBT;
 
   const normalizedPhone = phone.replace(/\s+/g, '').trim();
+
+  // L'utilisateur saisit dans la devise de son compte (XOF, GHS, NGN…). On
+  // convertit ce montant vers la devise Fincra (NGN, GHS…) pour ce que Fincra
+  // encaisse réellement. wallet_fincra reste crédité en XOF.
+  //
+  // Cas spécial : si userCurrency === fincraCurrency (ex : compte GHS + opérateur
+  // Fincra Ghana), le montant saisi EST déjà le montant à payer côté Fincra —
+  // aucune double-conversion (qui causerait une perte sur la triangulation).
+  const numAmountDisplayLive = parseFloat(amount) || 0;
+  const numAmountXofLive = userCurrency === 'XOF'
+    ? Math.round(numAmountDisplayLive)
+    : convertToXof(numAmountDisplayLive);
+  const fincraRate = useFincraRate(fincraCurrency, isFincra);
+  // Montant à encaisser côté Fincra (devise Fincra).
+  const fincraChargeAmount =
+    isFincra && numAmountDisplayLive > 0
+      ? (userCurrency === fincraCurrency
+          ? numAmountDisplayLive
+          : fincraCurrency === 'XOF'
+              ? numAmountXofLive
+              : (fincraRate.rate && fincraRate.rate > 0
+                  ? Math.round((numAmountXofLive / fincraRate.rate) * 100) / 100
+                  : null))
+      : null;
+  const fincraRateBlocking =
+    isFincra && fincraCurrency !== 'XOF' && userCurrency !== fincraCurrency && numAmountDisplayLive > 0
+    && (fincraRate.loading || fincraRate.error || fincraRate.rate === null);
+  // Flux classiques : pour un user non-XOF, si le taux global manque, la
+  // conversion retomberait silencieusement en 1:1 (montant erroné). On bloque.
+  const classicRateBlocking =
+    !isFincra && userCurrency !== 'XOF' && !((currencyRates[userCurrency] ?? 0) > 0);
 
   // Charge les numéros enregistrés pour cet opérateur dès qu'un opérateur non-card est sélectionné
   useEffect(() => {
@@ -324,25 +460,38 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
 
   const handleDeposit = async () => {
     const numAmountDisplay = parseFloat(amount);
-    const numAmount = userCurrency === 'XOF'
+    // Montant XOF (devise du compte) saisi par l'utilisateur.
+    const numAmountXof = userCurrency === 'XOF'
       ? Math.round(numAmountDisplay || 0)
       : convertToXof(numAmountDisplay || 0);
-    if (!numAmount || numAmount < depositMin) {
+    // Pour Fincra, on transmet le montant dans la devise Fincra (XOF converti
+    // via le taux Fincra) : c'est ce que Fincra encaisse. Sinon, XOF.
+    const numAmount = isFincra ? (fincraChargeAmount ?? 0) : numAmountXof;
+    if (!numAmountXof || (!isFincra && numAmountXof < depositMin)) {
       showAlert(
         t('common.error'),
         `${t('depositModal.minAmount')} ${fmtXof(depositMin)}`
       );
       return;
     }
+    if (fincraRateBlocking || classicRateBlocking || (isFincra && !numAmount)) {
+      showAlert(t('common.error'), t('common.rateUnavailable'));
+      return;
+    }
     if (!operator) {
       showAlert(t('common.error'), t('depositModal.selectOperator'));
       return;
     }
-    if (!isCard && !phone.trim()) {
+    if (showPhoneField && !phone.trim()) {
       showAlert(t('common.error'), t('account.enterPhoneNumber'));
       return;
     }
     setLoading(true);
+    setBankTransferInfo(null);
+    setManualPaymentUrl(null);
+    // Pré-ouvre le popup AVANT le await — les browsers bloquent window.open
+    // hors d'un gesture utilisateur. Seuls les flows hosted (vraie card + Fincra checkout)
+    // ont besoin d'une nouvelle fenêtre. Fincra BT/MM affichent les infos in-modal.
     let cardWindow: Window | null = null;
     if (isCard && Platform.OS === 'web' && typeof window !== 'undefined') {
       cardWindow = window.open('about:blank', '_blank');
@@ -350,13 +499,49 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
     try {
       let result: any;
       if (isFincra) {
-        const fincraPayload = {
+        const fincraPayload: any = {
           amount: numAmount,
-          currency: (selectedOp as any)?.currency || 'XOF',
-          method: 'checkout',
+          currency: fincraCurrency,
+          method: fincraMethod,
         };
+        if (isFincraMM) {
+          // Operator par défaut le plus utilisé du pays. Pourra évoluer en
+          // sélecteur dédié si besoin (MTN/Vodafone/AirtelTigo pour Ghana).
+          const defaultOp = fincraCurrency === 'GHS' ? 'MTN'
+                          : fincraCurrency === 'KES' ? 'MPESA'
+                          : fincraCurrency === 'UGX' ? 'MTN'
+                          : fincraCurrency === 'ZMW' ? 'MTN'
+                          : fincraCurrency === 'TZS' ? 'AIRTEL'
+                          : fincraCurrency === 'EGP' ? 'AIRTEL'
+                          : fincraCurrency === 'XOF' ? 'MTN'
+                          : fincraCurrency === 'XAF' ? 'MTN'
+                          : null;
+          // Fincra Direct Charge MM exige l'indicatif AVEC `+` (ex: +233700000000).
+          fincraPayload.operator = defaultOp;
+          fincraPayload.phone    = formatFincraPhone(phone, fincraDialCode || '', true);
+        }
         const { data } = await api.post('/deposit/fincra', fincraPayload);
-        result = { checkout_url: data.payment_url, deposit_id: data.deposit_id, reference: data.reference };
+        result = { deposit_id: data.deposit_id, reference: data.reference };
+        if (isFincraCH) {
+          result.checkout_url = data.payment_url;
+        } else if (isFincraBT) {
+          const va = data?.data?.virtualAccount || {};
+          const amt = Number(data?.data?.amount ?? numAmount);
+          const fee = Number(data?.data?.fee ?? 0);
+          const vat = Number(data?.data?.vat ?? 0);
+          const emtl = Number(data?.data?.electronicMoneyTransferLevy ?? 0);
+          const total = Number(data?.data?.amountExpected ?? (amt + fee + vat + emtl));
+          setBankTransferInfo({
+            bankName:       va.bankName       ?? '',
+            accountNumber:  va.accountNumber  ?? '',
+            accountName:    va.accountName    ?? '',
+            amountNet:      amt,
+            fee:            fee + emtl,
+            vat:            vat,
+            amountExpected: total,
+            currency:       fincraCurrency,
+          });
+        }
       } else {
         const payload: any = { amount: numAmount, moyen: operator };
         if (!isCard) payload.tel = phone.trim();
@@ -369,7 +554,8 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
         if (cardWindow && !cardWindow.closed) {
           cardWindow.location.href = redirectUrl;
         } else if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          window.open(redirectUrl, '_blank') || (window.location.href = redirectUrl);
+          const opened = window.open(redirectUrl, '_blank');
+          if (!opened) setManualPaymentUrl(redirectUrl);
         } else {
           Linking.openURL(redirectUrl).catch(() => {});
         }
@@ -379,10 +565,11 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
 
       if (result?.deposit_id) {
         pollingRefRef.current = result.reference ?? null;
-        setPollingMessage(redirectUrl
-          ? t('depositModal.waitingConfirmation')
-          : t('depositModal.checkPhone')
-        );
+        const msg = isFincraBT ? t('depositModal.bankTransferInstructions')
+                  : isFincraMM ? t('depositModal.checkPhone')
+                  : redirectUrl ? t('depositModal.waitingConfirmation')
+                  : t('depositModal.checkPhone');
+        setPollingMessage(msg);
         startPolling(result.deposit_id);
       } else {
         await fetchBalance();
@@ -393,11 +580,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
       setOtp('');
     } catch (error: any) {
       if (cardWindow && !cardWindow.closed) cardWindow.close();
-      const msg = error?.response?.data?.error
-        || error?.response?.data?.message
-        || (error?.response?.data?.errors ? Object.values(error.response.data.errors).flat().join('\n') : null)
-        || t('depositModal.depositError');
-      showAlert(t('common.error'), msg);
+      showAlert(t('common.error'), getApiErrorMessage(error, t, t('depositModal.depositError')));
     } finally {
       setLoading(false);
     }
@@ -423,7 +606,64 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
               <ActivityIndicator size="large" color={Colors.primary} />
               <Text style={styles.pollingTitle}>{t('depositModal.processing')}</Text>
               <Text style={styles.pollingMessage}>{pollingMessage}</Text>
-              <Button title={t('depositModal.checkLater')} onPress={() => { stopPolling(); setPollingState('idle'); onClose(); }} style={{ marginTop: Spacing.lg }} />
+              {bankTransferInfo && (
+                <View style={styles.btBox}>
+                  <Text style={styles.btTitle}>{t('depositModal.bankTransferTitle')}</Text>
+                  {[
+                    { key: 'bank',    label: t('depositModal.bankName'),    value: bankTransferInfo.bankName },
+                    { key: 'account', label: t('depositModal.accountNumber'), value: bankTransferInfo.accountNumber, copy: true, strong: true },
+                    { key: 'name',    label: t('depositModal.beneficiary'), value: bankTransferInfo.accountName },
+                    { key: 'net',     label: t('depositModal.amountNet'),   value: `${bankTransferInfo.amountNet} ${bankTransferInfo.currency}` },
+                    ...(bankTransferInfo.fee > 0 ? [{ key: 'fee', label: t('depositModal.fincraFees'), value: `${(bankTransferInfo.fee + bankTransferInfo.vat).toFixed(2)} ${bankTransferInfo.currency}` }] : []),
+                    { key: 'amount',  label: t('depositModal.amountExact'), value: `${bankTransferInfo.amountExpected} ${bankTransferInfo.currency}`, copy: true, strong: true },
+                  ].filter((row) => !!row.value).map((row) => (
+                    <View key={row.key} style={styles.btRow}>
+                      <Text style={styles.btLabel}>{row.label}</Text>
+                      <View style={styles.btValueWrap}>
+                        <Text style={[styles.btValue, row.strong && styles.btValueStrong]} selectable>{row.value}</Text>
+                        {row.copy && Platform.OS === 'web' && (
+                          <TouchableOpacity
+                            onPress={() => {
+                              try {
+                                (navigator as any)?.clipboard?.writeText(String(row.value));
+                                setCopiedField(row.key);
+                                setTimeout(() => setCopiedField((c) => c === row.key ? null : c), 1500);
+                              } catch (_) {}
+                            }}
+                            style={styles.btCopyBtn}
+                          >
+                            <FontAwesome6 name={copiedField === row.key ? 'check' : 'copy'} size={12} color={Colors.primary} />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                  ))}
+                  <Text style={styles.btHelp}>{t('depositModal.bankTransferAutoCredit')}</Text>
+                </View>
+              )}
+              {manualPaymentUrl && Platform.OS === 'web' ? (
+                <a
+                  href={manualPaymentUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setManualPaymentUrl(null)}
+                  style={{
+                    marginTop: Spacing.lg,
+                    padding: '12px 20px',
+                    background: Colors.primary,
+                    color: '#fff',
+                    borderRadius: BorderRadius.md,
+                    textDecoration: 'none',
+                    fontWeight: 600,
+                    fontFamily: Fonts.semiBold,
+                    display: 'inline-block',
+                  } as any}
+                >
+                  {t('depositModal.openPaymentPage')}
+                </a>
+              ) : (
+                <Button title={t('depositModal.checkLater')} onPress={() => { stopPolling(); setPollingState('idle'); onClose(); }} style={{ marginTop: Spacing.lg }} />
+              )}
             </View>
           )}
 
@@ -432,7 +672,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
               <FontAwesome6 name="circle-check" size={64} color={Colors.success} />
               <Text style={[styles.pollingTitle, { color: Colors.success }]}>{t('depositModal.paymentConfirmed')}</Text>
               <Text style={styles.pollingMessage}>{t('depositModal.balanceUpdated')}</Text>
-              <Button title={t('common.close')} onPress={() => { setPollingState('idle'); setOperator(''); fetchBalance(); useWalletStore.getState().fetchTransactions(1); onClose(); }} style={{ marginTop: Spacing.lg }} />
+              <Button title={t('common.close')} onPress={() => { setPollingState('idle'); setBankTransferInfo(null); setOperator(''); fetchBalance(); useWalletStore.getState().fetchTransactions(1); onClose(); }} style={{ marginTop: Spacing.lg }} />
             </View>
           )}
 
@@ -469,27 +709,88 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
                 <Text style={styles.kycBannerText}>{t('depositModal.kycRequired')}</Text>
               </View>
             )}
-            {useCountryStep && !selectedCountry ? (
+            {useCountryStep && !selectedCountry && !othersOpen && !cryptoOpen ? (
               <CountryPickerStep
-                operators={displayOperators}
-                showCardTile={showCard}
-                cardLabel={t('depositModal.bankCard')}
+                operators={displayOperators.filter((op) => !isZoneFincra(op))}
+                showCardTile={showOthersEntry}
+                cardLabel={t('depositModal.others')}
                 onSelectCountry={(code) => { setSelectedCountry(code); setOperator(''); }}
-                onSelectCard={() => { setSelectedCountry('__CARD__'); setOperator('card'); }}
+                onSelectCard={() => { setOthersOpen(true); setOperator(''); }}
+                showCryptoTile={cryptoEnabled}
+                cryptoLabel={t('depositModal.cryptoGroup')}
+                onSelectCrypto={() => { setCryptoOpen(true); setOperator(''); }}
                 label={t('depositModal.chooseCountry')}
               />
+            ) : cryptoOpen ? (
+              <>
+                <Text style={styles.operatorLabel}>{t('depositModal.cryptoGroup')}</Text>
+                <TouchableOpacity
+                  onPress={() => { setCryptoOpen(false); setOperator(''); }}
+                  style={styles.changeCountryBtn}
+                >
+                  <FontAwesome6 name="arrow-left" size={12} color={Colors.secondary} />
+                  <Text style={styles.changeCountryText}>{t('depositModal.changeCountry')}</Text>
+                </TouchableOpacity>
+                {cryptoRates.length === 0 ? (
+                  <Text style={styles.hintText}>{t('common.loading')}</Text>
+                ) : (
+                  <View style={styles.operatorChipGrid}>
+                    {cryptoRates.map((c) => {
+                      // Source unifiée : utilise pickCryptoSource() (même logique
+                      // que CryptoModal) avec mapping local par variante (BNB.BSC,
+                      // USDT.TRC20…) en fallback.
+                      const source = pickCryptoSource(c);
+                      return (
+                        <TouchableOpacity
+                          key={c.code}
+                          style={styles.operatorChip}
+                          onPress={() => onSellCrypto?.(c.code)}
+                        >
+                          {source ? (
+                            <Image source={source as any} style={styles.operatorChipLogo} resizeMode="contain" />
+                          ) : (
+                            <FontAwesome6 name="bitcoin-sign" size={16} color={Colors.text} />
+                          )}
+                          <Text style={styles.operatorChipText} numberOfLines={1}>{c.name || c.code}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
+              </>
             ) : (
               <>
-                <Text style={styles.operatorLabel}>{t('depositModal.chooseOperator')}</Text>
-                {useCountryStep && (
-                  <TouchableOpacity
-                    onPress={() => { setSelectedCountry(null); setOperator(''); }}
-                    style={styles.changeCountryBtn}
-                  >
-                    <FontAwesome6 name="arrow-left" size={12} color={Colors.secondary} />
-                    <Text style={styles.changeCountryText}>{t('depositModal.changeCountry')}</Text>
-                  </TouchableOpacity>
-                )}
+                <Text style={styles.operatorLabel}>{othersOpen ? t('depositModal.others') : t('depositModal.chooseOperator')}</Text>
+                {(othersOpen || (useCountryStep && selectedCountry)) && (() => {
+                  // Pays sélectionné : on l'affiche en chip à côté du bouton Changer
+                  // pour que l'utilisateur ait toujours le contexte sous les yeux.
+                  const selCountryEntry = selectedCountry
+                    ? ALL_COUNTRIES.find((c) => c.code === selectedCountry)
+                    : null;
+                  const selFlag = selCountryEntry && /^[A-Z]{2}$/.test(selectedCountry || '')
+                    ? String.fromCodePoint(...[...(selectedCountry || '')].map((ch) => 127397 + ch.charCodeAt(0)))
+                    : '';
+                  const selName = selCountryEntry
+                    ? t(`countries.${selectedCountry}`, { defaultValue: selCountryEntry.name })
+                    : '';
+                  return (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flexWrap: 'wrap', marginBottom: Spacing.xs }}>
+                      <TouchableOpacity
+                        onPress={() => { if (othersOpen) { setOthersOpen(false); } else { setSelectedCountry(null); } setOperator(''); }}
+                        style={styles.changeCountryBtn}
+                      >
+                        <FontAwesome6 name="arrow-left" size={12} color={Colors.secondary} />
+                        <Text style={styles.changeCountryText}>{t('depositModal.changeCountry')}</Text>
+                      </TouchableOpacity>
+                      {!othersOpen && selectedCountry && (
+                        <View style={styles.selectedCountryChip}>
+                          {!!selFlag && <Text style={styles.selectedCountryFlag}>{selFlag}</Text>}
+                          <Text style={styles.selectedCountryName} numberOfLines={1}>{selName}</Text>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })()}
                 {isDesktop ? (
               <View style={styles.operatorChipGrid}>
                 {operatorsForStep.map((op) => (
@@ -501,7 +802,7 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
                     ]}
                     onPress={() => setOperator(op.id)}
                   >
-                    <Image source={op.logo} style={styles.operatorChipLogo} resizeMode="contain" />
+                    <OperatorLogo op={op as any} size={24} style={styles.operatorChipLogo as any} />
                     <Text
                       style={[
                         styles.operatorChipText,
@@ -509,11 +810,31 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
                       ]}
                       numberOfLines={1}
                     >
-                      {op.flag} {op.name}
+                      {othersOpen ? operatorOthersLabel(op) : op.name}
                     </Text>
                     <GatewayBadge op={op} visible={isAdmin} size={14} />
                   </TouchableOpacity>
                 ))}
+                {showOthersEntry && !othersOpen && (
+                  <TouchableOpacity
+                    key="__others"
+                    style={styles.operatorChip}
+                    onPress={() => { setOthersOpen(true); setOperator(''); }}
+                  >
+                    <FontAwesome6 name="ellipsis" size={18} color={Colors.text} />
+                    <Text style={styles.operatorChipText} numberOfLines={1}>{t('depositModal.others')}</Text>
+                  </TouchableOpacity>
+                )}
+                {cryptoEnabled && (
+                  <TouchableOpacity
+                    key="__crypto"
+                    style={styles.operatorChip}
+                    onPress={() => { setCryptoOpen(true); setOperator(''); }}
+                  >
+                    <FontAwesome6 name="bitcoin-sign" size={16} color={Colors.text} />
+                    <Text style={styles.operatorChipText} numberOfLines={1}>{t('depositModal.cryptoGroup')}</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             ) : (
               <ScrollView
@@ -531,104 +852,197 @@ export function DepositModal({ visible, onClose, prefill }: DepositModalProps) {
                     ]}
                     onPress={() => setOperator(op.id)}
                   >
-                    <Image source={op.logo} style={styles.operatorLogo} resizeMode="contain" />
-                    <Text style={styles.operatorFlag}>{op.flag}</Text>
+                    <OperatorLogo op={op as any} size={32} style={styles.operatorLogo as any} />
                     <Text
                       style={[
                         styles.operatorName,
                         operator === op.id && styles.operatorNameSelected,
                       ]}
                     >
-                      {op.name}
+                      {othersOpen ? operatorOthersLabel(op) : op.name}
                     </Text>
                     <GatewayBadge op={op} visible={isAdmin} size={16} />
                   </TouchableOpacity>
                 ))}
+                {showOthersEntry && !othersOpen && (
+                  <TouchableOpacity
+                    key="__others"
+                    style={styles.operatorCard}
+                    onPress={() => { setOthersOpen(true); setOperator(''); }}
+                  >
+                    <FontAwesome6 name="ellipsis" size={22} color={Colors.text} />
+                    <Text style={styles.operatorName}>{t('depositModal.others')}</Text>
+                  </TouchableOpacity>
+                )}
+                {cryptoEnabled && (
+                  <TouchableOpacity
+                    key="__crypto"
+                    style={styles.operatorCard}
+                    onPress={() => { setCryptoOpen(true); setOperator(''); }}
+                  >
+                    <FontAwesome6 name="bitcoin-sign" size={22} color={Colors.text} />
+                    <Text style={styles.operatorName}>{t('depositModal.cryptoGroup')}</Text>
+                  </TouchableOpacity>
+                )}
               </ScrollView>
                 )}
               </>
             )}
 
-            <Input
-              label={t('depositModal.amountLabel', { currency: userCurrency })}
-              placeholder={`${t('depositModal.minDeposit')} ${fmtXof(depositMin)}`}
-              value={amount}
-              onChangeText={(t) => setAmount(t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
-              keyboardType="decimal-pad"
-            />
+            {!!operator && (
+              <>
+                <Input
+                  label={t('depositModal.amountLabel', { currency: userCurrency })}
+                  placeholder={`${t('depositModal.minDeposit')} ${fmtXof(depositMin)}`}
+                  value={amount}
+                  onChangeText={(t) => setAmount(t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
+                  keyboardType="decimal-pad"
+                />
 
-            {!isCard && (
-              <Input
-                label={t('depositModal.phoneLabel')}
-                placeholder={t('depositModal.phoneNumber')}
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-              />
-            )}
+                {/* Montant à payer côté Fincra (devise Fincra). XOF→XOF ou
+                    userCurrency === fincraCurrency : pas d'affichage redondant. */}
+                {isFincra && fincraCurrency !== 'XOF' && userCurrency !== fincraCurrency && numAmountDisplayLive > 0 && (
+                  fincraRate.loading ? (
+                    <View style={styles.fincraConvBox}>
+                      <ActivityIndicator size="small" color={Colors.primary} />
+                      <Text style={[styles.fincraConvLabel, styles.fincraConvMuted]}>{t('transferModal.rateLoading')}</Text>
+                    </View>
+                  ) : (fincraRate.error || fincraChargeAmount === null) ? (
+                    <View style={[styles.fincraConvBox, styles.fincraConvError]}>
+                      <FontAwesome6 name="triangle-exclamation" size={13} color={Colors.error} iconStyle="solid" />
+                      <Text style={[styles.fincraConvLabel, styles.fincraConvErrorText]}>{t('common.rateUnavailable')}</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.fincraConvBox}>
+                      <FontAwesome6 name="arrow-right-arrow-left" size={13} color={Colors.primary} iconStyle="solid" />
+                      <Text style={styles.fincraConvLabel}>{t('depositModal.fincraToPay')}</Text>
+                      <Text style={styles.fincraConvAmount}>
+                        ≈ {(fincraChargeAmount ?? 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} {fincraCurrency}
+                      </Text>
+                    </View>
+                  )
+                )}
 
-            {!isCard && !!normalizedPhone && !savedPhones.some((item) => item.tel.replace(/\s+/g, '') === normalizedPhone) && (
-              <Button
-                variant="secondary"
-                icon="bookmark"
-                title={t('depositModal.saveThisNumber')}
-                onPress={saveCurrentPhone}
-                style={styles.saveBtnSmall}
-                textStyle={styles.saveBtnText}
-              />
-            )}
-            {!isCard && savedPhones.some((item) => item.tel.replace(/\s+/g, '') === normalizedPhone) && (
-              <TouchableOpacity style={styles.savedActionBtn} onPress={removeCurrentPhone}>
-                <FontAwesome6 name="trash" size={12} color={Colors.error} />
-                <Text style={[styles.savedActionText, { color: Colors.error }]}>{t('common.delete')}</Text>
-              </TouchableOpacity>
-            )}
+                {classicRateBlocking && (
+                  <View style={{ marginBottom: 8 }}>
+                    <Text style={[styles.hintText, { color: Colors.error }]}>{t('common.rateUnavailable')}</Text>
+                  </View>
+                )}
 
-            {!isCard && savedPhones.length > 0 && (
-              <View style={styles.savedBlock}>
-                <Text style={styles.savedLabel}>{t('depositModal.savedNumbers')}</Text>
-                <View style={styles.savedList}>
-                  {savedPhones.map((item) => {
-                    const normalizedItemTel = item.tel.replace(/\s+/g, '').trim();
-                    const selected = !!normalizedPhone && normalizedPhone === normalizedItemTel;
-                    return (
-                      <TouchableOpacity
-                        key={item.id}
-                        style={[styles.savedChip, selected && styles.savedChipSelected]}
-                        onPress={() => setPhone(selected ? '' : item.tel)}
-                      >
-                        <Text style={[styles.savedChipText, selected && styles.savedChipTextSelected]}>
-                          {item.name?.trim() ? `${item.name} · ${item.tel}` : item.tel}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
+                {isFincraBT && (
+                  <View style={styles.hintBox}>
+                    <FontAwesome6 name="circle-info" size={14} color={Colors.primary} />
+                    <Text style={styles.hintText}>{t('depositModal.bankTransferHint')}</Text>
+                  </View>
+                )}
+                {isFincraMM && (
+                  <View style={styles.hintBox}>
+                    <FontAwesome6 name="circle-info" size={14} color={Colors.primary} />
+                    <Text style={styles.hintText}>{t('depositModal.mobileMoneyHint')}</Text>
+                  </View>
+                )}
 
-            {!isCard && savedPhonesLoadError && savedPhones.length === 0 && (
-              <Text style={styles.savedErrorText}>{savedPhonesLoadError}</Text>
-            )}
+                {showPhoneField && fincraZoneList && (
+                  <View style={{ gap: Spacing.xs }}>
+                    <Text style={styles.zoneLabel}>{t('depositModal.chooseCountry')}</Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ gap: Spacing.xs, paddingVertical: 2 }}
+                    >
+                      {fincraZoneList.map((c) => (
+                        <TouchableOpacity
+                          key={c.code}
+                          onPress={() => setFincraZoneCountry(c.code)}
+                          style={[styles.zoneChip, fincraZoneCountry === c.code && styles.zoneChipSelected]}
+                        >
+                          <Text style={styles.zoneChipFlag}>{c.flag}</Text>
+                          <Text style={[styles.zoneChipText, fincraZoneCountry === c.code && styles.zoneChipTextSelected]}>
+                            {c.name} +{c.phone}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
 
-            {!isCard && needsOtp && (
-              <Input
-                label={t('depositModal.otpLabel', { operator: OPERATORS.find((op) => op.id === operator)?.name ?? '' })}
-                placeholder={t('depositModal.refPlaceholder')}
-                value={otp}
-                onChangeText={setOtp}
-                keyboardType="numeric"
-              />
-            )}
+                {showPhoneField && (
+                  <Input
+                    label={t('depositModal.phoneLabel')}
+                    placeholder={isFincraMM
+                      ? '770000000'
+                      : t('depositModal.phoneNumber')}
+                    value={phone}
+                    onChangeText={setPhone}
+                    keyboardType="phone-pad"
+                    prefix={isFincraMM && fincraDialCode ? `+${fincraDialCode}` : undefined}
+                  />
+                )}
 
-            <Button
-              title={t('depositModal.deposit')}
-              onPress={user?.validate !== 1 ? () => showAlert(t('depositModal.kycRequired3'), t('depositModal.kycRequired2')) : handleDeposit}
-              icon="arrow-down"
-              loading={loading}
-              disabled={!amount || !operator || (!isCard && !phone)}
-              style={{ marginTop: Spacing.lg }}
-            />
+                {showPhoneField && !!normalizedPhone && !savedPhones.some((item) => item.tel.replace(/\s+/g, '') === normalizedPhone) && (
+                  <Button
+                    variant="secondary"
+                    icon="bookmark"
+                    title={t('depositModal.saveThisNumber')}
+                    onPress={saveCurrentPhone}
+                    style={styles.saveBtnSmall}
+                    textStyle={styles.saveBtnText}
+                  />
+                )}
+                {showPhoneField && savedPhones.some((item) => item.tel.replace(/\s+/g, '') === normalizedPhone) && (
+                  <TouchableOpacity style={styles.savedActionBtn} onPress={removeCurrentPhone}>
+                    <FontAwesome6 name="trash" size={12} color={Colors.error} />
+                    <Text style={[styles.savedActionText, { color: Colors.error }]}>{t('common.delete')}</Text>
+                  </TouchableOpacity>
+                )}
+
+                {showPhoneField && savedPhones.length > 0 && (
+                  <View style={styles.savedBlock}>
+                    <Text style={styles.savedLabel}>{t('depositModal.savedNumbers')}</Text>
+                    <View style={styles.savedList}>
+                      {savedPhones.map((item) => {
+                        const normalizedItemTel = item.tel.replace(/\s+/g, '').trim();
+                        const selected = !!normalizedPhone && normalizedPhone === normalizedItemTel;
+                        return (
+                          <TouchableOpacity
+                            key={item.id}
+                            style={[styles.savedChip, selected && styles.savedChipSelected]}
+                            onPress={() => setPhone(selected ? '' : item.tel)}
+                          >
+                            <Text style={[styles.savedChipText, selected && styles.savedChipTextSelected]}>
+                              {item.name?.trim() ? `${item.name} · ${item.tel}` : item.tel}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+
+                {showPhoneField && savedPhonesLoadError && savedPhones.length === 0 && (
+                  <Text style={styles.savedErrorText}>{savedPhonesLoadError}</Text>
+                )}
+
+                {showPhoneField && needsOtp && (
+                  <Input
+                    label={t('depositModal.otpLabel', { operator: OPERATORS.find((op) => op.id === operator)?.name ?? '' })}
+                    placeholder={t('depositModal.refPlaceholder')}
+                    value={otp}
+                    onChangeText={setOtp}
+                    keyboardType="numeric"
+                  />
+                )}
+
+                <Button
+                  title={t('depositModal.deposit')}
+                  onPress={user?.validate !== 1 ? () => showAlert(t('depositModal.kycRequired3'), t('depositModal.kycRequired2')) : handleDeposit}
+                  icon="arrow-down"
+                  loading={loading}
+                  disabled={!amount || fincraRateBlocking || classicRateBlocking || (showPhoneField && !phone) || (!!fincraZoneList && !fincraZoneCountry)}
+                  style={{ marginTop: Spacing.lg }}
+                />
+              </>
+            )}
           </ScrollView>}
           </View>
       </KeyboardAvoidingView>
@@ -731,6 +1145,148 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
+  btBox: {
+    width: '100%',
+    backgroundColor: Colors.inputBg,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    marginTop: Spacing.md,
+    gap: Spacing.xs,
+  },
+  btTitle: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.bold,
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+  },
+  btRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  btLabel: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
+    fontFamily: Fonts.regular,
+  },
+  btValueWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    maxWidth: '65%',
+  },
+  btValue: {
+    fontSize: FontSize.sm,
+    color: Colors.text,
+    fontFamily: Fonts.semiBold,
+    textAlign: 'right',
+  },
+  btValueStrong: {
+    fontSize: FontSize.md,
+    fontFamily: Fonts.bold,
+    color: Colors.primary,
+  },
+  btCopyBtn: {
+    padding: 6,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.primary + '15',
+  },
+  btHelp: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
+    fontStyle: 'italic',
+    marginTop: Spacing.xs,
+    textAlign: 'center',
+  },
+  hintBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.xs,
+    backgroundColor: Colors.primary + '10',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  hintText: {
+    flex: 1,
+    fontSize: FontSize.xs,
+    color: Colors.text,
+    fontFamily: Fonts.regular,
+    lineHeight: 16,
+  },
+  fincraConvBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.primary + '14',
+    borderWidth: 1,
+    borderColor: Colors.primary + '2E',
+    borderRadius: BorderRadius.md,
+    paddingVertical: 11,
+    paddingHorizontal: Spacing.sm,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  fincraConvLabel: {
+    flex: 1,
+    fontSize: FontSize.xs,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.semiBold,
+  },
+  fincraConvAmount: {
+    fontSize: FontSize.md,
+    color: Colors.primary,
+    fontFamily: Fonts.bold,
+  },
+  fincraConvError: {
+    backgroundColor: Colors.error + '12',
+    borderColor: Colors.error + '33',
+  },
+  fincraConvErrorText: {
+    color: Colors.error,
+    fontFamily: Fonts.semiBold,
+  },
+  fincraConvMuted: {
+    color: Colors.textMuted,
+    fontFamily: Fonts.medium,
+  },
+  zoneLabel: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+    color: Colors.text,
+    marginTop: Spacing.sm,
+  },
+  zoneChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.inputBg,
+  },
+  zoneChipSelected: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primary + '15',
+  },
+  zoneChipFlag: {
+    fontSize: 16,
+  },
+  zoneChipText: {
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.semiBold,
+    color: Colors.text,
+  },
+  zoneChipTextSelected: {
+    color: Colors.primary,
+  },
   kycBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -764,6 +1320,24 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.secondary,
     fontSize: FontSize.xs,
     fontFamily: Fonts.semiBold,
+  },
+  selectedCountryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.pill,
+    backgroundColor: Colors.primary + '15',
+    marginBottom: Spacing.sm,
+  },
+  selectedCountryFlag: {
+    fontSize: 14,
+  },
+  selectedCountryName: {
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.semiBold,
+    color: Colors.primary,
   },
   operatorScroll: {
     marginBottom: Spacing.md,

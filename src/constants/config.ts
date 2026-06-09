@@ -16,73 +16,150 @@ const PROD_API = 'https://goespay.io/api/mobile/v1';
 export const API_BASE_URL = __DEV__ ? DEV_API : PROD_API;
 
 export const OPERATORS = [
+  // ─── PayDunya / Softpay ────────────────────────────────────────────────
   // Bénin
-  { id: 'mtn-benin', name: 'MTN Momo Bénin', flag: '🇧🇯', country: 'BJ', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
-  { id: 'moov-benin', name: 'Moov Money Bénin', flag: '🇧🇯', country: 'BJ', withdraw: true, logo: require('../../assets/operators/pay_moov.png') },
+  { id: 'mtn-benin', name: 'MTN Momo', flag: '🇧🇯', country: 'BJ', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
+  { id: 'moov-benin', name: 'Moov Money', flag: '🇧🇯', country: 'BJ', withdraw: true, logo: require('../../assets/operators/pay_moov.png') },
   // Burkina Faso
-  { id: 'moov-burkina-faso', name: 'Moov Money Burkina Faso', flag: '🇧🇫', country: 'BF', withdraw: true, logo: require('../../assets/operators/pay_moov.png') },
-  { id: 'orange-money-burkina', name: 'Orange Money Burkina Faso', flag: '🇧🇫', country: 'BF', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'moov-burkina-faso', name: 'Moov Money', flag: '🇧🇫', country: 'BF', withdraw: true, logo: require('../../assets/operators/pay_moov.png') },
+  { id: 'orange-money-burkina', name: 'Orange Money', flag: '🇧🇫', country: 'BF', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
   // Côte d'Ivoire
-  { id: 'moov-ci', name: 'Moov Money Côte d\'Ivoire', flag: '🇨🇮', country: 'CI', withdraw: true, logo: require('../../assets/operators/pay_moov.png') },
-  { id: 'mtn-ci', name: 'MTN Momo Côte d\'Ivoire', flag: '🇨🇮', country: 'CI', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
-  { id: 'orange-money-ci', name: 'Orange Money Côte d\'Ivoire', flag: '🇨🇮', country: 'CI', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
-  { id: 'wave-ci', name: 'Wave Côte d\'Ivoire', flag: '🇨🇮', country: 'CI', withdraw: true, logo: require('../../assets/operators/pay_wave.jpg') },
+  { id: 'moov-ci', name: 'Moov Money', flag: '🇨🇮', country: 'CI', withdraw: true, logo: require('../../assets/operators/pay_moov.png') },
+  { id: 'mtn-ci', name: 'MTN Momo', flag: '🇨🇮', country: 'CI', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
+  { id: 'orange-money-ci', name: 'Orange Money', flag: '🇨🇮', country: 'CI', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'wave-ci', name: 'Wave', flag: '🇨🇮', country: 'CI', withdraw: true, logo: require('../../assets/operators/pay_wave.jpg') },
   // Togo
-  { id: 't-money-togo', name: 'T-Money Togo', flag: '🇹🇬', country: 'TG', withdraw: true, logo: require('../../assets/operators/pay_tmoney.jpg') },
-  { id: 'moov-togo', name: 'Moov Money Togo', flag: '🇹🇬', country: 'TG', withdraw: true, logo: require('../../assets/operators/pay_moov.png') },
+  { id: 't-money-togo', name: 'T-Money', flag: '🇹🇬', country: 'TG', withdraw: true, logo: require('../../assets/operators/pay_tmoney.jpg') },
+  { id: 'moov-togo', name: 'Moov Money', flag: '🇹🇬', country: 'TG', withdraw: true, logo: require('../../assets/operators/pay_moov.png') },
   // Sénégal
-  { id: 'orange-money-senegal', name: 'Orange Money Sénégal', flag: '🇸🇳', country: 'SN', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
-  { id: 'wave-senegal', name: 'Wave Sénégal', flag: '🇸🇳', country: 'SN', withdraw: true, logo: require('../../assets/operators/pay_wave.jpg') },
+  { id: 'orange-money-senegal', name: 'Orange Money', flag: '🇸🇳', country: 'SN', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'free-money-senegal', name: 'Free Money', flag: '🇸🇳', country: 'SN', withdraw: true, logo: require('../../assets/operators/paydunya.png') },
+  { id: 'expresso-senegal', name: 'Expresso', flag: '🇸🇳', country: 'SN', withdraw: true, logo: require('../../assets/operators/paydunya.png') },
+  { id: 'wave-senegal', name: 'Wave', flag: '🇸🇳', country: 'SN', withdraw: true, logo: require('../../assets/operators/pay_wave.jpg') },
+  { id: 'wizall-senegal', name: 'Wizall', flag: '🇸🇳', country: 'SN', withdraw: true, logo: require('../../assets/operators/paydunya.png') },
   // Mali
-  { id: 'orange-money-mali', name: 'Orange Money Mali', flag: '🇲🇱', country: 'ML', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'orange-money-mali', name: 'Orange Money', flag: '🇲🇱', country: 'ML', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'moov-mali', name: 'Moov Money', flag: '🇲🇱', country: 'ML', withdraw: true, logo: require('../../assets/operators/pay_moov.png') },
   // Cameroun (PayDunya, historique)
-  { id: 'mtn-cameroun', name: 'MTN Mobile Money Cameroun', flag: '🇨🇲', country: 'CM', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
+  { id: 'mtn-cameroun', name: 'MTN Mobile Money', flag: '🇨🇲', country: 'CM', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
 
   // ─── AfribaPay ──────────────────────────────────────────────────────────
-  // Niger (XOF)
-  { id: 'airtel-ne', name: 'Airtel Money Niger', flag: '🇳🇪', country: 'NE', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_airtel.png') },
-  { id: 'moov-ne', name: 'Moov Money Niger', flag: '🇳🇪', country: 'NE', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_moov.png') },
+  // Niger (XOF) — AfribaPay ne supporte qu'Airtel au Niger
+  { id: 'airtel-ne', name: 'Airtel Money', flag: '🇳🇪', country: 'NE', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_airtel.png') },
   // Guinée Conakry (GNF)
-  { id: 'orange-gn', name: 'Orange Money Guinée', flag: '🇬🇳', country: 'GN', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
-  { id: 'mtn-gn', name: 'MTN Mobile Money Guinée', flag: '🇬🇳', country: 'GN', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_mtn.png') },
-  // Guinée Bissau (XOF)
-  { id: 'orange-gw', name: 'Orange Money Guinée-Bissau', flag: '🇬🇼', country: 'GW', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
-  // Gambie (GMD)
-  { id: 'afrimoney-gm', name: 'Africell Money Gambie', flag: '🇬🇲', country: 'GM', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_afrimoney.png') },
+  { id: 'orange-gn', name: 'Orange Money', flag: '🇬🇳', country: 'GN', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'mtn-gn', name: 'MTN Mobile Money', flag: '🇬🇳', country: 'GN', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_mtn.png') },
   // Tchad (XAF)
-  { id: 'airtel-td', name: 'Airtel Money Tchad', flag: '🇹🇩', country: 'TD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_airtel.png') },
-  { id: 'moov-td', name: 'Moov Money Tchad', flag: '🇹🇩', country: 'TD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_moov.png') },
+  { id: 'airtel-td', name: 'Airtel Money', flag: '🇹🇩', country: 'TD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_airtel.png') },
+  { id: 'moov-td', name: 'Moov Money', flag: '🇹🇩', country: 'TD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_moov.png') },
   // Gabon (XAF)
-  { id: 'airtel-ga', name: 'Airtel Money Gabon', flag: '🇬🇦', country: 'GA', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_airtel.png') },
-  { id: 'moov-ga', name: 'Moov Money Gabon', flag: '🇬🇦', country: 'GA', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_moov.png') },
+  { id: 'airtel-ga', name: 'Airtel Money', flag: '🇬🇦', country: 'GA', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_airtel.png') },
+  { id: 'moov-ga', name: 'Moov Money', flag: '🇬🇦', country: 'GA', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_moov.png') },
   // Congo Brazzaville (XAF)
-  { id: 'mtn-cg', name: 'MTN Mobile Money Congo', flag: '🇨🇬', country: 'CG', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_mtn.png') },
-  { id: 'airtel-cg', name: 'Airtel Money Congo', flag: '🇨🇬', country: 'CG', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_airtel.png') },
+  { id: 'mtn-cg', name: 'MTN Mobile Money', flag: '🇨🇬', country: 'CG', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_mtn.png') },
+  { id: 'airtel-cg', name: 'Airtel Money', flag: '🇨🇬', country: 'CG', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_airtel.png') },
   // Centrafrique (XAF)
-  { id: 'orange-cf', name: 'Orange Money Centrafrique', flag: '🇨🇫', country: 'CF', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'orange-cf', name: 'Orange Money', flag: '🇨🇫', country: 'CF', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'telecel-cf', name: 'Telecel', flag: '🇨🇫', country: 'CF', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_telecel.png') },
   // RDC (CDF)
-  { id: 'mpesa-cd', name: 'M-Pesa RDC', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_mpesa.jpg') },
-  { id: 'orange-cd', name: 'Orange Money RDC', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
-  { id: 'airtel-cd', name: 'Airtel Money RDC', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_airtel.png') },
-  { id: 'africell-cd', name: 'Africell Money RDC', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_africell.png') },
+  { id: 'mpesa-cd', name: 'M-Pesa', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_mpesa.jpg') },
+  { id: 'orange-cd', name: 'Orange Money', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'airtel-cd', name: 'Airtel Money', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_airtel.png') },
+  { id: 'africell-cd', name: 'Africell Money', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_africell.png') },
   // Cameroun (XAF, AfribaPay — coexiste avec mtn-cameroun PayDunya)
-  { id: 'mtn-cm', name: 'MTN Mobile Money Cameroun', flag: '🇨🇲', country: 'CM', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_mtn.png') },
-  { id: 'orange-cm', name: 'Orange Money Cameroun', flag: '🇨🇲', country: 'CM', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'mtn-cm', name: 'MTN Mobile Money', flag: '🇨🇲', country: 'CM', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_mtn.png') },
+  { id: 'orange-cm', name: 'Orange Money', flag: '🇨🇲', country: 'CM', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
+
+  // ─── UEMOA via AfribaPay (codes -afp ; coexistent avec PayDunya, l'admin
+  //     choisit l'agrégateur actif par pays/réseau dans le routing) ──────────
+  // Bénin
+  { id: 'moov-bj-afp', name: 'Moov Money', flag: '🇧🇯', country: 'BJ', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_moov.png') },
+  { id: 'mtn-bj-afp', name: 'MTN Momo', flag: '🇧🇯', country: 'BJ', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_mtn.png') },
+  // Côte d'Ivoire
+  { id: 'orange-ci-afp', name: 'Orange Money', flag: '🇨🇮', country: 'CI', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'moov-ci-afp', name: 'Moov Money', flag: '🇨🇮', country: 'CI', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_moov.png') },
+  { id: 'mtn-ci-afp', name: 'MTN Momo', flag: '🇨🇮', country: 'CI', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_mtn.png') },
+  { id: 'wave-ci-afp', name: 'Wave', flag: '🇨🇮', country: 'CI', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_wave.jpg') },
+  // Burkina Faso
+  { id: 'orange-bf-afp', name: 'Orange Money', flag: '🇧🇫', country: 'BF', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'moov-bf-afp', name: 'Moov Money', flag: '🇧🇫', country: 'BF', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_moov.png') },
+  { id: 'wave-bf-afp', name: 'Wave', flag: '🇧🇫', country: 'BF', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_wave.jpg') },
+  // Mali
+  { id: 'orange-ml-afp', name: 'Orange Money', flag: '🇲🇱', country: 'ML', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'moov-ml-afp', name: 'Moov Money', flag: '🇲🇱', country: 'ML', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_moov.png') },
+  // Sénégal
+  { id: 'orange-sn-afp', name: 'Orange Money', flag: '🇸🇳', country: 'SN', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'free-sn-afp', name: 'Free Money', flag: '🇸🇳', country: 'SN', withdraw: true, afribapay: true, logo: require('../../assets/operators/paydunya.png') },
+  { id: 'expresso-sn-afp', name: 'Expresso', flag: '🇸🇳', country: 'SN', withdraw: true, afribapay: true, logo: require('../../assets/operators/paydunya.png') },
+  { id: 'wave-sn-afp', name: 'Wave', flag: '🇸🇳', country: 'SN', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_wave.jpg') },
+  // Togo
+  { id: 'moov-tg-afp', name: 'Moov Money', flag: '🇹🇬', country: 'TG', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_moov.png') },
+  { id: 'tmoney-tg-afp', name: 'T-Money', flag: '🇹🇬', country: 'TG', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_tmoney.jpg') },
 
   // Carte bancaire (international, dépôt uniquement)
   { id: 'card', name: 'Carte Bancaire', flag: '🌍', country: 'INTL', withdraw: false, logo: require('../../assets/operators/pay_card.jpg') },
 
-  // Fincra — multi-rail, multi-devise (solde taggé séparé)
-  { id: 'fincra-ngn', name: 'Fincra Nigeria', flag: '🇳🇬', country: 'NG', withdraw: true, fincra: true, currency: 'NGN', logo: require('../../assets/operators/pay_fincra.png') },
-  { id: 'fincra-ghs', name: 'Fincra Ghana', flag: '🇬🇭', country: 'GH', withdraw: true, fincra: true, currency: 'GHS', logo: require('../../assets/operators/pay_fincra.png') },
-  { id: 'fincra-kes', name: 'Fincra Kenya', flag: '🇰🇪', country: 'KE', withdraw: true, fincra: true, currency: 'KES', logo: require('../../assets/operators/pay_fincra.png') },
-  { id: 'fincra-xof', name: 'Fincra UEMOA', flag: '🌍', country: 'XOF', withdraw: true, fincra: true, currency: 'XOF', logo: require('../../assets/operators/pay_fincra.png') },
-  { id: 'fincra-xaf', name: 'Fincra CEMAC', flag: '🌍', country: 'XAF', withdraw: true, fincra: true, currency: 'XAF', logo: require('../../assets/operators/pay_fincra.png') },
-  { id: 'fincra-usd', name: 'Fincra USD', flag: '🇺🇸', country: 'US', withdraw: true, fincra: true, currency: 'USD', logo: require('../../assets/operators/pay_fincra.png') },
-  { id: 'fincra-eur', name: 'Fincra EUR', flag: '🇪🇺', country: 'EU', withdraw: true, fincra: true, currency: 'EUR', logo: require('../../assets/operators/pay_fincra.png') },
-  { id: 'fincra-gbp', name: 'Fincra GBP', flag: '🇬🇧', country: 'GB', withdraw: true, fincra: true, currency: 'GBP', logo: require('../../assets/operators/pay_fincra.png') },
-  { id: 'fincra-cad', name: 'Fincra CAD', flag: '🇨🇦', country: 'CA', withdraw: true, fincra: true, currency: 'CAD', logo: require('../../assets/operators/pay_fincra.png') },
+  // ─── Fincra : un opérateur par couple (devise × rail) ──────────────────
+  // Pour les zones XOF/XAF, countries[] liste les pays couverts (filter accepte
+  // op.country === selectedCountry OU op.countries?.includes(selectedCountry)).
+
+  // Nigeria (NGN)
+  { id: 'fincra-ngn-mm',   name: 'Mobile Money',     flag: '🇳🇬', country: 'NG', withdraw: true, fincra: true, currency: 'NGN', rail: 'mobile_money',  logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-ngn-bt',   name: 'Virement bancaire', flag: '🇳🇬', country: 'NG', withdraw: true, fincra: true, currency: 'NGN', rail: 'bank_transfer', logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-ngn-card', name: 'Carte bancaire',   flag: '🇳🇬', country: 'NG', withdraw: false, fincra: true, currency: 'NGN', rail: 'checkout',     logo: require('../../assets/operators/pay_card.jpg') },
+
+  // Ghana (GHS)
+  { id: 'fincra-ghs-mm',   name: 'Mobile Money',     flag: '🇬🇭', country: 'GH', withdraw: true, fincra: true, currency: 'GHS', rail: 'mobile_money',  logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-ghs-bt',   name: 'Virement bancaire', flag: '🇬🇭', country: 'GH', withdraw: true, fincra: true, currency: 'GHS', rail: 'bank_transfer', logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-ghs-card', name: 'Carte bancaire',   flag: '🇬🇭', country: 'GH', withdraw: false, fincra: true, currency: 'GHS', rail: 'checkout',     logo: require('../../assets/operators/pay_card.jpg') },
+
+  // Kenya (KES)
+  { id: 'fincra-kes-mm',   name: 'Mobile Money',     flag: '🇰🇪', country: 'KE', withdraw: true, fincra: true, currency: 'KES', rail: 'mobile_money',  logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-kes-bt',   name: 'Virement bancaire', flag: '🇰🇪', country: 'KE', withdraw: true, fincra: true, currency: 'KES', rail: 'bank_transfer', logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-kes-card', name: 'Carte bancaire',   flag: '🇰🇪', country: 'KE', withdraw: false, fincra: true, currency: 'KES', rail: 'checkout',     logo: require('../../assets/operators/pay_card.jpg') },
+
+  // Ouganda (UGX)
+  { id: 'fincra-ugx-mm',   name: 'Mobile Money',     flag: '🇺🇬', country: 'UG', withdraw: true, fincra: true, currency: 'UGX', rail: 'mobile_money',  logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-ugx-bt',   name: 'Virement bancaire', flag: '🇺🇬', country: 'UG', withdraw: true, fincra: true, currency: 'UGX', rail: 'bank_transfer', logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-ugx-card', name: 'Carte bancaire',   flag: '🇺🇬', country: 'UG', withdraw: false, fincra: true, currency: 'UGX', rail: 'checkout',     logo: require('../../assets/operators/pay_card.jpg') },
+
+  // Zambie (ZMW)
+  { id: 'fincra-zmw-mm',   name: 'Mobile Money',     flag: '🇿🇲', country: 'ZM', withdraw: true, fincra: true, currency: 'ZMW', rail: 'mobile_money',  logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-zmw-bt',   name: 'Virement bancaire', flag: '🇿🇲', country: 'ZM', withdraw: true, fincra: true, currency: 'ZMW', rail: 'bank_transfer', logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-zmw-card', name: 'Carte bancaire',   flag: '🇿🇲', country: 'ZM', withdraw: false, fincra: true, currency: 'ZMW', rail: 'checkout',     logo: require('../../assets/operators/pay_card.jpg') },
+
+  // Tanzanie (TZS) — Fincra ne supporte pas le checkout hébergé pour TZS, pas de carte
+  { id: 'fincra-tzs-mm', name: 'Mobile Money',     flag: '🇹🇿', country: 'TZ', withdraw: true, fincra: true, currency: 'TZS', rail: 'mobile_money',  logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-tzs-bt', name: 'Virement bancaire', flag: '🇹🇿', country: 'TZ', withdraw: true, fincra: true, currency: 'TZS', rail: 'bank_transfer', logo: require('../../assets/operators/pay_fincra.png') },
+
+  // Zone CEMAC (XAF) — Mobile Money + carte (hosted checkout). Pas de bank_transfer chez Fincra.
+  { id: 'fincra-xaf-mm',   name: 'Mobile Money', flag: '', country: 'XAF', countries: ['CM','CF','CG','GA','GQ','TD'], withdraw: true, fincra: true, currency: 'XAF', rail: 'mobile_money', logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-xaf-card', name: 'Carte bancaire', flag: '', country: 'XAF', countries: ['CM','CF','CG','GA','GQ','TD'], withdraw: false, fincra: true, currency: 'XAF', rail: 'checkout', logo: require('../../assets/operators/pay_card.jpg') },
+
+  // Zone UEMOA (XOF) — Mobile Money + carte (hosted checkout). Pas de bank_transfer chez Fincra.
+  { id: 'fincra-xof-mm',   name: 'Mobile Money', flag: '', country: 'XOF', countries: ['BJ','BF','CI','GW','ML','NE','SN','TG'], withdraw: true, fincra: true, currency: 'XOF', rail: 'mobile_money', logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-xof-card', name: 'Carte bancaire', flag: '', country: 'XOF', countries: ['BJ','BF','CI','GW','ML','NE','SN','TG'], withdraw: false, fincra: true, currency: 'XOF', rail: 'checkout', logo: require('../../assets/operators/pay_card.jpg') },
+
+  // Afrique du Sud (ZAR)
+  { id: 'fincra-zar-bt',   name: 'Virement bancaire', flag: '🇿🇦', country: 'ZA', withdraw: true, fincra: true, currency: 'ZAR', rail: 'bank_transfer', logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-zar-card', name: 'Carte bancaire',   flag: '🇿🇦', country: 'ZA', withdraw: false, fincra: true, currency: 'ZAR', rail: 'checkout',     logo: require('../../assets/operators/pay_card.jpg') },
+
+  // Égypte (EGP)
+  { id: 'fincra-egp-mm', name: 'Mobile Money',     flag: '🇪🇬', country: 'EG', withdraw: true, fincra: true, currency: 'EGP', rail: 'mobile_money',  logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-egp-bt', name: 'Virement bancaire', flag: '🇪🇬', country: 'EG', withdraw: true, fincra: true, currency: 'EGP', rail: 'bank_transfer', logo: require('../../assets/operators/pay_fincra.png') },
+
+  // International (USD/EUR/GBP) — payout-only via SWIFT/SEPA. Fincra ne supporte PAS
+  // le checkout hébergé ni le pay-in bank_transfer pour ces devises (cf. doc Fincra).
+  { id: 'fincra-usd-bt', name: 'Virement (SWIFT) USD',       flag: '🇺🇸', country: 'US', withdraw: true, fincra: true, currency: 'USD', rail: 'bank_transfer', logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-eur-bt', name: 'Virement (SEPA/SWIFT) EUR',  flag: '🇪🇺', country: 'EU', withdraw: true, fincra: true, currency: 'EUR', rail: 'bank_transfer', logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-gbp-bt', name: 'Virement (SWIFT) GBP',       flag: '🇬🇧', country: 'GB', withdraw: true, fincra: true, currency: 'GBP', rail: 'bank_transfer', logo: require('../../assets/operators/pay_fincra.png') },
 ] as const;
+
+// Helper : un opérateur sert-il `selectedCountry` ?
+// Accepte op.country direct OU op.countries[] (zones XOF/XAF).
+export function operatorServesCountry(op: { country: string; countries?: readonly string[] }, code: string): boolean {
+  return op.country === code || (op.countries?.includes(code) ?? false);
+}
 
 // Identifie le réseau mobile money depuis le nom de l'opérateur. Utilisé pour
 // dédupliquer les paires (pays, réseau) servies à la fois par Softpay/PayDunya
@@ -113,6 +190,29 @@ export function isAfribapayDuplicate(op: { afribapay?: true; country: string; na
   if (!op.afribapay) return false;
   return SOFTPAY_NETWORK_KEYS.has(`${op.country}:${getOperatorNetwork(op)}`);
 }
+
+// Pays couverts par les devises zones Fincra. Utilisé pour proposer un
+// sélecteur de pays + l'indicatif téléphonique sur les flux XOF/XAF.
+export const FINCRA_ZONES: Record<string, Array<{ code: string; flag: string; phone: string; name: string }>> = {
+  XOF: [
+    { code: 'BJ', flag: '🇧🇯', phone: '229', name: 'Bénin' },
+    { code: 'BF', flag: '🇧🇫', phone: '226', name: 'Burkina Faso' },
+    { code: 'CI', flag: '🇨🇮', phone: '225', name: "Côte d'Ivoire" },
+    { code: 'GW', flag: '🇬🇼', phone: '245', name: 'Guinée-Bissau' },
+    { code: 'ML', flag: '🇲🇱', phone: '223', name: 'Mali' },
+    { code: 'NE', flag: '🇳🇪', phone: '227', name: 'Niger' },
+    { code: 'SN', flag: '🇸🇳', phone: '221', name: 'Sénégal' },
+    { code: 'TG', flag: '🇹🇬', phone: '228', name: 'Togo' },
+  ],
+  XAF: [
+    { code: 'CM', flag: '🇨🇲', phone: '237', name: 'Cameroun' },
+    { code: 'CF', flag: '🇨🇫', phone: '236', name: 'Centrafrique' },
+    { code: 'CG', flag: '🇨🇬', phone: '242', name: 'Congo' },
+    { code: 'GA', flag: '🇬🇦', phone: '241', name: 'Gabon' },
+    { code: 'GQ', flag: '🇬🇶', phone: '240', name: 'Guinée Eq.' },
+    { code: 'TD', flag: '🇹🇩', phone: '235', name: 'Tchad' },
+  ],
+};
 
 export const TRANSACTION_STATUS: Record<string, { label: string; color: string }> = {
   success: { label: 'Succès', color: '#3176FE' },

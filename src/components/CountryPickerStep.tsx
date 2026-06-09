@@ -21,24 +21,40 @@ interface Props {
   onSelectCountry: (code: string) => void;
   /** Appelé si l'utilisateur clique sur la tuile carte (showCardTile) */
   onSelectCard?: () => void;
+  /** Tuile « Crypto-monnaies » */
+  showCryptoTile?: boolean;
+  cryptoLabel?: string;
+  onSelectCrypto?: () => void;
   label?: string;
 }
 
-export function CountryPickerStep({ operators, showCardTile, cardLabel, onSelectCountry, onSelectCard, label }: Props) {
+export function CountryPickerStep({ operators, showCardTile, cardLabel, onSelectCountry, onSelectCard, showCryptoTile, cryptoLabel, onSelectCrypto, label }: Props) {
   const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
   const { isDesktop } = useResponsive();
 
   const countries: CountryEntry[] = useMemo(() => {
     const map = new Map<string, CountryEntry>();
+    const addCountry = (code: string) => {
+      if (!code || code === 'INTL' || map.has(code)) return;
+      const c = ALL_COUNTRIES.find((x) => x.code === code);
+      // i18n : `countries.<ISO>` ; fallback sur le nom anglais de ALL_COUNTRIES.
+      const fallback = c?.name ?? code;
+      const translated = t(`countries.${code}`, { defaultValue: fallback });
+      // Drapeau emoji dérivé du code ISO-2 (chaque lettre +127397 = regional indicator).
+      const flag = /^[A-Z]{2}$/.test(code)
+        ? String.fromCodePoint(...[...code].map(ch => 127397 + ch.charCodeAt(0)))
+        : '';
+      map.set(code, { code, flag, name: translated });
+    };
     operators.forEach((op) => {
       if (op.id === 'card') return;
-      if (!map.has(op.country)) {
-        const c = ALL_COUNTRIES.find((x) => x.code === op.country);
-        // i18n : `countries.<ISO>` ; fallback sur le nom anglais de ALL_COUNTRIES.
-        const fallback = c?.name ?? op.country;
-        const translated = t(`countries.${op.country}`, { defaultValue: fallback });
-        map.set(op.country, { code: op.country, flag: op.flag, name: translated });
+      // Si l'opérateur sert plusieurs pays (zone XOF/XAF), on les ajoute tous.
+      const list = (op as any).countries as string[] | undefined;
+      if (Array.isArray(list) && list.length > 0) {
+        list.forEach(addCountry);
+      } else {
+        addCountry(op.country);
       }
     });
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
@@ -56,6 +72,12 @@ export function CountryPickerStep({ operators, showCardTile, cardLabel, onSelect
         <TouchableOpacity key="__card" style={styles.chip} onPress={onSelectCard}>
           <FontAwesome6 name="credit-card" size={16} color={DefaultColors.text} />
           <Text style={styles.chipText} numberOfLines={1}>{cardLabel ?? t('depositModal.bankCard')}</Text>
+        </TouchableOpacity>
+      )}
+      {showCryptoTile && onSelectCrypto && (
+        <TouchableOpacity key="__crypto" style={styles.chip} onPress={onSelectCrypto}>
+          <FontAwesome6 name="bitcoin-sign" size={16} color={DefaultColors.text} />
+          <Text style={styles.chipText} numberOfLines={1}>{cryptoLabel ?? 'Crypto'}</Text>
         </TouchableOpacity>
       )}
     </>

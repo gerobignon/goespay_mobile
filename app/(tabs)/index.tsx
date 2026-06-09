@@ -40,6 +40,7 @@ import { TransactionItem } from '../../src/components/TransactionItem';
 import { TransactionDetailModal, type TxType } from '../../src/components/TransactionDetailModal';
 import { useCryptoStore } from '../../src/stores/cryptoStore';
 import { useConfigStore } from '../../src/stores/configStore';
+import { useCorridorStore } from '../../src/stores/corridorStore';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useTheme } from '../../src/components/ThemeProvider';
@@ -49,26 +50,38 @@ export default function DashboardScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const refreshProfile = useAuthStore((s) => s.refreshProfile);
-  const { balance, fincraBalance, fetchBalance, isLoadingBalance, transactions, fetchTransactions, loadCachedData } = useWalletStore();
+  const { balance, fetchBalance, isLoadingBalance, transactions, fetchTransactions, loadCachedData } = useWalletStore();
   const fmtXof = useFormatXof();
   const currencyCode = useCurrencyCode();
   const [refreshing, setRefreshing] = useState(false);
   const [depositVisible, setDepositVisible] = useState(false);
   const [transferVisible, setTransferVisible] = useState(false);
   const [cryptoVisible, setCryptoVisible] = useState(false);
+  // Crypto lancé depuis Dépôt (vente) ou Retrait (achat) : onglet forcé + crypto pré-sélectionnée.
+  const [cryptoTab, setCryptoTab] = useState<'buy' | 'sell'>('sell');
+  const [cryptoCurrency, setCryptoCurrency] = useState<string | undefined>(undefined);
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [modalTxId, setModalTxId] = useState<number | null>(null);
   const [modalTxType, setModalTxType] = useState<TxType | null>(null);
 
   const { logout } = useAuthStore();
   const { deposit_enabled, transfer_enabled, crypto_buy_enabled, crypto_sell_enabled, fetchConfig } = useConfigStore();
+  const fetchCorridors = useCorridorStore((s) => s.fetchCorridors);
   const isAdmin = user?.group === 'admin';
   const isSupportedCountry = COUNTRIES.some((c) => c.code === user?.country);
   const isCryptoUser = isAdmin || user?.group === 'crypto' || isSupportedCountry;
   // L'admin voit tous les services même désactivés (un bandeau s'affiche dans le modal concerné).
   const showDeposit = isAdmin || deposit_enabled;
   const showTransfer = isAdmin || transfer_enabled;
-  const showCrypto = isAdmin || (isCryptoUser && crypto_buy_enabled);
+  const showCrypto = isAdmin || (isCryptoUser && (crypto_buy_enabled || crypto_sell_enabled));
+  // Ouvre le flux crypto avec l'action forcée, depuis Dépôt (vente) ou Retrait (achat).
+  const openCrypto = (tab: 'buy' | 'sell', currency?: string) => {
+    setCryptoTab(tab);
+    setCryptoCurrency(currency);
+    setDepositVisible(false);
+    setTransferVisible(false);
+    setTimeout(() => setCryptoVisible(true), 350);
+  };
   const isValidated = user?.validate === 1;
   const prefetchRates = useCryptoStore((s) => s.fetchRates);
   const { isWide, isDesktop, contentMaxWidth } = useResponsive();
@@ -130,6 +143,7 @@ export default function DashboardScreen() {
       fetchBalance();
       fetchTransactions(1);
       fetchConfig();
+      fetchCorridors();
       if (isCryptoUser) prefetchRates();
     }, [])
   );
@@ -211,12 +225,6 @@ export default function DashboardScreen() {
                   <Text style={styles.balanceLabel}>{ t('home.balance') }</Text>
                   <Text style={styles.balanceAmount}>{fmtXof(balance, { withCode: false })}</Text>
                   <Text style={styles.currency}>{currencyCode}</Text>
-                  {fincraBalance > 0 && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                      <Text style={[styles.balanceLabel, { fontSize: FontSize.xs }]}>{ t('home.fincraBalance') }</Text>
-                      <Text style={[styles.balanceAmount, { fontSize: FontSize.lg }]}>{fmtXof(fincraBalance, { withCode: false })}</Text>
-                    </View>
-                  )}
                   <View style={styles.balanceActions}>
                     {showDeposit && (
                     <TouchableOpacity
@@ -257,14 +265,6 @@ export default function DashboardScreen() {
                   </View>
                   <Text style={styles.quickLabel}>{ t('home.transfer') }</Text>
                 </TouchableOpacity>
-                )}
-                {showCrypto && (
-                  <TouchableOpacity style={styles.quickBtn} onPress={() => setCryptoVisible(true)}>
-                    <View style={[styles.quickIcon, { backgroundColor: Colors.warning + '45' }]}>
-                      <FontAwesome6 name="bitcoin-sign" size={20} color={Colors.warning} />
-                    </View>
-                    <Text style={styles.quickLabel}>{ t('home.crypto') }</Text>
-                  </TouchableOpacity>
                 )}
                 <TouchableOpacity style={styles.quickBtn} onPress={() => router.push('/(tabs)/history')}>
                   <View style={[styles.quickIcon, { backgroundColor: DarkColors.secondary + '45' }]}>
@@ -352,14 +352,6 @@ export default function DashboardScreen() {
                 <Text style={styles.quickLabel}>{ t('home.transfer') }</Text>
               </TouchableOpacity>
               )}
-              {showCrypto && (
-                <TouchableOpacity style={styles.quickBtn} onPress={() => setCryptoVisible(true)}>
-                  <View style={[styles.quickIcon, { backgroundColor: Colors.warning + '45' }]}>
-                    <FontAwesome6 name="bitcoin-sign" size={20} color={Colors.warning} />
-                  </View>
-                  <Text style={styles.quickLabel}>{ t('home.crypto') }</Text>
-                </TouchableOpacity>
-              )}
               <TouchableOpacity style={styles.quickBtn} onPress={() => router.push('/(tabs)/history')}>
                 <View style={[styles.quickIcon, { backgroundColor: DarkColors.secondary + '45' }]}>
                   <FontAwesome6 name="clock-rotate-left" size={20} color={Colors.secondary} />
@@ -396,12 +388,16 @@ export default function DashboardScreen() {
       <DepositModal
         visible={depositVisible}
         onClose={() => setDepositVisible(false)}
+        cryptoEnabled={showCrypto && (crypto_sell_enabled || isAdmin)}
+        onSellCrypto={(currency?: string) => openCrypto('sell', currency)}
       />
       )}
       {showTransfer && (
       <TransferModal
         visible={transferVisible}
         onClose={() => setTransferVisible(false)}
+        cryptoEnabled={showCrypto && (crypto_buy_enabled || isAdmin)}
+        onBuyCrypto={(currency?: string) => openCrypto('buy', currency)}
       />
       )}
       {showCrypto && (
@@ -410,6 +406,9 @@ export default function DashboardScreen() {
           onClose={() => setCryptoVisible(false)}
           buyEnabled={crypto_buy_enabled}
           sellEnabled={crypto_sell_enabled}
+          initialTab={cryptoTab}
+          initialCurrency={cryptoCurrency}
+          forceTab
         />
       )}
 

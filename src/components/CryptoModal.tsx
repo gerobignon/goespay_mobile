@@ -19,6 +19,7 @@ import { ResponsiveModal } from './ResponsiveModal';
 import { Button } from './Button';
 import { CryptoSellDetailsModal } from './CryptoSellDetailsModal';
 import { useAuthStore } from '../stores/authStore';
+import { getApiErrorMessage } from '../utils/apiError';
 import { useWalletStore } from '../stores/walletStore';
 import { useCryptoStore, CryptoRate } from '../stores/cryptoStore';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
@@ -42,6 +43,11 @@ interface CryptoModalProps {
   onClose: () => void;
   buyEnabled?: boolean;
   sellEnabled?: boolean;
+  // Lancé depuis Dépôt (vente) ou Retrait (achat) : on force l'onglet et on
+  // peut pré-sélectionner une crypto. forceTab masque le sélecteur achat/vente.
+  initialTab?: Tab;
+  initialCurrency?: string;
+  forceTab?: boolean;
 }
 
 type Tab = 'buy' | 'sell';
@@ -71,7 +77,7 @@ function pickCryptoSource(rate?: { code?: string; img?: string | null } | null):
   return null;
 }
 
-export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled = true }: CryptoModalProps) {
+export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled = true, initialTab, initialCurrency, forceTab = false }: CryptoModalProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
@@ -97,7 +103,10 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
   const convertToXof = useCurrencyStore((s) => s.convertToXof);
   const convertFromXof = useCurrencyStore((s) => s.convertFromXof);
   const formatFromXof = useCurrencyStore((s) => s.formatFromXof);
+  const currencyRates = useCurrencyStore((s) => s.rates);
   const fmtXof = useFormatXof();
+  // User non-XOF sans taux global → conversion fiat 1:1 erronée : on bloque.
+  const classicRateBlocking = userCurrency !== 'XOF' && !((currencyRates[userCurrency] ?? 0) > 0);
 
   const [tab, setTab] = useState<Tab>('buy');
   const [selectedCurrency, setSelectedCurrency] = useState('');
@@ -131,10 +140,10 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
   useEffect(() => {
     if (visible) {
       fetchRates(rates.length === 0);
-      setSelectedCurrency('');
+      setSelectedCurrency(initialCurrency ?? '');
       setAmount('');
       setWalletAddress('');
-      setTab(buyAvailable ? 'buy' : 'sell');
+      setTab(initialTab ?? (buyAvailable ? 'buy' : 'sell'));
       loadSavedWallets();
     }
   }, [visible]);
@@ -322,6 +331,11 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
       return;
     }
 
+    if (classicRateBlocking) {
+      showAlert(t('common.error'), t('common.rateUnavailable'));
+      return;
+    }
+
     const numAmount = parseFloat(amount);
     if (!numAmount || numAmount <= 0) {
       showAlert(t('common.error'), t('cryptoModal.invalidAmount'));
@@ -403,14 +417,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
         }
       }
     } catch (error: any) {
-      const msg =
-        error?.response?.data?.error ||
-        error?.response?.data?.message ||
-        (error?.response?.data?.errors
-          ? Object.values(error.response.data.errors).flat().join('\n')
-          : null) ||
-        t('cryptoModal.cryptoError');
-      showAlert(t('common.error'), msg);
+      showAlert(t('common.error'), getApiErrorMessage(error, t, t('cryptoModal.cryptoError')));
     } finally {
       setLoading(false);
     }
@@ -450,7 +457,8 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                 </TouchableOpacity>
               </View>
 
-          {/* Tabs */}
+          {/* Tabs — masqués quand l'action est forcée (lancé depuis Dépôt/Retrait) */}
+          {!forceTab && (
           <View style={styles.tabs}>
             {buyAvailable && (
             <TouchableOpacity
@@ -491,6 +499,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
             </TouchableOpacity>
             )}
           </View>
+          )}
 
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
             <TransactionAlertBanner type={tab === 'sell' ? 'crypto_sell' : 'crypto_buy'} />
@@ -668,6 +677,12 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                   keyboardType="decimal-pad"
                 />
 
+                {classicRateBlocking && (
+                  <Text style={[styles.conversionText, { color: Colors.error, marginBottom: Spacing.sm }]}>
+                    {t('common.rateUnavailable')}
+                  </Text>
+                )}
+
                 {/* Conversion preview */}
                 {conversion ? (
                   <View style={styles.conversionBox}>
@@ -760,6 +775,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                   loading={loading}
                   disabled={
                     !amount ||
+                    classicRateBlocking ||
                     !selectedCurrency ||
                     (tab === 'buy' && !walletAddress.trim())
                   }

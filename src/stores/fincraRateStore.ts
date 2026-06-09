@@ -1,0 +1,84 @@
+import { useEffect, useRef, useState } from 'react';
+import { walletService } from '../services/walletService';
+
+// ─────────────────────────────────────────────────────────────────────────
+// Taux Fincra — ISOLÉ du currencyStore global.
+//
+// wallet_fincra est canonique en XOF, et l'utilisateur saisit toujours dans la
+// devise de son compte (XOF). On convertit ce montant vers la devise Fincra
+// (NGN, GHS, USD…) pour ce que Fincra encaisse (dépôt) ou envoie (payout).
+//
+// `rate` = nombre de XOF pour 1 unité de la devise Fincra (triangulé via USD
+// côté backend, taux mid unique). Donc :
+//   - XOF → devise Fincra : montantFincra = montantXof / rate
+//   - devise Fincra → XOF : montantXof   = montantFincra * rate
+//
+// Ces taux ne doivent JAMAIS alimenter currencyStore (ni l'inverse) : ils ne
+// valent que pour Fincra.
+// ─────────────────────────────────────────────────────────────────────────
+
+interface CacheEntry {
+  rate: number;
+  ts: number;
+}
+
+const CACHE_TTL_MS = 5 * 60 * 1000; // aligné sur le cache backend (5 min)
+const cache = new Map<string, CacheEntry>();
+
+// Récupère le taux XOF (XOF pour 1 unité de $currency). null si indisponible.
+export async function fetchFincraRate(currency: string): Promise<number | null> {
+  const cur = (currency || '').toUpperCase();
+  if (!cur) return null;
+  if (cur === 'XOF') return 1;
+
+  const hit = cache.get(cur);
+  if (hit && Date.now() - hit.ts < CACHE_TTL_MS) return hit.rate;
+
+  try {
+    const { rate_to_xof } = await walletService.getFincraRate(cur);
+    if (typeof rate_to_xof !== 'number' || !isFinite(rate_to_xof) || rate_to_xof <= 0) return null;
+    cache.set(cur, { rate: rate_to_xof, ts: Date.now() });
+    return rate_to_xof;
+  } catch {
+    return null;
+  }
+}
+
+export interface FincraRateState {
+  rate: number | null;  // XOF pour 1 unité de la devise Fincra (null = indéterminé)
+  loading: boolean;
+  error: boolean;        // taux indisponible → bloquer la soumission
+}
+
+// Hook réactif : charge le taux XOF pour une devise Fincra donnée.
+// Le taux est indépendant du montant (taux mid unique) → un seul fetch/devise.
+// `enabled` permet de désactiver l'appel (ex : opérateur non-Fincra, ou XOF).
+export function useFincraRate(currency: string, enabled: boolean = true): FincraRateState {
+  const [state, setState] = useState<FincraRateState>({ rate: null, loading: false, error: false });
+  const reqId = useRef(0);
+
+  useEffect(() => {
+    const cur = (currency || '').toUpperCase();
+
+    if (!enabled || !cur) {
+      setState({ rate: null, loading: false, error: false });
+      return;
+    }
+    // XOF : conversion identité, pas de garde.
+    if (cur === 'XOF') {
+      setState({ rate: 1, loading: false, error: false });
+      return;
+    }
+
+    const id = ++reqId.current;
+    setState((s) => ({ ...s, loading: true, error: false }));
+
+    (async () => {
+      const rate = await fetchFincraRate(cur);
+      if (id !== reqId.current) return; // appel obsolète
+      setState({ rate, loading: false, error: rate === null });
+    })();
+  }, [currency, enabled]);
+
+  return state;
+}

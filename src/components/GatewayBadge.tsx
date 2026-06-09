@@ -3,6 +3,7 @@ import { Image, StyleSheet, View, ImageStyle, ViewStyle } from 'react-native';
 
 const PAYDUNYA = require('../../assets/operators/paydunya.png');
 const AFRIBAPAY = require('../../assets/operators/afribapay.png');
+const FINCRA = require('../../assets/operators/pay_fincra.png');
 
 interface OperatorLike {
   id: string;
@@ -18,15 +19,18 @@ interface Props {
 }
 
 /**
- * Small badge showing the payment gateway that handles a given mobile money
- * operator. Only rendered for admin users so they can quickly identify which
- * provider (PayDunya Softpay / AfribaPay) is wired behind each operator card.
- * Card payments are routed via a different checkout flow → no badge.
+ * Small badge showing the payment gateway that handles a given operator.
+ * Only rendered for admin users so they can quickly identify which provider
+ * (PayDunya / AfribaPay / Fincra) is wired behind each card.
+ *
+ * Note : le rail `card` (Carte bancaire) est routé via PayDunya Checkout
+ * (cf. api_mobile.php). KKiapay n'est plus utilisé.
  */
 export function GatewayBadge({ op, visible, size = 16, style }: Props) {
   if (!visible) return null;
-  if (op.id === 'card' || op.fincra) return null;
-  const source = op.afribapay ? AFRIBAPAY : PAYDUNYA;
+  const source = op.fincra    ? FINCRA
+               : op.afribapay ? AFRIBAPAY
+               : PAYDUNYA;
   const imgStyle: ImageStyle = { width: size, height: size, borderRadius: size / 2 };
   return (
     <View style={[styles.badge, style]} pointerEvents="none">

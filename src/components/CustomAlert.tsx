@@ -54,8 +54,10 @@ export function CustomAlert() {
   const icon = ICON_MAP[type] || ICON_MAP.info;
 
   const handlePress = (onPress?: () => void) => {
+    // ⚠️ onPress doit s'exécuter SYNCHRONEMENT pour préserver le user-gesture
+    // context du browser (sinon window.open est silencieusement bloqué).
+    try { onPress?.(); } catch (_) {}
     hide();
-    setTimeout(() => onPress?.(), 100);
   };
 
   return (
