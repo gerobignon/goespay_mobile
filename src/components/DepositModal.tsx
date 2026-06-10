@@ -23,6 +23,7 @@ import api from '../services/api';
 import { useWalletStore } from '../stores/walletStore';
 import { useAuthStore } from '../stores/authStore';
 import { OPERATORS, FINCRA_ZONES, operatorServesCountry } from '../constants/config';
+import { useCatalogStore } from '../stores/catalogStore';
 import { ALL_COUNTRIES } from '../constants/countries';
 import { useCorridorStore } from '../stores/corridorStore';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
@@ -255,12 +256,16 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // Corridors server-driven (aggregator_routing) : masquage payin temps réel.
   const corridorsLoaded = useCorridorStore((s) => s.isLoaded);
   const isCodeEnabled = useCorridorStore((s) => s.isCodeEnabled);
+  // Référentiel serveur (P3) : opérateurs construits depuis /catalog (admin Marchés).
+  // Fallback sur la liste statique config.ts tant que le catalogue n'est pas chargé.
+  const catalogOperators = useCatalogStore((s) => s.operators);
+  const OPERATORS_SRC: any[] = catalogOperators.length ? catalogOperators : (OPERATORS as any);
 
   // Plus de dédup statique PayDunya : la visibilité d'un moyen dépend UNIQUEMENT
   // de son corridor activé dans le routing admin (isCodeEnabled). L'admin n'active
   // qu'un seul agrégateur par (pays, réseau), donc un seul moyen visible par opérateur.
   // Fallback statique tant que les corridors ne sont pas chargés (évite un écran vide).
-  const operatorsBase = OPERATORS.filter((op) => {
+  const operatorsBase = OPERATORS_SRC.filter((op) => {
     if (!corridorsLoaded && !afribapayEnabled && !isAdmin && (op as any).afribapay) return false;
     return true;
   });
@@ -316,7 +321,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const showOthersEntry = otherOps.length > 0 && !selectedCountry && (showCard || primaryOps.length === 0);
 
   const needsOtp = ['orange-money-burkina', 'orange-money-ci', 'orange-money-senegal', 'orange-gn'].includes(operator);
-  const selectedOp = OPERATORS.find((op) => op.id === operator);
+  const selectedOp = OPERATORS_SRC.find((op) => op.id === operator);
   const isFincra = !!(selectedOp as any)?.fincra;
   // Routing Fincra : le rail est désormais porté directement par l'opérateur
   // (cf. OPERATORS dans config.ts). 1 opérateur = 1 rail, plus de sélecteur.
@@ -1038,7 +1043,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
 
                 {showPhoneField && needsOtp && (
                   <Input
-                    label={t('depositModal.otpLabel', { operator: OPERATORS.find((op) => op.id === operator)?.name ?? '' })}
+                    label={t('depositModal.otpLabel', { operator: OPERATORS_SRC.find((op) => op.id === operator)?.name ?? '' })}
                     placeholder={t('depositModal.refPlaceholder')}
                     value={otp}
                     onChangeText={setOtp}
@@ -1076,7 +1081,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
             <Text style={styles.saveOpLabel}>{t('depositModal.paymentMethod')}</Text>
             {isDesktop ? (
               <View style={styles.saveOpGrid}>
-                {OPERATORS.filter((op) => op.id !== 'card').map((op) => (
+                {OPERATORS_SRC.filter((op) => op.id !== 'card').map((op) => (
                   <TouchableOpacity
                     key={op.id}
                     style={[styles.saveOpChip, savePhoneOperator === op.id && styles.saveOpChipSelected]}
@@ -1091,7 +1096,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
               </View>
             ) : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.saveOpScroll} contentContainerStyle={styles.saveOpScrollContent}>
-                {OPERATORS.filter((op) => op.id !== 'card').map((op) => (
+                {OPERATORS_SRC.filter((op) => op.id !== 'card').map((op) => (
                   <TouchableOpacity
                     key={op.id}
                     style={[styles.saveOpChip, savePhoneOperator === op.id && styles.saveOpChipSelected]}

@@ -23,6 +23,7 @@ import { walletService, type FincraRail } from '../services/walletService';
 import { useWalletStore } from '../stores/walletStore';
 import { useAuthStore } from '../stores/authStore';
 import { OPERATORS, FINCRA_ZONES, operatorServesCountry } from '../constants/config';
+import { useCatalogStore } from '../stores/catalogStore';
 import { useCorridorStore } from '../stores/corridorStore';
 import { CorridorUnavailableBanner } from './CorridorUnavailableBanner';
 import { ALL_COUNTRIES } from '../constants/countries';
@@ -130,10 +131,14 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const isCodeEnabled = useCorridorStore((s) => s.isCodeEnabled);
   const isPayoutAvailable = useCorridorStore((s) => s.isPayoutAvailable);
 
+  // Référentiel serveur (P3) : opérateurs depuis /catalog (admin Marchés), fallback config.ts.
+  const catalogOperators = useCatalogStore((s) => s.operators);
+  const OPERATORS_SRC: any[] = catalogOperators.length ? catalogOperators : (OPERATORS as any);
+
   // Plus de dédup statique PayDunya : la visibilité dépend UNIQUEMENT du corridor
   // payout activé dans le routing admin (isCodeEnabled). Un seul agrégateur actif
   // par (pays, réseau) → un seul moyen visible par opérateur.
-  const displayOperators = OPERATORS.filter(
+  const displayOperators = OPERATORS_SRC.filter(
     (op) => op.withdraw && (!corridorsLoaded ? (afribapayEnabled || isAdmin || !(op as any).afribapay) : true)
   );
 
@@ -167,7 +172,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const showCorridorBanner =
     !isAdmin && corridorsLoaded && !!selectedCountry && !isPayoutAvailable(selectedCountry);
 
-  const selectedOp = OPERATORS.find((op) => op.id === operator);
+  const selectedOp = OPERATORS_SRC.find((op) => op.id === operator);
   const isFincraOp = !!(selectedOp as any)?.fincra;
   const fincraCurrency = isFincraOp ? ((selectedOp as any)?.currency as string) || 'XOF' : '';
   // Le rail est porté directement par l'opérateur Fincra (cf. config.ts).

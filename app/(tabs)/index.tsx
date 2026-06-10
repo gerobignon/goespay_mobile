@@ -41,6 +41,7 @@ import { TransactionDetailModal, type TxType } from '../../src/components/Transa
 import { useCryptoStore } from '../../src/stores/cryptoStore';
 import { useConfigStore } from '../../src/stores/configStore';
 import { useCorridorStore } from '../../src/stores/corridorStore';
+import { useCatalogStore } from '../../src/stores/catalogStore';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useTheme } from '../../src/components/ThemeProvider';
@@ -67,6 +68,7 @@ export default function DashboardScreen() {
   const { logout } = useAuthStore();
   const { deposit_enabled, transfer_enabled, crypto_buy_enabled, crypto_sell_enabled, fetchConfig } = useConfigStore();
   const fetchCorridors = useCorridorStore((s) => s.fetchCorridors);
+  const fetchCatalog = useCatalogStore((s) => s.fetchCatalog);
   const isAdmin = user?.group === 'admin';
   const isSupportedCountry = COUNTRIES.some((c) => c.code === user?.country);
   const isCryptoUser = isAdmin || user?.group === 'crypto' || isSupportedCountry;
@@ -144,6 +146,7 @@ export default function DashboardScreen() {
       fetchTransactions(1);
       fetchConfig();
       fetchCorridors();
+      fetchCatalog();
       if (isCryptoUser) prefetchRates();
     }, [])
   );
