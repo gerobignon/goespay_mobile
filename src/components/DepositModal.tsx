@@ -304,7 +304,11 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const baseForStep = useCountryStep
     ? (selectedCountry ? displayOperators.filter((op) => operatorServesCountry(op as any, selectedCountry)) : [])
     : displayOperators;
-  const primaryOps = baseForStep.filter((op) => !isOtherOp(op));
+  // La liste du pays inclut les Fincra de zone (XOF/XAF) qui servent ce pays —
+  // visibles directement (Mobile Money + Carte) quand leur corridor est actif
+  // dans le routing. Ils restent AUSSI listés sous « Autres » (zone). Seule la
+  // carte générique (PayDunya INTL) est réservée à « Autres ».
+  const primaryOps = baseForStep.filter((op) => op.id !== 'card');
   const operatorsForStep = othersOpen ? otherOps : primaryOps;
   // Entrée « Autres » : accessible uniquement depuis le picker pays initial.
   // Une fois un pays sélectionné, on n'affiche QUE ses opérateurs (pas de bouton
@@ -323,12 +327,21 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const isFincraBT = fincraMethod === 'bank_transfer';
   const isFincraMM = fincraMethod === 'mobile_money';
   const isFincraCH = fincraMethod === 'checkout';
-  // Pour Fincra MM en zone XOF/XAF, l'utilisateur choisit son pays — l'indicatif
-  // est dérivé de cette sélection (et utilisé pour préfixer le téléphone).
+  // Pour Fincra MM en zone XOF/XAF, le sous-pays est nécessaire pour l'indicatif.
+  // Mais si le pays est DÉJÀ connu (étape pays admin, ou pays de l'utilisateur),
+  // on le déduit du contexte et on n'affiche plus la liste de sous-pays.
   const fincraZoneList = isFincraMM ? FINCRA_ZONES[fincraCurrency] : undefined;
+  const contextCountry = ((useCountryStep ? selectedCountry : user?.country) || '').toUpperCase();
+  const zoneHasContext = !!fincraZoneList?.some((c) => c.code === contextCountry);
   const fincraDialCode = isFincraMM
     ? resolveFincraZone(fincraCurrency, fincraZoneCountry).dialCode
     : undefined;
+  // Auto-sélectionne le sous-pays Fincra depuis le contexte (pays déjà connu).
+  useEffect(() => {
+    if (isFincraMM && zoneHasContext && fincraZoneCountry !== contextCountry) {
+      setFincraZoneCountry(contextCountry);
+    }
+  }, [isFincraMM, zoneHasContext, contextCountry, fincraZoneCountry]);
   // isCard : flows hosted (vraie carte PayDunya + Fincra forex checkout).
   // Fincra MM utilise le champ téléphone, Fincra BT n'a besoin de rien.
   const isCard = operator === 'card' || isFincraCH;
@@ -942,7 +955,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                   </View>
                 )}
 
-                {showPhoneField && fincraZoneList && (
+                {showPhoneField && fincraZoneList && !zoneHasContext && (
                   <View style={{ gap: Spacing.xs }}>
                     <Text style={styles.zoneLabel}>{t('depositModal.chooseCountry')}</Text>
                     <ScrollView

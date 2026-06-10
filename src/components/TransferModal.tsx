@@ -67,6 +67,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   // « Crypto-monnaies » : sous-liste des cryptos actives (achat → débite le wallet).
   const [cryptoOpen, setCryptoOpen] = useState(false);
+  // « Autres » : rails internationaux Fincra (zones XOF/XAF + USD/EUR/GBP) en payout.
+  const [othersOpen, setOthersOpen] = useState(false);
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
@@ -135,13 +137,31 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     (op) => op.withdraw && (!corridorsLoaded ? (afribapayEnabled || isAdmin || !(op as any).afribapay) : true)
   );
 
-  const operatorsForStep = selectedCountry
-    ? displayOperators.filter(
-        (op) =>
-          operatorServesCountry(op as any, selectedCountry) &&
-          (isAdmin || isCodeEnabled(op.id, 'payout'))
-      )
-    : [];
+  // « Autres » : rails Fincra de zone (XOF/XAF) + internationaux (USD/EUR/GBP) en
+  // payout. Conforme au dépôt : les Fincra de zone restent AUSSI visibles par pays.
+  const ZONE_CURRENCIES = ['XOF', 'XAF', 'EUR', 'USD', 'GBP'];
+  const isZoneFincra = (op: any) => !!op.fincra && ZONE_CURRENCIES.includes(op.currency);
+  const otherOps = displayOperators.filter(
+    (op) => isZoneFincra(op) && (isAdmin || isCodeEnabled(op.id, 'payout'))
+  );
+  const operatorOthersLabel = (op: any): string => {
+    if (!op?.fincra) return op?.name ?? '';
+    const cur = op.currency as string;
+    const zoneTag = cur === 'XOF' ? 'UEMOA · XOF' : cur === 'XAF' ? 'CEMAC · XAF' : cur;
+    return (op.name as string).includes(cur) ? op.name : `${op.name} (${zoneTag})`;
+  };
+
+  const operatorsForStep = othersOpen
+    ? otherOps
+    : selectedCountry
+      ? displayOperators.filter(
+          (op) =>
+            operatorServesCountry(op as any, selectedCountry) &&
+            (isAdmin || isCodeEnabled(op.id, 'payout'))
+        )
+      : [];
+  // Entrée « Autres » au niveau du picker pays (rails internationaux).
+  const showOthersEntry = otherOps.length > 0 && !selectedCountry;
 
   // Pays sélectionné mais aucun corridor payout actif → badge "indisponible".
   const showCorridorBanner =
@@ -153,9 +173,11 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // Le rail est porté directement par l'opérateur Fincra (cf. config.ts).
   // Plus de sélecteur dynamique ; chaque opérateur Fincra = 1 rail.
   const fincraRail: FincraRail | '' = isFincraOp ? (((selectedOp as any)?.rail as FincraRail) || '') : '';
-  // Sous-pays Fincra (XOF/XAF) : sélecteur de pays + indicatif. Reset à chaque
-  // changement d'opérateur via le useEffect plus bas.
+  // Sous-pays Fincra (XOF/XAF). Si le pays est déjà connu (pays sélectionné, ou
+  // pays de l'utilisateur), on le déduit du contexte et on masque la liste.
   const fincraZoneList = (isFincraOp && fincraRail === 'mobile_money') ? FINCRA_ZONES[fincraCurrency] : undefined;
+  const contextCountry = ((selectedCountry || user?.country) || '').toUpperCase();
+  const zoneHasContext = !!fincraZoneList?.some((c) => c.code === contextCountry);
   const fincraDialCode = (isFincraOp && fincraRail === 'mobile_money')
     ? resolveFincraZone(fincraCurrency, fincraZoneCountry).dialCode
     : undefined;
@@ -184,21 +206,37 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // wallet_fincra est en XOF : on débite exactement le montant XOF saisi.
   // On convertit ce XOF vers la devise Fincra pour le montant réellement envoyé
   // au bénéficiaire (NGN, GHS…), via les taux Fincra (isolés).
+  //
+  // Cas spécial : si userCurrency === fincraCurrency (ex : compte GHS + opérateur
+  // Fincra Ghana), le montant saisi EST déjà le montant à envoyer chez Fincra —
+  // aucune double-conversion (qui causerait une perte sur la triangulation).
   const fincraRate = useFincraRate(fincraCurrency, isFincraOp);
-  const fincraDebitXof = isFincraOp ? numAmountXof : null;
   const fincraSendAmount =
-    isFincraOp && numAmountXof > 0
-      ? (fincraCurrency === 'XOF'
-          ? numAmountXof
-          : (fincraRate.rate && fincraRate.rate > 0
-              ? Math.round((numAmountXof / fincraRate.rate) * 100) / 100 // 2 décimales (devise)
-              : null))
+    isFincraOp && numAmountDisplay > 0
+      ? (userCurrency === fincraCurrency
+          ? numAmountDisplay
+          : fincraCurrency === 'XOF'
+              ? numAmountXof
+              : (fincraRate.rate && fincraRate.rate > 0
+                  ? Math.round((numAmountXof / fincraRate.rate) * 100) / 100
+                  : null))
       : null;
+  // Le débit XOF du wallet : en cas de short-circuit (userCurrency===fincraCurrency),
+  // on aligne sur le taux Fincra pour rester cohérent ; sinon on garde la
+  // conversion currencyStore (numAmountXof) déjà utilisée par les flux classiques.
+  const fincraDebitXof = isFincraOp
+    ? (userCurrency === fincraCurrency && fincraRate.rate && fincraRate.rate > 0
+        ? Math.round(numAmountDisplay * fincraRate.rate)
+        : numAmountXof)
+    : null;
   // Montant transmis au backend : Fincra = devise Fincra ; sinon XOF.
   const numAmount = isFincraOp ? (fincraSendAmount ?? 0) : numAmountXof;
   // Bloque l'envoi tant que le taux Fincra n'est pas résolu (chargement / erreur).
+  // Quand userCurrency === fincraCurrency, on n'a pas besoin du taux pour calculer
+  // le montant envoyé — mais on garde le blocage si le taux est nécessaire pour
+  // afficher fincraDebitXof correctement (sinon on tomberait sur numAmountXof).
   const fincraRateBlocking =
-    isFincraOp && fincraCurrency !== 'XOF' && numAmountDisplay > 0
+    isFincraOp && fincraCurrency !== 'XOF' && userCurrency !== fincraCurrency && numAmountDisplay > 0
     && (fincraRate.loading || fincraRate.error || fincraRate.rate === null);
   // Flux classiques : user non-XOF sans taux global → conversion 1:1 erronée.
   const classicRateBlocking =
@@ -230,6 +268,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     setSelectedCountry(null);
     setOperator('');
     setCryptoOpen(false);
+    setOthersOpen(false);
     setFincraZoneCountry(null);
     setBankAccountHolder('');
     setBankAccountNumber('');
@@ -251,6 +290,13 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
 
   // Reset le sous-pays Fincra à chaque changement d'opérateur.
   useEffect(() => { setFincraZoneCountry(null); }, [operator]);
+
+  // Auto-sélectionne le sous-pays Fincra depuis le contexte (pays déjà connu).
+  useEffect(() => {
+    if (fincraRail === 'mobile_money' && zoneHasContext && fincraZoneCountry !== contextCountry) {
+      setFincraZoneCountry(contextCountry);
+    }
+  }, [fincraRail, zoneHasContext, contextCountry, fincraZoneCountry]);
 
   // Charge les taux crypto quand on ouvre le groupe « Crypto-monnaies ».
   useEffect(() => { if (cryptoOpen) fetchCryptoRates(cryptoRates.length === 0); }, [cryptoOpen]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -729,15 +775,44 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 <Text style={styles.kycBannerText}>{t('transferModal.kycRequired')}</Text>
               </View>
             )}
-            {!selectedCountry && !cryptoOpen ? (
+            {!selectedCountry && !cryptoOpen && !othersOpen ? (
               <CountryPickerStep
-                operators={displayOperators}
+                operators={displayOperators.filter((op) => !isZoneFincra(op))}
                 onSelectCountry={(code) => { setSelectedCountry(code); setOperator(''); }}
+                showCardTile={showOthersEntry}
+                cardLabel={t('depositModal.others')}
+                onSelectCard={() => { setOthersOpen(true); setOperator(''); }}
                 showCryptoTile={cryptoEnabled}
                 cryptoLabel={t('depositModal.cryptoGroup')}
                 onSelectCrypto={() => { setCryptoOpen(true); setOperator(''); }}
                 label={t('transferModal.chooseCountry')}
               />
+            ) : othersOpen ? (
+              <>
+                <Text style={styles.operatorLabel}>{t('depositModal.others')}</Text>
+                <TouchableOpacity
+                  onPress={() => { setOthersOpen(false); setOperator(''); }}
+                  style={styles.changeCountryBtn}
+                >
+                  <FontAwesome6 name="arrow-left" size={12} color={Colors.secondary} />
+                  <Text style={styles.changeCountryText}>{t('transferModal.changeCountry')}</Text>
+                </TouchableOpacity>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.operatorScroll} contentContainerStyle={styles.operatorScrollContent}>
+                  {operatorsForStep.map((op) => (
+                    <TouchableOpacity
+                      key={op.id}
+                      style={[styles.operatorCard, operator === op.id && styles.operatorSelected]}
+                      onPress={() => setOperator(op.id)}
+                    >
+                      <Image source={op.logo} style={styles.operatorLogo} resizeMode="contain" />
+                      <Text style={[styles.operatorName, operator === op.id && styles.operatorNameSelected]} numberOfLines={2}>
+                        {operatorOthersLabel(op)}
+                      </Text>
+                      <GatewayBadge op={op} visible={isAdmin} size={16} />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </>
             ) : cryptoOpen ? (
               <>
                 <Text style={styles.operatorLabel}>{t('depositModal.cryptoGroup')}</Text>
@@ -868,8 +943,9 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               keyboardType="decimal-pad"
             />
 
-            {/* Montant reçu par le bénéficiaire (devise Fincra). XOF→XOF : rien. */}
-            {isFincraOp && fincraCurrency !== 'XOF' && numAmountDisplay > 0 && (
+            {/* Montant reçu par le bénéficiaire (devise Fincra). XOF→XOF ou
+                userCurrency === fincraCurrency : pas d'affichage redondant. */}
+            {isFincraOp && fincraCurrency !== 'XOF' && userCurrency !== fincraCurrency && numAmountDisplay > 0 && (
               fincraRate.loading ? (
                 <View style={styles.fincraConvBox}>
                   <ActivityIndicator size="small" color={Colors.primary} />
@@ -911,8 +987,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               </View>
             ) : null}
 
-            {/* Sélecteur de pays pour les zones Fincra XOF/XAF (mobile_money). */}
-            {fincraZoneList && (
+            {/* Sélecteur de sous-pays Fincra XOF/XAF — masqué si le pays est déjà connu. */}
+            {fincraZoneList && !zoneHasContext && (
               <View style={{ gap: Spacing.xs }}>
                 <Text style={styles.zoneLabel}>{t('transferModal.chooseCountry')}</Text>
                 <ScrollView
