@@ -82,13 +82,20 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
       const countryByCode: Record<string, CatalogCountry> = {};
       cat.countries.forEach((c) => { countryByCode[c.code] = c; });
 
-      // Membres d'une zone (XOF/XAF) → pour les opérateurs Fincra zonaux.
+      // Pays actifs : /catalog.countries ne renvoie que les is_active=1. Un corridor
+      // dont le pays est désactivé ne doit donc PAS produire d'opérateur.
+      const activeCountries = new Set(cat.countries.map((c) => c.code));
+
+      // Membres d'une zone (XOF/XAF), restreints aux pays ACTIFS → opérateurs Fincra zonaux.
       const zoneMembers: Record<string, string[]> = {};
       cat.countries.forEach((c) => {
         if (c.zone) (zoneMembers[c.zone] ??= []).push(c.code);
       });
 
-      const operators: CatalogOperator[] = cat.corridors.map((r) => {
+      const operators: CatalogOperator[] = cat.corridors
+        // Garde le corridor si : zone avec ≥1 pays membre actif, ou pays ISO actif.
+        .filter((r) => (zoneMembers[r.country]?.length ?? 0) > 0 || activeCountries.has(r.country))
+        .map((r) => {
         const net = netByCode[r.network];
         const isZone = !!zoneMembers[r.country];
         return {
