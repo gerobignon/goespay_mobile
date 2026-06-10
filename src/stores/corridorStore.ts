@@ -1,48 +1,64 @@
 import { create } from 'zustand';
-import { corridorService, type Corridor } from '../services/corridorService';
+import {
+  corridorService,
+  type Corridor,
+  type CatalogCountry,
+  type CatalogCurrency,
+  type CatalogNetwork,
+} from '../services/corridorService';
 
 /**
- * État des corridors actifs (server-driven). Remplace progressivement le filtrage
- * statique de `OPERATORS` (config.ts) : un opérateur n'est proposé que si son
- * corridor est actif côté serveur, et un pays sans payout actif affiche un badge.
+ * État du catalogue server-driven (pays, devises, réseaux, corridors).
+ * Source unique : endpoint /catalog. Remplace progressivement les listes
+ * hardcodées (OPERATORS/COUNTRIES) : la dispo vient du serveur ; la présentation
+ * (logos bundlés) reste locale, mappée par `network`/`logo_key`.
  */
 interface CorridorState {
   corridors: Corridor[];
   payoutCountries: string[];
+  countries: CatalogCountry[];
+  currencies: CatalogCurrency[];
+  networks: CatalogNetwork[];
   isLoaded: boolean;
   isLoading: boolean;
 
   fetchCorridors: () => Promise<void>;
 
-  // ── Helpers ──
-  // Le pays a-t-il au moins un corridor payout actif ?
+  // ── Helpers corridors ──
   isPayoutAvailable: (country: string) => boolean;
-  // Un moyen précis (code = id opérateur) est-il actif pour un sens donné ?
-  // Code inconnu (corridors pas chargés / non listé) → true (fallback statique).
   isCodeEnabled: (code: string, dir: 'payin' | 'payout') => boolean;
-  // Existe-t-il un corridor PayDunya actif couvrant ce pays+réseau (dédup AfribaPay) ?
   hasEnabledAggregator: (country: string, network: string, dir: 'payin' | 'payout', aggregator: string) => boolean;
+
+  // ── Helpers référentiel ──
+  dialCodeFor: (country: string) => string | null;     // indicatif d'un pays (serveur)
+  networkLabel: (code: string) => string | null;       // libellé d'un réseau
 }
 
 export const useCorridorStore = create<CorridorState>((set, get) => ({
   corridors: [],
   payoutCountries: [],
+  countries: [],
+  currencies: [],
+  networks: [],
   isLoaded: false,
   isLoading: false,
 
   fetchCorridors: async () => {
     set({ isLoading: true });
     try {
-      const data = await corridorService.getCorridors();
+      const data = await corridorService.getCatalog();
       set({
         corridors: data.corridors,
         payoutCountries: data.payout_countries,
+        countries: data.countries,
+        currencies: data.currencies,
+        networks: data.networks,
         isLoaded: true,
         isLoading: false,
       });
     } catch {
-      // En cas d'échec réseau, on garde l'état précédent (ou vide). Les écrans
-      // doivent tolérer isLoaded=false en retombant sur la liste statique.
+      // Échec réseau : on garde l'état précédent. Les écrans tolèrent isLoaded=false
+      // en retombant sur les listes statiques (config.ts).
       set({ isLoading: false });
     }
   },
@@ -69,4 +85,11 @@ export const useCorridorStore = create<CorridorState>((set, get) => ({
         (dir === 'payout' ? x.payout : x.payin)
     );
   },
+
+  dialCodeFor: (country) => {
+    const c = (country || '').toUpperCase();
+    return get().countries.find((x) => x.code === c)?.dial_code ?? null;
+  },
+
+  networkLabel: (code) => get().networks.find((x) => x.code === code)?.label ?? null,
 }));
