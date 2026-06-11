@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Modal,
@@ -344,6 +344,18 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const fincraDialCode = isFincraMM
     ? ((fincraZoneCountry && catalogDial[fincraZoneCountry]) || resolveFincraZone(fincraCurrency, fincraZoneCountry).dialCode)
     : undefined;
+  // Indicatif générique (PayDunya / AfribaPay…) : dérivé du pays de l'opérateur
+  // (sinon du contexte). Affiché en prefix du champ téléphone pour que
+  // l'utilisateur ne le ressaisisse pas. Catalogue Marchés > liste statique.
+  const phonePrefix = useMemo(() => {
+    if (isFincraMM) return fincraDialCode ? `+${fincraDialCode}` : undefined;
+    const code = (((selectedOp as any)?.country as string) || contextCountry || '').toUpperCase();
+    if (!code) return undefined;
+    const fromCatalog = catalogDial[code];
+    if (fromCatalog) return `+${fromCatalog}`;
+    const c = ALL_COUNTRIES.find((x) => x.code === code);
+    return c ? `+${c.phone}` : undefined;
+  }, [isFincraMM, fincraDialCode, selectedOp, contextCountry, catalogDial]);
   // Auto-sélectionne le sous-pays Fincra depuis le contexte (pays déjà connu).
   useEffect(() => {
     if (isFincraMM && zoneHasContext && fincraZoneCountry !== contextCountry) {
@@ -996,7 +1008,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                     value={phone}
                     onChangeText={setPhone}
                     keyboardType="phone-pad"
-                    prefix={isFincraMM && fincraDialCode ? `+${fincraDialCode}` : undefined}
+                    prefix={phonePrefix}
                   />
                 )}
 

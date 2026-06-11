@@ -254,9 +254,12 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
 
   const dialCode = useMemo(() => {
     if (!selectedCountry) return '';
+    // Catalogue Marchés en priorité (admin peut éditer l'indicatif), sinon liste statique.
+    const fromCatalog = catalogDial[selectedCountry];
+    if (fromCatalog) return `+${fromCatalog}`;
     const c = ALL_COUNTRIES.find((c) => c.code === selectedCountry);
     return c ? `+${c.phone}` : '';
-  }, [selectedCountry]);
+  }, [selectedCountry, catalogDial]);
 
   const normalizedPhone = phone.replace(/\s+/g, '').trim();
 
