@@ -29,6 +29,7 @@ export interface AppConfig {
   country_fees: Record<string, FeeConfig>;
   // Limites montants (XOF)
   deposit_min: number;
+  deposit_max: number; // 0 = pas de plafond
   transfer_min: number;
   transfer_max: number;
   transfer_min_world: number;
@@ -72,6 +73,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
     CM: { fixed: 300, percent: 3.5 },
   },
   deposit_min: 1000,
+  deposit_max: 0,
   transfer_min: 2500,
   transfer_max: 500000,
   transfer_min_world: 5000,

@@ -427,6 +427,7 @@
     "railCard": "Bank Card",
     "depositError": "Error during deposit.",
     "minAmount": "Minimum amount is",
+    "maxAmount": "Maximum amount is",
     "pollingTimeout": "Payment is taking longer than expected.\nCheck your history in a few minutes.",
     "selectOperator": "Please select an operator.",
     "phoneSaved": "Number saved.",

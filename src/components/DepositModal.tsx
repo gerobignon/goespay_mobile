@@ -102,6 +102,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const fetchBalance = useWalletStore((s) => s.fetchBalance);
   const user = useAuthStore((s) => s.user);
   const depositMin = useConfigStore((s) => s.deposit_min);
+  const depositMax = useConfigStore((s) => s.deposit_max);
   const cryptoRates = useCryptoStore((s) => s.rates);
   const fetchCryptoRates = useCryptoStore((s) => s.fetchRates);
   const userCurrency = useCurrencyCode();
@@ -504,6 +505,13 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
       showAlert(
         t('common.error'),
         `${t('depositModal.minAmount')} ${fmtXof(depositMin)}`
+      );
+      return;
+    }
+    if (depositMax > 0 && numAmountXof > depositMax) {
+      showAlert(
+        t('common.error'),
+        `${t('depositModal.maxAmount')} ${fmtXof(depositMax)}`
       );
       return;
     }

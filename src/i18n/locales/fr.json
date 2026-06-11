@@ -427,6 +427,7 @@
     "railCard": "Carte bancaire",
     "depositError": "Erreur lors du dépôt.",
     "minAmount": "Le montant minimum est de",
+    "maxAmount": "Le montant maximum est de",
     "pollingTimeout": "Le paiement prend plus de temps que prévu.\nVérifiez votre historique dans quelques minutes.",
     "selectOperator": "Veuillez sélectionner un opérateur.",
     "phoneSaved": "Numéro enregistré.",
