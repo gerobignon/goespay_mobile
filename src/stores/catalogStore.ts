@@ -52,11 +52,16 @@ function railFromCode(code: string): string | undefined {
   return undefined;
 }
 
+export interface CatalogZoneEntry { code: string; flag: string; name: string; phone: string; }
+
 interface CatalogState {
   operators: CatalogOperator[];
   countries: CatalogCountryEntry[];
   currencies: CatalogCurrency[];
   payoutCountries: string[];
+  // Sous-pays par zone-devise (XOF/XAF…) + indicatifs, depuis le catalogue Marchés.
+  zones: Record<string, CatalogZoneEntry[]>;
+  dialByCode: Record<string, string>;
   isLoaded: boolean;
   isLoading: boolean;
   fetchCatalog: () => Promise<void>;
@@ -67,6 +72,8 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
   countries: [],
   currencies: [],
   payoutCountries: [],
+  zones: {},
+  dialByCode: {},
   isLoaded: false,
   isLoading: false,
 
@@ -119,11 +126,23 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
         .filter((c) => c.code !== 'INTL' && /^[A-Z]{2}$/.test(c.code))
         .map((c) => ({ code: c.code, name: c.name, prefix: `+${c.dial_code}`, flag: c.flag }));
 
+      // Sous-pays par zone-devise (XOF/XAF…) + indicatifs, depuis le catalogue.
+      const zones: Record<string, CatalogZoneEntry[]> = {};
+      const dialByCode: Record<string, string> = {};
+      cat.countries.forEach((c) => {
+        if (/^[A-Z]{2}$/.test(c.code)) dialByCode[c.code] = String(c.dial_code ?? '');
+        if (c.zone && /^[A-Z]{2}$/.test(c.code)) {
+          (zones[c.zone] ??= []).push({ code: c.code, flag: c.flag, name: c.name, phone: String(c.dial_code ?? '') });
+        }
+      });
+
       set({
         operators,
         countries,
         currencies: cat.currencies,
         payoutCountries: cat.payout_countries,
+        zones,
+        dialByCode,
         isLoaded: true,
         isLoading: false,
       });

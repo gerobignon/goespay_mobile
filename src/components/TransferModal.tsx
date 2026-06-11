@@ -133,6 +133,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
 
   // Référentiel serveur (P3) : opérateurs depuis /catalog (admin Marchés), fallback config.ts.
   const catalogOperators = useCatalogStore((s) => s.operators);
+  const catalogZones = useCatalogStore((s) => s.zones);
+  const catalogDial = useCatalogStore((s) => s.dialByCode);
   const OPERATORS_SRC: any[] = catalogOperators.length ? catalogOperators : (OPERATORS as any);
 
   // Plus de dédup statique PayDunya : la visibilité dépend UNIQUEMENT du corridor
@@ -180,11 +182,12 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const fincraRail: FincraRail | '' = isFincraOp ? (((selectedOp as any)?.rail as FincraRail) || '') : '';
   // Sous-pays Fincra (XOF/XAF). Si le pays est déjà connu (pays sélectionné, ou
   // pays de l'utilisateur), on le déduit du contexte et on masque la liste.
-  const fincraZoneList = (isFincraOp && fincraRail === 'mobile_money') ? FINCRA_ZONES[fincraCurrency] : undefined;
+  const fincraZoneList = (isFincraOp && fincraRail === 'mobile_money')
+    ? (catalogZones[fincraCurrency] ?? FINCRA_ZONES[fincraCurrency]) : undefined;
   const contextCountry = ((selectedCountry || user?.country) || '').toUpperCase();
   const zoneHasContext = !!fincraZoneList?.some((c) => c.code === contextCountry);
   const fincraDialCode = (isFincraOp && fincraRail === 'mobile_money')
-    ? resolveFincraZone(fincraCurrency, fincraZoneCountry).dialCode
+    ? ((fincraZoneCountry && catalogDial[fincraZoneCountry]) || resolveFincraZone(fincraCurrency, fincraZoneCountry).dialCode)
     : undefined;
 
   // L'utilisateur saisit toujours dans la devise de son compte (XOF). La
@@ -602,7 +605,10 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
 
         // Fincra payout MM exige le phone SANS `+` (ex: 256770000000) et le
         // pays du BÉNÉFICIAIRE (ISO-2 dérivé de la devise ou du sous-pays).
-        const { dialCode, countryIso2 } = resolveFincraZone(fincraCurrency, fincraZoneCountry);
+        const rz = resolveFincraZone(fincraCurrency, fincraZoneCountry);
+        // Indicatif & pays bénéficiaire : priorité au catalogue Marchés.
+        const dialCode = (fincraZoneCountry && catalogDial[fincraZoneCountry]) || rz.dialCode;
+        const countryIso2 = fincraZoneCountry || rz.countryIso2;
         const phoneForFincra = fincraRail === 'mobile_money'
           ? formatFincraPhone(normalizedPhone, dialCode, false)
           : undefined;

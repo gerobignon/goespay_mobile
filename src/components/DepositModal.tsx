@@ -259,6 +259,8 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // Référentiel serveur (P3) : opérateurs construits depuis /catalog (admin Marchés).
   // Fallback sur la liste statique config.ts tant que le catalogue n'est pas chargé.
   const catalogOperators = useCatalogStore((s) => s.operators);
+  const catalogZones = useCatalogStore((s) => s.zones);
+  const catalogDial = useCatalogStore((s) => s.dialByCode);
   const OPERATORS_SRC: any[] = catalogOperators.length ? catalogOperators : (OPERATORS as any);
 
   // Plus de dédup statique PayDunya : la visibilité d'un moyen dépend UNIQUEMENT
@@ -335,11 +337,12 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // Pour Fincra MM en zone XOF/XAF, le sous-pays est nécessaire pour l'indicatif.
   // Mais si le pays est DÉJÀ connu (étape pays admin, ou pays de l'utilisateur),
   // on le déduit du contexte et on n'affiche plus la liste de sous-pays.
-  const fincraZoneList = isFincraMM ? FINCRA_ZONES[fincraCurrency] : undefined;
+  // Sous-pays + indicatifs depuis le catalogue Marchés (fallback config statique).
+  const fincraZoneList = isFincraMM ? (catalogZones[fincraCurrency] ?? FINCRA_ZONES[fincraCurrency]) : undefined;
   const contextCountry = ((useCountryStep ? selectedCountry : user?.country) || '').toUpperCase();
   const zoneHasContext = !!fincraZoneList?.some((c) => c.code === contextCountry);
   const fincraDialCode = isFincraMM
-    ? resolveFincraZone(fincraCurrency, fincraZoneCountry).dialCode
+    ? ((fincraZoneCountry && catalogDial[fincraZoneCountry]) || resolveFincraZone(fincraCurrency, fincraZoneCountry).dialCode)
     : undefined;
   // Auto-sélectionne le sous-pays Fincra depuis le contexte (pays déjà connu).
   useEffect(() => {
