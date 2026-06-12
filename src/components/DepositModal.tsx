@@ -561,7 +561,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
           fincraPayload.operator = defaultOp;
           fincraPayload.phone    = formatFincraPhone(phone, fincraDialCode || '', true);
         }
-        const { data } = await api.post('/deposit/fincra', fincraPayload);
+        const { data } = await api.post('/deposit/fincra', fincraPayload, { timeout: 70000 });
         result = { deposit_id: data.deposit_id, reference: data.reference };
         if (isFincraCH) {
           result.checkout_url = data.payment_url;
