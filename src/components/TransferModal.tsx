@@ -204,9 +204,11 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     : convertToXof(numAmountDisplay);
   const userCountry = user?.country?.toUpperCase();
   const feeConfig = (userCountry && countryFees[userCountry]) || transferFeeDefault;
+  // Frais GoesPay appliqués AUSSI aux retraits Fincra (débités en XOF, comme les
+  // retraits classiques). Base = valeur XOF envoyée.
   const fees = useMemo(
-    () => isFincraOp ? 0 : Math.round(feeConfig.fixed + numAmountXof * feeConfig.percent / 100),
-    [numAmountXof, feeConfig.fixed, feeConfig.percent, isFincraOp]
+    () => Math.round(feeConfig.fixed + numAmountXof * feeConfig.percent / 100),
+    [numAmountXof, feeConfig.fixed, feeConfig.percent]
   );
   const total = numAmountXof + fees;
   const feeLabel = feeConfig.fixed > 0
@@ -256,7 +258,9 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const classicRateBlocking =
     !isFincraOp && userCurrency !== 'XOF' && !((currencyRates[userCurrency] ?? 0) > 0);
 
-  const showFees = numAmountXof > 0 && operator && !isFincraOp;
+  const showFees = numAmountXof > 0 && operator;
+  // Débit total XOF d'un retrait Fincra = coût Fincra (XOF) + frais GoesPay.
+  const fincraTotalDebitXof = fincraDebitXof !== null ? fincraDebitXof + fees : null;
 
   const dialCode = useMemo(() => {
     if (!selectedCountry) return '';
@@ -574,7 +578,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
         showAlert(t('common.error'), t('common.rateUnavailable'));
         return;
       }
-      if (fincraDebitXof > balance) {
+      if ((fincraTotalDebitXof ?? fincraDebitXof) > balance) {
         showAlert(t('common.error'), t('transferModal.insufficientBalance'));
         return;
       }
@@ -1320,10 +1324,16 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                     <Text style={styles.feesValue}>{fmtFincra(numAmount)}</Text>
                   </View>
                 )}
+                {fees > 0 && (
+                  <View style={styles.feesRow}>
+                    <Text style={styles.feesLabel}>{t('transferModal.fees')} ({feeLabel})</Text>
+                    <Text style={[styles.feesValue, { color: Colors.error }]}>+ {fmtXof(fees)}</Text>
+                  </View>
+                )}
                 <View style={[styles.feesRow, styles.feesTotalRow]}>
                   <Text style={styles.feesTotalLabel}>{t('transferModal.totalDebited')}</Text>
                   <Text style={styles.feesTotalValue}>
-                    {fincraDebitXof !== null ? fmtXof(fincraDebitXof) : fmtFincra(numAmount)}
+                    {fincraTotalDebitXof !== null ? fmtXof(fincraTotalDebitXof) : fmtFincra(numAmount)}
                   </Text>
                 </View>
               </View>
