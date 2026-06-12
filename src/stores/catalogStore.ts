@@ -75,6 +75,17 @@ function railFromCode(code: string): string | undefined {
   return undefined;
 }
 
+// Rail Fincra effectif : devises internationales en virement = SWIFT/SEPA
+// (saisie IBAN/SWIFT manuelle), pas une liste de banques locales.
+function fincraRailFor(code: string, currency?: string): string | undefined {
+  const rail = railFromCode(code);
+  if (rail === 'bank_transfer') {
+    if (currency === 'USD' || currency === 'GBP') return 'SWIFT';
+    if (currency === 'EUR') return 'SEPA';
+  }
+  return rail;
+}
+
 export interface CatalogZoneEntry { code: string; flag: string; name: string; phone: string; }
 
 interface CatalogState {
@@ -135,7 +146,7 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
           country: r.country,
           countries: isZone ? zoneMembers[r.country] : undefined,
           currency: r.currency,
-          rail: r.aggregator === 'fincra' ? railFromCode(r.code) : undefined,
+          rail: r.aggregator === 'fincra' ? fincraRailFor(r.code, r.currency) : undefined,
           withdraw: !!r.payout,
           payin: !!r.payin,
           afribapay: r.aggregator === 'afribapay' || undefined,
