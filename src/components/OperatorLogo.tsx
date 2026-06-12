@@ -20,12 +20,20 @@ interface Props {
  * Rendu de l'icône principal d'un opérateur.
  *
  * - Pour PayDunya / AfribaPay / card classique : `<Image source={op.logo}>` (MTN, Moov, Orange, Wave…)
- * - Pour Fincra : icône généraliste FontAwesome selon le rail (mobile-screen, building-columns, credit-card).
+ * - Pour Fincra Mobile Money : logo de marque de l'opérateur (mtn/moov/orange…) si dispo.
+ * - Pour Fincra virement/carte : icône généraliste FontAwesome (building-columns, credit-card).
  *
  * Le logo du provider Fincra est exposé séparément via `<GatewayBadge>` en mode admin.
  */
 export function OperatorLogo({ op, size = 26, style }: Props) {
-  // Fincra : pas d'image, on utilise une icône généraliste basée sur le rail.
+  // Fincra Mobile Money : le corridor porte un opérateur réel (mtn/moov/orange…)
+  // dont le logo de marque est déjà résolu dans `op.logo` → on l'affiche comme
+  // pour PayDunya/AfribaPay. Les rails virement/carte restent en icône générique.
+  // Mobile money → logo de marque ; carte (checkout) → visuel carte (VISA/MC, pay_card).
+  if (op.fincra && (op.rail === 'mobile_money' || op.rail === 'checkout' || !op.rail) && op.logo) {
+    return <Image source={op.logo} style={[{ width: size, height: size }, style as ImageStyle]} resizeMode="contain" />;
+  }
+  // Fincra virement : icône généraliste.
   if (op.fincra) {
     const iconName: any = op.rail === 'bank_transfer' ? 'building-columns'
                        : op.rail === 'checkout'      ? 'credit-card'

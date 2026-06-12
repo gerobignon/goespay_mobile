@@ -24,6 +24,25 @@ const LOGO_BY_KEY: Record<string, any> = {
   pay_card:     require('../../assets/operators/pay_card.jpg'),
   pay_fincra:   require('../../assets/operators/pay_fincra.png'),
   paydunya:     require('../../assets/operators/paydunya.png'),
+  // Opérateurs AfribaPay / Fincra additionnels (catalogue Marchés).
+  pay_free:       require('../../assets/operators/pay_free.jpg'),
+  pay_amanata:    require('../../assets/operators/pay_amanata.jpg'),
+  pay_nita:       require('../../assets/operators/pay_nita.png'),
+  pay_zamani:     require('../../assets/operators/pay_zamani.png'),
+  pay_wligdicash: require('../../assets/operators/pay_wligdicash.png'),
+  pay_celtiis:    require('../../assets/operators/pay_celtiis.png'),
+  pay_coris:      require('../../assets/operators/pay_coris.webp'),
+  pay_emoney:     require('../../assets/operators/pay_emoney.jpg'),
+  pay_mobicash:   require('../../assets/operators/pay_mobicash.webp'),
+  pay_equitel:    require('../../assets/operators/pay_equitel.png'),
+  pay_halotel:    require('../../assets/operators/pay_halotel.png'),
+  pay_tigo:       require('../../assets/operators/pay_tigo.png'),
+  pay_tigopesa:   require('../../assets/operators/pay_tigopesa.jpeg'),
+  pay_zamtel:     require('../../assets/operators/pay_zamtel.png'),
+  pay_vodacom:    require('../../assets/operators/pay_vodacom.jpeg'),
+  pay_vodafone:   require('../../assets/operators/pay_vodafone.jpg'),
+  pay_safaricom:  require('../../assets/operators/pay_safaricom.jpeg'),
+  pay_airtel_tigo: require('../../assets/operators/pay_airtel_tigo.png'),
 };
 const DEFAULT_LOGO = LOGO_BY_KEY.pay_card;
 
