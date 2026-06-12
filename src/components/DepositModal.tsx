@@ -887,54 +887,56 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                 )}
               </View>
             ) : (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.operatorScroll}
-                contentContainerStyle={styles.operatorScrollContent}
-              >
-                {operatorsForStep.map((op) => (
+              // Mobile : liste verticale. Une fois un opérateur choisi, on masque
+              // les autres et on ne garde que la ligne sélectionnée (avec un X
+              // pour revenir au choix). Le formulaire s'affiche juste en-dessous.
+              <View style={styles.operatorListVertical}>
+                {(operator ? operatorsForStep.filter((op) => op.id === operator) : operatorsForStep).map((op) => (
                   <TouchableOpacity
                     key={op.id}
                     style={[
-                      styles.operatorCard,
-                      operator === op.id && styles.operatorSelected,
+                      styles.operatorRow,
+                      operator === op.id && styles.operatorRowSelected,
                     ]}
-                    onPress={() => setOperator(op.id)}
+                    onPress={() => setOperator(operator === op.id ? '' : op.id)}
                   >
-                    <OperatorLogo op={op as any} size={32} style={styles.operatorLogo as any} />
+                    <OperatorLogo op={op as any} size={32} style={styles.operatorRowLogo as any} />
                     <Text
                       style={[
-                        styles.operatorName,
-                        operator === op.id && styles.operatorNameSelected,
+                        styles.operatorRowName,
+                        operator === op.id && styles.operatorRowNameSelected,
                       ]}
+                      numberOfLines={1}
                     >
                       {othersOpen ? operatorOthersLabel(op) : op.name}
                     </Text>
                     <GatewayBadge op={op} visible={isAdmin} size={16} />
+                    {operator === op.id && (
+                      <FontAwesome6 name="xmark" size={14} color={Colors.secondary} />
+                    )}
                   </TouchableOpacity>
                 ))}
-                {showOthersEntry && !othersOpen && (
+                {!operator && showOthersEntry && !othersOpen && (
                   <TouchableOpacity
                     key="__others"
-                    style={styles.operatorCard}
+                    style={styles.operatorRow}
                     onPress={() => { setOthersOpen(true); setOperator(''); }}
                   >
-                    <FontAwesome6 name="ellipsis" size={22} color={Colors.text} />
-                    <Text style={styles.operatorName}>{t('depositModal.others')}</Text>
+                    <FontAwesome6 name="ellipsis" size={20} color={Colors.text} style={{ width: 32, textAlign: 'center' }} />
+                    <Text style={styles.operatorRowName}>{t('depositModal.others')}</Text>
                   </TouchableOpacity>
                 )}
-                {cryptoEnabled && (
+                {!operator && cryptoEnabled && (
                   <TouchableOpacity
                     key="__crypto"
-                    style={styles.operatorCard}
+                    style={styles.operatorRow}
                     onPress={() => { setCryptoOpen(true); setOperator(''); }}
                   >
-                    <FontAwesome6 name="bitcoin-sign" size={22} color={Colors.text} />
-                    <Text style={styles.operatorName}>{t('depositModal.cryptoGroup')}</Text>
+                    <FontAwesome6 name="bitcoin-sign" size={20} color={Colors.text} style={{ width: 32, textAlign: 'center' }} />
+                    <Text style={styles.operatorRowName}>{t('depositModal.cryptoGroup')}</Text>
                   </TouchableOpacity>
                 )}
-              </ScrollView>
+              </View>
                 )}
               </>
             )}
@@ -1470,6 +1472,41 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     textAlign: 'center',
   },
   operatorNameSelected: {
+    color: Colors.secondary,
+  },
+  // Liste verticale (mobile) : un opérateur par ligne pleine largeur, devient
+  // l'unique élément visible une fois sélectionné.
+  operatorListVertical: {
+    marginBottom: Spacing.md,
+    gap: Spacing.xs,
+  },
+  operatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.inputBg,
+    borderWidth: 2,
+    borderColor: Colors.border,
+  },
+  operatorRowSelected: {
+    borderColor: Colors.secondary,
+    backgroundColor: 'rgba(244,178,40,0.1)',
+  },
+  operatorRowLogo: {
+    width: 32,
+    height: 32,
+    borderRadius: BorderRadius.md,
+  },
+  operatorRowName: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+  },
+  operatorRowNameSelected: {
     color: Colors.secondary,
   },
   // Numéros enregistrés

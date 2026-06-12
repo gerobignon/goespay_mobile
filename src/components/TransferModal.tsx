@@ -81,7 +81,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const [savePhoneOperator, setSavePhoneOperator] = useState('');
   const [savePhoneLoading, setSavePhoneLoading] = useState(false);
   const [pollingState, setPollingState] = useState<'idle' | 'pending' | 'success' | 'failed' | 'timeout'>('idle');
-  const [pendingDetails, setPendingDetails] = useState<{ amount_sent: number; fees: number; phone: string } | null>(null);
+  const [pendingDetails, setPendingDetails] = useState<{ amount_sent: number; fees: number; phone: string; debit_xof?: number } | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollingTransferIdRef = useRef<number | null>(null);
   const pollingFincraRefRef = useRef<string | null>(null);
@@ -649,10 +649,14 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
         await fetchBalance();
         setAmount('');
         // Garde la sélection Fincra pour permettre un second envoi rapide.
+        // debit_xof : montant réellement débité du wallet (XOF). Utilisé dans
+        // le success screen pour afficher le total en devise utilisateur, pas
+        // en devise Fincra (NGN, GHS…) qui n'est pas la devise du wallet.
         setPendingDetails({
           amount_sent: Number(result.amount_sent) || numAmount,
           fees: Number(result.fees) || 0,
           phone: fincraRail === 'mobile_money' ? normalizedPhone : (bankAccountNumber || iban),
+          debit_xof: fincraTotalDebitXof ?? fincraDebitXof ?? 0,
         });
         startPolling({ fincraRef: result.reference });
         return;
@@ -764,7 +768,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                     <Text style={styles.feesTotalLabel}>{t('transferModal.totalDebited')}</Text>
                     <Text style={styles.feesTotalValue}>
                       {isFincraOp
-                        ? fmtFincra(pendingDetails.amount_sent + pendingDetails.fees)
+                        ? fmtXof(pendingDetails.debit_xof ?? 0)
                         : fmtXof(pendingDetails.amount_sent + pendingDetails.fees)}
                     </Text>
                   </View>
@@ -828,21 +832,27 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                   <FontAwesome6 name="arrow-left" size={12} color={Colors.secondary} />
                   <Text style={styles.changeCountryText}>{t('transferModal.changeCountry')}</Text>
                 </TouchableOpacity>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.operatorScroll} contentContainerStyle={styles.operatorScrollContent}>
-                  {operatorsForStep.map((op) => (
+                <View style={styles.operatorListVertical}>
+                  {(operator ? operatorsForStep.filter((op) => op.id === operator) : operatorsForStep).map((op) => (
                     <TouchableOpacity
                       key={op.id}
-                      style={[styles.operatorCard, operator === op.id && styles.operatorSelected]}
-                      onPress={() => setOperator(op.id)}
+                      style={[styles.operatorRow, operator === op.id && styles.operatorRowSelected]}
+                      onPress={() => setOperator(operator === op.id ? '' : op.id)}
                     >
-                      <Image source={op.logo} style={styles.operatorLogo} resizeMode="contain" />
-                      <Text style={[styles.operatorName, operator === op.id && styles.operatorNameSelected]} numberOfLines={2}>
+                      <Image source={op.logo} style={styles.operatorRowLogo} resizeMode="contain" />
+                      <Text
+                        style={[styles.operatorRowName, operator === op.id && styles.operatorRowNameSelected]}
+                        numberOfLines={1}
+                      >
                         {operatorOthersLabel(op)}
                       </Text>
                       <GatewayBadge op={op} visible={isAdmin} size={16} />
+                      {operator === op.id && (
+                        <FontAwesome6 name="xmark" size={14} color={Colors.secondary} />
+                      )}
                     </TouchableOpacity>
                   ))}
-                </ScrollView>
+                </View>
               </>
             ) : cryptoOpen ? (
               <>
@@ -857,25 +867,25 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 {cryptoRates.length === 0 ? (
                   <Text style={styles.phoneHint}>{t('common.loading')}</Text>
                 ) : (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.operatorScroll} contentContainerStyle={styles.operatorScrollContent}>
+                  <View style={styles.operatorListVertical}>
                     {cryptoRates.map((c) => {
                       const source = pickCryptoSource(c);
                       return (
                         <TouchableOpacity
                           key={c.code}
-                          style={styles.operatorCard}
+                          style={styles.operatorRow}
                           onPress={() => onBuyCrypto?.(c.code)}
                         >
                           {source ? (
-                            <Image source={source as any} style={styles.operatorLogo} resizeMode="contain" />
+                            <Image source={source as any} style={styles.operatorRowLogo} resizeMode="contain" />
                           ) : (
-                            <FontAwesome6 name="bitcoin-sign" size={22} color={Colors.text} />
+                            <FontAwesome6 name="bitcoin-sign" size={20} color={Colors.text} style={{ width: 32, textAlign: 'center' }} />
                           )}
-                          <Text style={styles.operatorName} numberOfLines={1}>{c.name || c.code}</Text>
+                          <Text style={styles.operatorRowName} numberOfLines={1}>{c.name || c.code}</Text>
                         </TouchableOpacity>
                       );
                     })}
-                  </ScrollView>
+                  </View>
                 )}
               </>
             ) : (
@@ -923,26 +933,30 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 ))}
               </View>
             ) : (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.operatorScroll}
-                contentContainerStyle={styles.operatorScrollContent}
-              >
-                {operatorsForStep.map((op) => (
+              // Mobile : liste verticale. Une fois un opérateur choisi, on masque
+              // les autres et on ne garde que la ligne sélectionnée (avec un X
+              // pour revenir au choix). Le formulaire s'affiche juste en-dessous.
+              <View style={styles.operatorListVertical}>
+                {(operator ? operatorsForStep.filter((op) => op.id === operator) : operatorsForStep).map((op) => (
                   <TouchableOpacity
                     key={op.id}
-                    style={[styles.operatorCard, operator === op.id && styles.operatorSelected]}
-                    onPress={() => setOperator(op.id)}
+                    style={[styles.operatorRow, operator === op.id && styles.operatorRowSelected]}
+                    onPress={() => setOperator(operator === op.id ? '' : op.id)}
                   >
-                    <OperatorLogo op={op as any} size={32} style={styles.operatorLogo as any} />
-                    <Text style={[styles.operatorName, operator === op.id && styles.operatorNameSelected]}>
+                    <OperatorLogo op={op as any} size={32} style={styles.operatorRowLogo as any} />
+                    <Text
+                      style={[styles.operatorRowName, operator === op.id && styles.operatorRowNameSelected]}
+                      numberOfLines={1}
+                    >
                       {op.name}
                     </Text>
                     <GatewayBadge op={op} visible={isAdmin} size={16} />
+                    {operator === op.id && (
+                      <FontAwesome6 name="xmark" size={14} color={Colors.secondary} />
+                    )}
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </View>
                 )}
               </>
             )}
@@ -1641,6 +1655,41 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     textAlign: 'center',
   },
   operatorNameSelected: {
+    color: Colors.secondary,
+  },
+  // Liste verticale (mobile) : un opérateur par ligne pleine largeur, devient
+  // l'unique élément visible une fois sélectionné.
+  operatorListVertical: {
+    marginBottom: Spacing.md,
+    gap: Spacing.xs,
+  },
+  operatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.inputBg,
+    borderWidth: 2,
+    borderColor: Colors.border,
+  },
+  operatorRowSelected: {
+    borderColor: Colors.secondary,
+    backgroundColor: 'rgba(244,178,40,0.1)',
+  },
+  operatorRowLogo: {
+    width: 32,
+    height: 32,
+    borderRadius: BorderRadius.md,
+  },
+  operatorRowName: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+  },
+  operatorRowNameSelected: {
     color: Colors.secondary,
   },
   savedBlock: {
