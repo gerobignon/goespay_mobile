@@ -260,21 +260,29 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // Référentiel serveur (P3) : opérateurs construits depuis /catalog (admin Marchés).
   // Fallback sur la liste statique config.ts tant que le catalogue n'est pas chargé.
   const catalogOperators = useCatalogStore((s) => s.operators);
+  const catalogCountries = useCatalogStore((s) => s.countries);
   const catalogZones = useCatalogStore((s) => s.zones);
   const catalogDial = useCatalogStore((s) => s.dialByCode);
   const OPERATORS_SRC: any[] = catalogOperators.length ? catalogOperators : (OPERATORS as any);
+  // Le pays de l'utilisateur figure-t-il dans le catalogue Marchés (actif) ?
+  // Détermine si le groupe « International » doit être proposé : oui seulement
+  // si le pays user N'est PAS listé (sinon il a des moyens locaux dédiés).
+  const userCountryListed = !!userCountry && catalogCountries.some((c) => c.code === userCountry);
 
   // Plus de dédup statique PayDunya : la visibilité d'un moyen dépend UNIQUEMENT
   // de son corridor activé dans le routing admin (isCodeEnabled). L'admin n'active
   // qu'un seul agrégateur par (pays, réseau), donc un seul moyen visible par opérateur.
   // Fallback statique tant que les corridors ne sont pas chargés (évite un écran vide).
+  // Reconnaît la carte PayDunya : 'card' (legacy/INTL) OU 'card-<cc>' (per-country
+  // → admin opt-in). Affecte filtrage opérateurs + UI dépôt (pas de champ phone, etc.).
+  const isCardOp = (op: any) => !!op?.id && (op.id === 'card' || (typeof op.id === 'string' && op.id.startsWith('card-')));
   const operatorsBase = OPERATORS_SRC.filter((op) => {
     if (!corridorsLoaded && !afribapayEnabled && !isAdmin && (op as any).afribapay) return false;
     return true;
   });
   // "Has mobile money for country" : on accepte op.country === userCountry OU
   // op.countries[] inclut userCountry (zones Fincra XOF/XAF).
-  const hasMomoForCountry = operatorsBase.some((op) => op.id !== 'card' && operatorServesCountry(op as any, userCountry || ''));
+  const hasMomoForCountry = operatorsBase.some((op) => !isCardOp(op) && operatorServesCountry(op as any, userCountry || ''));
   const showCard = isAdmin || !isKycValidated || !hasMomoForCountry;
   const filteredOperators = (isAdmin || !isKycValidated)
     ? [...operatorsBase]
@@ -282,6 +290,8 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
         ...operatorsBase.filter(
           (op) => operatorServesCountry(op as any, userCountry || '') && (isAdmin || isCodeEnabled(op.id, 'payin'))
         ),
+        // Fallback carte : SEULEMENT l'INTL 'card'. Les per-country card-<cc>
+        // passent par le filtre normal (operatorServesCountry + isCodeEnabled).
         ...(showCard ? operatorsBase.filter((op) => op.id === 'card') : []),
       ];
   const displayOperators = filteredOperators.length > 0 ? filteredOperators : operatorsBase;
@@ -298,6 +308,8 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // le softpay (par pays) — PAS sous « Autres ». Seuls les rails sans pays unique
   // (cartes génériques, virements internationaux EUR/USD/GBP) restent en « Autres ».
   const isZoneFincra = (op: any) => !!op.fincra && ZONE_CURRENCIES.includes(op.currency) && !op.fincraOperator;
+  // « Autres » : seulement carte INTL + zones Fincra (rails non attachés à un pays).
+  // Les card-<cc> per-country s'affichent dans la liste normale du pays.
   const isOtherOp = (op: any) => op.id === 'card' || isZoneFincra(op);
   // Libellé enrichi affiché dans « Autres » pour distinguer les rails zone/devise
   // (ex: deux "Mobile Money" → "Mobile Money (UEMOA · XOF)" vs "Mobile Money (CEMAC · XAF)").
@@ -318,13 +330,21 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // La liste du pays inclut les Fincra de zone (XOF/XAF) qui servent ce pays —
   // visibles directement (Mobile Money + Carte) quand leur corridor est actif
   // dans le routing. Ils restent AUSSI listés sous « Autres » (zone). Seule la
-  // carte générique (PayDunya INTL) est réservée à « Autres ».
+  // carte générique INTL (PayDunya) est réservée à « Autres » ; la carte
+  // per-country (card-<cc>) reste dans la liste primaire du pays.
   const primaryOps = baseForStep.filter((op) => op.id !== 'card');
-  const operatorsForStep = othersOpen ? otherOps : primaryOps;
-  // Entrée « Autres » : accessible uniquement depuis le picker pays initial.
+  // Client d'un pays NON listé dans Marchés : aucun moyen local → on liste
+  // DIRECTEMENT les moyens internationaux actifs (au lieu de l'obliger à ouvrir
+  // « Autres »). L'admin garde le regroupement « Autres » pour ses tests.
+  const clientFlattenOthers = !isAdmin && primaryOps.length === 0 && otherOps.length > 0;
+  const operatorsForStep = othersOpen ? otherOps : (clientFlattenOthers ? otherOps : primaryOps);
+  // Entrée « International » : accessible uniquement depuis le picker pays initial.
   // Une fois un pays sélectionné, on n'affiche QUE ses opérateurs (pas de bouton
-  // "Autres" qui sortirait du contexte pays).
-  const showOthersEntry = otherOps.length > 0 && !selectedCountry && (showCard || primaryOps.length === 0);
+  // qui sortirait du contexte pays). Masquée pour un user d'un pays listé dans
+  // Marchés (il a déjà des moyens locaux) et quand on aplatit déjà « Autres ».
+  const showOthersEntry = otherOps.length > 0 && !selectedCountry && !clientFlattenOthers
+    && (showCard || primaryOps.length === 0)
+    && (isAdmin || !userCountryListed);
 
   const needsOtp = ['orange-money-burkina', 'orange-money-ci', 'orange-money-senegal', 'orange-gn'].includes(operator);
   const selectedOp = OPERATORS_SRC.find((op) => op.id === operator);
@@ -374,7 +394,8 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   }, [isFincraMM, zoneHasContext, contextCountry, fincraZoneCountry]);
   // isCard : flows hosted (vraie carte PayDunya + Fincra forex checkout).
   // Fincra MM utilise le champ téléphone, Fincra BT n'a besoin de rien.
-  const isCard = operator === 'card' || isFincraCH;
+  // Reconnaît 'card' (INTL) ET 'card-<cc>' (carte PayDunya par pays).
+  const isCard = (!!operator && (operator === 'card' || operator.startsWith('card-'))) || isFincraCH;
   // Champ téléphone : affiché sauf pour les flows hosted ET Fincra BT (qui n'en a pas besoin).
   const showPhoneField = !isCard && !isFincraBT;
 
@@ -413,7 +434,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
 
   // Charge les numéros enregistrés pour cet opérateur dès qu'un opérateur non-card est sélectionné
   useEffect(() => {
-    if (!visible || operator === 'card') {
+    if (!visible || isCard) {
       setSavedPhones([]);
       return;
     }
@@ -1115,7 +1136,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
             <Text style={styles.saveOpLabel}>{t('depositModal.paymentMethod')}</Text>
             {isDesktop ? (
               <View style={styles.saveOpGrid}>
-                {OPERATORS_SRC.filter((op) => op.id !== 'card').map((op) => (
+                {OPERATORS_SRC.filter((op) => !isCardOp(op)).map((op) => (
                   <TouchableOpacity
                     key={op.id}
                     style={[styles.saveOpChip, savePhoneOperator === op.id && styles.saveOpChipSelected]}
@@ -1130,7 +1151,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
               </View>
             ) : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.saveOpScroll} contentContainerStyle={styles.saveOpScrollContent}>
-                {OPERATORS_SRC.filter((op) => op.id !== 'card').map((op) => (
+                {OPERATORS_SRC.filter((op) => !isCardOp(op)).map((op) => (
                   <TouchableOpacity
                     key={op.id}
                     style={[styles.saveOpChip, savePhoneOperator === op.id && styles.saveOpChipSelected]}
