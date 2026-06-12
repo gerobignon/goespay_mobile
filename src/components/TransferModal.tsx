@@ -114,6 +114,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const fetchCryptoRates = useCryptoStore((s) => s.fetchRates);
   const user = useAuthStore((s) => s.user);
   const countryFees = useConfigStore((s) => s.country_fees);
+  const outgoingFees = useConfigStore((s) => s.outgoing_fees);
   const transferFeeDefault = useConfigStore((s) => s.transfer_fee_default);
   const transferMin = useConfigStore((s) => s.transfer_min);
   const transferMinWorld = useConfigStore((s) => s.transfer_min_world);
@@ -203,7 +204,13 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     ? Math.round(numAmountDisplay)
     : convertToXof(numAmountDisplay);
   const userCountry = user?.country?.toUpperCase();
-  const feeConfig = (userCountry && countryFees[userCountry]) || transferFeeDefault;
+  // Frais = A→B : source = pays du user, destination = pays de l'opérateur visé
+  // (= corridor.country_code côté backend). On affiche le frais résolu par le
+  // backend (outgoing_fees, indexé par destination) → identique à l'exécution.
+  const destCountry = (fincraMmCountry || fincraZoneCountry || (selectedOp as any)?.country || '').toUpperCase();
+  const feeConfig = (destCountry && outgoingFees[destCountry])
+    || (userCountry && countryFees[userCountry])
+    || transferFeeDefault;
   // Frais GoesPay appliqués AUSSI aux retraits Fincra (débités en XOF, comme les
   // retraits classiques). Base = valeur XOF envoyée.
   const fees = useMemo(

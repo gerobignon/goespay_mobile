@@ -27,6 +27,9 @@ export interface AppConfig {
   transfer_fee_default: FeeConfig;
   // Frais par pays (code ISO -> { fixed, percent })
   country_fees: Record<string, FeeConfig>;
+  // Frais sortants PAR DESTINATION pour le user connecté (source = son pays),
+  // résolus côté backend (frais A→B). Indexé par pays ISO du destinataire.
+  outgoing_fees: Record<string, FeeConfig>;
   // Limites montants (XOF)
   deposit_min: number;
   deposit_max: number; // 0 = pas de plafond
@@ -72,6 +75,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
     ML: { fixed: 300, percent: 3.5 },
     CM: { fixed: 300, percent: 3.5 },
   },
+  outgoing_fees: {},
   deposit_min: 1000,
   deposit_max: 0,
   transfer_min: 2500,
