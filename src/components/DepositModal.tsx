@@ -119,11 +119,18 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const [savePhoneOperator, setSavePhoneOperator] = useState('');
   const [savePhoneLoading, setSavePhoneLoading] = useState(false);
 
+  // Snapshot des valeurs initiales (post-prefill / post-reset) pour détecter
+  // si l'utilisateur a réellement modifié le formulaire avant fermeture.
+  const initialFormRef = useRef({ amount: '', phone: '', operator: '' });
+
   // Réinitialise les champs à chaque ouverture et pré-remplit le téléphone profil
   useEffect(() => {
     if (!visible) return;
-    setAmount(prefill?.amount ?? '');
-    setOperator(prefill?.operator ?? '');
+    const initAmount = prefill?.amount ?? '';
+    const initOperator = prefill?.operator ?? '';
+    const defaultPhone = prefill?.phone ?? (user?.phone ?? '').trim();
+    setAmount(initAmount);
+    setOperator(initOperator);
     setSelectedCountry(null);
     setFincraZoneCountry(null);
     setOthersOpen(false);
@@ -140,15 +147,17 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
     setSavePhoneName('');
     setSavePhoneOperator('');
     phoneUserEditedRef.current = false;
-    const defaultPhone = prefill?.phone ?? (user?.phone ?? '').trim();
     setPhone(defaultPhone);
+    initialFormRef.current = { amount: initAmount, phone: defaultPhone, operator: initOperator };
   }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset le sous-pays Fincra à chaque changement d'opérateur.
   useEffect(() => { setFincraZoneCountry(null); }, [operator]);
 
   // Charge les taux crypto quand on ouvre le groupe « Crypto-monnaies ».
-  useEffect(() => { if (cryptoOpen) fetchCryptoRates(cryptoRates.length === 0); }, [cryptoOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Charge les taux crypto à l'ouverture du groupe (admin) OU dès l'ouverture du
+  // modal quand la crypto est active (clients : cryptos listées directement).
+  useEffect(() => { if (cryptoOpen || (visible && cryptoEnabled)) fetchCryptoRates(cryptoRates.length === 0); }, [cryptoOpen, visible, cryptoEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stopPolling = useCallback(() => {
     if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
@@ -337,6 +346,9 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // DIRECTEMENT les moyens internationaux actifs (au lieu de l'obliger à ouvrir
   // « Autres »). L'admin garde le regroupement « Autres » pour ses tests.
   const clientFlattenOthers = !isAdmin && primaryOps.length === 0 && otherOps.length > 0;
+  // Côté client : on liste les cryptos actives DIRECTEMENT (pas de groupe
+  // « Crypto-monnaies »). L'admin garde le groupe pour ses tests.
+  const flattenCrypto = !isAdmin && cryptoEnabled;
   const operatorsForStep = othersOpen ? otherOps : (clientFlattenOthers ? otherOps : primaryOps);
   // Entrée « International » : accessible uniquement depuis le picker pays initial.
   // Une fois un pays sélectionné, on n'affiche QUE ses opérateurs (pas de bouton
@@ -896,15 +908,30 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                     <Text style={styles.operatorChipText} numberOfLines={1}>{t('depositModal.others')}</Text>
                   </TouchableOpacity>
                 )}
-                {cryptoEnabled && (
-                  <TouchableOpacity
-                    key="__crypto"
-                    style={styles.operatorChip}
-                    onPress={() => { setCryptoOpen(true); setOperator(''); }}
-                  >
-                    <FontAwesome6 name="bitcoin-sign" size={16} color={Colors.text} />
-                    <Text style={styles.operatorChipText} numberOfLines={1}>{t('depositModal.cryptoGroup')}</Text>
-                  </TouchableOpacity>
+                {cryptoEnabled && (flattenCrypto
+                  ? cryptoRates.map((c) => {
+                      const source = pickCryptoSource(c);
+                      return (
+                        <TouchableOpacity key={`crypto-${c.code}`} style={styles.operatorChip} onPress={() => onSellCrypto?.(c.code)}>
+                          {source ? (
+                            <Image source={source as any} style={styles.operatorChipLogo} resizeMode="contain" />
+                          ) : (
+                            <FontAwesome6 name="bitcoin-sign" size={16} color={Colors.text} />
+                          )}
+                          <Text style={styles.operatorChipText} numberOfLines={1}>{c.name || c.code}</Text>
+                        </TouchableOpacity>
+                      );
+                    })
+                  : (
+                    <TouchableOpacity
+                      key="__crypto"
+                      style={styles.operatorChip}
+                      onPress={() => { setCryptoOpen(true); setOperator(''); }}
+                    >
+                      <FontAwesome6 name="bitcoin-sign" size={16} color={Colors.text} />
+                      <Text style={styles.operatorChipText} numberOfLines={1}>{t('depositModal.cryptoGroup')}</Text>
+                    </TouchableOpacity>
+                  )
                 )}
               </View>
             ) : (
@@ -947,15 +974,30 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                     <Text style={styles.operatorRowName}>{t('depositModal.others')}</Text>
                   </TouchableOpacity>
                 )}
-                {!operator && cryptoEnabled && (
-                  <TouchableOpacity
-                    key="__crypto"
-                    style={styles.operatorRow}
-                    onPress={() => { setCryptoOpen(true); setOperator(''); }}
-                  >
-                    <FontAwesome6 name="bitcoin-sign" size={20} color={Colors.text} style={{ width: 32, textAlign: 'center' }} />
-                    <Text style={styles.operatorRowName}>{t('depositModal.cryptoGroup')}</Text>
-                  </TouchableOpacity>
+                {!operator && cryptoEnabled && (flattenCrypto
+                  ? cryptoRates.map((c) => {
+                      const source = pickCryptoSource(c);
+                      return (
+                        <TouchableOpacity key={`crypto-${c.code}`} style={styles.operatorRow} onPress={() => onSellCrypto?.(c.code)}>
+                          {source ? (
+                            <Image source={source as any} style={styles.operatorRowLogo as any} resizeMode="contain" />
+                          ) : (
+                            <FontAwesome6 name="bitcoin-sign" size={20} color={Colors.text} style={{ width: 32, textAlign: 'center' }} />
+                          )}
+                          <Text style={styles.operatorRowName} numberOfLines={1}>{c.name || c.code}</Text>
+                        </TouchableOpacity>
+                      );
+                    })
+                  : (
+                    <TouchableOpacity
+                      key="__crypto"
+                      style={styles.operatorRow}
+                      onPress={() => { setCryptoOpen(true); setOperator(''); }}
+                    >
+                      <FontAwesome6 name="bitcoin-sign" size={20} color={Colors.text} style={{ width: 32, textAlign: 'center' }} />
+                      <Text style={styles.operatorRowName}>{t('depositModal.cryptoGroup')}</Text>
+                    </TouchableOpacity>
+                  )
                 )}
               </View>
                 )}
