@@ -294,7 +294,10 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // - Zones multi-pays Fincra (UEMOA/XOF, CEMAC/XAF)
   // - Devises internationales Fincra (EUR/USD/GBP)
   const ZONE_CURRENCIES = ['XOF', 'XAF', 'EUR', 'USD', 'GBP'];
-  const isZoneFincra = (op: any) => !!op.fincra && ZONE_CURRENCIES.includes(op.currency);
+  // Les opérateurs MM Fincra par pays (fincraOperator présent) s'affichent comme
+  // le softpay (par pays) — PAS sous « Autres ». Seuls les rails sans pays unique
+  // (cartes génériques, virements internationaux EUR/USD/GBP) restent en « Autres ».
+  const isZoneFincra = (op: any) => !!op.fincra && ZONE_CURRENCIES.includes(op.currency) && !op.fincraOperator;
   const isOtherOp = (op: any) => op.id === 'card' || isZoneFincra(op);
   // Libellé enrichi affiché dans « Autres » pour distinguer les rails zone/devise
   // (ex: deux "Mobile Money" → "Mobile Money (UEMOA · XOF)" vs "Mobile Money (CEMAC · XAF)").
@@ -339,11 +342,17 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // Mais si le pays est DÉJÀ connu (étape pays admin, ou pays de l'utilisateur),
   // on le déduit du contexte et on n'affiche plus la liste de sous-pays.
   // Sous-pays + indicatifs depuis le catalogue Marchés (fallback config statique).
-  const fincraZoneList = isFincraMM ? (catalogZones[fincraCurrency] ?? FINCRA_ZONES[fincraCurrency]) : undefined;
+  // Opérateur MM par pays (catalogue serveur) : pays figé = op.country, pas de
+  // sélecteur de sous-pays. Les anciennes tuiles de zone (offline/config.ts) gardent
+  // le picker.
+  const fincraMmCountry = ((selectedOp as any)?.fincraOperator ? ((selectedOp as any)?.country || '') : '').toUpperCase();
+  const fincraZoneList = (isFincraMM && !fincraMmCountry) ? (catalogZones[fincraCurrency] ?? FINCRA_ZONES[fincraCurrency]) : undefined;
   const contextCountry = ((useCountryStep ? selectedCountry : user?.country) || '').toUpperCase();
   const zoneHasContext = !!fincraZoneList?.some((c) => c.code === contextCountry);
   const fincraDialCode = isFincraMM
-    ? ((fincraZoneCountry && catalogDial[fincraZoneCountry]) || resolveFincraZone(fincraCurrency, fincraZoneCountry).dialCode)
+    ? (fincraMmCountry
+        ? (catalogDial[fincraMmCountry] || resolveFincraZone(fincraCurrency, fincraMmCountry).dialCode)
+        : ((fincraZoneCountry && catalogDial[fincraZoneCountry]) || resolveFincraZone(fincraCurrency, fincraZoneCountry).dialCode))
     : undefined;
   // Indicatif générique (PayDunya / AfribaPay…) : dérivé du pays de l'opérateur
   // (sinon du contexte). Affiché en prefix du champ téléphone pour que
@@ -546,19 +555,19 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
           method: fincraMethod,
         };
         if (isFincraMM) {
-          // Operator par défaut le plus utilisé du pays. Pourra évoluer en
-          // sélecteur dédié si besoin (MTN/Vodafone/AirtelTigo pour Ghana).
-          const defaultOp = fincraCurrency === 'GHS' ? 'MTN'
-                          : fincraCurrency === 'KES' ? 'MPESA'
-                          : fincraCurrency === 'UGX' ? 'MTN'
-                          : fincraCurrency === 'ZMW' ? 'MTN'
+          const op = selectedOp as any;
+          // Opérateur porté par la tuile (corridor fincra-mm-<pays>-<op>) ; fallback
+          // pour l'ancien catalogue/offline (config.ts) où fincraOperator est absent.
+          const fallbackOp = fincraCurrency === 'GHS' ? 'MTN'
+                          : fincraCurrency === 'KES' ? 'SAFARICOM'
                           : fincraCurrency === 'TZS' ? 'AIRTEL'
-                          : fincraCurrency === 'EGP' ? 'AIRTEL'
-                          : fincraCurrency === 'XOF' ? 'MTN'
-                          : fincraCurrency === 'XAF' ? 'MTN'
-                          : null;
+                          : fincraCurrency === 'ZMW' ? 'MTN'
+                          : 'ORANGE';
+          // Pays bénéficiaire (Fincra valide l'opérateur par pays).
+          const mmCountry = op?.country || fincraZoneCountry || contextCountry;
           // Fincra Direct Charge MM exige l'indicatif AVEC `+` (ex: +233700000000).
-          fincraPayload.operator = defaultOp;
+          fincraPayload.operator = op?.fincraOperator || fallbackOp;
+          fincraPayload.country  = mmCountry;
           fincraPayload.phone    = formatFincraPhone(phone, fincraDialCode || '', true);
         }
         const { data } = await api.post('/deposit/fincra', fincraPayload, { timeout: 70000 });

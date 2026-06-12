@@ -147,7 +147,9 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // « Autres » : rails Fincra de zone (XOF/XAF) + internationaux (USD/EUR/GBP) en
   // payout. Conforme au dépôt : les Fincra de zone restent AUSSI visibles par pays.
   const ZONE_CURRENCIES = ['XOF', 'XAF', 'EUR', 'USD', 'GBP'];
-  const isZoneFincra = (op: any) => !!op.fincra && ZONE_CURRENCIES.includes(op.currency);
+  // Opérateurs MM Fincra par pays (fincraOperator présent) → affichés par pays
+  // comme le softpay, pas sous « Autres ».
+  const isZoneFincra = (op: any) => !!op.fincra && ZONE_CURRENCIES.includes(op.currency) && !op.fincraOperator;
   const otherOps = displayOperators.filter(
     (op) => isZoneFincra(op) && (isAdmin || isCodeEnabled(op.id, 'payout'))
   );
@@ -182,12 +184,16 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const fincraRail: FincraRail | '' = isFincraOp ? (((selectedOp as any)?.rail as FincraRail) || '') : '';
   // Sous-pays Fincra (XOF/XAF). Si le pays est déjà connu (pays sélectionné, ou
   // pays de l'utilisateur), on le déduit du contexte et on masque la liste.
-  const fincraZoneList = (isFincraOp && fincraRail === 'mobile_money')
+  // Opérateur MM par pays (catalogue serveur) : pays figé = op.country (pas de picker).
+  const fincraMmCountry = ((selectedOp as any)?.fincraOperator ? ((selectedOp as any)?.country || '') : '').toUpperCase();
+  const fincraZoneList = (isFincraOp && fincraRail === 'mobile_money' && !fincraMmCountry)
     ? (catalogZones[fincraCurrency] ?? FINCRA_ZONES[fincraCurrency]) : undefined;
   const contextCountry = ((selectedCountry || user?.country) || '').toUpperCase();
   const zoneHasContext = !!fincraZoneList?.some((c) => c.code === contextCountry);
   const fincraDialCode = (isFincraOp && fincraRail === 'mobile_money')
-    ? ((fincraZoneCountry && catalogDial[fincraZoneCountry]) || resolveFincraZone(fincraCurrency, fincraZoneCountry).dialCode)
+    ? (fincraMmCountry
+        ? (catalogDial[fincraMmCountry] || resolveFincraZone(fincraCurrency, fincraMmCountry).dialCode)
+        : ((fincraZoneCountry && catalogDial[fincraZoneCountry]) || resolveFincraZone(fincraCurrency, fincraZoneCountry).dialCode))
     : undefined;
 
   // L'utilisateur saisit toujours dans la devise de son compte (XOF). La
@@ -608,10 +614,17 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
 
         // Fincra payout MM exige le phone SANS `+` (ex: 256770000000) et le
         // pays du BÉNÉFICIAIRE (ISO-2 dérivé de la devise ou du sous-pays).
-        const rz = resolveFincraZone(fincraCurrency, fincraZoneCountry);
-        // Indicatif & pays bénéficiaire : priorité au catalogue Marchés.
-        const dialCode = (fincraZoneCountry && catalogDial[fincraZoneCountry]) || rz.dialCode;
-        const countryIso2 = fincraZoneCountry || rz.countryIso2;
+        const rz = resolveFincraZone(fincraCurrency, fincraZoneCountry || fincraMmCountry);
+        // Indicatif & pays bénéficiaire : opérateur par pays (catalogue) > sous-pays > zone.
+        const dialCode = fincraDialCode || rz.dialCode;
+        const countryIso2 = fincraMmCountry || fincraZoneCountry || rz.countryIso2;
+        // Opérateur Fincra (ORANGE…) porté par la tuile ; fallback offline (config.ts).
+        const mmOperator = (selectedOp as any)?.fincraOperator
+          || (fincraCurrency === 'GHS' ? 'MTN'
+            : fincraCurrency === 'KES' ? 'SAFARICOM'
+            : fincraCurrency === 'TZS' ? 'AIRTEL'
+            : fincraCurrency === 'ZMW' ? 'MTN'
+            : 'ORANGE');
         const phoneForFincra = fincraRail === 'mobile_money'
           ? formatFincraPhone(normalizedPhone, dialCode, false)
           : undefined;
@@ -621,7 +634,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           currency: fincraCurrency,
           rail: fincraRail as FincraRail,
           phone: phoneForFincra,
-          operator: fincraRail === 'mobile_money' ? operator : undefined,
+          operator: fincraRail === 'mobile_money' ? mmOperator : undefined,
           country: fincraRail === 'mobile_money' ? countryIso2 : undefined,
           accountHolderName: fincraRail === 'mobile_money'
             ? `${user?.name ?? ''} ${user?.surname ?? ''}`.trim() || undefined

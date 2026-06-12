@@ -39,13 +39,17 @@ export interface CatalogOperator {
   payin: boolean;
   afribapay?: boolean;
   fincra?: boolean;
+  // Code opérateur Fincra (ORANGE, MTN…) pour les corridors fincra-mm-<pays>-<op>.
+  fincraOperator?: string;
   aggregator: string;
   logo: any;
 }
 export interface CatalogCountryEntry { code: string; name: string; prefix: string; flag: string; }
 
-// Rail Fincra déduit du suffixe du code corridor.
+// Rail Fincra déduit du code corridor.
 function railFromCode(code: string): string | undefined {
+  // MM par pays×opérateur : fincra-mm-<pays>-<operateur>.
+  if (code.startsWith('fincra-mm-')) return 'mobile_money';
   if (code.endsWith('-mm')) return 'mobile_money';
   if (code.endsWith('-bt')) return 'bank_transfer';
   if (code.endsWith('-card')) return 'checkout';
@@ -117,6 +121,8 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
           payin: !!r.payin,
           afribapay: r.aggregator === 'afribapay' || undefined,
           fincra: r.aggregator === 'fincra' || undefined,
+          // Opérateur Fincra (ORANGE…) porté par les corridors fincra-mm-<pays>-<op>.
+          fincraOperator: r.code.startsWith('fincra-mm-') ? r.network.toUpperCase() : undefined,
           aggregator: r.aggregator,
           logo: (net && LOGO_BY_KEY[net.logo_key]) || DEFAULT_LOGO,
         };
