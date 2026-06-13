@@ -19,6 +19,7 @@ import { Button } from '../../src/components/Button';
 import { Colors, DarkColors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { API_BASE_URL } from '../../src/constants/config';
+import { getAccountMenuItems } from '../../src/constants/accountMenu';
 import { CustomAlert } from '../../src/components/CustomAlert';
 import { showAlert } from '../../src/stores/alertStore';
 import { DesktopHeader } from '../../src/components/DesktopHeader';
@@ -71,14 +72,8 @@ export default function AccountScreen() {
     ? { uri: user.avatar.startsWith('http') ? user.avatar : `${API_BASE_URL.replace('/api/mobile/v1', '')}${user.avatar}` }
     : null;
 
-  const menuItems = [
-    { key: 'profile', label: t('account.personalInfo'), icon: 'user-pen', route: '/account/profile' as const },
-    { key: 'security', label: t('account.security'), icon: 'shield-halved', route: '/account/security' as const },
-    { key: 'phones', label: t('account.savedPhones'), icon: 'address-book', route: '/account/phones' as const },
-    { key: 'wallets', label: t('account.savedWallets'), icon: 'wallet', route: '/account/wallets' as const },
-    { key: 'settings', label: t('account.customization'), icon: 'gear', route: '/account/settings' as const },
-    { key: 'currency', label: t('account.currency'), icon: 'coins', route: '/account/currency' as const },
-  ];
+  const isCryptoUser = user?.group === 'admin' || user?.group === 'crypto';
+  const menuItems = getAccountMenuItems(t, { isCryptoUser });
 
   return (
     <View style={{ flex: 1 }}>

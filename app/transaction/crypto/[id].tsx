@@ -324,7 +324,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
-    backgroundColor: '#198754',
+    backgroundColor: Colors.confirmAction,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.md,
   },

@@ -34,6 +34,7 @@ import {
   Fonts,
 } from '../../src/constants/theme';
 import { API_BASE_URL, COUNTRIES } from '../../src/constants/config';
+import { getAccountMenuItems } from '../../src/constants/accountMenu';
 import { DepositModal } from '../../src/components/DepositModal';
 import { TransferModal } from '../../src/components/TransferModal';
 import { CryptoModal } from '../../src/components/CryptoModal';
@@ -125,7 +126,7 @@ export default function DashboardScreen() {
     setTransferPrefillPhone(tel);
     setTransferVisible(true);
   }, [isValidated]);
-  const onBenefAdd = useCallback(() => router.push('/account/saved-phones'), [router]);
+  const onBenefAdd = useCallback(() => router.push('/account/phones'), [router]);
   const prefetchRates = useCryptoStore((s) => s.fetchRates);
   const { isWide, isDesktop, contentMaxWidth } = useResponsive();
   const { isDark } = useTheme();
@@ -168,15 +169,7 @@ export default function DashboardScreen() {
     }
   };
 
-  const allMenuItems = [
-    { key: 'profile', label: t('account.personalInfo'), icon: 'user-pen', route: '/account/profile' as const },
-    { key: 'security', label: t('account.security'), icon: 'shield-halved', route: '/account/security' as const },
-    { key: 'phones', label: t('account.savedPhones'), icon: 'address-book', route: '/account/phones' as const },
-    { key: 'wallets', label: t('account.savedWallets'), icon: 'wallet', route: '/account/wallets' as const, cryptoOnly: true },
-    { key: 'settings', label: t('account.appearance'), icon: 'gear', route: '/account/settings' as const },
-  ];
-
-  const menuItems = allMenuItems.filter((item) => !(item.cryptoOnly && !isCryptoUser));
+  const menuItems = getAccountMenuItems(t, { isCryptoUser });
 
   useFocusEffect(
     useCallback(() => {

@@ -20,6 +20,10 @@ export const DarkColors = {
   error: '#ff295b',
   warning: '#ffee38',
   pending: '#F4B228',
+  // confirmAction: solid green used for primary "safe" actions (invoice/download buttons)
+  confirmAction: '#198754',
+  // positive: bright mint accent for incoming/"+" badges and copy confirmation
+  positive: '#3ecf8e',
   border: 'rgba(255,255,255,0.15)',
   white: '#ffffff',
   black: '#000000',
@@ -43,6 +47,8 @@ export const LightColors: ColorPalette = {
   error: '#ff295b',
   warning: '#b45309',
   pending: '#F4B228',
+  confirmAction: '#198754',
+  positive: '#1a9d6a',
   border: 'rgba(0,0,0,0.1)',
   white: '#ffffff',
   black: '#000000',
@@ -96,3 +102,39 @@ export const Shadow = {
     elevation: 8,
   },
 };
+
+// Standard sizes for circular icon containers / avatars used across rows & menus
+export const IconSize = {
+  sm: 24,
+  md: 32,
+  lg: 36,
+  xl: 48,
+  xxl: 64,
+};
+
+// Max width for centered modals / form cards on wide (desktop web) layouts
+export const MODAL_MAX_WIDTH = 420;
+
+/**
+ * Returns `color` with the given alpha (0..1) as an rgba() string.
+ * Accepts hex (#RGB / #RRGGBB) or existing rgb()/rgba() colors.
+ * Replaces the scattered `color + '11'` / `color + '26'` opacity hacks.
+ */
+export function withAlpha(color: string, alpha: number): string {
+  if (color.startsWith('#')) {
+    let hex = color.slice(1);
+    if (hex.length === 3) {
+      hex = hex.split('').map((c) => c + c).join('');
+    }
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  const match = color.match(/rgba?\(([^)]+)\)/);
+  if (match) {
+    const [r, g, b] = match[1].split(',').map((p) => p.trim());
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  return color;
+}

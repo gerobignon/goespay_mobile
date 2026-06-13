@@ -8,6 +8,7 @@ import {
   Animated,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 
@@ -39,6 +40,7 @@ export function TransactionDetailRow({
   valueNode,
 }: Props) {
   const styles = useThemedStyles(createStyles);
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -93,11 +95,11 @@ export function TransactionDetailRow({
           <FontAwesome6
             name={copied ? 'circle-check' : 'clipboard'}
             size={13}
-            color={copied ? '#3ecf8e' : Colors.textMuted}
+            color={copied ? Colors.positive : Colors.textMuted}
           />
         )}
         {copied && (
-          <Text style={styles.copiedLabel}>Copié !</Text>
+          <Text style={styles.copiedLabel}>{t('common.copied')} !</Text>
         )}
       </View>
     </TouchableOpacity>

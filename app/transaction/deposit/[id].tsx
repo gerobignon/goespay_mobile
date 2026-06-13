@@ -424,7 +424,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     gap: 6,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    backgroundColor: '#198754',
+    backgroundColor: Colors.confirmAction,
     borderRadius: BorderRadius.pill,
   },
   invoiceBtnText: {

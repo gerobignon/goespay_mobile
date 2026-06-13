@@ -18,6 +18,7 @@ import { DesktopFooter } from '../../src/components/DesktopFooter';
 import { Button } from '../../src/components/Button';
 import { Colors, DarkColors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
 import { API_BASE_URL } from '../../src/constants/config';
+import { getAccountMenuItems } from '../../src/constants/accountMenu';
 
 export default function AccountLayout() {
   const { isDesktop } = useResponsive();
@@ -59,17 +60,8 @@ function DesktopAccountLayout() {
     : null;
 
   const isCryptoUser = user?.group === 'admin' || user?.group === 'crypto';
-  
-  const allMenuItems = [
-    { key: 'profile', label: t('account.personalInfo'), icon: 'user-pen', route: '/account/profile' as const },
-    { key: 'security', label: t('account.security'), icon: 'shield-halved', route: '/account/security' as const },
-    { key: 'phones', label: t('account.savedPhones'), icon: 'address-book', route: '/account/phones' as const },
-    { key: 'wallets', label: t('account.savedWallets'), icon: 'wallet', route: '/account/wallets' as const, cryptoOnly: true },
-    { key: 'settings', label: t('account.customization'), icon: 'gear', route: '/account/settings' as const },
-    { key: 'currency', label: t('account.currency'), icon: 'coins', route: '/account/currency' as const },
-  ];
 
-  const menuItems = allMenuItems.filter((item) => !(item.cryptoOnly && !isCryptoUser));
+  const menuItems = getAccountMenuItems(t, { isCryptoUser });
 
   const handleLogout = () => {
     showAlert(t('account.logoutTitle'), t('account.logoutMessage'), [
