@@ -97,20 +97,25 @@ export function PromoCarousel({ slides }: { slides: PromoSlide[] }) {
         scrollEnabled={!single}
         contentContainerStyle={{ paddingRight: single ? 0 : PROMO_GAP }}
       >
-        {slides.map((s, i) => (
-          <TouchableOpacity
-            key={s.id}
-            activeOpacity={0.92}
-            onPress={() => handleTap(s)}
-            style={{
-              width: slideWidth,
-              height: slideHeight,
-              marginRight: i === slides.length - 1 ? 0 : PROMO_GAP,
-            }}
-          >
-            <Image source={s.image} style={styles.promoImage} resizeMode="cover" />
-          </TouchableOpacity>
-        ))}
+        {slides.map((s, i) => {
+          // Lien vide (ni href ni onPress) → slide non cliquable (pas de feedback tactile).
+          const tappable = !!(s.onPress || s.href);
+          return (
+            <TouchableOpacity
+              key={s.id}
+              activeOpacity={tappable ? 0.92 : 1}
+              disabled={!tappable}
+              onPress={() => handleTap(s)}
+              style={{
+                width: slideWidth,
+                height: slideHeight,
+                marginRight: i === slides.length - 1 ? 0 : PROMO_GAP,
+              }}
+            >
+              <Image source={s.image} style={styles.promoImage} resizeMode="cover" />
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
       {slides.length > 1 && (
         <View style={styles.promoDots}>
