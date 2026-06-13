@@ -23,6 +23,8 @@ interface Props {
   /** Affiche en valeur monétaire (fond légèrement coloré) */
   mono?: boolean;
   color?: string;
+  /** Noeud personnalisé affiché à la place de la valeur (ex: logo opérateur + drapeau). */
+  valueNode?: React.ReactNode;
 }
 
 export function TransactionDetailRow({
@@ -34,6 +36,7 @@ export function TransactionDetailRow({
   copyable,
   mono,
   color,
+  valueNode,
 }: Props) {
   const styles = useThemedStyles(createStyles);
   const [copied, setCopied] = useState(false);
@@ -45,6 +48,7 @@ export function TransactionDetailRow({
   };
 
   const renderValue = () => {
+    if (valueNode) return valueNode;
     if (value === '—') {
       return <Text style={styles.muted}>—</Text>;
     }

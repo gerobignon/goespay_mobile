@@ -518,9 +518,18 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   };
 
   const handleClose = () => {
-    // Afficher confirmation seulement si l'utilisateur a tapé du texte (montant, téléphone ou OTP)
-    const hasUserInput = !!amount.trim() || !!phone.trim() || !!otp.trim();
-    if (hasUserInput) {
+    // Confirmation seulement si l'utilisateur a réellement modifié le formulaire
+    // (vs valeurs initiales : prefill, téléphone profil par défaut). Sélection
+    // d'un pays ou d'un opérateur, saisie d'OTP ou changement d'un champ comptent.
+    const init = initialFormRef.current;
+    const isDirty =
+      amount !== init.amount ||
+      phone !== init.phone ||
+      operator !== init.operator ||
+      !!otp.trim() ||
+      selectedCountry !== null ||
+      fincraZoneCountry !== null;
+    if (isDirty) {
       showAlert(
         t('depositModal.cancelDeposit'),
         t('depositModal.infoLost'),
@@ -656,7 +665,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
         startPolling(result.deposit_id);
       } else {
         await fetchBalance();
-        showAlert(t('common.success'), result?.message || 'Votre dépôt a été initié.', [{ text: 'OK', onPress: onClose }]);
+        showAlert(t('common.success'), result?.message || 'Votre recharge a été initiée.', [{ text: 'OK', onPress: onClose }]);
       }
       setAmount('');
       setPhone('');
@@ -1176,37 +1185,24 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
               containerStyle={{ alignSelf: 'stretch' }}
             />
             <Text style={styles.saveOpLabel}>{t('depositModal.paymentMethod')}</Text>
-            {isDesktop ? (
-              <View style={styles.saveOpGrid}>
-                {OPERATORS_SRC.filter((op) => !isCardOp(op)).map((op) => (
+            <ScrollView style={styles.saveOpList} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+              {displayOperators.filter((op) => !isCardOp(op)).map((op) => {
+                const sel = savePhoneOperator === op.id;
+                return (
                   <TouchableOpacity
                     key={op.id}
-                    style={[styles.saveOpChip, savePhoneOperator === op.id && styles.saveOpChipSelected]}
+                    style={[styles.saveOpRow, sel && styles.saveOpRowSelected]}
                     onPress={() => setSavePhoneOperator(op.id)}
                   >
-                    <Image source={op.logo} style={styles.saveOpLogo} resizeMode="contain" />
-                    <Text style={[styles.saveOpChipText, savePhoneOperator === op.id && styles.saveOpChipTextSelected]} numberOfLines={2}>
-                      {op.flag} {op.name}
+                    <OperatorLogo op={op as any} size={26} />
+                    <Text style={[styles.saveOpRowText, sel && styles.saveOpRowTextSelected]} numberOfLines={1}>
+                      {op.flag ? `${op.flag} ` : ''}{op.name}
                     </Text>
+                    {sel && <FontAwesome6 name="circle-check" size={16} color={Colors.primary} />}
                   </TouchableOpacity>
-                ))}
-              </View>
-            ) : (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.saveOpScroll} contentContainerStyle={styles.saveOpScrollContent}>
-                {OPERATORS_SRC.filter((op) => !isCardOp(op)).map((op) => (
-                  <TouchableOpacity
-                    key={op.id}
-                    style={[styles.saveOpChip, savePhoneOperator === op.id && styles.saveOpChipSelected]}
-                    onPress={() => setSavePhoneOperator(op.id)}
-                  >
-                    <Image source={op.logo} style={styles.saveOpLogo} resizeMode="contain" />
-                    <Text style={[styles.saveOpChipText, savePhoneOperator === op.id && styles.saveOpChipTextSelected]} numberOfLines={2}>
-                      {op.flag} {op.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            )}
+                );
+              })}
+            </ScrollView>
             <View style={styles.confirmBtns}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setSavePhoneModalVisible(false)}>
                 <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
@@ -1718,6 +1714,36 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   saveOpScrollContent: {
     paddingHorizontal: Spacing.lg,
     gap: Spacing.xs,
+  },
+  // Liste opérateurs (modal sauvegarde) — rangées logo + drapeau + nom.
+  saveOpList: {
+    maxHeight: 240,
+    marginBottom: Spacing.sm,
+  },
+  saveOpRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    backgroundColor: Colors.inputBg,
+    marginBottom: Spacing.xs,
+  },
+  saveOpRowSelected: {
+    borderColor: Colors.secondary,
+    backgroundColor: Colors.secondary + '12',
+  },
+  saveOpRowText: {
+    flex: 1,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+    color: Colors.text,
+  },
+  saveOpRowTextSelected: {
+    color: Colors.secondary,
   },
   saveOpGrid: {
     flexDirection: 'row',

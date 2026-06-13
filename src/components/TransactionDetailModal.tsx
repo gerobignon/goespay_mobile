@@ -15,10 +15,12 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { ResponsiveModal } from './ResponsiveModal';
 import { Card } from './Card';
 import { TransactionDetailRow } from './TransactionDetailRow';
+import { OperatorLogo } from './OperatorLogo';
 import { CustomAlert } from './CustomAlert';
 import { walletService } from '../services/walletService';
 import { showAlert } from '../stores/alertStore';
-import { TRANSACTION_STATUS, getTransactionStatus } from '../constants/config';
+import { useCatalogStore } from '../stores/catalogStore';
+import { TRANSACTION_STATUS, getTransactionStatus, OPERATORS } from '../constants/config';
 import { formatCurrency, formatDate, useFormatXof, useCurrencyCode } from '../utils/format';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
@@ -57,6 +59,57 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
   const { t } = useTranslation();
   const fmtXof = useFormatXof();
   const currencyCode = useCurrencyCode();
+  const catalogOps = useCatalogStore((s) => s.operators);
+
+  // Résout le moyen (tx.mode) en { nom, drapeau, op } pour un affichage conforme
+  // à la liste dépôt/retrait (logo + drapeau du pays). Fallback propre pour les
+  // codes Fincra basés sur le rail (fincra-bank_transfer → « Virement bancaire »).
+  const resolveOperatorView = (mode?: string | null) => {
+    if (!mode) return null;
+    const found =
+      catalogOps.find((o) => o.id === mode) ||
+      (OPERATORS as unknown as any[]).find((o) => o.id === mode);
+    if (found) return { name: String(found.name), flag: String(found.flag || ''), op: found as any };
+    const m = mode.match(/^fincra-(bank_transfer|bank|mobile_money|mm|checkout|card)$/i);
+    if (m) {
+      const r = m[1].toLowerCase();
+      const rail = r === 'bank' ? 'bank_transfer' : r === 'card' ? 'checkout' : r === 'mm' ? 'mobile_money' : r;
+      const name = rail === 'bank_transfer' ? t('transaction.railBank')
+                 : rail === 'checkout'      ? t('transaction.railCard')
+                 :                            t('transaction.railMobileMoney');
+      return { name, flag: '', op: { fincra: true, rail } as any };
+    }
+    return { name: mode, flag: '', op: null as any };
+  };
+
+  // Hero résumé (statut + montant) — bloc teinté selon le statut, partagé par
+  // les 4 types de transaction pour un rendu homogène.
+  const Hero = ({ statusColor, statusIcon, statusLabel, sign, amount, amountColor }: {
+    statusColor: string; statusIcon: string; statusLabel: string;
+    sign: string; amount: string; amountColor: string;
+  }) => (
+    <View style={[styles.hero, { backgroundColor: statusColor + '12' }]}>
+      <View style={[styles.statusBadge, { backgroundColor: statusColor + '26' }]}>
+        <FontAwesome6 name={statusIcon as any} size={12} color={statusColor} style={{ marginRight: 6 }} />
+        <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
+      </View>
+      <Text style={[styles.amount, { color: amountColor }]}>{sign}{amount}</Text>
+      <Text style={styles.currency}>{currencyCode}</Text>
+    </View>
+  );
+
+  const OperatorValue = ({ mode }: { mode?: string | null }) => {
+    const info = resolveOperatorView(mode);
+    if (!info) return <Text style={styles.opName}>—</Text>;
+    return (
+      <View style={styles.opValue}>
+        {info.op ? <OperatorLogo op={info.op} size={20} /> : null}
+        <Text style={styles.opName} numberOfLines={1}>
+          {info.flag ? `${info.flag} ` : ''}{info.name}
+        </Text>
+      </View>
+    );
+  };
 
   const [tx, setTx] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(false);
@@ -259,22 +312,19 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
             </KeyboardAvoidingView>
           )}
 
-          <Card>
-            <View style={styles.statusRow}>
-              <View style={[styles.statusBadge, { backgroundColor: status.color + '22' }]}>
-                <FontAwesome6
-                  name={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'}
-                  size={14} color={status.color} style={{ marginRight: 6 }}
-                />
-                <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
-              </View>
-            </View>
-            <Text style={[styles.amount, { color: Colors.secondary }]}>+{fmtXof(tx.amount, { withCode: false })}</Text>
-            <Text style={styles.currency}>{currencyCode}</Text>
+          <Card style={styles.flatCard}>
+            <Hero
+              statusColor={status.color}
+              statusIcon={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'}
+              statusLabel={status.label}
+              sign="+"
+              amount={fmtXof(tx.amount, { withCode: false })}
+              amountColor={Colors.secondary}
+            />
             <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
             <TransactionDetailRow label={t('transaction.type')} value={t('transaction.deposit')} badge badgeColor="#3ecf8e" badgeIcon="arrow-down" />
             <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'} />
-            <TransactionDetailRow label={t('transaction.operator')} value={tx.mode ?? '—'} badge badgeColor={Colors.secondary} />
+            <TransactionDetailRow label={t('transaction.operator')} value={tx.mode ?? '—'} valueNode={<OperatorValue mode={tx.mode} />} />
             <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />
             <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '—'} mono />
             <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '—'} mono color={status.color} />
@@ -340,15 +390,15 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
             </View>
           )}
 
-          <Card>
-            <View style={styles.statusRow}>
-              <View style={[styles.statusBadge, { backgroundColor: status.color + '22' }]}>
-                <FontAwesome6 name={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'} size={14} color={status.color} style={{ marginRight: 6 }} />
-                <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
-              </View>
-            </View>
-            <Text style={[styles.amount, { color: Colors.error }]}>-{fmtXof(tx.amount_sent ?? tx.amount, { withCode: false })}</Text>
-            <Text style={styles.currency}>{currencyCode}</Text>
+          <Card style={styles.flatCard}>
+            <Hero
+              statusColor={status.color}
+              statusIcon={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'}
+              statusLabel={status.label}
+              sign="-"
+              amount={fmtXof(tx.amount_sent ?? tx.amount, { withCode: false })}
+              amountColor={Colors.error}
+            />
             <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
             <TransactionDetailRow label={t('transaction.type')} value={t('transaction.withdraw')} badge badgeColor={Colors.error} badgeIcon="arrow-up" />
             <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'} />
@@ -356,7 +406,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
             {tx.amount_sent != null && tx.amount_sent !== tx.amount && (
               <TransactionDetailRow label={t('transaction.fees')} value={fmtXof(tx.amount - tx.amount_sent)} mono color={Colors.error} />
             )}
-            <TransactionDetailRow label={t('transaction.operator')} value={tx.mode ?? '—'} badge badgeColor={Colors.secondary} />
+            <TransactionDetailRow label={t('transaction.operator')} value={tx.mode ?? '—'} valueNode={<OperatorValue mode={tx.mode} />} />
             <TransactionDetailRow label={t('transaction.receiver')} value={tx.phone ?? '—'} copyable mono />
             <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />
             <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '—'} mono />
@@ -411,15 +461,15 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
             </View>
           )}
 
-          <Card>
-            <View style={styles.statusRow}>
-              <View style={[styles.statusBadge, { backgroundColor: status.color + '22' }]}>
-                <FontAwesome6 name={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'} size={14} color={status.color} style={{ marginRight: 6 }} />
-                <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
-              </View>
-            </View>
-            <Text style={[styles.amount, { color: Colors.secondary }]}>-{fmtXof(tx.amount, { withCode: false })}</Text>
-            <Text style={styles.currency}>{currencyCode}</Text>
+          <Card style={styles.flatCard}>
+            <Hero
+              statusColor={status.color}
+              statusIcon={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'}
+              statusLabel={status.label}
+              sign="-"
+              amount={fmtXof(tx.amount, { withCode: false })}
+              amountColor={Colors.secondary}
+            />
             <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
             <TransactionDetailRow label={t('transaction.type')} value={t('transaction.transfer')} badge badgeColor={Colors.secondary} badgeIcon="right-left" />
             <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'} />
@@ -491,15 +541,15 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
             </View>
           )}
 
-          <Card>
-            <View style={styles.statusRow}>
-              <View style={[styles.statusBadge, { backgroundColor: status.color + '30' }]}>
-                <FontAwesome6 name={status.icon as any} size={14} color={status.color} style={{ marginRight: 6 }} />
-                <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
-              </View>
-            </View>
-            <Text style={[styles.amount, { color: Colors.error }]}>{isBuy ? '-' : '+'}{fmtXof(tx.amount, { withCode: false })}</Text>
-            <Text style={styles.currency}>{currencyCode}</Text>
+          <Card style={styles.flatCard}>
+            <Hero
+              statusColor={status.color}
+              statusIcon={status.icon}
+              statusLabel={status.label}
+              sign={isBuy ? '-' : '+'}
+              amount={fmtXof(tx.amount, { withCode: false })}
+              amountColor={isBuy ? Colors.error : Colors.secondary}
+            />
             <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
             <TransactionDetailRow label={t('transaction.type')} value={isBuy ? t('transaction.buyType') : t('transaction.sellType')} badge badgeColor={Colors.secondary} badgeIcon="bitcoin-sign" />
             <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={status.icon} />
@@ -604,12 +654,29 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
+  flatCard: {
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  hero: {
+    alignItems: 'center',
+    borderRadius: BorderRadius.xl,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+    gap: Spacing.xs,
+  },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.xs + 2,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 1,
     borderRadius: 50,
+    marginBottom: Spacing.xs,
   },
   statusText: {
     fontFamily: Fonts.bold,
@@ -620,13 +687,26 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontFamily: Fonts.bold,
     textAlign: 'center',
   },
+  opValue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 1,
+    justifyContent: 'flex-end',
+  },
+  opName: {
+    color: Colors.text,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+    textAlign: 'right',
+    flexShrink: 1,
+  },
   currency: {
     fontSize: FontSize.sm,
     fontFamily: Fonts.semiBold,
     color: Colors.textMuted,
     textAlign: 'center',
     letterSpacing: 2,
-    marginBottom: Spacing.lg,
   },
   actionRow: {
     flexDirection: 'row',

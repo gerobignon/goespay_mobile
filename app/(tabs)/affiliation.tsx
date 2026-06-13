@@ -170,13 +170,15 @@ export default function AffiliationScreen() {
             icon="link"
             variant="outline"
             onPress={handleCopyLink}
-            style={{ flex: 1 }}
+            style={[styles.smallBtn, { flex: 1 }]}
+            textStyle={styles.smallBtnText}
           />
           <Button
             title={t('affiliation.share', 'Partager')}
             icon="share-nodes"
             onPress={handleShare}
-            style={{ flex: 1 }}
+            style={[styles.smallBtn, { flex: 1 }]}
+            textStyle={styles.smallBtnText}
           />
         </View>
       </View>
@@ -215,7 +217,8 @@ export default function AffiliationScreen() {
             icon="wallet"
             onPress={handleClaim}
             loading={claiming}
-            style={{ marginTop: Spacing.sm }}
+            style={[styles.smallBtn, { marginTop: Spacing.sm }]}
+            textStyle={styles.smallBtnText}
           />
         </View>
       )}
@@ -283,14 +286,16 @@ export default function AffiliationScreen() {
   if (isDesktop) {
     return (
       <View style={{ flex: 1 }}>
-        {headerBlock}
-        <ScrollView
-          contentContainerStyle={[styles.scroll, { paddingTop: 0 }]}
-          keyboardShouldPersistTaps="handled"
-          refreshControl={refreshControl}
-        >
-          {content}
-        </ScrollView>
+        <View style={styles.desktopWrap}>
+          {headerBlock}
+          <ScrollView
+            contentContainerStyle={[styles.scroll, { paddingTop: 0 }]}
+            keyboardShouldPersistTaps="handled"
+            refreshControl={refreshControl}
+          >
+            {content}
+          </ScrollView>
+        </View>
         <CustomAlert />
       </View>
     );
@@ -320,6 +325,10 @@ export default function AffiliationScreen() {
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   background: { flex: 1 },
+  // Desktop : page centrée à largeur limitée (comme les autres pages), pas pleine largeur.
+  desktopWrap: { flex: 1, width: '100%', maxWidth: 760, alignSelf: 'center' },
+  smallBtn: { paddingVertical: Spacing.xs + 1, minHeight: 36 },
+  smallBtnText: { fontSize: FontSize.sm },
   scroll: {
     flexGrow: 1,
     padding: Spacing.lg,

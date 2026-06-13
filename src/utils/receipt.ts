@@ -13,7 +13,7 @@ function buildRows(tx: Transaction, type: 'deposit' | 'withdraw' | 'transfer' | 
     { label: 'Transaction ID', value: `#${tx.id}` },
     {
       label: 'Type',
-      value: type === 'deposit' ? 'Dépôt' : type === 'withdraw' ? 'Retrait' : type === 'transfer' ? 'Retrait' : (tx.mode === 'Buy' ? 'Achat de monnaie numérique' : 'Vente de monnaie numérique'),
+      value: type === 'deposit' ? 'Dépôt' : type === 'withdraw' ? 'Envoi' : type === 'transfer' ? 'Envoi' : (tx.mode === 'Buy' ? 'Achat de monnaie numérique' : 'Vente de monnaie numérique'),
     },
     { label: 'Statut', value: 'Succès' },
   ];
@@ -60,8 +60,8 @@ export async function shareReceipt(tx: Transaction, type: 'deposit' | 'withdraw'
   const rows = buildRows(tx, type);
   const typeLabel =
     type === 'deposit' ? 'Dépôt' :
-    type === 'withdraw' ? 'Retrait' :
-    type === 'transfer' ? 'Retrait' :
+    type === 'withdraw' ? 'Envoi' :
+    type === 'transfer' ? 'Envoi' :
     (tx.mode === 'Buy' ? 'Achat crypto' : 'Vente crypto');
 
   const html = `

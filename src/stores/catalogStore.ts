@@ -25,6 +25,7 @@ const LOGO_BY_KEY: Record<string, any> = {
   pay_fincra:   require('../../assets/operators/pay_fincra.png'),
   paydunya:     require('../../assets/operators/paydunya.png'),
   // Opérateurs AfribaPay / Fincra additionnels (catalogue Marchés).
+  pay_bank:       require('../../assets/operators/pay_bank.png'),
   pay_free:       require('../../assets/operators/pay_free.jpg'),
   pay_amanata:    require('../../assets/operators/pay_amanata.jpg'),
   pay_nita:       require('../../assets/operators/pay_nita.png'),
@@ -43,6 +44,8 @@ const LOGO_BY_KEY: Record<string, any> = {
   pay_vodafone:   require('../../assets/operators/pay_vodafone.jpg'),
   pay_safaricom:  require('../../assets/operators/pay_safaricom.jpeg'),
   pay_airtel_tigo: require('../../assets/operators/pay_airtel_tigo.png'),
+  pay_expresso:   require('../../assets/operators/pay_expresso.png'),
+  pay_wizall:     require('../../assets/operators/pay_wizall.jpg'),
 };
 const DEFAULT_LOGO = LOGO_BY_KEY.pay_card;
 

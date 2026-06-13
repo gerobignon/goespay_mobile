@@ -29,11 +29,12 @@ export function OperatorLogo({ op, size = 26, style }: Props) {
   // Fincra Mobile Money : le corridor porte un opérateur réel (mtn/moov/orange…)
   // dont le logo de marque est déjà résolu dans `op.logo` → on l'affiche comme
   // pour PayDunya/AfribaPay. Les rails virement/carte restent en icône générique.
-  // Mobile money → logo de marque ; carte (checkout) → visuel carte (VISA/MC, pay_card).
-  if (op.fincra && (op.rail === 'mobile_money' || op.rail === 'checkout' || !op.rail) && op.logo) {
+  // Fincra : on affiche le visuel résolu (logo de marque MM, visuel carte VISA/MC,
+  // logo virement bancaire) dès qu'il existe. Icône générique en dernier recours.
+  if (op.fincra && op.logo) {
     return <Image source={op.logo} style={[{ width: size, height: size }, style as ImageStyle]} resizeMode="contain" />;
   }
-  // Fincra virement : icône généraliste.
+  // Fincra sans logo : icône généraliste basée sur le rail.
   if (op.fincra) {
     const iconName: any = op.rail === 'bank_transfer' ? 'building-columns'
                        : op.rail === 'checkout'      ? 'credit-card'

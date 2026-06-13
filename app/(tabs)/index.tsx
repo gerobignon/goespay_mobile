@@ -9,6 +9,7 @@ import {
   Image,
   ImageBackground,
   Modal,
+  Platform,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
@@ -38,6 +39,13 @@ import { TransferModal } from '../../src/components/TransferModal';
 import { CryptoModal } from '../../src/components/CryptoModal';
 import { TransactionItem } from '../../src/components/TransactionItem';
 import { TransactionDetailModal, type TxType } from '../../src/components/TransactionDetailModal';
+import {
+  PromoCarousel,
+  MonthlyInsights,
+  RecentBeneficiaries,
+  ReferralCard,
+  type PromoSlide,
+} from '../../src/components/home/HomeWidgets';
 import { useCryptoStore } from '../../src/stores/cryptoStore';
 import { useConfigStore } from '../../src/stores/configStore';
 import { useCorridorStore } from '../../src/stores/corridorStore';
@@ -64,9 +72,18 @@ export default function DashboardScreen() {
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [modalTxId, setModalTxId] = useState<number | null>(null);
   const [modalTxType, setModalTxType] = useState<TxType | null>(null);
+  const [transferPrefillPhone, setTransferPrefillPhone] = useState<string | undefined>(undefined);
+  // Hauteurs des 2 colonnes pour activer le sticky-top dynamique sur la
+  // colonne la plus courte (web/desktop uniquement, en wide layout).
+  const [leftColH, setLeftColH] = useState(0);
+  const [rightColH, setRightColH] = useState(0);
+  const stickyLeft  = Platform.OS === 'web' && leftColH > 0 && rightColH > 0 && leftColH < rightColH;
+  const stickyRight = Platform.OS === 'web' && leftColH > 0 && rightColH > 0 && rightColH < leftColH;
+  const stickyStyle = (active: boolean): any => active ? { position: 'sticky', top: 0, alignSelf: 'flex-start' } : undefined;
 
   const { logout } = useAuthStore();
   const { deposit_enabled, transfer_enabled, crypto_buy_enabled, crypto_sell_enabled, fetchConfig } = useConfigStore();
+  const promoSlidesConfig = useConfigStore((s) => s.promo_slides);
   const fetchCorridors = useCorridorStore((s) => s.fetchCorridors);
   const fetchCatalog = useCatalogStore((s) => s.fetchCatalog);
   const isAdmin = user?.group === 'admin';
@@ -85,11 +102,34 @@ export default function DashboardScreen() {
     setTimeout(() => setCryptoVisible(true), 350);
   };
   const isValidated = user?.validate === 1;
+  const { t } = useTranslation();
+
+  // Slides du carrousel promo — pilotées depuis l'admin (/config → promo_slides).
+  // Image = URL distante ({uri}), lien optionnel ouvert au tap. Carrousel masqué
+  // si l'admin n'a configuré aucune slide.
+  const promoSlides: PromoSlide[] = React.useMemo(
+    () => (promoSlidesConfig || [])
+      .filter((s) => !!s?.image)
+      // Garde-fou : le backend renvoie parfois un port dupliqué (host:8000:8000)
+      // qui rend l'URL invalide. On collapse `:port:port` → `:port`.
+      .map((s, i) => ({
+        id: `promo-${i}`,
+        image: { uri: s.image.replace(/(:\d+):\d+/, '$1') },
+        href: s.link || undefined,
+      })),
+    [promoSlidesConfig]
+  );
+
+  const onBenefPick = useCallback((tel: string) => {
+    if (!isValidated) return;
+    setTransferPrefillPhone(tel);
+    setTransferVisible(true);
+  }, [isValidated]);
+  const onBenefAdd = useCallback(() => router.push('/account/saved-phones'), [router]);
   const prefetchRates = useCryptoStore((s) => s.fetchRates);
   const { isWide, isDesktop, contentMaxWidth } = useResponsive();
   const { isDark } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const { t } = useTranslation();
 
   const handleTxPress = (tx: any) => {
     const type = tx.type as TxType;
@@ -218,68 +258,58 @@ export default function DashboardScreen() {
         {isWide ? (
           <View style={styles.wideRow}>
             {/* Left column: balance + services */}
-            <View style={styles.wideColLeft}>
+            <View
+              style={[styles.wideColLeft, stickyStyle(stickyLeft)]}
+              onLayout={(e) => setLeftColH(Math.round(e.nativeEvent.layout.height))}
+            >
               <ImageBackground
                 source={require('../../assets/bg_page.jpg')}
                 style={styles.balanceCard}
                 imageStyle={styles.balanceCardImage}
               >
                 <View style={styles.balanceOverlay}>
-                  <Text style={styles.balanceLabel}>{ t('home.balance') }</Text>
-                  <Text style={styles.balanceAmount}>{fmtXof(balance, { withCode: false })}</Text>
-                  <Text style={styles.currency}>{currencyCode}</Text>
-                  <View style={styles.balanceActions}>
-                    {showDeposit && (
-                    <TouchableOpacity
-                      style={[styles.actionBtn, { backgroundColor: DarkColors.secondary }, !isValidated && { opacity: 0.4 }]}
-                      onPress={() => isValidated && setDepositVisible(true)}
-                    >
-                      <FontAwesome6 name="plus" size={16} color={Colors.white} />
-                      <Text style={styles.actionLabel}>{ t('home.deposit') }</Text>
-                    </TouchableOpacity>
-                    )}
-                    {showTransfer && (
-                    <TouchableOpacity
-                      style={[styles.actionBtn, { backgroundColor: Colors.primary }, !isValidated && { opacity: 0.4 }]}
-                      onPress={() => isValidated && setTransferVisible(true)}
-                    >
-                      <FontAwesome6 name="paper-plane" size={16} color={Colors.white} />
-                      <Text style={styles.actionLabel}>{ t('home.transfer') }</Text>
-                    </TouchableOpacity>
-                    )}
+                  {/* Bloc 1 : solde + boutons (padding latéral généreux) */}
+                  <View style={styles.balanceTop}>
+                    <Text style={styles.balanceLabel}>{ t('home.balance') }</Text>
+                    <Text style={styles.balanceAmount}>{fmtXof(balance, { withCode: false })}</Text>
+                    <Text style={styles.currency}>{currencyCode}</Text>
+                    <View style={styles.balanceActions}>
+                      {showDeposit && (
+                      <TouchableOpacity
+                        style={[styles.actionBtn, { backgroundColor: DarkColors.secondary }, !isValidated && { opacity: 0.4 }]}
+                        onPress={() => isValidated && setDepositVisible(true)}
+                      >
+                        <FontAwesome6 name="plus" size={16} color={Colors.white} />
+                        <Text style={styles.actionLabel}>{ t('home.deposit') }</Text>
+                      </TouchableOpacity>
+                      )}
+                      {showTransfer && (
+                      <TouchableOpacity
+                        style={[styles.actionBtn, { backgroundColor: Colors.primary }, !isValidated && { opacity: 0.4 }]}
+                        onPress={() => isValidated && setTransferVisible(true)}
+                      >
+                        <FontAwesome6 name="paper-plane" size={16} color={Colors.white} />
+                        <Text style={styles.actionLabel}>{ t('home.transfer') }</Text>
+                      </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
+                  {/* Bloc 2 : insights (padding latéral léger, hérité de balanceOverlay) */}
+                  <MonthlyInsights />
                 </View>
               </ImageBackground>
 
-              <Text style={styles.sectionTitle}>{ t('home.quickActions', 'Services') }</Text>
-              <View style={styles.quickActions}>
-                {showDeposit && (
-                <TouchableOpacity style={styles.quickBtn} onPress={() => setDepositVisible(true)}>
-                  <View style={[styles.quickIcon, { backgroundColor: Colors.success + '45' }]}>
-                    <FontAwesome6 name="arrow-down" size={20} color={Colors.success} />
-                  </View>
-                  <Text style={styles.quickLabel}>{ t('home.deposit') }</Text>
-                </TouchableOpacity>
-                )}
-                {showTransfer && (
-                <TouchableOpacity style={styles.quickBtn} onPress={() => setTransferVisible(true)}>
-                  <View style={[styles.quickIcon, { backgroundColor: Colors.primary + '45' }]}>
-                    <FontAwesome6 name="paper-plane" size={20} color={Colors.primary} />
-                  </View>
-                  <Text style={styles.quickLabel}>{ t('home.transfer') }</Text>
-                </TouchableOpacity>
-                )}
-                <TouchableOpacity style={styles.quickBtn} onPress={() => router.push('/(tabs)/history')}>
-                  <View style={[styles.quickIcon, { backgroundColor: DarkColors.secondary + '45' }]}>
-                    <FontAwesome6 name="clock-rotate-left" size={20} color={Colors.secondary} />
-                  </View>
-                  <Text style={styles.quickLabel}>{ t('history.title') }</Text>
-                </TouchableOpacity>
-              </View>
+              {/* Widgets en dessous : G + A + C + E. */}
+              <PromoCarousel slides={promoSlides} />
+              {showTransfer && <RecentBeneficiaries onPick={onBenefPick} onAdd={onBenefAdd} />}
+              <ReferralCard />
             </View>
 
             {/* Right column: recent transactions */}
-            <View style={styles.wideColRight}>
+            <View
+              style={[styles.wideColRight, stickyStyle(stickyRight)]}
+              onLayout={(e) => setRightColH(Math.round(e.nativeEvent.layout.height))}
+            >
               <View style={styles.recentHeader}>
                 <Text style={styles.sectionTitle}>{ t('home.recentTransactions') }</Text>
                 <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
@@ -311,59 +341,43 @@ export default function DashboardScreen() {
               imageStyle={styles.balanceCardImage}
             >
               <View style={styles.balanceOverlay}>
-                <Text style={styles.balanceLabel}>{ t('home.balance') }</Text>
-                <Text style={styles.balanceAmount}>{fmtXof(balance, { withCode: false })}</Text>
-                <Text style={styles.currency}>{currencyCode}</Text>
-                <View style={styles.balanceActions}>
-                  {showDeposit && (
-                  <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: DarkColors.secondary }, !isValidated && { opacity: 0.4 }]}
-                    onPress={() => isValidated && setDepositVisible(true)}
-                  >
-                    <FontAwesome6 name="plus" size={16} color={Colors.white} />
-                    <Text style={styles.actionLabel}>{ t('home.deposit') }</Text>
-                  </TouchableOpacity>
-                  )}
-                  {showTransfer && (
-                  <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: Colors.primary }, !isValidated && { opacity: 0.4 }]}
-                    onPress={() => isValidated && setTransferVisible(true)}
-                  >
-                    <FontAwesome6 name="paper-plane" size={16} color={Colors.white} />
-                    <Text style={styles.actionLabel}>{ t('home.transfer') }</Text>
-                  </TouchableOpacity>
-                  )}
+                {/* Bloc 1 : solde + boutons (padding latéral généreux) */}
+                <View style={styles.balanceTop}>
+                  <Text style={styles.balanceLabel}>{ t('home.balance') }</Text>
+                  <Text style={styles.balanceAmount}>{fmtXof(balance, { withCode: false })}</Text>
+                  <Text style={styles.currency}>{currencyCode}</Text>
+                  <View style={styles.balanceActions}>
+                    {showDeposit && (
+                    <TouchableOpacity
+                      style={[styles.actionBtn, { backgroundColor: DarkColors.secondary }, !isValidated && { opacity: 0.4 }]}
+                      onPress={() => isValidated && setDepositVisible(true)}
+                    >
+                      <FontAwesome6 name="plus" size={16} color={Colors.white} />
+                      <Text style={styles.actionLabel}>{ t('home.deposit') }</Text>
+                    </TouchableOpacity>
+                    )}
+                    {showTransfer && (
+                    <TouchableOpacity
+                      style={[styles.actionBtn, { backgroundColor: Colors.primary }, !isValidated && { opacity: 0.4 }]}
+                      onPress={() => isValidated && setTransferVisible(true)}
+                    >
+                      <FontAwesome6 name="paper-plane" size={16} color={Colors.white} />
+                      <Text style={styles.actionLabel}>{ t('home.transfer') }</Text>
+                    </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
+                {/* Bloc 2 : insights (padding latéral léger, hérité de balanceOverlay) */}
+                <MonthlyInsights />
               </View>
             </ImageBackground>
 
-            <Text style={styles.sectionTitle}>{ t('home.quickActions', 'Services') }</Text>
-            <View style={styles.quickActions}>
-              {showDeposit && (
-              <TouchableOpacity style={styles.quickBtn} onPress={() => setDepositVisible(true)}>
-                <View style={[styles.quickIcon, { backgroundColor: Colors.success + '45' }]}>
-                  <FontAwesome6 name="arrow-down" size={20} color={Colors.success} />
-                </View>
-                <Text style={styles.quickLabel}>{ t('home.deposit') }</Text>
-              </TouchableOpacity>
-              )}
-              {showTransfer && (
-              <TouchableOpacity style={styles.quickBtn} onPress={() => setTransferVisible(true)}>
-                <View style={[styles.quickIcon, { backgroundColor: Colors.primary + '45' }]}>
-                  <FontAwesome6 name="paper-plane" size={20} color={Colors.primary} />
-                </View>
-                <Text style={styles.quickLabel}>{ t('home.transfer') }</Text>
-              </TouchableOpacity>
-              )}
-              <TouchableOpacity style={styles.quickBtn} onPress={() => router.push('/(tabs)/history')}>
-                <View style={[styles.quickIcon, { backgroundColor: DarkColors.secondary + '45' }]}>
-                  <FontAwesome6 name="clock-rotate-left" size={20} color={Colors.secondary} />
-                </View>
-                <Text style={styles.quickLabel}>{ t('history.title') }</Text>
-              </TouchableOpacity>
-            </View>
+            {/* Widgets en dessous : G + A + C + E. */}
+            <PromoCarousel slides={promoSlides} />
+            {showTransfer && <RecentBeneficiaries onPick={onBenefPick} onAdd={onBenefAdd} />}
+            <ReferralCard />
 
-            <View style={styles.recentHeader}>
+            <View style={[styles.recentHeader, { marginTop: Spacing.lg }]}>
               <Text style={styles.sectionTitle}>{ t('home.recentTransactions') }</Text>
               <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
                 <Text style={styles.seeAll}>{ t('common.seeAll') }</Text>
@@ -398,9 +412,10 @@ export default function DashboardScreen() {
       {showTransfer && (
       <TransferModal
         visible={transferVisible}
-        onClose={() => setTransferVisible(false)}
+        onClose={() => { setTransferVisible(false); setTransferPrefillPhone(undefined); }}
         cryptoEnabled={showCrypto && (crypto_buy_enabled || isAdmin)}
         onBuyCrypto={(currency?: string) => openCrypto('buy', currency)}
+        prefillPhone={transferPrefillPhone}
       />
       )}
       {showCrypto && (
@@ -531,15 +546,21 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   balanceCard: {
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
-    marginBottom: Spacing.xl,
   },
   balanceCardImage: {
     borderRadius: BorderRadius.xl,
   },
   balanceOverlay: {
     backgroundColor: 'rgba(23,30,43,0)',
-    padding: Spacing.xl,
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.sm,
     alignItems: 'center',
+  },
+  // Bloc supérieur (solde + boutons) — garde un padding latéral généreux.
+  balanceTop: {
+    paddingHorizontal: Spacing.xl - Spacing.sm,
+    alignItems: 'center',
+    alignSelf: 'stretch',
   },
   balanceLabel: {
     fontSize: FontSize.sm,

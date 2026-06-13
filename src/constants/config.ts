@@ -33,10 +33,10 @@ export const OPERATORS = [
   { id: 'moov-togo', name: 'Moov Money', flag: '🇹🇬', country: 'TG', withdraw: true, logo: require('../../assets/operators/pay_moov.png') },
   // Sénégal
   { id: 'orange-money-senegal', name: 'Orange Money', flag: '🇸🇳', country: 'SN', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
-  { id: 'free-money-senegal', name: 'Free Money', flag: '🇸🇳', country: 'SN', withdraw: true, logo: require('../../assets/operators/paydunya.png') },
-  { id: 'expresso-senegal', name: 'Expresso', flag: '🇸🇳', country: 'SN', withdraw: true, logo: require('../../assets/operators/paydunya.png') },
+  { id: 'free-money-senegal', name: 'Free Money', flag: '🇸🇳', country: 'SN', withdraw: true, logo: require('../../assets/operators/pay_free.jpg') },
+  { id: 'expresso-senegal', name: 'Expresso', flag: '🇸🇳', country: 'SN', withdraw: true, logo: require('../../assets/operators/pay_expresso.png') },
   { id: 'wave-senegal', name: 'Wave', flag: '🇸🇳', country: 'SN', withdraw: true, logo: require('../../assets/operators/pay_wave.jpg') },
-  { id: 'wizall-senegal', name: 'Wizall', flag: '🇸🇳', country: 'SN', withdraw: true, logo: require('../../assets/operators/paydunya.png') },
+  { id: 'wizall-senegal', name: 'Wizall', flag: '🇸🇳', country: 'SN', withdraw: true, logo: require('../../assets/operators/pay_wizall.jpg') },
   // Mali
   { id: 'orange-money-mali', name: 'Orange Money', flag: '🇲🇱', country: 'ML', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
   { id: 'moov-mali', name: 'Moov Money', flag: '🇲🇱', country: 'ML', withdraw: true, logo: require('../../assets/operators/pay_moov.png') },

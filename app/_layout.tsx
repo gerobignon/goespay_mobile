@@ -164,12 +164,12 @@ function RootInner() {
     walletService.getFincraDepositStatus(ref)
       .then((res: { status: string }) => {
         if (res.status === 'success') {
-          showAlert('✅', 'Dépôt Fincra crédité avec succès.');
+          showAlert('✅', 'Recharge créditée avec succès.');
           useWalletStore.getState().fetchBalance();
         } else if (res.status === 'fail') {
-          showAlert('❌', 'Le dépôt Fincra a échoué.');
+          showAlert('❌', 'La recharge a échoué.');
         } else {
-          showAlert('⏳', 'Dépôt en cours de vérification...');
+          showAlert('⏳', 'Recharge en cours de vérification...');
         }
       })
       .catch(() => {});

@@ -49,6 +49,13 @@ export interface AppConfig {
   mobile_money_countries: string[];
   // Bandeaux d'alerte par type de transaction (configurés via /admin/settings)
   transaction_alerts: TransactionAlerts;
+  // Carrousel promo de l'accueil (configuré via /admin/settings). Liste ordonnée.
+  promo_slides: PromoSlideConfig[];
+}
+
+export interface PromoSlideConfig {
+  image: string;
+  link?: string;
 }
 
 interface ConfigState extends FeatureFlags, AppConfig {
@@ -97,6 +104,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
     crypto_buy:  { message: '', level: 'info' },
     crypto_sell: { message: '', level: 'info' },
   },
+  promo_slides: [],
 };
 
 export const useConfigStore = create<ConfigState>((set) => ({

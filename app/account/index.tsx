@@ -77,6 +77,7 @@ export default function AccountScreen() {
     { key: 'phones', label: t('account.savedPhones'), icon: 'address-book', route: '/account/phones' as const },
     { key: 'wallets', label: t('account.savedWallets'), icon: 'wallet', route: '/account/wallets' as const },
     { key: 'settings', label: t('account.customization'), icon: 'gear', route: '/account/settings' as const },
+    { key: 'currency', label: t('account.currency'), icon: 'coins', route: '/account/currency' as const },
   ];
 
   return (

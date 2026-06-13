@@ -19,6 +19,14 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     config.headers['Accept-Language'] = i18n.language || 'fr';
+    // Web : si un BackendUser October est connecté (cookie .goespay.io), on joint
+    // son token admin pour bypasser la maintenance côté serveur (lecture & opérations).
+    if (typeof document !== 'undefined') {
+      const m = document.cookie.match(/(?:^|;\s*)goespay_admin=([^;]+)/);
+      if (m) {
+        config.params = { ...(config.params || {}), admin_token: decodeURIComponent(m[1]) };
+      }
+    }
     return config;
   },
   (error) => Promise.reject(error)

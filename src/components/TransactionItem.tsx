@@ -5,6 +5,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { Colors, type ColorPalette, BorderRadius, FontSize, Spacing, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { TRANSACTION_STATUS, getTransactionStatus, OPERATORS } from '../constants/config';
+import { useCatalogStore } from '../stores/catalogStore';
 import { formatAmount, formatDate, useFormatXof } from '../utils/format';
 import type { Transaction } from '../types';
 
@@ -57,6 +58,10 @@ const PAYMENT_MODE_LOGOS: Record<string, ImageSourcePropType> = {
   'card': require('../../assets/operators/pay_card.jpg'),
   'visa-mastercard': require('../../assets/operators/pay_card.jpg'),
   'visa-mastercard-2': require('../../assets/operators/pay_card.jpg'),
+  // Rails Fincra (mode stocké par rail : fincra-bank_transfer / -mobile_money / -checkout)
+  'fincra-bank_transfer': require('../../assets/operators/pay_bank.png'),
+  'fincra-mobile_money': require('../../assets/operators/pay_fincra.png'),
+  'fincra-checkout': require('../../assets/operators/pay_card.jpg'),
   // Types spéciaux
   'referal': require('../../assets/picto.png'),
   'commission': require('../../assets/picto.png'),
@@ -87,6 +92,9 @@ export function getTransactionLogo(transaction: Transaction): ImageSourcePropTyp
     // Try OPERATORS first
     const op = OPERATORS.find((o) => o.id === mode);
     if (op) return op.logo as ImageSourcePropType;
+    // Catalogue serveur (nouveaux moyens AfribaPay/Fincra : amanata-ne, fincra-mm-…)
+    const catOp = useCatalogStore.getState().operators.find((o) => o.id.toLowerCase() === mode);
+    if (catOp?.logo) return catOp.logo as ImageSourcePropType;
     // Fallback to payment mode logos (lookup normalisé en minuscule)
     return PAYMENT_MODE_LOGOS[mode] ?? null;
   }
@@ -108,6 +116,7 @@ const MODE_LABELS: Record<string, string> = {
   'orange-money-mali': 'Orange Money', 'moov-mali': 'Moov Money',
   'mtn-cameroun': 'MTN Momo',
   'card': 'Carte Bancaire', 'visa-mastercard': 'Visa/Mastercard', 'visa-mastercard-2': 'Visa/Mastercard',
+  'fincra-bank_transfer': 'Virement bancaire', 'fincra-mobile_money': 'Mobile Money', 'fincra-checkout': 'Carte bancaire',
   'referal': 'Parrainage', 'commission': 'Commission', 'reward': 'Récompense', 'manual': 'Manuel',
 };
 
@@ -126,6 +135,8 @@ export function getModeName(transaction: Transaction, t?: (key: string) => strin
   if (MODE_LABELS[key]) return MODE_LABELS[key];
   const op = OPERATORS.find((o) => o.id === key);
   if (op) return op.name;
+  const catOp = useCatalogStore.getState().operators.find((o) => o.id.toLowerCase() === key);
+  if (catOp) return catOp.name;
   return transaction.mode;
 }
 

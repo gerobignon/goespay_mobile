@@ -19,12 +19,15 @@ import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
-import { OPERATORS } from '../../src/constants/config';
+import { OPERATORS, operatorServesCountry } from '../../src/constants/config';
 import { showAlert } from '../../src/stores/alertStore';
 import { CustomAlert } from '../../src/components/CustomAlert';
+import { OperatorLogo } from '../../src/components/OperatorLogo';
 import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 import { useResponsive } from '../../src/hooks/useResponsive';
+import { useCatalogStore } from '../../src/stores/catalogStore';
+import { useAuthStore } from '../../src/stores/authStore';
 import type { SavedPhone } from '../../src/types';
 
 export default function PhonesScreen() {
@@ -45,6 +48,36 @@ export default function PhonesScreen() {
     type: 'transfer' | 'deposit';
     operator: string;
   }>({ id: 0, name: '', tel: '', type: 'transfer', operator: '' });
+
+  const catalogOps = useCatalogStore((s) => s.operators);
+  const user = useAuthStore((s) => s.user);
+  const userCountry = (user?.country || '').toUpperCase();
+  const opsSource: any[] = catalogOps.length ? catalogOps : (OPERATORS as any);
+  // Mêmes moyens que dans le modal dépôt/retrait : filtrés par le pays de
+  // l'utilisateur (au lieu de TOUS les opérateurs, liste interminable).
+  const modalOperators = opsSource.filter((op: any) => {
+    const typeOk = phoneForm.type === 'deposit'
+      ? (op.payin ?? true) && op.id !== 'card'
+      : !!op.withdraw;
+    return typeOk && operatorServesCountry(op, userCountry);
+  });
+
+  // Libellé opérateur (drapeau + nom) résolu via catalogue ∪ config (nouveaux moyens inclus).
+  const opLabel = (id?: string) => {
+    if (!id) return '';
+    const op = opsSource.find((o: any) => o.id === id) || (OPERATORS as unknown as any[]).find((o) => o.id === id);
+    return op ? `${op.flag ? op.flag + ' ' : ''}${op.name}` : id;
+  };
+
+  // Pré-sélection : on respecte un opérateur déjà actif (édition / contexte) ;
+  // sinon, si un seul moyen est disponible pour le pays, on le sélectionne.
+  useEffect(() => {
+    if (!phoneModalOpen) return;
+    if (phoneForm.operator && modalOperators.some((op: any) => op.id === phoneForm.operator)) return;
+    if (modalOperators.length === 1) {
+      setPhoneForm((prev) => ({ ...prev, operator: modalOperators[0].id }));
+    }
+  }, [phoneModalOpen, phoneForm.type, modalOperators.length]);
 
   useEffect(() => {
     walletService.getSavedPhones()
@@ -162,7 +195,7 @@ export default function PhonesScreen() {
                 {item.operator ? (
                   <View style={[styles.savedEntryBadgeWrap, styles.savedEntryBadgeOpWrap]}>
                     <Text style={styles.savedEntryBadgeOpText}>
-                      {OPERATORS.find((op) => op.id === item.operator)?.flag ?? ''} {OPERATORS.find((op) => op.id === item.operator)?.name ?? item.operator}
+                      {opLabel(item.operator)}
                     </Text>
                   </View>
                 ) : null}
@@ -223,19 +256,25 @@ export default function PhonesScreen() {
               ))}
             </View>
             <Text style={styles.managementFieldLabel}>{t('account.operator')}</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.sm }}>
-              {OPERATORS.filter((op) => phoneForm.type === 'deposit' ? op.id !== 'card' : op.withdraw).map((op) => (
-                <TouchableOpacity
-                  key={op.id}
-                  style={[styles.opChipSm, phoneForm.operator === op.id && styles.opChipSmSelected]}
-                  onPress={() => setPhoneForm((prev) => ({ ...prev, operator: op.id }))}
-                >
-                  <Image source={op.logo} style={styles.opChipSmLogo} resizeMode="contain" />
-                  <Text style={[styles.opChipSmText, phoneForm.operator === op.id && styles.opChipSmTextSelected]} numberOfLines={2}>
-                    {op.flag} {op.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            <View style={{ gap: Spacing.xs, marginBottom: Spacing.sm }}>
+              {modalOperators.length === 0 ? (
+                <Text style={styles.emptyText}>{t('account.noOperatorForCountry', 'Aucun moyen disponible pour votre pays.')}</Text>
+              ) : modalOperators.map((op: any) => {
+                const sel = phoneForm.operator === op.id;
+                return (
+                  <TouchableOpacity
+                    key={op.id}
+                    style={[styles.opRow, sel && styles.opRowSelected]}
+                    onPress={() => setPhoneForm((prev) => ({ ...prev, operator: op.id }))}
+                  >
+                    <OperatorLogo op={op} size={26} />
+                    <Text style={[styles.opRowText, sel && styles.opRowTextSelected]} numberOfLines={1}>
+                      {op.flag ? `${op.flag} ` : ''}{op.name}
+                    </Text>
+                    {sel && <FontAwesome6 name="circle-check" size={16} color={Colors.primary} />}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
             <View style={styles.managementActions}>
               <Button title={phoneForm.id ? t('account.update') : t('common.add')} onPress={handleSavePhoneEntry} loading={phoneSaving} style={{ flex: 1 }} />
@@ -446,6 +485,30 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   typeChipTextSelected: {
     fontFamily: Fonts.semiBold,
+    color: Colors.primary,
+  },
+  opRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    backgroundColor: Colors.inputBg,
+  },
+  opRowSelected: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primary + '12',
+  },
+  opRowText: {
+    flex: 1,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+    color: Colors.text,
+  },
+  opRowTextSelected: {
     color: Colors.primary,
   },
   opChipSm: {

@@ -55,9 +55,11 @@ interface TransferModalProps {
   cryptoEnabled?: boolean;
   /** Lance le flux d'achat crypto (débite le wallet) pour la crypto choisie. */
   onBuyCrypto?: (currency?: string) => void;
+  /** Téléphone bénéficiaire pré-rempli (depuis la home : tap sur un avatar). */
+  prefillPhone?: string;
 }
 
-export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCrypto }: TransferModalProps) {
+export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCrypto, prefillPhone }: TransferModalProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
@@ -170,7 +172,9 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             (isAdmin || isCodeEnabled(op.id, 'payout'))
         )
       : [];
-  // Entrée « Autres » au niveau du picker pays (rails internationaux).
+  // Entrée « International » au niveau du picker pays (rails internationaux).
+  // Toujours visible : un transfert peut partir vers n'importe quelle devise
+  // (EUR/USD/GBP/etc.) quel que soit le pays de l'envoyeur.
   const showOthersEntry = otherOps.length > 0 && !selectedCountry;
 
   // Pays sélectionné mais aucun corridor payout actif → badge "indisponible".
@@ -290,6 +294,9 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     }
   };
 
+  // Snapshot des valeurs initiales pour détecter une réelle modification au close.
+  const initialFormRef = useRef({ amount: '', phone: '' });
+
   useEffect(() => {
     if (!visible) return;
     loadSavedPhones();
@@ -314,6 +321,12 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     setBankSearchQuery('');
     setPollingState('idle');
     setPendingDetails(null);
+    // Pré-remplir le téléphone si fourni par l'appelant (tap sur un bénéficiaire
+    // depuis la home). Sinon on garde la valeur courante.
+    if (prefillPhone) setPhone(prefillPhone);
+    // amount et phone ne sont PAS réinitialisés à l'ouverture (rétrocompat) ;
+    // on capture leur valeur initiale comme baseline pour le dirty-check.
+    initialFormRef.current = { amount, phone: prefillPhone ?? phone };
   }, [visible]);
 
   // Reset le sous-pays Fincra à chaque changement d'opérateur.
@@ -555,8 +568,23 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       onClose();
       return;
     }
-    const hasUserInput = !!amount.trim() || !!phone.trim();
-    if (hasUserInput) {
+    // Dirty-check : on confirme uniquement si l'utilisateur a réellement édité.
+    const init = initialFormRef.current;
+    const isDirty =
+      amount !== init.amount ||
+      phone !== init.phone ||
+      !!operator.trim() ||
+      selectedCountry !== null ||
+      fincraZoneCountry !== null ||
+      !!bankAccountHolder.trim() ||
+      !!bankAccountNumber.trim() ||
+      !!bankName.trim() ||
+      !!bankCode.trim() ||
+      !!bankSwiftCode.trim() ||
+      !!iban.trim() ||
+      !!bic.trim() ||
+      !!swiftCode.trim();
+    if (isDirty) {
       showAlert(
         t('transferModal.cancelTransfer'),
         t('transferModal.infoLost'),
@@ -1294,89 +1322,98 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           </View>
       </KeyboardAvoidingView>
 
-      {/* Modal de confirmation */}
+      {/* Modal de confirmation — design refondu (cards segmentées, typo douce) */}
       <Modal visible={confirmVisible} transparent animationType="fade">
         <View style={styles.confirmOverlay}>
           <View style={styles.confirmSheet}>
-            <Text style={styles.confirmTitle}>{t('transferModal.confirmTitle')}</Text>
-            <Text style={styles.confirmSubtitle}>{t('transferModal.confirmHint')}</Text>
+            {/* Header */}
+            <View style={styles.confirmHeader}>
+              <Text style={styles.confirmTitle}>{t('transferModal.confirmTitle')}</Text>
+              <Text style={styles.confirmSubtitle}>{t('transferModal.confirmHint')}</Text>
+            </View>
 
-            <Text style={styles.confirmAmountLabel}>{t('transferModal.amountSent')}</Text>
-            <Text style={styles.confirmAmount}>
-              {fmtXof(numAmountXof, { withCode: false })}
-            </Text>
-            <Text style={styles.confirmAmountCurrency}>{userCurrency}</Text>
-
-            <Text style={styles.confirmPhoneLabel}>{t('transferModal.recipient')}</Text>
-            <Text style={styles.confirmPhone}>
-              {isFincraOp
-                ? (fincraRail === 'mobile_money'
-                    ? (phone || '—')
-                    : (bankAccountHolder
-                        ? `${bankAccountHolder} · ${bankAccountNumber || iban || ''}`
-                        : (bankAccountNumber || iban || '—')))
-                : (phone || '—')}
-            </Text>
-
-            {isFincraOp && fincraRail === 'bank_transfer' && !!bankName.trim() && (
-              <>
-                <Text style={styles.confirmPhoneLabel}>Banque</Text>
-                <Text style={styles.confirmBankName}>{bankName.trim()}</Text>
-              </>
-            )}
-
-            {selectedOp && (
-              <View style={styles.confirmOpRow}>
-                <Image source={selectedOp.logo} style={styles.confirmOpLogo} resizeMode="contain" />
-                <Text style={styles.confirmOpName}>
-                  {selectedOp.flag} {selectedOp.name}
-                  {isFincraOp && fincraRail
-                    ? ` · ${fincraRail === 'mobile_money' ? 'Mobile Money' : fincraRail === 'bank_transfer' ? 'Virement' : fincraRail}`
-                    : ''}
-                </Text>
+            {/* Card montant */}
+            <View style={styles.confirmCard}>
+              <Text style={styles.confirmCardLabel}>{t('transferModal.amountSent')}</Text>
+              <View style={styles.confirmAmountRow}>
+                <Text style={styles.confirmAmount}>{fmtXof(numAmountXof, { withCode: false })}</Text>
+                <Text style={styles.confirmAmountCurrency}>{userCurrency}</Text>
               </View>
-            )}
+            </View>
 
-            {isFincraOp ? (
-              <View style={styles.confirmFeesBox}>
-                {fincraCurrency !== 'XOF' && (
-                  <View style={styles.feesRow}>
-                    <Text style={styles.feesLabel}>{t('transferModal.fincraReceives')}</Text>
-                    <Text style={styles.feesValue}>{fmtFincra(numAmount)}</Text>
-                  </View>
-                )}
-                {fees > 0 && (
-                  <View style={styles.feesRow}>
-                    <Text style={styles.feesLabel}>{t('transferModal.fees')} ({feeLabel})</Text>
-                    <Text style={[styles.feesValue, { color: Colors.error }]}>+ {fmtXof(fees)}</Text>
-                  </View>
-                )}
-                <View style={[styles.feesRow, styles.feesTotalRow]}>
-                  <Text style={styles.feesTotalLabel}>{t('transferModal.totalDebited')}</Text>
-                  <Text style={styles.feesTotalValue}>
-                    {fincraTotalDebitXof !== null ? fmtXof(fincraTotalDebitXof) : fmtFincra(numAmount)}
+            {/* Card destinataire */}
+            <View style={styles.confirmCard}>
+              <Text style={styles.confirmCardLabel}>{t('transferModal.recipient')}</Text>
+              {(() => {
+                // Décomposition propre des champs destinataire selon le rail.
+                const isMM = !isFincraOp || fincraRail === 'mobile_money';
+                const primary = isMM
+                  ? (phone || '—')
+                  : (bankAccountHolder || bankAccountNumber || iban || '—');
+                const secondaryParts: string[] = [];
+                if (!isMM) {
+                  if (bankAccountHolder && (bankAccountNumber || iban)) {
+                    secondaryParts.push(bankAccountNumber || iban);
+                  }
+                  if (bankName.trim()) secondaryParts.push(bankName.trim());
+                }
+                return (
+                  <>
+                    <Text style={styles.confirmPrimary} numberOfLines={2}>{primary}</Text>
+                    {secondaryParts.length > 0 && (
+                      <Text style={styles.confirmSecondary}>{secondaryParts.join(' · ')}</Text>
+                    )}
+                  </>
+                );
+              })()}
+
+              {/* Chip méthode (logo + nom + rail) — discret */}
+              {selectedOp && (
+                <View style={styles.confirmMethodChip}>
+                  <Image source={selectedOp.logo} style={styles.confirmMethodLogo} resizeMode="contain" />
+                  <Text style={styles.confirmMethodText} numberOfLines={1}>
+                    {selectedOp.flag} {selectedOp.name}
+                    {isFincraOp && fincraRail
+                      ? ` · ${fincraRail === 'mobile_money' ? 'Mobile Money' : fincraRail === 'bank_transfer' ? 'Virement bancaire' : fincraRail}`
+                      : ''}
                   </Text>
                 </View>
-              </View>
-            ) : (
-              <View style={styles.confirmFeesBox}>
-                <View style={styles.feesRow}>
-                  <Text style={styles.feesLabel}>{t('transferModal.fees')} ({feeLabel})</Text>
-                  <Text style={[styles.feesValue, { color: Colors.error }]}>+ {fmtXof(fees)}</Text>
+              )}
+            </View>
+
+            {/* Card breakdown */}
+            <View style={styles.confirmCard}>
+              {isFincraOp && fincraCurrency !== 'XOF' && (
+                <View style={styles.confirmBreakdownRow}>
+                  <Text style={styles.confirmBreakdownLabel}>{t('transferModal.fincraReceives')}</Text>
+                  <Text style={styles.confirmBreakdownValue}>{fmtFincra(numAmount)}</Text>
                 </View>
-                <View style={[styles.feesRow, styles.feesTotalRow]}>
-                  <Text style={styles.feesTotalLabel}>{t('transferModal.totalDebited')}</Text>
-                  <Text style={styles.feesTotalValue}>{fmtXof(total)}</Text>
+              )}
+              {fees > 0 && (
+                <View style={styles.confirmBreakdownRow}>
+                  <Text style={styles.confirmBreakdownLabel}>{t('transferModal.fees')} ({feeLabel})</Text>
+                  <Text style={[styles.confirmBreakdownValue, styles.confirmBreakdownValueFee]}>+ {fmtXof(fees)}</Text>
                 </View>
+              )}
+              <View style={styles.confirmBreakdownDivider} />
+              <View style={styles.confirmBreakdownRow}>
+                <Text style={styles.confirmBreakdownTotalLabel}>{t('transferModal.totalDebited')}</Text>
+                <Text style={styles.confirmBreakdownTotalValue}>
+                  {isFincraOp
+                    ? (fincraTotalDebitXof !== null ? fmtXof(fincraTotalDebitXof) : fmtFincra(numAmount))
+                    : fmtXof(total)}
+                </Text>
               </View>
-            )}
+            </View>
 
             {/* Checkbox confirmation */}
-            <TouchableOpacity style={styles.checkRow} onPress={() => setConfirmed((v) => !v)}>
+            <TouchableOpacity style={styles.checkRow} onPress={() => setConfirmed((v) => !v)} activeOpacity={0.7}>
               <View style={[styles.checkbox, confirmed && styles.checkboxChecked]}>
-                {confirmed && <FontAwesome6 name="check" size={10} color={Colors.white} />}
+                {confirmed && <FontAwesome6 name="check" size={11} color={Colors.white} />}
               </View>
-              <Text style={styles.checkLabel}>{t('transferModal.checkConfirm')}</Text>
+              <Text style={[styles.checkLabel, confirmed && styles.checkLabelChecked]}>
+                {t('transferModal.checkConfirm')}
+              </Text>
             </TouchableOpacity>
 
             <View style={styles.confirmBtns}>
@@ -1387,7 +1424,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 style={[styles.confirmBtn, !confirmed && styles.confirmBtnDisabled]}
                 onPress={confirmed ? handleTransfer : undefined}
               >
-                <FontAwesome6 name="paper-plane" size={14} color={Colors.white} style={{ marginRight: 6 }} />
+                <FontAwesome6 name="paper-plane" size={13} color={Colors.white} style={{ marginRight: 6 }} />
                 <Text style={styles.confirmBtnText}>{t('transferModal.confirm')}</Text>
               </TouchableOpacity>
             </View>
@@ -1408,37 +1445,24 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               containerStyle={{ alignSelf: 'stretch' }}
             />
             <Text style={styles.saveOpLabel}>{t('transferModal.operatorRequired')}</Text>
-            {isDesktop ? (
-              <View style={styles.saveOpGrid}>
-                {displayOperators.map((op) => (
+            <ScrollView style={styles.saveOpList} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+              {displayOperators.map((op) => {
+                const sel = savePhoneOperator === op.id;
+                return (
                   <TouchableOpacity
                     key={op.id}
-                    style={[styles.saveOpChip, savePhoneOperator === op.id && styles.saveOpChipSelected]}
+                    style={[styles.saveOpRow, sel && styles.saveOpRowSelected]}
                     onPress={() => setSavePhoneOperator(op.id)}
                   >
-                    <Image source={op.logo} style={styles.saveOpLogo} resizeMode="contain" />
-                    <Text style={[styles.saveOpChipText, savePhoneOperator === op.id && styles.saveOpChipTextSelected]} numberOfLines={2}>
-                      {op.flag} {op.name}
+                    <OperatorLogo op={op as any} size={26} />
+                    <Text style={[styles.saveOpRowText, sel && styles.saveOpRowTextSelected]} numberOfLines={1}>
+                      {op.flag ? `${op.flag} ` : ''}{op.name}
                     </Text>
+                    {sel && <FontAwesome6 name="circle-check" size={16} color={Colors.primary} />}
                   </TouchableOpacity>
-                ))}
-              </View>
-            ) : (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.saveOpScroll} contentContainerStyle={styles.saveOpScrollContent}>
-                {displayOperators.map((op) => (
-                  <TouchableOpacity
-                    key={op.id}
-                    style={[styles.saveOpChip, savePhoneOperator === op.id && styles.saveOpChipSelected]}
-                    onPress={() => setSavePhoneOperator(op.id)}
-                  >
-                    <Image source={op.logo} style={styles.saveOpLogo} resizeMode="contain" />
-                    <Text style={[styles.saveOpChipText, savePhoneOperator === op.id && styles.saveOpChipTextSelected]} numberOfLines={2}>
-                      {op.flag} {op.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            )}
+                );
+              })}
+            </ScrollView>
             <View style={styles.confirmBtns}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setSavePhoneModalVisible(false)}>
                 <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
@@ -1838,7 +1862,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   // Modal confirmation
   confirmOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(15,23,42,0.55)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.lg,
@@ -1846,119 +1870,177 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   confirmSheet: {
     backgroundColor: Colors.background,
     borderRadius: BorderRadius.xl,
-    padding: Spacing.xl,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
     width: '100%',
-    maxWidth: 480,
+    maxWidth: 460,
+    gap: Spacing.sm,
+  },
+  confirmHeader: {
     alignItems: 'center',
+    marginBottom: Spacing.xs,
   },
   confirmTitle: {
-    fontSize: FontSize.xl,
+    fontSize: FontSize.lg,
     fontFamily: Fonts.bold,
-    color: Colors.secondary,
-    marginBottom: Spacing.xs,
+    color: Colors.text,
     textAlign: 'center',
   },
   confirmSubtitle: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.xs,
     fontFamily: Fonts.regular,
     color: Colors.textMuted,
-    marginBottom: Spacing.lg,
     textAlign: 'center',
+    marginTop: 2,
   },
-  confirmAmountLabel: {
-    color: Colors.textMuted,
-    fontSize: FontSize.sm,
-    fontFamily: Fonts.semiBold,
-  },
-  confirmAmount: {
-    fontSize: 56,
-    fontFamily: Fonts.bold,
-    color: Colors.text,
-    lineHeight: 64,
-  },
-  confirmAmountCurrency: {
-    fontSize: FontSize.md,
-    fontFamily: Fonts.semiBold,
-    color: Colors.textMuted,
-    letterSpacing: 2,
-    marginBottom: Spacing.lg,
-  },
-  confirmPhoneLabel: {
-    color: Colors.textMuted,
-    fontSize: FontSize.sm,
-    fontFamily: Fonts.semiBold,
-  },
-  confirmPhone: {
-    fontSize: 32,
-    fontFamily: Fonts.bold,
-    color: Colors.secondary,
-    marginBottom: Spacing.md,
-  },
-  confirmBankName: {
-    fontSize: FontSize.lg,
-    fontFamily: Fonts.semiBold,
-    color: Colors.text,
-    marginBottom: Spacing.md,
-    textAlign: 'center',
-  },
-  confirmOpRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  confirmOpLogo: {
-    width: 32,
-    height: 32,
-    borderRadius: BorderRadius.sm,
-  },
-  confirmOpName: {
-    color: Colors.text,
-    fontSize: FontSize.md,
-    fontFamily: Fonts.semiBold,
-  },
-  confirmFeesBox: {
-    width: '100%',
+  // Card générique — un container par section (montant / destinataire / breakdown).
+  confirmCard: {
     backgroundColor: Colors.inputBg,
     borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
     gap: Spacing.xs,
-    marginBottom: Spacing.lg,
+    alignItems: 'center',
+  },
+  confirmCardLabel: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    textAlign: 'center',
+  },
+  confirmAmountRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  confirmAmount: {
+    fontSize: 36,
+    lineHeight: 40,
+    fontFamily: Fonts.bold,
+    color: Colors.text,
+  },
+  confirmAmountCurrency: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+    color: Colors.textMuted,
+    marginBottom: 4,
+  },
+  confirmPrimary: {
+    fontSize: FontSize.md,
+    fontFamily: Fonts.semiBold,
+    color: Colors.text,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  confirmSecondary: {
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.regular,
+    color: Colors.textMuted,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  confirmMethodChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'center',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: BorderRadius.pill,
+    backgroundColor: Colors.background,
+    marginTop: Spacing.xs,
+  },
+  confirmMethodLogo: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+  },
+  confirmMethodText: {
+    color: Colors.text,
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.semiBold,
+    flexShrink: 1,
+  },
+  confirmBreakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+    width: '100%',
+  },
+  confirmBreakdownLabel: {
+    color: Colors.textMuted,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.regular,
+    flexShrink: 1,
+  },
+  confirmBreakdownValue: {
+    color: Colors.text,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+  },
+  confirmBreakdownValueFee: {
+    color: Colors.warning ?? '#F59E0B',
+  },
+  confirmBreakdownDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.border,
+    marginVertical: 4,
+    width: '100%',
+  },
+  confirmBreakdownTotalLabel: {
+    color: Colors.text,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.bold,
+  },
+  confirmBreakdownTotalValue: {
+    color: Colors.secondary,
+    fontSize: FontSize.md,
+    fontFamily: Fonts.bold,
   },
   checkRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    marginBottom: Spacing.lg,
     width: '100%',
+    paddingVertical: Spacing.xs,
   },
   checkbox: {
     width: 20,
     height: 20,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: Colors.error,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: Colors.background,
   },
   checkboxChecked: {
-    backgroundColor: Colors.success,
-    borderColor: Colors.success,
+    backgroundColor: Colors.secondary,
+    borderColor: Colors.secondary,
   },
   checkLabel: {
     flex: 1,
-    color: Colors.error,
+    color: Colors.textMuted,
     fontSize: FontSize.xs,
+    fontFamily: Fonts.regular,
+  },
+  checkLabelChecked: {
+    color: Colors.text,
     fontFamily: Fonts.semiBold,
   },
   confirmBtns: {
     flexDirection: 'row',
-    gap: Spacing.md,
+    gap: Spacing.sm,
     width: '100%',
+    marginTop: Spacing.xs,
   },
   cancelBtn: {
     flex: 1,
-    paddingVertical: Spacing.md,
+    paddingVertical: 13,
     borderRadius: BorderRadius.pill,
     backgroundColor: Colors.inputBg,
     alignItems: 'center',
@@ -1966,11 +2048,11 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   cancelBtnText: {
     color: Colors.text,
     fontFamily: Fonts.semiBold,
-    fontSize: FontSize.md,
+    fontSize: FontSize.sm,
   },
   confirmBtn: {
     flex: 2,
-    paddingVertical: Spacing.md,
+    paddingVertical: 13,
     borderRadius: BorderRadius.pill,
     backgroundColor: Colors.secondary,
     alignItems: 'center',
@@ -1983,7 +2065,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   confirmBtnText: {
     color: Colors.white,
     fontFamily: Fonts.bold,
-    fontSize: FontSize.md,
+    fontSize: FontSize.sm,
   },
   // Sélecteur opérateur dans le modal de sauvegarde
   saveOpLabel: {
@@ -2000,6 +2082,36 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   saveOpScrollContent: {
     paddingHorizontal: Spacing.lg,
     gap: Spacing.xs,
+  },
+  // Liste opérateurs (modal sauvegarde) — rangées logo + drapeau + nom.
+  saveOpList: {
+    maxHeight: 240,
+    marginBottom: Spacing.sm,
+  },
+  saveOpRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    backgroundColor: Colors.inputBg,
+    marginBottom: Spacing.xs,
+  },
+  saveOpRowSelected: {
+    borderColor: Colors.secondary,
+    backgroundColor: Colors.secondary + '12',
+  },
+  saveOpRowText: {
+    flex: 1,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+    color: Colors.text,
+  },
+  saveOpRowTextSelected: {
+    color: Colors.secondary,
   },
   saveOpGrid: {
     flexDirection: 'row',
