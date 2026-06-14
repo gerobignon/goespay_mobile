@@ -682,6 +682,9 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
 
         const result = await walletService.fincraPayout({
           amount: numAmount,
+          // XOF saisi par l'utilisateur = base du débit wallet (le backend débite
+          // amount_xof + frais, sans round-trip via le taux → débit = devis montré).
+          amount_xof: fincraDebitXof ?? numAmountXof,
           currency: fincraCurrency,
           rail: fincraRail as FincraRail,
           phone: phoneForFincra,

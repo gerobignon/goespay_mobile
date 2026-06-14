@@ -43,6 +43,7 @@ export interface Transaction {
   currency_src?: string;
   dollar?: number;
   currency_dest?: string;
+  fee_xof?: number;
   address?: string;
   cp_id?: string;
   cp_hash?: string;

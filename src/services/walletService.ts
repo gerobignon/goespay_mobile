@@ -25,7 +25,8 @@ export interface FincraBeneficiary {
 }
 
 export interface FincraPayoutRequest {
-  amount: number;
+  amount: number;        // montant LIVRÉ au bénéficiaire (devise Fincra : NGN/GHS/…)
+  amount_xof: number;    // montant XOF saisi par l'utilisateur (base du débit wallet)
   currency: string;
   rail: FincraRail;
   sourceCurrency?: string;

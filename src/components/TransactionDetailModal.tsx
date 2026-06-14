@@ -53,7 +53,12 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
   // Résout le moyen (tx.mode) en { nom, drapeau, op } pour un affichage conforme
   // à la liste dépôt/retrait (logo + drapeau du pays). Fallback propre pour les
   // codes Fincra basés sur le rail (fincra-bank_transfer → « Virement bancaire »).
-  const resolveOperatorView = (mode?: string | null) => {
+  // Devise destinataire Fincra → drapeau du pays bénéficiaire (le « pays »).
+  const FINCRA_CUR_FLAG: Record<string, string> = {
+    NGN: '🇳🇬', GHS: '🇬🇭', KES: '🇰🇪', UGX: '🇺🇬', ZMW: '🇿🇲', TZS: '🇹🇿',
+    ZAR: '🇿🇦', EGP: '🇪🇬', USD: '🇺🇸', EUR: '🇪🇺', GBP: '🇬🇧',
+  };
+  const resolveOperatorView = (mode?: string | null, currencyDest?: string | null) => {
     if (!mode) return null;
     const found =
       catalogOps.find((o) => o.id === mode) ||
@@ -66,7 +71,8 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
       const name = rail === 'bank_transfer' ? t('transaction.railBank')
                  : rail === 'checkout'      ? t('transaction.railCard')
                  :                            t('transaction.railMobileMoney');
-      return { name, flag: '', op: { fincra: true, rail } as any };
+      const flag = currencyDest ? (FINCRA_CUR_FLAG[currencyDest.toUpperCase()] || '') : '';
+      return { name, flag, op: { fincra: true, rail } as any };
     }
     return { name: mode, flag: '', op: null as any };
   };
@@ -87,8 +93,8 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
     </View>
   );
 
-  const OperatorValue = ({ mode }: { mode?: string | null }) => {
-    const info = resolveOperatorView(mode);
+  const OperatorValue = ({ mode, currencyDest }: { mode?: string | null; currencyDest?: string | null }) => {
+    const info = resolveOperatorView(mode, currencyDest);
     if (!info) return <Text style={styles.opName}>—</Text>;
     return (
       <View style={styles.opValue}>
@@ -385,17 +391,33 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
               statusIcon={getStatusIcon(normalizeStatut(tx.statut))}
               statusLabel={status.label}
               sign="-"
-              amount={fmtXof(tx.amount_sent ?? tx.amount, { withCode: false })}
+              amount={fmtXof(tx.amount, { withCode: false })}
               amountColor={Colors.error}
             />
             <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
             <TransactionDetailRow label={t('transaction.type')} value={t('transaction.withdraw')} badge badgeColor={Colors.error} badgeIcon="arrow-up" />
             <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={getStatusIcon(normalizeStatut(tx.statut))} />
-            <TransactionDetailRow label={t('transaction.total')} value={fmtXof(tx.amount)} mono />
-            {tx.amount_sent != null && tx.amount_sent !== tx.amount && (
-              <TransactionDetailRow label={t('transaction.fees')} value={fmtXof(tx.amount - tx.amount_sent)} mono color={Colors.error} />
-            )}
-            <TransactionDetailRow label={t('transaction.operator')} value={tx.mode ?? '—'} valueNode={<OperatorValue mode={tx.mode} />} />
+            {/* Retrait Fincra (currency_dest ≠ XOF) : montant livré dans sa devise. */}
+            {(() => {
+              const isFincraTx = !!tx.currency_dest && tx.currency_dest !== 'XOF';
+              const fmtDest = (n: number) => `${n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${tx.currency_dest}`;
+              // Frais en XOF : explicite (fee_xof) ; fallback classique XOF→XOF.
+              const feeXof = tx.fee_xof != null
+                ? tx.fee_xof
+                : (!isFincraTx && tx.amount_sent != null && tx.amount_sent !== tx.amount ? tx.amount - tx.amount_sent : null);
+              return (
+                <>
+                  {isFincraTx && tx.amount_sent != null && (
+                    <TransactionDetailRow label={t('transferModal.fincraReceives')} value={fmtDest(tx.amount_sent)} mono />
+                  )}
+                  <TransactionDetailRow label={t('transaction.total')} value={fmtXof(tx.amount)} mono />
+                  {feeXof != null && feeXof !== 0 && (
+                    <TransactionDetailRow label={t('transaction.fees')} value={fmtXof(feeXof)} mono color={Colors.error} />
+                  )}
+                </>
+              );
+            })()}
+            <TransactionDetailRow label={t('transaction.operator')} value={tx.mode ?? '—'} valueNode={<OperatorValue mode={tx.mode} currencyDest={tx.currency_dest} />} />
             <TransactionDetailRow label={t('transaction.receiver')} value={tx.phone ?? '—'} copyable mono />
             <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />
             <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '—'} mono />
