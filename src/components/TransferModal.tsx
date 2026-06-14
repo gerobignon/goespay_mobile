@@ -163,6 +163,14 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     const zoneTag = cur === 'XOF' ? 'UEMOA · XOF' : cur === 'XAF' ? 'CEMAC · XAF' : cur;
     return (op.name as string).includes(cur) ? op.name : `${op.name} (${zoneTag})`;
   };
+  // Nom affiché : suffixe la devise (USD, GBP…) sur les rails Fincra virement/carte
+  // (libellés génériques) pour les distinguer dans la liste.
+  const opName = (op: any): string => {
+    const bankCard = !!op?.fincra && ['bank_transfer', 'SWIFT', 'SEPA', 'checkout'].includes(op?.rail);
+    return (bankCard && op.currency && !String(op.name).includes(op.currency))
+      ? `${op.name} (${op.currency})`
+      : (op?.name ?? '');
+  };
 
   const operatorsForStep = othersOpen
     ? otherOps
@@ -965,7 +973,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       ]}
                       numberOfLines={1}
                     >
-                      {op.name}
+                      {opName(op)}
                     </Text>
                     <GatewayBadge op={op} visible={isAdmin} size={14} />
                   </TouchableOpacity>
@@ -987,7 +995,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       style={[styles.operatorRowName, operator === op.id && styles.operatorRowNameSelected]}
                       numberOfLines={1}
                     >
-                      {op.name}
+                      {opName(op)}
                     </Text>
                     <GatewayBadge op={op} visible={isAdmin} size={16} />
                     {operator === op.id && (

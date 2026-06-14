@@ -334,6 +334,15 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
     // On n'ajoute la devise dans le nom que si pas déjà présente.
     return (op.name as string).includes(cur) ? op.name : `${op.name} (${zoneTag})`;
   };
+  // Nom affiché : pour les rails Fincra carte/virement (libellés génériques
+  // « Carte bancaire » / « Virement bancaire »), suffixe la devise (USD, GBP…)
+  // pour les distinguer dans la liste.
+  const opName = (op: any): string => {
+    const bankCard = !!op?.fincra && (isCardOp(op) || ['bank_transfer', 'SWIFT', 'SEPA', 'checkout'].includes(op?.rail));
+    return (bankCard && op.currency && !String(op.name).includes(op.currency))
+      ? `${op.name} (${op.currency})`
+      : (op?.name ?? '');
+  };
   // Contexte dépôt : ne garder que les rails « International » réellement
   // activés en PAYIN (routing admin). Sans ça, les virements SWIFT/SEPA
   // (payout-only) et les corridors désactivés s'affichaient en Recharger.
@@ -910,7 +919,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                       ]}
                       numberOfLines={1}
                     >
-                      {othersOpen ? operatorOthersLabel(op) : op.name}
+                      {othersOpen ? operatorOthersLabel(op) : opName(op)}
                     </Text>
                     <GatewayBadge op={op} visible={isAdmin} size={14} />
                   </TouchableOpacity>
@@ -973,7 +982,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                       ]}
                       numberOfLines={1}
                     >
-                      {othersOpen ? operatorOthersLabel(op) : op.name}
+                      {othersOpen ? operatorOthersLabel(op) : opName(op)}
                     </Text>
                     <GatewayBadge op={op} visible={isAdmin} size={16} />
                     {operator === op.id && (
