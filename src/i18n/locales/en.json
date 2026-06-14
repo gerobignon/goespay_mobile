@@ -503,6 +503,7 @@
     "changeCountry": "Change",
     "fees": "Fees",
     "totalDebited": "Total debited",
+    "feeUnavailable": "Fees unavailable for this destination. Please retry or pick another method.",
     "fincraDebit": "Debited from your balance",
     "fincraReceives": "Recipient receives",
     "rateLoading": "Calculating rate…",

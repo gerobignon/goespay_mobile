@@ -503,6 +503,7 @@
     "changeCountry": "Changer",
     "fees": "Frais",
     "totalDebited": "Total débité",
+    "feeUnavailable": "Frais indisponibles pour cette destination. Réessayez ou choisissez un autre moyen.",
     "fincraDebit": "Débité de votre solde",
     "fincraReceives": "Le bénéficiaire reçoit",
     "rateLoading": "Calcul du taux…",

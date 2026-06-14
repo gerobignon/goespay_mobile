@@ -118,7 +118,6 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const user = useAuthStore((s) => s.user);
   const countryFees = useConfigStore((s) => s.country_fees);
   const outgoingFees = useConfigStore((s) => s.outgoing_fees);
-  const transferFeeDefault = useConfigStore((s) => s.transfer_fee_default);
   const transferMin = useConfigStore((s) => s.transfer_min);
   const transferMinWorld = useConfigStore((s) => s.transfer_min_world);
   const transferMinNg = useConfigStore((s) => s.transfer_min_ng);
@@ -224,21 +223,23 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // (= corridor.country_code côté backend). On affiche le frais résolu par le
   // backend (outgoing_fees, indexé par destination) → identique à l'exécution.
   const destCountry = (fincraMmCountry || fincraZoneCountry || (selectedOp as any)?.country || '').toUpperCase();
-  const feeConfig = (destCountry && outgoingFees[destCountry])
-    || (userCountry && countryFees[userCountry])
-    || transferFeeDefault;
+  // AUCUN fallback : on prend UNIQUEMENT le frais résolu par le backend pour cette
+  // destination (outgoing_fees, calculé via PricingResolver). Si la clé manque, on
+  // ne devine pas (ce serait un frais ≠ de celui débité) → on bloque l'envoi.
+  const feeConfig = (destCountry && outgoingFees[destCountry]) || null;
   // Frais GoesPay appliqués AUSSI aux retraits Fincra (débités en XOF, comme les
   // retraits classiques). Base = valeur XOF envoyée.
   // Pas d'arrondi : le backend calcule fixed + montant×percent/100 sans arrondir
   // (PricingResolver::feeAmount). Arrondir ici ferait diverger l'annoncé du débité.
   const fees = useMemo(
-    () => feeConfig.fixed + numAmountXof * feeConfig.percent / 100,
-    [numAmountXof, feeConfig.fixed, feeConfig.percent]
+    () => feeConfig ? feeConfig.fixed + numAmountXof * feeConfig.percent / 100 : 0,
+    [numAmountXof, feeConfig]
   );
   const total = numAmountXof + fees;
-  const feeLabel = feeConfig.fixed > 0
-    ? `${fmtXof(feeConfig.fixed, { approx: false })} + ${feeConfig.percent}%`
-    : `${feeConfig.percent}%`;
+  const feeLabel = !feeConfig ? ''
+    : feeConfig.fixed > 0
+      ? `${fmtXof(feeConfig.fixed, { approx: false })} + ${feeConfig.percent}%`
+      : `${feeConfig.percent}%`;
 
   const fmt = (n: number) => n.toLocaleString('fr-FR').replace(/\s/g, '.');
   const fmtFincra = (n: number) =>
@@ -283,7 +284,10 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const classicRateBlocking =
     !isFincraOp && userCurrency !== 'XOF' && !((currencyRates[userCurrency] ?? 0) > 0);
 
-  const showFees = numAmountXof > 0 && operator;
+  // Frais indisponibles : un moyen est choisi + un montant saisi mais le backend
+  // n'a pas fourni de frais pour cette destination → on bloque (pas de devinette).
+  const feeUnavailable = !!operator && numAmountXof > 0 && !feeConfig;
+  const showFees = numAmountXof > 0 && operator && !!feeConfig;
   // Débit total XOF d'un retrait Fincra = coût Fincra (XOF) + frais GoesPay.
   const fincraTotalDebitXof = fincraDebitXof !== null ? fincraDebitXof + fees : null;
 
@@ -619,6 +623,10 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     }
     if (classicRateBlocking) {
       showAlert(t('common.error'), t('common.rateUnavailable'));
+      return;
+    }
+    if (feeUnavailable) {
+      showAlert(t('common.error'), t('transferModal.feeUnavailable'));
       return;
     }
     // Fincra : le solde est en XOF, on compare au montant XOF saisi (débité).
@@ -1061,6 +1069,12 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               </View>
             )}
 
+            {feeUnavailable && (
+              <View style={{ marginTop: -Spacing.xs, marginBottom: Spacing.sm }}>
+                <Text style={[styles.phoneHint, { color: Colors.error }]}>{t('transferModal.feeUnavailable')}</Text>
+              </View>
+            )}
+
             {/* Frais en live (jamais affichés pour Fincra : pas de frais côté GoesPay) */}
             {showFees ? (
               <View style={styles.feesBox}>
@@ -1311,7 +1325,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               loading={loading}
               disabled={
                 !amount || !operator
-                || fincraRateBlocking || classicRateBlocking
+                || fincraRateBlocking || classicRateBlocking || feeUnavailable
                 || (isFincraOp
                     ? !fincraRail
                       || (fincraRail === 'mobile_money' && !phone)
