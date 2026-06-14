@@ -70,9 +70,21 @@ export function TransactionDetailRow({
       );
     }
     if (mono) {
+      // Valeurs longues (référence, adresse, hash) : police bien plus petite +
+      // retour à la ligne (sinon la chaîne sans espace déborde de la ligne).
+      const isLong = value.length > 22;
       return (
-        <View style={styles.monoContainer}>
-          <Text style={[styles.monoText, color ? { color } : undefined]}>{value}</Text>
+        <View style={[styles.monoContainer, isLong && styles.monoContainerLong]}>
+          <Text
+            style={[
+              styles.monoText,
+              isLong && styles.monoTextLong,
+              isLong && ({ wordBreak: 'break-all' } as any),
+              color ? { color } : undefined,
+            ]}
+          >
+            {value}
+          </Text>
         </View>
       );
     }
@@ -118,6 +130,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   rowLabel: {
     color: Colors.textMuted,
     fontSize: FontSize.sm,
+    fontFamily: Fonts.medium,
     flex: 1,
     paddingRight: Spacing.sm,
   },
@@ -154,6 +167,15 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.text,
     fontSize: FontSize.xs,
     fontFamily: Fonts.semiBold,
+    textAlign: 'right',
+  },
+  // Valeurs longues : police réduite + autorise le retour à la ligne.
+  monoContainerLong: {
+    maxWidth: 220,
+  },
+  monoTextLong: {
+    fontSize: 9,
+    lineHeight: 13,
     textAlign: 'right',
   },
   valueCol: {
