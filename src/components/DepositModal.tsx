@@ -334,7 +334,12 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
     // On n'ajoute la devise dans le nom que si pas déjà présente.
     return (op.name as string).includes(cur) ? op.name : `${op.name} (${zoneTag})`;
   };
-  const otherOps = operatorsBase.filter(isOtherOp);
+  // Contexte dépôt : ne garder que les rails « International » réellement
+  // activés en PAYIN (routing admin). Sans ça, les virements SWIFT/SEPA
+  // (payout-only) et les corridors désactivés s'affichaient en Recharger.
+  const otherOps = operatorsBase.filter(isOtherOp).filter(
+    (op) => isAdmin || isCodeEnabled(op.id, 'payin')
+  );
 
   const baseForStep = useCountryStep
     ? (selectedCountry ? displayOperators.filter((op) => operatorServesCountry(op as any, selectedCountry)) : [])
