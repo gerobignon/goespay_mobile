@@ -133,6 +133,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // Corridors server-driven (aggregator_routing) : masquage temps réel + badge.
   const corridorsLoaded = useCorridorStore((s) => s.isLoaded);
   const isCodeEnabled = useCorridorStore((s) => s.isCodeEnabled);
+  const isCodeIntlEnabled = useCorridorStore((s) => s.isCodeIntlEnabled);
   const isPayoutAvailable = useCorridorStore((s) => s.isPayoutAvailable);
 
   // Référentiel serveur (P3) : opérateurs depuis /catalog (admin Marchés), fallback config.ts.
@@ -154,8 +155,10 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // Opérateurs MM Fincra par pays (fincraOperator présent) → affichés par pays
   // comme le softpay, pas sous « Autres ».
   const isZoneFincra = (op: any) => !!op.fincra && ZONE_CURRENCIES.includes(op.currency) && !op.fincraOperator;
+  // Groupe « International » : gaté par l'audience International (intl_payout),
+  // indépendante des toggles pays (fiche Marchés → card « International »).
   const otherOps = displayOperators.filter(
-    (op) => isZoneFincra(op) && (isAdmin || isCodeEnabled(op.id, 'payout'))
+    (op) => isZoneFincra(op) && (isAdmin || isCodeIntlEnabled(op.id, 'payout'))
   );
   const operatorOthersLabel = (op: any): string => {
     if (!op?.fincra) return op?.name ?? '';

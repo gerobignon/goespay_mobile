@@ -269,6 +269,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // Corridors server-driven (aggregator_routing) : masquage payin temps réel.
   const corridorsLoaded = useCorridorStore((s) => s.isLoaded);
   const isCodeEnabled = useCorridorStore((s) => s.isCodeEnabled);
+  const isCodeIntlEnabled = useCorridorStore((s) => s.isCodeIntlEnabled);
   // Référentiel serveur (P3) : opérateurs construits depuis /catalog (admin Marchés).
   // Fallback sur la liste statique config.ts tant que le catalogue n'est pas chargé.
   const catalogOperators = useCatalogStore((s) => s.operators);
@@ -343,11 +344,11 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
       ? `${op.name} (${op.currency})`
       : (op?.name ?? '');
   };
-  // Contexte dépôt : ne garder que les rails « International » réellement
-  // activés en PAYIN (routing admin). Sans ça, les virements SWIFT/SEPA
-  // (payout-only) et les corridors désactivés s'affichaient en Recharger.
+  // Groupe « International » : gaté par l'audience International (intl_payin),
+  // indépendante des toggles pays. Un rail n'y apparaît que si l'admin l'a activé
+  // pour l'International (fiche Marchés → card « International »).
   const otherOps = operatorsBase.filter(isOtherOp).filter(
-    (op) => isAdmin || isCodeEnabled(op.id, 'payin')
+    (op) => isAdmin || isCodeIntlEnabled(op.id, 'payin')
   );
 
   const baseForStep = useCountryStep

@@ -27,6 +27,8 @@ interface CorridorState {
   // ── Helpers corridors ──
   isPayoutAvailable: (country: string) => boolean;
   isCodeEnabled: (code: string, dir: 'payin' | 'payout') => boolean;
+  // Audience « International » (pays non listés) : toggles intl_* indépendants.
+  isCodeIntlEnabled: (code: string, dir: 'payin' | 'payout') => boolean;
   hasEnabledAggregator: (country: string, network: string, dir: 'payin' | 'payout', aggregator: string) => boolean;
 
   // ── Helpers référentiel ──
@@ -73,6 +75,16 @@ export const useCorridorStore = create<CorridorState>((set, get) => ({
     const row = get().corridors.find((x) => x.code === code);
     if (!row) return true; // moyen non listé côté serveur : fallback statique
     return dir === 'payout' ? row.payout : row.payin;
+  },
+
+  // Audience « International » : un moyen n'est proposé aux pays non listés que si
+  // son flag intl_* est ON (indépendant du toggle pays). Code non listé côté
+  // serveur → false (pas de fuite : l'International est opt-in explicite).
+  isCodeIntlEnabled: (code, dir) => {
+    if (!get().isLoaded) return false;
+    const row = get().corridors.find((x) => x.code === code);
+    if (!row) return false;
+    return dir === 'payout' ? !!row.intl_payout : !!row.intl_payin;
   },
 
   hasEnabledAggregator: (country, network, dir, aggregator) => {

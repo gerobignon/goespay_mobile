@@ -13,6 +13,9 @@ export interface Corridor {
   currency: string | null;
   payin: boolean;
   payout: boolean;
+  // Audience « International » (users de pays non listés) — toggles indépendants.
+  intl_payin?: boolean;
+  intl_payout?: boolean;
   audience: 'all' | 'vip';
 }
 
