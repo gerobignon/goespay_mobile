@@ -229,8 +229,10 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     || transferFeeDefault;
   // Frais GoesPay appliqués AUSSI aux retraits Fincra (débités en XOF, comme les
   // retraits classiques). Base = valeur XOF envoyée.
+  // Pas d'arrondi : le backend calcule fixed + montant×percent/100 sans arrondir
+  // (PricingResolver::feeAmount). Arrondir ici ferait diverger l'annoncé du débité.
   const fees = useMemo(
-    () => Math.round(feeConfig.fixed + numAmountXof * feeConfig.percent / 100),
+    () => feeConfig.fixed + numAmountXof * feeConfig.percent / 100,
     [numAmountXof, feeConfig.fixed, feeConfig.percent]
   );
   const total = numAmountXof + fees;
