@@ -307,7 +307,13 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
         // passent par le filtre normal (operatorServesCountry + isCodeEnabled).
         ...(showCard ? operatorsBase.filter((op) => op.id === 'card') : []),
       ];
-  const displayOperators = filteredOperators.length > 0 ? filteredOperators : operatorsBase;
+  // Fallback « anti-écran-vide » UNIQUEMENT tant que les corridors ne sont pas
+  // chargés. Une fois chargés, un filtre vide (pays non listé / aucun payin actif)
+  // ne doit PAS déverser toute la liste : on laisse l'audience International
+  // (clientFlattenOthers) prendre le relais, sinon état vide propre.
+  const displayOperators = filteredOperators.length > 0
+    ? filteredOperators
+    : (corridorsLoaded ? [] : operatorsBase);
 
   // Étape pays uniquement en mode admin (les utilisateurs réguliers ont déjà une liste filtrée par pays).
   const useCountryStep = isAdmin;
