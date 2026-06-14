@@ -17,6 +17,17 @@ const FINCRA_RAIL_LABEL: Record<string, string> = {
   card: 'Carte bancaire',
 };
 
+// Logo par rail Fincra — MÊMES visuels que les modals dépôt/retrait (LOGO_BY_KEY :
+// pay_bank / pay_momo / pay_card) → cohérence garantie.
+const FINCRA_RAIL_LOGO: Record<string, any> = {
+  bank_transfer: require('../../assets/operators/pay_bank.png'),
+  bank: require('../../assets/operators/pay_bank.png'),
+  mobile_money: require('../../assets/operators/pay_momo.png'),
+  mm: require('../../assets/operators/pay_momo.png'),
+  checkout: require('../../assets/operators/pay_card.jpg'),
+  card: require('../../assets/operators/pay_card.jpg'),
+};
+
 export interface OperatorDisplay {
   name: string;
   flag: string;
@@ -44,7 +55,9 @@ export function resolveOperatorDisplay(
     const rail = m[1].toLowerCase();
     const name = FINCRA_RAIL_LABEL[rail] || 'Fincra';
     const flag = currencyDest ? (FINCRA_CUR_FLAG[currencyDest.toUpperCase()] || '') : '';
-    return { name, flag, op: { fincra: true, rail: rail === 'mm' ? 'mobile_money' : rail } };
+    const normRail = rail === 'mm' ? 'mobile_money' : rail;
+    // logo = même visuel que dépôt/retrait → OperatorLogo affiche l'image (pas l'icône).
+    return { name, flag, op: { fincra: true, rail: normRail, logo: FINCRA_RAIL_LOGO[rail] } };
   }
   return { name: mode, flag: '', op: null };
 }

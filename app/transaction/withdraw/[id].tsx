@@ -263,7 +263,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     gap: Spacing.xs,
   },
   opName: {
-    fontSize: FontSize.md,
+    fontSize: FontSize.sm,
     fontFamily: Fonts.semiBold,
     color: Colors.text,
   },
