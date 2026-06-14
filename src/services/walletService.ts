@@ -47,6 +47,22 @@ export interface FincraPayoutResponse {
   fincra_balance: number;
 }
 
+export interface SavedBank {
+  id: number;
+  name?: string | null;
+  account_holder?: string | null;
+  account_number?: string | null;
+  bank_code?: string | null;
+  bank_name?: string | null;
+  currency?: string | null;
+  country?: string | null;
+  swift_code?: string | null;
+  iban?: string | null;
+  rail?: string | null; // bank_transfer | SWIFT | SEPA
+  created_at?: string;
+  updated_at?: string;
+}
+
 export const walletService = {
   getBalance: async (): Promise<{ balance: number; balance_fincra?: number }> => {
     const response = await api.get('/wallet/balance');
@@ -196,6 +212,27 @@ export const walletService = {
 
   deleteSavedPhone: async (id: number): Promise<any> => {
     const response = await api.delete(`/user/phones/${id}`);
+    return response.data;
+  },
+
+  // Bénéficiaires bancaires enregistrés (virement Fincra).
+  getSavedBanks: async (): Promise<SavedBank[]> => {
+    const response = await api.get('/user/bank-accounts');
+    return response.data?.data ?? response.data ?? [];
+  },
+
+  createSavedBank: async (data: Partial<SavedBank>): Promise<SavedBank> => {
+    const response = await api.post('/user/bank-accounts', data);
+    return response.data?.data ?? response.data;
+  },
+
+  updateSavedBank: async (id: number, data: Partial<SavedBank>): Promise<SavedBank> => {
+    const response = await api.put(`/user/bank-accounts/${id}`, data);
+    return response.data?.data ?? response.data;
+  },
+
+  deleteSavedBank: async (id: number): Promise<any> => {
+    const response = await api.delete(`/user/bank-accounts/${id}`);
     return response.data;
   },
 

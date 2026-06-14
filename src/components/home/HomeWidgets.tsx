@@ -24,9 +24,10 @@ import { useWalletStore } from '../../stores/walletStore';
 import { fetchFincraRate } from '../../stores/fincraRateStore';
 import { showAlert } from '../../stores/alertStore';
 import { useFormatXof } from '../../utils/format';
-import { walletService } from '../../services/walletService';
+import { walletService, type SavedBank } from '../../services/walletService';
 import { affiliationService } from '../../services/affiliationService';
 import * as Clipboard from 'expo-clipboard';
+import { Bounce } from '../anim';
 
 // ═══════════════════════════════════════════════════════════════════
 //  G — Carrousel promo : images 4:3, autoplay, tap → lien.
@@ -101,10 +102,10 @@ export function PromoCarousel({ slides }: { slides: PromoSlide[] }) {
           // Lien vide (ni href ni onPress) → slide non cliquable (pas de feedback tactile).
           const tappable = !!(s.onPress || s.href);
           return (
-            <TouchableOpacity
+            <Bounce
               key={s.id}
-              activeOpacity={tappable ? 0.92 : 1}
               disabled={!tappable}
+              scaleTo={0.97}
               onPress={() => handleTap(s)}
               style={{
                 width: slideWidth,
@@ -113,7 +114,7 @@ export function PromoCarousel({ slides }: { slides: PromoSlide[] }) {
               }}
             >
               <Image source={s.image} style={styles.promoImage} resizeMode="cover" />
-            </TouchableOpacity>
+            </Bounce>
           );
         })}
       </ScrollView>
@@ -187,14 +188,18 @@ export function MonthlyInsights() {
 // ═══════════════════════════════════════════════════════════════════
 const PALETTE = ['#3176FE', '#F4900C', '#10B981', '#A855F7', '#EC4899', '#0EA5E9'];
 
-export function RecentBeneficiaries({ onPick, onAdd }: { onPick: (tel: string) => void; onAdd: () => void }) {
+export function RecentBeneficiaries({ onPick, onPickBank, onAdd }: { onPick: (tel: string) => void; onPickBank: (bank: SavedBank) => void; onAdd: () => void }) {
   const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
   const [phones, setPhones] = useState<{ id: number; tel: string; name?: string }[]>([]);
+  const [banks, setBanks] = useState<SavedBank[]>([]);
 
   React.useEffect(() => {
     walletService.getSavedPhones({ type: 'transfer' })
       .then((list) => setPhones(list.slice(0, 8)))
+      .catch(() => {});
+    walletService.getSavedBanks()
+      .then((list) => setBanks(list.slice(0, 8)))
       .catch(() => {});
   }, []);
 
@@ -202,22 +207,33 @@ export function RecentBeneficiaries({ onPick, onAdd }: { onPick: (tel: string) =
     <View style={{ marginTop: Spacing.lg }}>
       <Text style={styles.sectionTitle}>{t('home.benefTitle')}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.benefList}>
-        <TouchableOpacity style={styles.benefTile} onPress={onAdd} activeOpacity={0.7}>
+        <Bounce style={styles.benefTile} onPress={onAdd}>
           <View style={styles.benefAvatarAdd}>
             <FontAwesome6 name="plus" size={16} color={Colors.secondary} />
           </View>
           <Text style={styles.benefName} numberOfLines={1}>{t('home.benefAdd')}</Text>
-        </TouchableOpacity>
+        </Bounce>
         {phones.map((p, idx) => {
           const tint = PALETTE[idx % PALETTE.length];
           const initials = (p.name || p.tel).replace(/\s+/g, '').slice(0, 2).toUpperCase();
           return (
-            <TouchableOpacity key={p.id} style={styles.benefTile} onPress={() => onPick(p.tel)} activeOpacity={0.7}>
+            <Bounce key={`p${p.id}`} style={styles.benefTile} onPress={() => onPick(p.tel)}>
               <View style={[styles.benefAvatar, { backgroundColor: tint }]}>
                 <Text style={styles.benefInitials}>{initials}</Text>
               </View>
               <Text style={styles.benefName} numberOfLines={1}>{p.name || p.tel}</Text>
-            </TouchableOpacity>
+            </Bounce>
+          );
+        })}
+        {banks.map((b) => {
+          const label = b.name || b.account_holder || b.bank_name || '—';
+          return (
+            <Bounce key={`b${b.id}`} style={styles.benefTile} onPress={() => onPickBank(b)}>
+              <View style={[styles.benefAvatar, { backgroundColor: '#475569' }]}>
+                <FontAwesome6 name="building-columns" size={15} color="#fff" iconStyle="solid" />
+              </View>
+              <Text style={styles.benefName} numberOfLines={1}>{label}</Text>
+            </Bounce>
           );
         })}
       </ScrollView>
@@ -257,7 +273,7 @@ export function QuickConverter() {
   return (
     <>
       {/* Trigger compact (sur la home) */}
-      <TouchableOpacity style={styles.convTrigger} onPress={() => setOpen(true)} activeOpacity={0.85}>
+      <Bounce style={styles.convTrigger} scaleTo={0.98} onPress={() => setOpen(true)}>
         <View style={styles.convTriggerIcon}>
           <FontAwesome6 name="right-left" size={14} color={Colors.secondary} />
         </View>
@@ -266,7 +282,7 @@ export function QuickConverter() {
           <Text style={styles.convTriggerSub}>{t('home.convertSub')}</Text>
         </View>
         <FontAwesome6 name="chevron-right" size={12} color={Colors.textMuted} />
-      </TouchableOpacity>
+      </Bounce>
 
       {/* Modal centré */}
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
@@ -395,10 +411,10 @@ export function ReferralCard() {
           <FontAwesome6 name="copy" size={11} color={Colors.white} />
           <Text style={styles.refCodeText}>{code}</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={share} style={styles.refShare} activeOpacity={0.85}>
+        <Bounce onPress={share} style={styles.refShare}>
           <FontAwesome6 name="share-nodes" size={13} color={Colors.secondary} />
           <Text style={styles.refShareText}>{t('home.referralShare')}</Text>
-        </TouchableOpacity>
+        </Bounce>
       </View>
     </LinearGradient>
   );

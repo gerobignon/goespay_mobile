@@ -19,7 +19,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { Input } from './Input';
 import { Button } from './Button';
 import { ResponsiveModal } from './ResponsiveModal';
-import { walletService, type FincraRail } from '../services/walletService';
+import { walletService, type FincraRail, type SavedBank } from '../services/walletService';
 import { useWalletStore } from '../stores/walletStore';
 import { useAuthStore } from '../stores/authStore';
 import { OPERATORS, FINCRA_ZONES, operatorServesCountry } from '../constants/config';
@@ -58,9 +58,11 @@ interface TransferModalProps {
   onBuyCrypto?: (currency?: string) => void;
   /** Téléphone bénéficiaire pré-rempli (depuis la home : tap sur un avatar). */
   prefillPhone?: string;
+  /** Bénéficiaire bancaire pré-rempli (virement) — depuis la home / le menu compte. */
+  prefillBank?: SavedBank | null;
 }
 
-export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCrypto, prefillPhone }: TransferModalProps) {
+export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCrypto, prefillPhone, prefillBank }: TransferModalProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
@@ -83,6 +85,12 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const [savePhoneName, setSavePhoneName] = useState('');
   const [savePhoneOperator, setSavePhoneOperator] = useState('');
   const [savePhoneLoading, setSavePhoneLoading] = useState(false);
+  // Bénéficiaires bancaires enregistrés (virement)
+  const [savedBanks, setSavedBanks] = useState<SavedBank[]>([]);
+  const [bankPickerSavedVisible, setBankPickerSavedVisible] = useState(false);
+  const [saveBankModalVisible, setSaveBankModalVisible] = useState(false);
+  const [saveBankName, setSaveBankName] = useState('');
+  const [saveBankLoading, setSaveBankLoading] = useState(false);
   const [pollingState, setPollingState] = useState<'idle' | 'pending' | 'success' | 'failed' | 'timeout'>('idle');
   const [pendingDetails, setPendingDetails] = useState<{ amount_sent: number; fees: number; phone: string; debit_xof?: number } | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -312,12 +320,39 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     }
   };
 
+  const loadSavedBanks = async () => {
+    try { setSavedBanks(await walletService.getSavedBanks()); } catch { /* silencieux */ }
+  };
+
+  // Applique un bénéficiaire bancaire enregistré : sélectionne le rail virement
+  // de sa devise puis remplit les champs.
+  const applyBankBeneficiary = (b: SavedBank) => {
+    const cur = (b.currency || '').toUpperCase();
+    const op = OPERATORS_SRC.find((o: any) => o.fincra && String(o.id).endsWith('-bt') && (o.currency || '').toUpperCase() === cur);
+    if (op) {
+      setOthersOpen(true);
+      setSelectedCountry((op as any).country || null);
+      setOperator((op as any).id);
+    }
+    setBankAccountHolder(b.account_holder || '');
+    setBankAccountNumber(b.account_number || '');
+    setBankName(b.bank_name || '');
+    setBankCode(b.bank_code || '');
+    setBankSwiftCode(b.swift_code || '');
+    setIban(b.iban || '');
+    setBankCountry(b.country || '');
+  };
+
   // Snapshot des valeurs initiales pour détecter une réelle modification au close.
   const initialFormRef = useRef({ amount: '', phone: '' });
 
   useEffect(() => {
     if (!visible) return;
     loadSavedPhones();
+    loadSavedBanks();
+    setBankPickerSavedVisible(false);
+    setSaveBankModalVisible(false);
+    setSaveBankName('');
     setSelectedCountry(null);
     setOperator('');
     setCryptoOpen(false);
@@ -342,6 +377,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     // Pré-remplir le téléphone si fourni par l'appelant (tap sur un bénéficiaire
     // depuis la home). Sinon on garde la valeur courante.
     if (prefillPhone) setPhone(prefillPhone);
+    if (prefillBank) applyBankBeneficiary(prefillBank);
     // amount et phone ne sont PAS réinitialisés à l'ouverture (rétrocompat) ;
     // on capture leur valeur initiale comme baseline pour le dirty-check.
     initialFormRef.current = { amount, phone: prefillPhone ?? phone };
@@ -576,6 +612,35 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       showAlert(t('common.error'), error?.response?.data?.error || error?.response?.data?.message || t('transferModal.phoneSaveError'));
     } finally {
       setSavePhoneLoading(false);
+    }
+  };
+
+  // Enregistre le bénéficiaire bancaire courant (duo banque/compte + nom).
+  const confirmSaveCurrentBank = async () => {
+    const acct = (bankAccountNumber.trim() || iban.trim());
+    if (!acct) { showAlert(t('common.error'), t('transferModal.bankAccountRequired')); return; }
+    setSaveBankLoading(true);
+    try {
+      const created = await walletService.createSavedBank({
+        name: saveBankName.trim() || (bankAccountHolder.trim() || bankName.trim()),
+        account_holder: bankAccountHolder.trim(),
+        account_number: bankAccountNumber.trim(),
+        bank_code: bankCode.trim(),
+        bank_name: bankName.trim(),
+        currency: fincraCurrency,
+        country: bankCountry.trim() || undefined,
+        swift_code: (bankSwiftCode.trim() || swiftCode.trim()) || undefined,
+        iban: iban.trim() || undefined,
+        rail: fincraRail || undefined,
+      });
+      setSavedBanks((prev) => [created, ...prev]);
+      setSaveBankModalVisible(false);
+      setSaveBankName('');
+      showAlert(t('common.success'), t('transferModal.bankSaved'));
+    } catch (error: any) {
+      showAlert(t('common.error'), error?.response?.data?.error || error?.response?.data?.message || t('transferModal.bankSaveError'));
+    } finally {
+      setSaveBankLoading(false);
     }
   };
 
@@ -1289,6 +1354,16 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                   <Text style={[styles.savedActionText, { color: Colors.error }]}>{t('common.delete')}</Text>
                 </TouchableOpacity>
               )}
+              {isFincraOp && fincraRail && fincraRail !== 'mobile_money' && !!(bankAccountNumber.trim() || iban.trim()) && (
+                <Button
+                  variant="secondary"
+                  icon="bookmark"
+                  title={t('transferModal.saveThisBank')}
+                  onPress={() => { setSaveBankName(bankAccountHolder.trim() || bankName.trim()); setSaveBankModalVisible(true); }}
+                  style={styles.saveBtnSmall}
+                  textStyle={styles.saveBtnText}
+                />
+              )}
             </View>
 
             {(!isFincraOp || fincraRail === 'mobile_money') && savedPhones.length > 0 && (
@@ -1316,6 +1391,30 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
 
             {(!isFincraOp || fincraRail === 'mobile_money') && savedPhonesLoadError && savedPhones.length === 0 && (
               <Text style={styles.savedErrorText}>{savedPhonesLoadError}</Text>
+            )}
+
+            {isFincraOp && fincraRail && fincraRail !== 'mobile_money' && savedBanks.filter((b) => (b.currency || '').toUpperCase() === fincraCurrency).length > 0 && (
+              <View style={styles.savedBlock}>
+                <Text style={styles.savedLabel}>{t('transferModal.savedBanks')}</Text>
+                <View style={styles.savedList}>
+                  {savedBanks.filter((b) => (b.currency || '').toUpperCase() === fincraCurrency).map((b) => {
+                    const selected = !!(bankAccountNumber || iban) && (b.account_number || b.iban || '') === (bankAccountNumber || iban);
+                    const label = (b.name?.trim() || b.account_holder?.trim() || b.bank_name?.trim() || '—');
+                    const sub = [b.bank_name, b.account_number || b.iban].filter(Boolean).join(' · ');
+                    return (
+                      <TouchableOpacity
+                        key={b.id}
+                        style={[styles.savedChip, selected && styles.savedChipSelected]}
+                        onPress={() => applyBankBeneficiary(b)}
+                      >
+                        <Text style={[styles.savedChipText, selected && styles.savedChipTextSelected]} numberOfLines={1}>
+                          {sub ? `${label} · ${sub}` : label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
             )}
 
             <Button
@@ -1492,6 +1591,35 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               <TouchableOpacity style={[styles.confirmBtn, !savePhoneOperator && styles.confirmBtnDisabled]} onPress={confirmSaveCurrentPhone} disabled={savePhoneLoading || !savePhoneOperator}>
                 <FontAwesome6 name="floppy-disk" size={14} color={Colors.white} style={{ marginRight: 6 }} />
                 <Text style={styles.confirmBtnText}>{savePhoneLoading ? t('common.saving') : t('common.save')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Enregistrer le bénéficiaire bancaire courant */}
+      <Modal visible={saveBankModalVisible} transparent animationType="fade" onRequestClose={() => setSaveBankModalVisible(false)}>
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmSheet}>
+            <Text style={styles.confirmTitle}>{t('transferModal.saveThisBank')}</Text>
+            <Text style={styles.confirmSubtitle}>{t('transferModal.saveBankHint')}</Text>
+            <Input
+              label={t('transferModal.nameLabel')}
+              placeholder={t('transferModal.labelPlaceholder')}
+              value={saveBankName}
+              onChangeText={setSaveBankName}
+              containerStyle={{ alignSelf: 'stretch' }}
+            />
+            <Text style={styles.beneficiarySubLine}>
+              {[bankName, bankAccountNumber || iban, fincraCurrency].filter(Boolean).join(' · ')}
+            </Text>
+            <View style={styles.confirmBtns}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setSaveBankModalVisible(false)}>
+                <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmBtn} onPress={confirmSaveCurrentBank} disabled={saveBankLoading}>
+                <FontAwesome6 name="floppy-disk" size={14} color={Colors.white} style={{ marginRight: 6 }} />
+                <Text style={styles.confirmBtnText}>{saveBankLoading ? t('common.saving') : t('common.save')}</Text>
               </TouchableOpacity>
             </View>
           </View>

@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { Button } from '../../src/components/Button';
+import { Reveal, Bounce } from '../../src/components/anim';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useTheme } from '../../src/components/ThemeProvider';
@@ -158,9 +159,9 @@ export default function AffiliationScreen() {
         <Text style={styles.sectionLabel}>{t('affiliation.yourCode', 'Votre code de parrainage')}</Text>
         <View style={styles.codeBox}>
           <Text style={styles.codeText}>{referralCode || '—'}</Text>
-          <TouchableOpacity style={styles.inlineIconBtn} onPress={handleCopyCode}>
+          <Bounce style={styles.inlineIconBtn} onPress={handleCopyCode}>
             <FontAwesome6 name="copy" size={14} color={Colors.primary} />
-          </TouchableOpacity>
+          </Bounce>
         </View>
         <Text style={styles.helperText}>{t('affiliation.description', 'Partagez ce code ou ce lien avec vos amis. Lorsqu\'ils s\'inscrivent avec, ils deviennent vos filleuls et vous recevez des commissions sur leurs transactions.')}</Text>
 
@@ -185,26 +186,34 @@ export default function AffiliationScreen() {
 
       {/* Stats */}
       <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
-          <FontAwesome6 name="users" size={16} color={Colors.primary} />
-          <Text style={styles.statValue}>{stats?.children ?? 0}</Text>
-          <Text style={styles.statLabel}>{t('affiliation.filleuls', 'Filleuls')}</Text>
-        </View>
-        <View style={styles.statCard}>
-          <FontAwesome6 name="coins" size={16} color={Colors.success} />
-          <Text style={styles.statValue}>{fmtXof(stats?.total ?? 0, { withCode: false })}</Text>
-          <Text style={styles.statLabel}>{t('affiliation.totalEarned', 'Total gagné')} ({currencyCode})</Text>
-        </View>
-        <View style={styles.statCard}>
-          <FontAwesome6 name="hourglass-half" size={16} color={Colors.secondary} />
-          <Text style={styles.statValue}>{fmtXof(stats?.unpayed ?? 0, { withCode: false })}</Text>
-          <Text style={styles.statLabel}>{t('affiliation.unpayed', 'En attente')} ({currencyCode})</Text>
-        </View>
-        <View style={styles.statCard}>
-          <FontAwesome6 name="circle-check" size={16} color={Colors.textMuted} />
-          <Text style={styles.statValue}>{fmtXof(stats?.payed ?? 0, { withCode: false })}</Text>
-          <Text style={styles.statLabel}>{t('affiliation.payed', 'Reçu')} ({currencyCode})</Text>
-        </View>
+        <Reveal delay={0} offset={14} style={styles.statCardWrap}>
+          <View style={styles.statCard}>
+            <FontAwesome6 name="users" size={16} color={Colors.primary} />
+            <Text style={styles.statValue}>{stats?.children ?? 0}</Text>
+            <Text style={styles.statLabel}>{t('affiliation.filleuls', 'Filleuls')}</Text>
+          </View>
+        </Reveal>
+        <Reveal delay={70} offset={14} style={styles.statCardWrap}>
+          <View style={styles.statCard}>
+            <FontAwesome6 name="coins" size={16} color={Colors.success} />
+            <Text style={styles.statValue}>{fmtXof(stats?.total ?? 0, { withCode: false })}</Text>
+            <Text style={styles.statLabel}>{t('affiliation.totalEarned', 'Total gagné')} ({currencyCode})</Text>
+          </View>
+        </Reveal>
+        <Reveal delay={140} offset={14} style={styles.statCardWrap}>
+          <View style={styles.statCard}>
+            <FontAwesome6 name="hourglass-half" size={16} color={Colors.secondary} />
+            <Text style={styles.statValue}>{fmtXof(stats?.unpayed ?? 0, { withCode: false })}</Text>
+            <Text style={styles.statLabel}>{t('affiliation.unpayed', 'En attente')} ({currencyCode})</Text>
+          </View>
+        </Reveal>
+        <Reveal delay={210} offset={14} style={styles.statCardWrap}>
+          <View style={styles.statCard}>
+            <FontAwesome6 name="circle-check" size={16} color={Colors.textMuted} />
+            <Text style={styles.statValue}>{fmtXof(stats?.payed ?? 0, { withCode: false })}</Text>
+            <Text style={styles.statLabel}>{t('affiliation.payed', 'Reçu')} ({currencyCode})</Text>
+          </View>
+        </Reveal>
       </View>
 
       {/* Claim */}
@@ -225,22 +234,24 @@ export default function AffiliationScreen() {
 
       {/* Tabs */}
       <View style={styles.tabRow}>
-        <TouchableOpacity
+        <Bounce
           style={[styles.tabBtn, tab === 'children' && styles.tabBtnActive]}
+          scaleTo={0.97}
           onPress={() => setTab('children')}
         >
           <Text style={[styles.tabBtnText, tab === 'children' && styles.tabBtnTextActive]}>
             {t('affiliation.filleuls', 'Filleuls')}
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Bounce>
+        <Bounce
           style={[styles.tabBtn, tab === 'history' && styles.tabBtnActive]}
+          scaleTo={0.97}
           onPress={() => setTab('history')}
         >
           <Text style={[styles.tabBtnText, tab === 'history' && styles.tabBtnTextActive]}>
             {t('affiliation.commissions', 'Commissions')}
           </Text>
-        </TouchableOpacity>
+        </Bounce>
       </View>
 
       {/* List */}
@@ -396,9 +407,12 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     flexWrap: 'wrap',
     gap: Spacing.sm,
   },
-  statCard: {
+  statCardWrap: {
     flexBasis: '48%',
     flexGrow: 1,
+  },
+  statCard: {
+    flex: 1,
     backgroundColor: Colors.card,
     borderRadius: BorderRadius.md,
     padding: Spacing.md,

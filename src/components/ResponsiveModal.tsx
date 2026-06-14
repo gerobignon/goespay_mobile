@@ -1,6 +1,8 @@
-import React, { ReactNode } from 'react';
-import { Modal, View, StyleSheet, Pressable, Platform, KeyboardAvoidingView } from 'react-native';
+import React, { ReactNode, useEffect, useRef } from 'react';
+import { Modal, View, StyleSheet, Pressable, Platform, KeyboardAvoidingView, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 import { useResponsive } from '../hooks/useResponsive';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { useTheme } from './ThemeProvider';
@@ -21,6 +23,15 @@ export function ResponsiveModal({ visible, onClose, children, width, disableBack
   const { isWide, modalWidth } = useResponsive();
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
+
+  // Pop d'ouverture (desktop/large) : scale + fondu du panneau à chaque ouverture.
+  const pop = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (visible) {
+      pop.setValue(0);
+      Animated.spring(pop, { toValue: 1, useNativeDriver: true, friction: 7, tension: 65 }).start();
+    }
+  }, [visible]);
 
   if (!isWide) {
     return (
@@ -52,14 +63,18 @@ export function ResponsiveModal({ visible, onClose, children, width, disableBack
       statusBarTranslucent
     >
       <Pressable style={styles.backdrop} onPress={disableBackdropClose ? undefined : onClose}>
-        <Pressable
-          style={[styles.panel, { width: width ?? modalWidth }]}
+        <AnimatedPressable
+          style={[
+            styles.panel,
+            { width: width ?? modalWidth },
+            { opacity: pop, transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] },
+          ]}
           onPress={(e) => e.stopPropagation()}
         >
           <View style={styles.scroll}>
             {children}
           </View>
-        </Pressable>
+        </AnimatedPressable>
       </Pressable>
     </Modal>
   );

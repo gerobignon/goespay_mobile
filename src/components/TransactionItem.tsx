@@ -1,9 +1,12 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ImageSourcePropType } from 'react-native';
+import React, { useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ImageSourcePropType, Animated } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Colors, type ColorPalette, BorderRadius, FontSize, Spacing, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Reveal } from './anim';
+
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 import { TRANSACTION_STATUS, getTransactionStatus, OPERATORS } from '../constants/config';
 import { useCatalogStore } from '../stores/catalogStore';
 import { formatAmount, formatDate, useFormatXof } from '../utils/format';
@@ -14,6 +17,8 @@ interface TransactionItemProps {
   transaction: Transaction;
   onPress: (transaction: Transaction) => void;
   padded?: boolean;
+  /** Position dans la liste : pilote le décalage de l'apparition en cascade. */
+  index?: number;
 }
 
 const CRYPTO_LOGOS: Record<string, ImageSourcePropType> = {
@@ -155,7 +160,7 @@ const getTypeLabel = (t: any) => ({
   crypto: t('transaction.crypto'),
 });
 
-export function TransactionItem({ transaction, onPress, padded = false }: TransactionItemProps) {
+export function TransactionItem({ transaction, onPress, padded = false, index = 0 }: TransactionItemProps) {
   const { t } = useTranslation();
   const fmtXof = useFormatXof();
   const normalizedStatut = normalizeStatut(transaction.statut, transaction.type);
@@ -164,12 +169,16 @@ export function TransactionItem({ transaction, onPress, padded = false }: Transa
   const icon = TYPE_ICONS[transaction.type] || 'circle-question';
   const statusIcon = getStatusIcon(normalizedStatut);
   const logo = getTransactionLogo(transaction);
+  const scale = useRef(new Animated.Value(1)).current;
 
   return (
-    <TouchableOpacity
-      style={[styles.container, padded && styles.containerPadded]}
+    <Reveal delay={Math.min(index, 10) * 45} offset={14}>
+    <AnimatedTouchable
+      style={[styles.container, padded && styles.containerPadded, { transform: [{ scale }] }]}
       onPress={() => onPress(transaction)}
-      activeOpacity={0.7}
+      onPressIn={() => Animated.spring(scale, { toValue: 0.98, useNativeDriver: true, friction: 7 }).start()}
+      onPressOut={() => Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 7 }).start()}
+      activeOpacity={0.85}
     >
       <View style={[styles.iconContainer, { backgroundColor: status.color + '20' }]}>
         {logo ? (
@@ -205,7 +214,8 @@ export function TransactionItem({ transaction, onPress, padded = false }: Transa
           </Text>
         </View>
       </View>
-    </TouchableOpacity>
+    </AnimatedTouchable>
+    </Reveal>
   );
 }
 

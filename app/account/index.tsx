@@ -27,6 +27,7 @@ import { DesktopFooter } from '../../src/components/DesktopFooter';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { useTheme } from '../../src/components/ThemeProvider';
 import VerifiedBadge from '../../src/components/VerifiedBadge';
+import { Reveal, Bounce } from '../../src/components/anim';
 import { useTranslation } from 'react-i18next';
 
 export default function AccountScreen() {
@@ -140,32 +141,31 @@ export default function AccountScreen() {
 
             {/* Menu cards */}
             <View style={styles.menuList}>
-              {menuItems.map((item) => (
-                <TouchableOpacity
-                  key={item.key}
-                  style={styles.menuRow}
-                  onPress={() => router.push(item.route)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.menuIcon}>
-                    <FontAwesome6 name={item.icon} size={16} color={Colors.secondary} />
-                  </View>
-                  <Text style={styles.menuLabel}>{item.label}</Text>
-                  <FontAwesome6 name="chevron-right" size={14} color={Colors.textMuted} />
-                </TouchableOpacity>
+              {menuItems.map((item, i) => (
+                <Reveal key={item.key} delay={i * 45} offset={10}>
+                  <Bounce
+                    style={styles.menuRow}
+                    scaleTo={0.98}
+                    onPress={() => router.push(item.route)}
+                  >
+                    <View style={styles.menuIcon}>
+                      <FontAwesome6 name={item.icon} size={16} color={Colors.secondary} />
+                    </View>
+                    <Text style={styles.menuLabel}>{item.label}</Text>
+                    <FontAwesome6 name="chevron-right" size={14} color={Colors.textMuted} />
+                  </Bounce>
+                </Reveal>
               ))}
 
               {/* Logout */}
-              <TouchableOpacity
-                style={styles.menuRow}
-                onPress={handleLogout}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.menuIcon, { backgroundColor: Colors.error + '22' }]}>
-                  <FontAwesome6 name="right-from-bracket" size={16} color={Colors.error} />
-                </View>
-                <Text style={[styles.menuLabel, { color: Colors.error }]}>{t('account.logout')}</Text>
-              </TouchableOpacity>
+              <Reveal delay={menuItems.length * 45} offset={10}>
+                <Bounce style={styles.menuRow} scaleTo={0.98} onPress={handleLogout}>
+                  <View style={[styles.menuIcon, { backgroundColor: Colors.error + '22' }]}>
+                    <FontAwesome6 name="right-from-bracket" size={16} color={Colors.error} />
+                  </View>
+                  <Text style={[styles.menuLabel, { color: Colors.error }]}>{t('account.logout')}</Text>
+                </Bounce>
+              </Reveal>
             </View>
           </ScrollView>
         </SafeAreaView>

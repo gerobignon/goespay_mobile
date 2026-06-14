@@ -1,7 +1,8 @@
+import { useEffect, useRef } from 'react';
 import { Tabs } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
 import { Spacing, FontSize, Fonts } from '../../src/constants/theme';
 import { useColors } from '../../src/components/ThemeProvider';
 import { useResponsive } from '../../src/hooks/useResponsive';
@@ -16,6 +17,19 @@ const ICON_FOR_ROUTE: Record<string, string> = {
   affiliation: 'users',
   support: 'headset',
 };
+
+/** Icône d'onglet qui fait un petit pop quand elle devient active. */
+function TabIcon({ name, color, focused }: { name: string; color: string; focused: boolean }) {
+  const scale = useRef(new Animated.Value(focused ? 1.15 : 1)).current;
+  useEffect(() => {
+    Animated.spring(scale, { toValue: focused ? 1.15 : 1, useNativeDriver: true, friction: 5, tension: 160 }).start();
+  }, [focused]);
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <FontAwesome6 name={name as any} size={20} color={color} />
+    </Animated.View>
+  );
+}
 
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
@@ -50,7 +64,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             accessibilityState={isFocused ? { selected: true } : {}}
             style={styles.item}
           >
-            <FontAwesome6 name={iconName as any} size={20} color={color} />
+            <TabIcon name={iconName} color={color} focused={isFocused} />
             <Text style={[styles.label, { color }]} numberOfLines={1}>
               {label}
             </Text>

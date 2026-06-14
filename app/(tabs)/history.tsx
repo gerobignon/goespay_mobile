@@ -143,11 +143,11 @@ export default function HistoryScreen() {
       <FlatList
         data={transactions}
         keyExtractor={(item) => `${item.type}-${item.id}`}
-        renderItem={({ item }) =>
+        renderItem={({ item, index }) =>
           isDesktop ? (
             <DesktopTransactionRow tx={item} onPress={handlePress} styles={styles} />
           ) : (
-            <TransactionItem transaction={item} onPress={handlePress} padded />
+            <TransactionItem transaction={item} onPress={handlePress} padded index={index} />
           )
         }
         ListHeaderComponent={

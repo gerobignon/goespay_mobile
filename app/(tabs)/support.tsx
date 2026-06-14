@@ -11,6 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
+import { Reveal, Bounce } from '../../src/components/anim';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts, BorderRadius } from '../../src/constants/theme';
 import { showAlert } from '../../src/stores/alertStore';
 import { CustomAlert } from '../../src/components/CustomAlert';
@@ -94,17 +95,19 @@ export default function SupportScreen() {
 
           {/* Canaux de contact */}
           <View style={styles.grid}>
-            {CHANNELS.map((ch) => (
-              <TouchableOpacity key={ch.label} style={styles.card} onPress={() => open(ch.url)} activeOpacity={0.75}>
-                <View style={[styles.iconBox, { backgroundColor: ch.bg }]}>
-                  <FontAwesome6 name={ch.icon} size={20} color={ch.color} iconStyle={ch.brand ? 'brands' : 'solid'} />
-                </View>
-                <View style={styles.cardBody}>
-                  <Text style={styles.cardLabel}>{ch.labelKey ? t(ch.labelKey) : ch.label}</Text>
-                  <Text style={styles.cardSub}>{ch.sublabel}</Text>
-                </View>
-                <FontAwesome6 name="arrow-right" size={13} color={Colors.textMuted} />
-              </TouchableOpacity>
+            {CHANNELS.map((ch, i) => (
+              <Reveal key={ch.label} delay={i * 70} offset={14}>
+                <Bounce style={styles.card} scaleTo={0.98} onPress={() => open(ch.url)}>
+                  <View style={[styles.iconBox, { backgroundColor: ch.bg }]}>
+                    <FontAwesome6 name={ch.icon} size={20} color={ch.color} iconStyle={ch.brand ? 'brands' : 'solid'} />
+                  </View>
+                  <View style={styles.cardBody}>
+                    <Text style={styles.cardLabel}>{ch.labelKey ? t(ch.labelKey) : ch.label}</Text>
+                    <Text style={styles.cardSub}>{ch.sublabel}</Text>
+                  </View>
+                  <FontAwesome6 name="arrow-right" size={13} color={Colors.textMuted} />
+                </Bounce>
+              </Reveal>
             ))}
           </View>
 
@@ -113,9 +116,9 @@ export default function SupportScreen() {
             <Text style={styles.socialTitle}>{t('support.followUs')}</Text>
             <View style={styles.socialRow}>
               {SOCIALS.map((s) => (
-                <TouchableOpacity key={s.url} onPress={() => open(s.url)} style={styles.socialBtn} activeOpacity={0.7}>
+                <Bounce key={s.url} onPress={() => open(s.url)} style={styles.socialBtn}>
                   <FontAwesome6 name={s.icon} size={22} color={s.color} iconStyle={s.brand ? 'brands' : 'solid'} />
-                </TouchableOpacity>
+                </Bounce>
               ))}
             </View>
           </View>

@@ -37,6 +37,7 @@ import { API_BASE_URL, COUNTRIES } from '../../src/constants/config';
 import { getAccountMenuItems } from '../../src/constants/accountMenu';
 import { DepositModal } from '../../src/components/DepositModal';
 import { TransferModal } from '../../src/components/TransferModal';
+import type { SavedBank } from '../../src/services/walletService';
 import { CryptoModal } from '../../src/components/CryptoModal';
 import { TransactionItem } from '../../src/components/TransactionItem';
 import { TransactionDetailModal, type TxType } from '../../src/components/TransactionDetailModal';
@@ -53,6 +54,7 @@ import { useCorridorStore } from '../../src/stores/corridorStore';
 import { useCatalogStore } from '../../src/stores/catalogStore';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
+import { useCountUpValue, Bounce } from '../../src/components/anim';
 import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 
@@ -74,6 +76,7 @@ export default function DashboardScreen() {
   const [modalTxId, setModalTxId] = useState<number | null>(null);
   const [modalTxType, setModalTxType] = useState<TxType | null>(null);
   const [transferPrefillPhone, setTransferPrefillPhone] = useState<string | undefined>(undefined);
+  const [transferPrefillBank, setTransferPrefillBank] = useState<SavedBank | null>(null);
   // Hauteurs des 2 colonnes pour activer le sticky-top dynamique sur la
   // colonne la plus courte (web/desktop uniquement, en wide layout).
   const [leftColH, setLeftColH] = useState(0);
@@ -128,7 +131,14 @@ export default function DashboardScreen() {
 
   const onBenefPick = useCallback((tel: string) => {
     if (!isValidated) return;
+    setTransferPrefillBank(null);
     setTransferPrefillPhone(tel);
+    setTransferVisible(true);
+  }, [isValidated]);
+  const onBenefPickBank = useCallback((bank: SavedBank) => {
+    if (!isValidated) return;
+    setTransferPrefillPhone(undefined);
+    setTransferPrefillBank(bank);
     setTransferVisible(true);
   }, [isValidated]);
   const onBenefAdd = useCallback(() => router.push('/account/phones'), [router]);
@@ -136,6 +146,8 @@ export default function DashboardScreen() {
   const { isWide, isDesktop, contentMaxWidth } = useResponsive();
   const { isDark } = useTheme();
   const styles = useThemedStyles(createStyles);
+  // Solde affiché avec un compteur animé (interpole à chaque mise à jour).
+  const animBalance = useCountUpValue(balance);
 
   const handleTxPress = (tx: any) => {
     const type = tx.type as TxType;
@@ -269,27 +281,27 @@ export default function DashboardScreen() {
                   {/* Bloc 1 : solde + boutons (padding latéral généreux) */}
                   <View style={styles.balanceTop}>
                     <Text style={styles.balanceLabel}>{ t('home.balance') }</Text>
-                    <Text style={styles.balanceAmount}>{fmtXof(balance, { withCode: false })}</Text>
+                    <Text style={styles.balanceAmount}>{fmtXof(animBalance, { withCode: false })}</Text>
                     <Text style={styles.currency}>{currencyCode}</Text>
                     <View style={styles.balanceActions}>
                       {!configReady && (<><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /></>)}
                       {showDeposit && (
-                      <TouchableOpacity
+                      <Bounce
                         style={[styles.actionBtn, { backgroundColor: DarkColors.secondary }, !isValidated && { opacity: 0.4 }]}
                         onPress={() => isValidated && setDepositVisible(true)}
                       >
                         <FontAwesome6 name="plus" size={16} color={Colors.white} />
                         <Text style={styles.actionLabel}>{ t('home.deposit') }</Text>
-                      </TouchableOpacity>
+                      </Bounce>
                       )}
                       {showTransfer && (
-                      <TouchableOpacity
+                      <Bounce
                         style={[styles.actionBtn, { backgroundColor: Colors.primary }, !isValidated && { opacity: 0.4 }]}
                         onPress={() => isValidated && setTransferVisible(true)}
                       >
                         <FontAwesome6 name="paper-plane" size={16} color={Colors.white} />
                         <Text style={styles.actionLabel}>{ t('home.transfer') }</Text>
-                      </TouchableOpacity>
+                      </Bounce>
                       )}
                     </View>
                   </View>
@@ -300,7 +312,7 @@ export default function DashboardScreen() {
 
               {/* Widgets en dessous : G + A + C + E. */}
               <PromoCarousel slides={promoSlides} />
-              {showTransfer && <RecentBeneficiaries onPick={onBenefPick} onAdd={onBenefAdd} />}
+              {showTransfer && <RecentBeneficiaries onPick={onBenefPick} onPickBank={onBenefPickBank} onAdd={onBenefAdd} />}
               <ReferralCard />
             </View>
 
@@ -316,10 +328,11 @@ export default function DashboardScreen() {
                 </TouchableOpacity>
               </View>
               {transactions.length > 0 ? (
-                transactions.slice(0, 10).map((tx) => (
+                transactions.slice(0, 10).map((tx, i) => (
                   <TransactionItem
                     key={tx.id}
                     transaction={tx}
+                    index={i}
                     onPress={() => handleTxPress(tx)}
                   />
                 ))
@@ -343,27 +356,27 @@ export default function DashboardScreen() {
                 {/* Bloc 1 : solde + boutons (padding latéral généreux) */}
                 <View style={styles.balanceTop}>
                   <Text style={styles.balanceLabel}>{ t('home.balance') }</Text>
-                  <Text style={styles.balanceAmount}>{fmtXof(balance, { withCode: false })}</Text>
+                  <Text style={styles.balanceAmount}>{fmtXof(animBalance, { withCode: false })}</Text>
                   <Text style={styles.currency}>{currencyCode}</Text>
                   <View style={styles.balanceActions}>
                     {!configReady && (<><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /></>)}
                     {showDeposit && (
-                    <TouchableOpacity
+                    <Bounce
                       style={[styles.actionBtn, { backgroundColor: DarkColors.secondary }, !isValidated && { opacity: 0.4 }]}
                       onPress={() => isValidated && setDepositVisible(true)}
                     >
                       <FontAwesome6 name="plus" size={16} color={Colors.white} />
                       <Text style={styles.actionLabel}>{ t('home.deposit') }</Text>
-                    </TouchableOpacity>
+                    </Bounce>
                     )}
                     {showTransfer && (
-                    <TouchableOpacity
+                    <Bounce
                       style={[styles.actionBtn, { backgroundColor: Colors.primary }, !isValidated && { opacity: 0.4 }]}
                       onPress={() => isValidated && setTransferVisible(true)}
                     >
                       <FontAwesome6 name="paper-plane" size={16} color={Colors.white} />
                       <Text style={styles.actionLabel}>{ t('home.transfer') }</Text>
-                    </TouchableOpacity>
+                    </Bounce>
                     )}
                   </View>
                 </View>
@@ -374,7 +387,7 @@ export default function DashboardScreen() {
 
             {/* Widgets en dessous : G + A + C + E. */}
             <PromoCarousel slides={promoSlides} />
-            {showTransfer && <RecentBeneficiaries onPick={onBenefPick} onAdd={onBenefAdd} />}
+            {showTransfer && <RecentBeneficiaries onPick={onBenefPick} onPickBank={onBenefPickBank} onAdd={onBenefAdd} />}
             <ReferralCard />
 
             <View style={[styles.recentHeader, { marginTop: Spacing.lg }]}>
@@ -384,10 +397,11 @@ export default function DashboardScreen() {
               </TouchableOpacity>
             </View>
             {transactions.length > 0 ? (
-              transactions.slice(0, 5).map((tx) => (
+              transactions.slice(0, 5).map((tx, i) => (
                 <TransactionItem
                   key={tx.id}
                   transaction={tx}
+                  index={i}
                   onPress={() => handleTxPress(tx)}
                 />
               ))
@@ -412,10 +426,11 @@ export default function DashboardScreen() {
       {showTransfer && (
       <TransferModal
         visible={transferVisible}
-        onClose={() => { setTransferVisible(false); setTransferPrefillPhone(undefined); }}
+        onClose={() => { setTransferVisible(false); setTransferPrefillPhone(undefined); setTransferPrefillBank(null); }}
         cryptoEnabled={showCrypto && (crypto_buy_enabled || isAdmin)}
         onBuyCrypto={(currency?: string) => openCrypto('buy', currency)}
         prefillPhone={transferPrefillPhone}
+        prefillBank={transferPrefillBank}
       />
       )}
       {showCrypto && (

@@ -1,8 +1,10 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
+import React, { useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, StyleProp, ViewStyle, Animated } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts, IconSize } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
+
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 interface Props {
   /** FontAwesome6 icon rendered inside the standard circle. */
@@ -41,6 +43,8 @@ export default function SettingsRow({
   style,
 }: Props) {
   const styles = useThemedStyles(createStyles);
+  const scale = useRef(new Animated.Value(1)).current;
+  const pressable = !!onPress && !disabled;
 
   const renderLeading = () => {
     if (leading) return leading;
@@ -56,9 +60,11 @@ export default function SettingsRow({
   };
 
   return (
-    <TouchableOpacity
-      style={[styles.row, noBorder && styles.noBorder, style]}
+    <AnimatedTouchable
+      style={[styles.row, noBorder && styles.noBorder, style, { transform: [{ scale }] }]}
       onPress={onPress}
+      onPressIn={pressable ? () => Animated.spring(scale, { toValue: 0.98, useNativeDriver: true, friction: 7 }).start() : undefined}
+      onPressOut={pressable ? () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 7 }).start() : undefined}
       disabled={disabled || !onPress}
       activeOpacity={onPress ? 0.6 : 1}
     >
@@ -68,7 +74,7 @@ export default function SettingsRow({
         {description ? <Text style={styles.desc}>{description}</Text> : null}
       </View>
       {trailing}
-    </TouchableOpacity>
+    </AnimatedTouchable>
   );
 }
 
