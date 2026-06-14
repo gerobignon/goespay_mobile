@@ -83,7 +83,7 @@ export default function DashboardScreen() {
   const stickyStyle = (active: boolean): any => active ? { position: 'sticky', top: 0, alignSelf: 'flex-start' } : undefined;
 
   const { logout } = useAuthStore();
-  const { deposit_enabled, transfer_enabled, crypto_buy_enabled, crypto_sell_enabled, fetchConfig } = useConfigStore();
+  const { deposit_enabled, transfer_enabled, crypto_buy_enabled, crypto_sell_enabled, isLoaded: configLoaded, fetchConfig } = useConfigStore();
   const promoSlidesConfig = useConfigStore((s) => s.promo_slides);
   const fetchCorridors = useCorridorStore((s) => s.fetchCorridors);
   const fetchCatalog = useCatalogStore((s) => s.fetchCatalog);
@@ -91,9 +91,14 @@ export default function DashboardScreen() {
   const isSupportedCountry = COUNTRIES.some((c) => c.code === user?.country);
   const isCryptoUser = isAdmin || user?.group === 'crypto' || isSupportedCountry;
   // L'admin voit tous les services même désactivés (un bandeau s'affiche dans le modal concerné).
-  const showDeposit = isAdmin || deposit_enabled;
-  const showTransfer = isAdmin || transfer_enabled;
-  const showCrypto = isAdmin || (isCryptoUser && (crypto_buy_enabled || crypto_sell_enabled));
+  // Conditions vérifiées AVANT rendu : tant que /config n'a pas répondu (isLoaded
+  // false), on ne rend AUCUNE action (skeleton à la place). Évite le flash
+  // « activé puis masqué » qu'un user rapide pourrait exploiter. L'admin voit tout
+  // (un bandeau s'affiche dans le modal concerné). L'enforcement reste backend.
+  const configReady = isAdmin || configLoaded;
+  const showDeposit = isAdmin || (configLoaded && deposit_enabled);
+  const showTransfer = isAdmin || (configLoaded && transfer_enabled);
+  const showCrypto = isAdmin || (configLoaded && isCryptoUser && (crypto_buy_enabled || crypto_sell_enabled));
   // Ouvre le flux crypto avec l'action forcée, depuis Dépôt (vente) ou Retrait (achat).
   const openCrypto = (tab: 'buy' | 'sell', currency?: string) => {
     setCryptoTab(tab);
@@ -267,6 +272,7 @@ export default function DashboardScreen() {
                     <Text style={styles.balanceAmount}>{fmtXof(balance, { withCode: false })}</Text>
                     <Text style={styles.currency}>{currencyCode}</Text>
                     <View style={styles.balanceActions}>
+                      {!configReady && (<><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /></>)}
                       {showDeposit && (
                       <TouchableOpacity
                         style={[styles.actionBtn, { backgroundColor: DarkColors.secondary }, !isValidated && { opacity: 0.4 }]}
@@ -340,6 +346,7 @@ export default function DashboardScreen() {
                   <Text style={styles.balanceAmount}>{fmtXof(balance, { withCode: false })}</Text>
                   <Text style={styles.currency}>{currencyCode}</Text>
                   <View style={styles.balanceActions}>
+                    {!configReady && (<><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /></>)}
                     {showDeposit && (
                     <TouchableOpacity
                       style={[styles.actionBtn, { backgroundColor: DarkColors.secondary }, !isValidated && { opacity: 0.4 }]}
@@ -588,6 +595,12 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     paddingVertical: Spacing.sm + 4,
     borderRadius: BorderRadius.lg,
     gap: Spacing.sm,
+  },
+  // Placeholder neutre affiché tant que /config n'a pas confirmé l'état des actions.
+  actionBtnSkeleton: {
+    width: 120,
+    height: 44,
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   actionLabel: {
     color: Colors.white,
