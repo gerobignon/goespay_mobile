@@ -399,7 +399,11 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
             <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={getStatusIcon(normalizeStatut(tx.statut))} />
             {/* Retrait Fincra (currency_dest ≠ XOF) : montant livré dans sa devise. */}
             {(() => {
-              const isFincraTx = !!tx.currency_dest && tx.currency_dest !== 'XOF';
+              // Fincra détecté par currency_dest OU par le mode (robuste même si le
+              // backend ne renvoie pas encore currency_dest) → jamais de soustraction
+              // inter-devises (amount XOF − amount_sent NGN).
+              const isFincraTx = (!!tx.currency_dest && tx.currency_dest !== 'XOF')
+                || !!(tx.mode && tx.mode.startsWith('fincra-'));
               const fmtDest = (n: number) => `${n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${tx.currency_dest}`;
               // Frais en XOF : explicite (fee_xof) ; fallback classique XOF→XOF.
               const feeXof = tx.fee_xof != null
@@ -407,7 +411,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
                 : (!isFincraTx && tx.amount_sent != null && tx.amount_sent !== tx.amount ? tx.amount - tx.amount_sent : null);
               return (
                 <>
-                  {isFincraTx && tx.amount_sent != null && (
+                  {isFincraTx && tx.currency_dest && tx.amount_sent != null && (
                     <TransactionDetailRow label={t('transferModal.fincraReceives')} value={fmtDest(tx.amount_sent)} mono />
                   )}
                   <TransactionDetailRow label={t('transaction.total')} value={fmtXof(tx.amount)} mono />

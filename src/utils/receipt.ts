@@ -25,17 +25,42 @@ function buildRows(tx: Transaction, type: 'deposit' | 'withdraw' | 'transfer' | 
     if (tx.address) rows.push({ label: 'Adresse portefeuille', value: tx.address });
     if (tx.cp_hash) rows.push({ label: 'Hash transaction', value: tx.cp_hash });
   } else if (type === 'withdraw' || type === 'transfer') {
-    rows.push({ label: 'Montant total', value: formatXof(tx.amount) });
-    if (tx.amount_sent != null && tx.amount_sent !== tx.amount) {
+    // Retrait Fincra : amount = XOF débité (total), amount_sent = livré en
+    // currency_dest (NGN/GHS/…), fee_xof = frais GoesPay (XOF). On n'additionne
+    // ni ne soustrait JAMAIS deux devises différentes.
+    const isFincraTx = (!!tx.currency_dest && tx.currency_dest !== 'XOF')
+      || !!(tx.mode && tx.mode.startsWith('fincra-'));
+    rows.push({ label: 'Total débité', value: formatXof(tx.amount) });
+    if (isFincraTx) {
+      if (tx.currency_dest && tx.amount_sent != null) {
+        const fmtDest = (n: number) =>
+          `${n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${tx.currency_dest}`;
+        rows.push({ label: 'Le bénéficiaire reçoit', value: fmtDest(tx.amount_sent) });
+      }
+      if (tx.fee_xof != null && tx.fee_xof !== 0) {
+        rows.push({ label: 'Frais', value: formatXof(tx.fee_xof) });
+      }
+    } else if (tx.amount_sent != null && tx.amount_sent !== tx.amount) {
       rows.push({ label: 'Montant envoyé', value: formatXof(tx.amount_sent) });
-      rows.push({ label: 'Frais', value: formatXof(tx.amount - tx.amount_sent) });
+      rows.push({ label: 'Frais', value: formatXof(Math.max(0, tx.amount - tx.amount_sent)) });
     }
   } else {
     rows.push({ label: 'Montant', value: formatXof(tx.amount) });
   }
 
+  // Libellé propre (jamais la string brute « fincra-… »).
+  const cleanMode = (mode?: string) => {
+    if (!mode) return '';
+    const m = mode.match(/^fincra-(bank_transfer|bank|mobile_money|mm|checkout|card)$/i);
+    if (!m) return mode;
+    const r = m[1].toLowerCase();
+    return r.startsWith('bank') ? 'Virement bancaire'
+      : (r === 'checkout' || r === 'card') ? 'Carte bancaire'
+      : 'Mobile Money';
+  };
+
   if (type !== 'crypto') {
-    if (tx.mode) rows.push({ label: 'Mode', value: tx.mode });
+    if (tx.mode) rows.push({ label: 'Mode', value: cleanMode(tx.mode) });
     if (tx.de) rows.push({ label: 'De', value: tx.de });
     if (tx.phone) rows.push({ label: 'Destinataire', value: tx.phone });
     if (tx.receiver_name) rows.push({ label: 'Destinataire', value: tx.receiver_name });
