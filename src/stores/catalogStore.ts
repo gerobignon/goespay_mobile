@@ -71,6 +71,8 @@ export interface CatalogCountryEntry { code: string; name: string; prefix: strin
 
 // Rail Fincra déduit du code corridor.
 function railFromCode(code: string): string | undefined {
+  // Fincra Checkout (page hébergée) : fincra-checkout-<pays> → method=checkout.
+  if (code.startsWith('fincra-checkout-')) return 'checkout';
   // MM par pays×opérateur : fincra-mm-<pays>-<operateur>.
   if (code.startsWith('fincra-mm-')) return 'mobile_money';
   if (code.endsWith('-mm')) return 'mobile_money';
@@ -150,11 +152,14 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
           country: r.country,
           countries: isZone ? zoneMembers[r.country] : undefined,
           currency: r.currency,
-          rail: r.aggregator === 'fincra' ? fincraRailFor(r.code, r.currency) : undefined,
+          // fincra_checkout (page hébergée) traité comme Fincra, rail = checkout.
+          rail: (r.aggregator === 'fincra' || r.aggregator === 'fincra_checkout')
+            ? fincraRailFor(r.code, r.currency)
+            : undefined,
           withdraw: !!r.payout,
           payin: !!r.payin,
           afribapay: r.aggregator === 'afribapay' || undefined,
-          fincra: r.aggregator === 'fincra' || undefined,
+          fincra: (r.aggregator === 'fincra' || r.aggregator === 'fincra_checkout') || undefined,
           // Opérateur Fincra (ORANGE…) porté par les corridors fincra-mm-<pays>-<op>.
           fincraOperator: r.code.startsWith('fincra-mm-') ? r.network.toUpperCase() : undefined,
           aggregator: r.aggregator,

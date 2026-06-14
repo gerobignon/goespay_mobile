@@ -320,7 +320,9 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // Les opérateurs MM Fincra par pays (fincraOperator présent) s'affichent comme
   // le softpay (par pays) — PAS sous « Autres ». Seuls les rails sans pays unique
   // (cartes génériques, virements internationaux EUR/USD/GBP) restent en « Autres ».
-  const isZoneFincra = (op: any) => !!op.fincra && ZONE_CURRENCIES.includes(op.currency) && !op.fincraOperator;
+  // Fincra Checkout (rail=checkout, page hébergée) = tuile directe par pays, PAS
+  // « Autres » (sinon les checkout XOF/XAF/EUR… seraient enfouis sous Autres).
+  const isZoneFincra = (op: any) => !!op.fincra && ZONE_CURRENCIES.includes(op.currency) && !op.fincraOperator && op.rail !== 'checkout';
   // « Autres » : seulement carte INTL + zones Fincra (rails non attachés à un pays).
   // Les card-<cc> per-country s'affichent dans la liste normale du pays.
   const isOtherOp = (op: any) => op.id === 'card' || isZoneFincra(op);
@@ -613,6 +615,9 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
           amount: numAmount,
           currency: fincraCurrency,
           method: fincraMethod,
+          // Code corridor (id opérateur) → gating serveur exact (distingue notamment
+          // Fincra Checkout `fincra-checkout-<cc>` de la carte `fincra-<cur>-card`).
+          code: (selectedOp as any)?.id,
         };
         if (isFincraMM) {
           const op = selectedOp as any;
