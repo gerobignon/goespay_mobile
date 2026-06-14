@@ -14,6 +14,8 @@ interface Props {
   op: OperatorLike;
   size?: number;
   style?: ImageStyle & ViewStyle;
+  /** Rend le logo dans une pastille ronde (comme l'historique / les autres écrans). */
+  rounded?: boolean;
 }
 
 /**
@@ -25,35 +27,48 @@ interface Props {
  *
  * Le logo du provider Fincra est exposé séparément via `<GatewayBadge>` en mode admin.
  */
-export function OperatorLogo({ op, size = 26, style }: Props) {
-  // Fincra Mobile Money : le corridor porte un opérateur réel (mtn/moov/orange…)
-  // dont le logo de marque est déjà résolu dans `op.logo` → on l'affiche comme
-  // pour PayDunya/AfribaPay. Les rails virement/carte restent en icône générique.
-  // Fincra : on affiche le visuel résolu (logo de marque MM, visuel carte VISA/MC,
-  // logo virement bancaire) dès qu'il existe. Icône générique en dernier recours.
+export function OperatorLogo({ op, size = 26, style, rounded }: Props) {
+  // Image dans une pastille ronde (fond clair) — uniforme avec l'historique.
+  const renderImage = (src: any) => {
+    if (!rounded) {
+      return <Image source={src} style={[{ width: size, height: size }, style as ImageStyle]} resizeMode="contain" />;
+    }
+    return (
+      <View style={[styles.round, { width: size, height: size, borderRadius: size / 2 }, style as ViewStyle]}>
+        <Image source={src} style={{ width: size * 0.66, height: size * 0.66 }} resizeMode="contain" />
+      </View>
+    );
+  };
+
+  // Fincra : on affiche le visuel résolu (logo de marque MM, carte, virement) dès
+  // qu'il existe ; icône générique en dernier recours.
   if (op.fincra && op.logo) {
-    return <Image source={op.logo} style={[{ width: size, height: size }, style as ImageStyle]} resizeMode="contain" />;
+    return renderImage(op.logo);
   }
-  // Fincra sans logo : icône généraliste basée sur le rail.
   if (op.fincra) {
     const iconName: any = op.rail === 'bank_transfer' ? 'building-columns'
                        : op.rail === 'checkout'      ? 'credit-card'
                        : 'mobile-screen';
     return (
-      <View style={[styles.iconWrap, { width: size + 6, height: size + 6 }, style as ViewStyle]}>
-        <FontAwesome6 name={iconName} size={size * 0.6} color={DefaultColors.primary} iconStyle="solid" />
+      <View style={[styles.iconWrap, { width: size, height: size, borderRadius: size / 2 }, style as ViewStyle]}>
+        <FontAwesome6 name={iconName} size={size * 0.55} color={DefaultColors.primary} iconStyle="solid" />
       </View>
     );
   }
   if (!op.logo) return null;
-  return <Image source={op.logo} style={[{ width: size, height: size }, style as ImageStyle]} resizeMode="contain" />;
+  return renderImage(op.logo);
 }
 
 const styles = StyleSheet.create({
   iconWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 999,
     backgroundColor: DefaultColors.primary + '15',
+  },
+  round: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    backgroundColor: '#EEF2F7',
   },
 });

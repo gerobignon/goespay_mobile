@@ -98,7 +98,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
     if (!info) return <Text style={styles.opName}>—</Text>;
     return (
       <View style={styles.opValue}>
-        {info.op ? <OperatorLogo op={info.op} size={20} /> : null}
+        {info.op ? <OperatorLogo op={info.op} size={24} rounded /> : null}
         <Text style={styles.opName} numberOfLines={1}>
           {info.flag ? `${info.flag} ` : ''}{info.name}
         </Text>

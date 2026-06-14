@@ -183,7 +183,7 @@ export default function WithdrawDetailScreen() {
                   valueNode={
                     opView ? (
                       <View style={styles.opValue}>
-                        {opView.op ? <OperatorLogo op={opView.op} size={20} /> : null}
+                        {opView.op ? <OperatorLogo op={opView.op} size={24} rounded /> : null}
                         <Text style={styles.opName} numberOfLines={1}>
                           {opView.flag ? `${opView.flag} ` : ''}{opView.name}
                         </Text>
