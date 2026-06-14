@@ -44,6 +44,7 @@ export interface Transaction {
   dollar?: number;
   currency_dest?: string;
   fee_xof?: number;
+  meta?: { account_name?: string; bank?: string; [k: string]: any } | null;
   address?: string;
   cp_id?: string;
   cp_hash?: string;
