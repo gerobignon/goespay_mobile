@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { DarkColors, FontSize, Fonts } from '../../src/constants/theme';
+import { Spacing, FontSize, Fonts } from '../../src/constants/theme';
 import { useColors } from '../../src/components/ThemeProvider';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { DesktopHeader } from '../../src/components/DesktopHeader';
@@ -19,15 +19,16 @@ const ICON_FOR_ROUTE: Record<string, string> = {
 
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const bottomPad = insets.bottom > 0 ? insets.bottom : 8;
 
   return (
-    <View style={[styles.bar, { paddingBottom: bottomPad }]}>
+    <View style={[styles.bar, { paddingBottom: bottomPad, backgroundColor: colors.background, borderTopColor: colors.border }]}>
       {state.routes.map((route, index) => {
         const { options } = descriptors[route.key];
         const label = (options.title ?? route.name) as string;
         const isFocused = state.index === index;
-        const color = isFocused ? DarkColors.secondary : DarkColors.textMuted;
+        const color = isFocused ? colors.secondary : colors.textMuted;
         const iconName = ICON_FOR_ROUTE[route.name] ?? 'circle';
 
         const onPress = () => {
@@ -94,17 +95,16 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
-    backgroundColor: DarkColors.background,
-    borderTopColor: DarkColors.border,
     borderTopWidth: 1,
-    paddingTop: 8,
+    paddingTop: Spacing.sm,
   },
   item: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 4,
+    gap: Spacing.xs,
+    paddingVertical: Spacing.sm,
+    minHeight: 48,
   },
   label: {
     fontSize: FontSize.xs,

@@ -22,6 +22,7 @@ import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { ALL_COUNTRIES } from '../../src/constants/countries';
 import { showAlert } from '../../src/stores/alertStore';
 import { CustomAlert } from '../../src/components/CustomAlert';
+import VerifiedBadge from '../../src/components/VerifiedBadge';
 import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 import { useResponsive } from '../../src/hooks/useResponsive';
@@ -77,10 +78,7 @@ export default function ProfileScreen() {
       {isDesktop && <Text style={styles.title}>{t('account.personalInfo')}</Text>}
 
       {isReadonly && (
-                <View style={styles.verifiedBadge}>
-                  <FontAwesome6 name="circle-check" size={16} color={Colors.success} />
-                  <Text style={styles.verifiedText}>{t('account.verified')}</Text>
-                </View>
+                <VerifiedBadge style={{ marginBottom: Spacing.lg }} />
               )}
 
               {/* Demande de modification */}
@@ -221,24 +219,6 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: FontSize.xl,
     fontFamily: Fonts.bold,
     color: Colors.text,
-  },
-  verifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    backgroundColor: 'rgba(97,146,97,0.15)',
-    borderRadius: BorderRadius.md,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(97,146,97,0.3)',
-  },
-  verifiedText: {
-    color: Colors.success,
-    fontSize: FontSize.md,
-    fontFamily: Fonts.semiBold,
   },
   modifRow: {
     flexDirection: 'row',

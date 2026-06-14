@@ -25,24 +25,13 @@ import { formatCurrency, formatDate, useFormatXof, useCurrencyCode } from '../ut
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { downloadInvoice } from '../utils/invoice';
+import { normalizeStatut, getStatusIcon } from '../utils/transactionStatus';
 import type { Transaction } from '../types';
 
-const CRYPTO_STATUS_STATIC: Record<string | number, { color: string; icon: string }> = {
-  1: { color: '#3176FE', icon: 'circle-check' },
-  0: { color: '#ff295b', icon: 'circle-xmark' },
-  success: { color: '#3176FE', icon: 'circle-check' },
-  failed: { color: '#ff295b', icon: 'circle-xmark' },
-  fail: { color: '#ff295b', icon: 'circle-xmark' },
-};
-const CRYPTO_DEFAULT_STATIC = { color: '#F4B228', icon: 'clock' };
-
 function getCryptoStatus(statut: string | number, t: (key: string) => string): { label: string; color: string; icon: string } {
-  const entry = CRYPTO_STATUS_STATIC[statut] ?? CRYPTO_DEFAULT_STATIC;
-  const labelMap: Record<string | number, string> = {
-    1: t('transaction.statusSuccess'), 0: t('transaction.statusFailed'),
-    success: t('transaction.statusSuccess'), failed: t('transaction.statusFailed'), fail: t('transaction.statusFailed'),
-  };
-  return { ...entry, label: labelMap[statut] ?? t('transaction.statusWait') };
+  const norm = normalizeStatut(statut, 'crypto');
+  const info = getTransactionStatus(t)[norm] ?? { label: String(statut), color: Colors.textMuted };
+  return { label: info.label, color: info.color, icon: getStatusIcon(norm) };
 }
 
 export type TxType = 'deposit' | 'withdraw' | 'transfer' | 'crypto';
@@ -315,15 +304,15 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
           <Card style={styles.flatCard}>
             <Hero
               statusColor={status.color}
-              statusIcon={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'}
+              statusIcon={getStatusIcon(normalizeStatut(tx.statut))}
               statusLabel={status.label}
               sign="+"
               amount={fmtXof(tx.amount, { withCode: false })}
               amountColor={Colors.secondary}
             />
             <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
-            <TransactionDetailRow label={t('transaction.type')} value={t('transaction.deposit')} badge badgeColor="#3ecf8e" badgeIcon="arrow-down" />
-            <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'} />
+            <TransactionDetailRow label={t('transaction.type')} value={t('transaction.deposit')} badge badgeColor={Colors.positive} badgeIcon="arrow-down" />
+            <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={getStatusIcon(normalizeStatut(tx.statut))} />
             <TransactionDetailRow label={t('transaction.operator')} value={tx.mode ?? '—'} valueNode={<OperatorValue mode={tx.mode} />} />
             <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />
             <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '—'} mono />
@@ -393,7 +382,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
           <Card style={styles.flatCard}>
             <Hero
               statusColor={status.color}
-              statusIcon={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'}
+              statusIcon={getStatusIcon(normalizeStatut(tx.statut))}
               statusLabel={status.label}
               sign="-"
               amount={fmtXof(tx.amount_sent ?? tx.amount, { withCode: false })}
@@ -401,7 +390,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
             />
             <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
             <TransactionDetailRow label={t('transaction.type')} value={t('transaction.withdraw')} badge badgeColor={Colors.error} badgeIcon="arrow-up" />
-            <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'} />
+            <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={getStatusIcon(normalizeStatut(tx.statut))} />
             <TransactionDetailRow label={t('transaction.total')} value={fmtXof(tx.amount)} mono />
             {tx.amount_sent != null && tx.amount_sent !== tx.amount && (
               <TransactionDetailRow label={t('transaction.fees')} value={fmtXof(tx.amount - tx.amount_sent)} mono color={Colors.error} />
@@ -464,7 +453,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
           <Card style={styles.flatCard}>
             <Hero
               statusColor={status.color}
-              statusIcon={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'}
+              statusIcon={getStatusIcon(normalizeStatut(tx.statut))}
               statusLabel={status.label}
               sign="-"
               amount={fmtXof(tx.amount, { withCode: false })}
@@ -472,7 +461,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
             />
             <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
             <TransactionDetailRow label={t('transaction.type')} value={t('transaction.transfer')} badge badgeColor={Colors.secondary} badgeIcon="right-left" />
-            <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'} />
+            <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={getStatusIcon(normalizeStatut(tx.statut))} />
             <TransactionDetailRow label={t('transaction.receiver')} value={tx.receiver_name ?? '—'} />
             <TransactionDetailRow label="Email" value={tx.receiver_email ?? '—'} copyable />
             <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />

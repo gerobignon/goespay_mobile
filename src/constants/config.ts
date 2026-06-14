@@ -104,40 +104,40 @@ export const OPERATORS = [
   // op.country === selectedCountry OU op.countries?.includes(selectedCountry)).
 
   // Nigeria (NGN)
-  { id: 'fincra-ngn-mm',   name: 'Mobile Money',     flag: '🇳🇬', country: 'NG', withdraw: true, fincra: true, currency: 'NGN', rail: 'mobile_money',  logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-ngn-mm',   name: 'Mobile Money',     flag: '🇳🇬', country: 'NG', withdraw: true, fincra: true, currency: 'NGN', rail: 'mobile_money',  logo: require('../../assets/operators/pay_momo.png') },
   { id: 'fincra-ngn-bt',   name: 'Virement bancaire', flag: '🇳🇬', country: 'NG', withdraw: true, fincra: true, currency: 'NGN', rail: 'bank_transfer', logo: require('../../assets/operators/pay_bank.png') },
   { id: 'fincra-ngn-card', name: 'Carte bancaire',   flag: '🇳🇬', country: 'NG', withdraw: false, fincra: true, currency: 'NGN', rail: 'checkout',     logo: require('../../assets/operators/pay_card.jpg') },
 
   // Ghana (GHS)
-  { id: 'fincra-ghs-mm',   name: 'Mobile Money',     flag: '🇬🇭', country: 'GH', withdraw: true, fincra: true, currency: 'GHS', rail: 'mobile_money',  logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-ghs-mm',   name: 'Mobile Money',     flag: '🇬🇭', country: 'GH', withdraw: true, fincra: true, currency: 'GHS', rail: 'mobile_money',  logo: require('../../assets/operators/pay_momo.png') },
   { id: 'fincra-ghs-bt',   name: 'Virement bancaire', flag: '🇬🇭', country: 'GH', withdraw: true, fincra: true, currency: 'GHS', rail: 'bank_transfer', logo: require('../../assets/operators/pay_bank.png') },
   { id: 'fincra-ghs-card', name: 'Carte bancaire',   flag: '🇬🇭', country: 'GH', withdraw: false, fincra: true, currency: 'GHS', rail: 'checkout',     logo: require('../../assets/operators/pay_card.jpg') },
 
   // Kenya (KES)
-  { id: 'fincra-kes-mm',   name: 'Mobile Money',     flag: '🇰🇪', country: 'KE', withdraw: true, fincra: true, currency: 'KES', rail: 'mobile_money',  logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-kes-mm',   name: 'Mobile Money',     flag: '🇰🇪', country: 'KE', withdraw: true, fincra: true, currency: 'KES', rail: 'mobile_money',  logo: require('../../assets/operators/pay_momo.png') },
   { id: 'fincra-kes-bt',   name: 'Virement bancaire', flag: '🇰🇪', country: 'KE', withdraw: true, fincra: true, currency: 'KES', rail: 'bank_transfer', logo: require('../../assets/operators/pay_bank.png') },
   { id: 'fincra-kes-card', name: 'Carte bancaire',   flag: '🇰🇪', country: 'KE', withdraw: false, fincra: true, currency: 'KES', rail: 'checkout',     logo: require('../../assets/operators/pay_card.jpg') },
 
   // Ouganda (UGX)
-  { id: 'fincra-ugx-mm',   name: 'Mobile Money',     flag: '🇺🇬', country: 'UG', withdraw: true, fincra: true, currency: 'UGX', rail: 'mobile_money',  logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-ugx-mm',   name: 'Mobile Money',     flag: '🇺🇬', country: 'UG', withdraw: true, fincra: true, currency: 'UGX', rail: 'mobile_money',  logo: require('../../assets/operators/pay_momo.png') },
   { id: 'fincra-ugx-bt',   name: 'Virement bancaire', flag: '🇺🇬', country: 'UG', withdraw: true, fincra: true, currency: 'UGX', rail: 'bank_transfer', logo: require('../../assets/operators/pay_bank.png') },
   { id: 'fincra-ugx-card', name: 'Carte bancaire',   flag: '🇺🇬', country: 'UG', withdraw: false, fincra: true, currency: 'UGX', rail: 'checkout',     logo: require('../../assets/operators/pay_card.jpg') },
 
   // Zambie (ZMW)
-  { id: 'fincra-zmw-mm',   name: 'Mobile Money',     flag: '🇿🇲', country: 'ZM', withdraw: true, fincra: true, currency: 'ZMW', rail: 'mobile_money',  logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-zmw-mm',   name: 'Mobile Money',     flag: '🇿🇲', country: 'ZM', withdraw: true, fincra: true, currency: 'ZMW', rail: 'mobile_money',  logo: require('../../assets/operators/pay_momo.png') },
   { id: 'fincra-zmw-bt',   name: 'Virement bancaire', flag: '🇿🇲', country: 'ZM', withdraw: true, fincra: true, currency: 'ZMW', rail: 'bank_transfer', logo: require('../../assets/operators/pay_bank.png') },
   { id: 'fincra-zmw-card', name: 'Carte bancaire',   flag: '🇿🇲', country: 'ZM', withdraw: false, fincra: true, currency: 'ZMW', rail: 'checkout',     logo: require('../../assets/operators/pay_card.jpg') },
 
   // Tanzanie (TZS) — Fincra ne supporte pas le checkout hébergé pour TZS, pas de carte
-  { id: 'fincra-tzs-mm', name: 'Mobile Money',     flag: '🇹🇿', country: 'TZ', withdraw: true, fincra: true, currency: 'TZS', rail: 'mobile_money',  logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-tzs-mm', name: 'Mobile Money',     flag: '🇹🇿', country: 'TZ', withdraw: true, fincra: true, currency: 'TZS', rail: 'mobile_money',  logo: require('../../assets/operators/pay_momo.png') },
   { id: 'fincra-tzs-bt', name: 'Virement bancaire', flag: '🇹🇿', country: 'TZ', withdraw: true, fincra: true, currency: 'TZS', rail: 'bank_transfer', logo: require('../../assets/operators/pay_bank.png') },
 
   // Zone CEMAC (XAF) — Mobile Money + carte (hosted checkout). Pas de bank_transfer chez Fincra.
-  { id: 'fincra-xaf-mm',   name: 'Mobile Money', flag: '', country: 'XAF', countries: ['CM','CF','CG','GA','GQ','TD'], withdraw: true, fincra: true, currency: 'XAF', rail: 'mobile_money', logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-xaf-mm',   name: 'Mobile Money', flag: '', country: 'XAF', countries: ['CM','CF','CG','GA','GQ','TD'], withdraw: true, fincra: true, currency: 'XAF', rail: 'mobile_money', logo: require('../../assets/operators/pay_momo.png') },
   { id: 'fincra-xaf-card', name: 'Carte bancaire', flag: '', country: 'XAF', countries: ['CM','CF','CG','GA','GQ','TD'], withdraw: false, fincra: true, currency: 'XAF', rail: 'checkout', logo: require('../../assets/operators/pay_card.jpg') },
 
   // Zone UEMOA (XOF) — Mobile Money + carte (hosted checkout). Pas de bank_transfer chez Fincra.
-  { id: 'fincra-xof-mm',   name: 'Mobile Money', flag: '', country: 'XOF', countries: ['BJ','BF','CI','GW','ML','NE','SN','TG'], withdraw: true, fincra: true, currency: 'XOF', rail: 'mobile_money', logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-xof-mm',   name: 'Mobile Money', flag: '', country: 'XOF', countries: ['BJ','BF','CI','GW','ML','NE','SN','TG'], withdraw: true, fincra: true, currency: 'XOF', rail: 'mobile_money', logo: require('../../assets/operators/pay_momo.png') },
   { id: 'fincra-xof-card', name: 'Carte bancaire', flag: '', country: 'XOF', countries: ['BJ','BF','CI','GW','ML','NE','SN','TG'], withdraw: false, fincra: true, currency: 'XOF', rail: 'checkout', logo: require('../../assets/operators/pay_card.jpg') },
 
   // Afrique du Sud (ZAR)
@@ -145,7 +145,7 @@ export const OPERATORS = [
   { id: 'fincra-zar-card', name: 'Carte bancaire',   flag: '🇿🇦', country: 'ZA', withdraw: false, fincra: true, currency: 'ZAR', rail: 'checkout',     logo: require('../../assets/operators/pay_card.jpg') },
 
   // Égypte (EGP)
-  { id: 'fincra-egp-mm', name: 'Mobile Money',     flag: '🇪🇬', country: 'EG', withdraw: true, fincra: true, currency: 'EGP', rail: 'mobile_money',  logo: require('../../assets/operators/pay_fincra.png') },
+  { id: 'fincra-egp-mm', name: 'Mobile Money',     flag: '🇪🇬', country: 'EG', withdraw: true, fincra: true, currency: 'EGP', rail: 'mobile_money',  logo: require('../../assets/operators/pay_momo.png') },
   { id: 'fincra-egp-bt', name: 'Virement bancaire', flag: '🇪🇬', country: 'EG', withdraw: true, fincra: true, currency: 'EGP', rail: 'bank_transfer', logo: require('../../assets/operators/pay_bank.png') },
 
   // International (USD/EUR/GBP) — payout via SWIFT/SEPA + pay-in via carte (hosted

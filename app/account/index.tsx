@@ -26,6 +26,7 @@ import { DesktopHeader } from '../../src/components/DesktopHeader';
 import { DesktopFooter } from '../../src/components/DesktopFooter';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { useTheme } from '../../src/components/ThemeProvider';
+import VerifiedBadge from '../../src/components/VerifiedBadge';
 import { useTranslation } from 'react-i18next';
 
 export default function AccountScreen() {
@@ -123,10 +124,7 @@ export default function AccountScreen() {
 
             {/* Verified badge */}
             {user?.validate === 1 && (
-              <View style={styles.verifiedBadge}>
-                <FontAwesome6 name="circle-check" size={16} color={Colors.success} />
-                <Text style={styles.verifiedText}>{t('account.verified')}</Text>
-              </View>
+              <VerifiedBadge style={{ marginBottom: Spacing.lg }} />
             )}
 
             {/* KYC button */}
@@ -247,24 +245,6 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontFamily: Fonts.regular,
     color: Colors.textMuted,
     marginTop: 2,
-  },
-  verifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    backgroundColor: 'rgba(97,146,97,0.15)',
-    borderRadius: BorderRadius.md,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(97,146,97,0.3)',
-  },
-  verifiedText: {
-    color: Colors.success,
-    fontSize: FontSize.md,
-    fontFamily: Fonts.semiBold,
   },
   menuList: {
     backgroundColor: Colors.card,

@@ -34,6 +34,7 @@ import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../../src/c
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { showAlert } from '../../src/stores/alertStore';
 import { CustomAlert } from '../../src/components/CustomAlert';
+import SettingsRow from '../../src/components/SettingsRow';
 import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 import { useResponsive } from '../../src/hooks/useResponsive';
@@ -290,54 +291,46 @@ export default function SecurityScreen() {
         </Text>
 
         {/* PIN */}
-        <TouchableOpacity style={styles.securityRow} onPress={handleSwitchToPin}>
-          <View style={styles.securityIcon}>
-            <FontAwesome6 name="hashtag" size={16} color={currentLockMethod === 'pin' ? Colors.primary : Colors.textMuted} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.securityLabel}>{t('account.pin')}</Text>
-            <Text style={styles.securityDesc}>
-              {currentLockMethod === 'pin' ? t('account.pinActive') : t('account.pinInactive')}
-            </Text>
-          </View>
-          {currentLockMethod === 'pin' && (
+        <SettingsRow
+          icon="hashtag"
+          iconColor={currentLockMethod === 'pin' ? Colors.primary : Colors.textMuted}
+          label={t('account.pin')}
+          description={currentLockMethod === 'pin' ? t('account.pinActive') : t('account.pinInactive')}
+          onPress={handleSwitchToPin}
+          trailing={currentLockMethod === 'pin' ? (
             <FontAwesome6 name="circle-check" size={16} color={Colors.primary} />
-          )}
-        </TouchableOpacity>
+          ) : undefined}
+        />
 
         {/* Biométrie */}
         {bioAvailable && (
-          <TouchableOpacity style={styles.securityRow} onPress={handleSwitchToBio}>
-            <View style={styles.securityIcon}>
-              <FontAwesome6 name="fingerprint" size={16} color={currentLockMethod === 'biometric' ? Colors.secondary : Colors.textMuted} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.securityLabel}>{t('account.biometric')}</Text>
-              <Text style={styles.securityDesc}>
-                {currentLockMethod === 'biometric' ? t('account.biometricActive') : t('account.biometricInactive')}
-              </Text>
-            </View>
-            {currentLockMethod === 'biometric' && (
+          <SettingsRow
+            icon="fingerprint"
+            iconColor={currentLockMethod === 'biometric' ? Colors.secondary : Colors.textMuted}
+            label={t('account.biometric')}
+            description={currentLockMethod === 'biometric' ? t('account.biometricActive') : t('account.biometricInactive')}
+            onPress={handleSwitchToBio}
+            trailing={currentLockMethod === 'biometric' ? (
               <FontAwesome6 name="circle-check" size={16} color={Colors.secondary} />
-            )}
-          </TouchableOpacity>
+            ) : undefined}
+          />
         )}
 
         {/* Mot de passe */}
-        <TouchableOpacity style={styles.securityRow} onPress={() => setPwModalVisible(true)}>
-          <View style={styles.securityIcon}>
-            <FontAwesome6 name="lock" size={16} color={Colors.textMuted} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.securityLabel}>{t('account.password')}</Text>
-            <Text style={styles.securityDesc}>{t('account.changePassword')}</Text>
-          </View>
-          <FontAwesome6 name="chevron-right" size={14} color={Colors.textMuted} />
-        </TouchableOpacity>
+        <SettingsRow
+          icon="lock"
+          label={t('account.password')}
+          description={t('account.changePassword')}
+          onPress={() => setPwModalVisible(true)}
+          trailing={<FontAwesome6 name="chevron-right" size={14} color={Colors.textMuted} />}
+        />
 
         {/* 2FA */}
-        <TouchableOpacity
-          style={styles.securityRow}
+        <SettingsRow
+          icon="mobile-screen"
+          iconColor={twoFaEnabled ? Colors.success : Colors.textMuted}
+          label={t('account.twoFa')}
+          description={twoFaEnabled ? t('account.twoFaActive') : t('account.twoFaInactive')}
           onPress={() => {
             if (twoFaEnabled) {
               setTwoFaStep('disable');
@@ -346,20 +339,10 @@ export default function SecurityScreen() {
               handleEnable2fa();
             }
           }}
-        >
-          <View style={styles.securityIcon}>
-            <FontAwesome6 name="mobile-screen" size={16} color={twoFaEnabled ? Colors.success : Colors.textMuted} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.securityLabel}>{t('account.twoFa')}</Text>
-            <Text style={styles.securityDesc}>
-              {twoFaEnabled ? t('account.twoFaActive') : t('account.twoFaInactive')}
-            </Text>
-          </View>
-          {twoFaEnabled && (
+          trailing={twoFaEnabled ? (
             <FontAwesome6 name="circle-check" size={16} color={Colors.success} />
-          )}
-        </TouchableOpacity>
+          ) : undefined}
+        />
       </View>
     </>
   );
@@ -631,33 +614,6 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     marginBottom: Spacing.md,
     textTransform: 'uppercase',
     letterSpacing: 1,
-  },
-  securityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    gap: Spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
-  securityIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.inputBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  securityLabel: {
-    color: Colors.text,
-    fontSize: FontSize.md,
-    fontFamily: Fonts.medium,
-  },
-  securityDesc: {
-    color: Colors.textMuted,
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.regular,
-    marginTop: 1,
   },
   modalSheet: {
     flex: Platform.OS === 'web' ? undefined : 1,

@@ -45,6 +45,7 @@ import { AdminDisabledBanner } from './AdminDisabledBanner';
 import { TransactionAlertBanner } from './TransactionAlertBanner';
 import { GatewayBadge } from './GatewayBadge';
 import { CountryPickerStep } from './CountryPickerStep';
+import FincraConversionHint from './FincraConversionHint';
 import { OperatorLogo } from './OperatorLogo';
 import { pickCryptoSource } from '../utils/cryptoLogos';
 
@@ -688,7 +689,10 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
         // le success screen pour afficher le total en devise utilisateur, pas
         // en devise Fincra (NGN, GHS…) qui n'est pas la devise du wallet.
         setPendingDetails({
-          amount_sent: Number(result.amount_sent) || numAmount,
+          // `result.amount_sent` est en XOF (débit), pas en devise Fincra → on
+          // affiche `numAmount` (= montant Fincra livré, déjà confirmé au form),
+          // sinon le succès montrerait le XOF formaté en NGN/GHS (contradiction).
+          amount_sent: numAmount,
           fees: Number(result.fees) || 0,
           phone: fincraRail === 'mobile_money' ? normalizedPhone : (bankAccountNumber || iban),
           debit_xof: fincraTotalDebitXof ?? fincraDebitXof ?? 0,
@@ -1026,25 +1030,13 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             {/* Montant reçu par le bénéficiaire (devise Fincra). XOF→XOF ou
                 userCurrency === fincraCurrency : pas d'affichage redondant. */}
             {isFincraOp && fincraCurrency !== 'XOF' && userCurrency !== fincraCurrency && numAmountDisplay > 0 && (
-              fincraRate.loading ? (
-                <View style={styles.fincraConvBox}>
-                  <ActivityIndicator size="small" color={Colors.primary} />
-                  <Text style={[styles.fincraConvLabel, styles.fincraConvMuted]}>{t('transferModal.rateLoading')}</Text>
-                </View>
-              ) : (fincraRate.error || fincraSendAmount === null) ? (
-                <View style={[styles.fincraConvBox, styles.fincraConvError]}>
-                  <FontAwesome6 name="triangle-exclamation" size={13} color={Colors.error} iconStyle="solid" />
-                  <Text style={[styles.fincraConvLabel, styles.fincraConvErrorText]}>{t('common.rateUnavailable')}</Text>
-                </View>
-              ) : (
-                <View style={styles.fincraConvBox}>
-                  <FontAwesome6 name="arrow-right-arrow-left" size={13} color={Colors.primary} iconStyle="solid" />
-                  <Text style={styles.fincraConvLabel}>{t('transferModal.fincraReceives')}</Text>
-                  <Text style={styles.fincraConvAmount}>
-                    ≈ {(fincraSendAmount ?? 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} {fincraCurrency}
-                  </Text>
-                </View>
-              )
+              <FincraConversionHint
+                loading={fincraRate.loading}
+                error={fincraRate.error || fincraSendAmount === null}
+                label={t('transferModal.fincraReceives')}
+                amount={fincraSendAmount}
+                currency={fincraCurrency}
+              />
             )}
 
             {classicRateBlocking && (
@@ -2209,41 +2201,6 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   zoneChipTextSelected: {
     color: Colors.primary,
-  },
-  fincraConvBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.primary + '14',
-    borderWidth: 1,
-    borderColor: Colors.primary + '2E',
-    borderRadius: BorderRadius.md,
-    paddingVertical: 11,
-    paddingHorizontal: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  fincraConvLabel: {
-    flex: 1,
-    fontSize: FontSize.xs,
-    color: Colors.textSecondary,
-    fontFamily: Fonts.semiBold,
-  },
-  fincraConvAmount: {
-    fontSize: FontSize.md,
-    color: Colors.primary,
-    fontFamily: Fonts.bold,
-  },
-  fincraConvError: {
-    backgroundColor: Colors.error + '12',
-    borderColor: Colors.error + '33',
-  },
-  fincraConvErrorText: {
-    color: Colors.error,
-    fontFamily: Fonts.semiBold,
-  },
-  fincraConvMuted: {
-    color: Colors.textMuted,
-    fontFamily: Fonts.medium,
   },
   fieldLabel: {
     color: Colors.textSecondary,

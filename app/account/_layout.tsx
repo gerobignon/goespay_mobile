@@ -16,6 +16,7 @@ import { CustomAlert } from '../../src/components/CustomAlert';
 import { DesktopHeader } from '../../src/components/DesktopHeader';
 import { DesktopFooter } from '../../src/components/DesktopFooter';
 import { Button } from '../../src/components/Button';
+import VerifiedBadge from '../../src/components/VerifiedBadge';
 import { Colors, DarkColors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
 import { API_BASE_URL } from '../../src/constants/config';
 import { getAccountMenuItems } from '../../src/constants/accountMenu';
@@ -105,10 +106,7 @@ function DesktopAccountLayout() {
               </View>
 
               {user?.validate === 1 && (
-                <View style={styles.verifiedBadge}>
-                  <FontAwesome6 name="circle-check" size={14} color={Colors.success} />
-                  <Text style={styles.verifiedText}>{t('account.verified')}</Text>
-                </View>
+                <VerifiedBadge size="sm" style={{ marginBottom: Spacing.md }} />
               )}
 
               {user?.validate === 0 && (
@@ -235,24 +233,6 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontFamily: Fonts.regular,
     color: Colors.textMuted,
     marginTop: 2,
-  },
-  verifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.xs,
-    backgroundColor: 'rgba(97,146,97,0.15)',
-    borderRadius: BorderRadius.sm,
-    paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.sm,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: 'rgba(97,146,97,0.3)',
-  },
-  verifiedText: {
-    color: Colors.success,
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.semiBold,
   },
   menuList: {
     marginTop: Spacing.sm,

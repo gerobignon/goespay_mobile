@@ -97,12 +97,12 @@ export const walletService = {
     return response.data;
   },
 
-  getDepositStatus: async (depositId: number): Promise<{ deposit_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; type: string }> => {
+  getDepositStatus: async (depositId: number): Promise<{ deposit_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; type: string; user_error?: string | null }> => {
     const response = await api.get(`/deposit/status/${depositId}`);
     return response.data;
   },
 
-  getFincraDepositStatus: async (ref: string): Promise<{ status: 'wait' | 'success' | 'fail' }> => {
+  getFincraDepositStatus: async (ref: string): Promise<{ status: 'wait' | 'success' | 'fail'; user_error?: string | null }> => {
     const response = await api.get(`/deposit/fincra/status/${ref}`);
     return response.data;
   },

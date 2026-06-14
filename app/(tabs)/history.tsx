@@ -19,6 +19,7 @@ import { TransactionDetailModal, type TxType } from '../../src/components/Transa
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
 import { TRANSACTION_STATUS, getTransactionStatus, COUNTRIES } from '../../src/constants/config';
 import { formatAmount, formatDate, useFormatXof, useCurrencyCode } from '../../src/utils/format';
+import { normalizeStatut } from '../../src/utils/transactionStatus';
 import type { Transaction } from '../../src/types';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
@@ -229,10 +230,7 @@ function DesktopTransactionRow({ tx, onPress, styles }: { tx: Transaction; onPre
   const fmtXof = useFormatXof();
   const currencyCode = useCurrencyCode();
   const TYPE_LABELS = getTypeLabels(t);
-  const normalizedStatut =
-    tx.type === 'crypto'
-      ? tx.statut == 1 ? 'success' : tx.statut == 0 ? 'failed' : 'wait'
-      : tx.statut;
+  const normalizedStatut = normalizeStatut(tx.statut, tx.type);
   const status = getTransactionStatus(t)[normalizedStatut] || { label: String(tx.statut), color: '#888' };
   const logo = getTransactionLogo(tx);
   const modeName = getModeName(tx);

@@ -23,6 +23,7 @@ const LOGO_BY_KEY: Record<string, any> = {
   pay_telecel:  require('../../assets/operators/pay_telecel.png'),
   pay_card:     require('../../assets/operators/pay_card.jpg'),
   pay_fincra:   require('../../assets/operators/pay_fincra.png'),
+  pay_momo:     require('../../assets/operators/pay_momo.png'),
   paydunya:     require('../../assets/operators/paydunya.png'),
   // Opérateurs AfribaPay / Fincra additionnels (catalogue Marchés).
   pay_bank:       require('../../assets/operators/pay_bank.png'),

@@ -170,7 +170,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     paddingLeft: 2,
   },
   copiedLabel: {
-    color: '#3ecf8e',
+    color: Colors.positive,
     fontSize: 10,
     fontFamily: Fonts.semiBold,
   },

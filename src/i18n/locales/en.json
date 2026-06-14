@@ -418,6 +418,7 @@
     "statusWait": "Pending",
     "claimHint": "Be as clear as possible. Only file a claim for unjustified charges.",
     "claimHintShort": "Be as clear as possible.",
+    "claimCryptoWarning": "⚠️ Double-check your crypto wallet and receiving address before filing a claim.",
     "describeProblem": "Describe your issue...",
     "yourNote": "Your note..."
   },

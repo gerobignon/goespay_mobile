@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ImageBackground,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,6 +16,7 @@ import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 import { CustomAlert } from '../../src/components/CustomAlert';
+import SettingsRow from '../../src/components/SettingsRow';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { useCurrencyStore, SUPPORTED_CURRENCIES } from '../../src/stores/currencyStore';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -73,31 +75,23 @@ export default function CurrencyScreen() {
           const isActive = userCurrency === code;
           const isSaving = savingCurrency === code;
           return (
-            <TouchableOpacity
+            <SettingsRow
               key={code}
-              style={styles.securityRow}
-              onPress={() => changeCurrency(code)}
-              disabled={!!savingCurrency}
-            >
-              <View style={styles.securityIcon}>
+              leadingInCircle={
                 <Text style={{ fontFamily: Fonts.bold, fontSize: FontSize.xs, color: isActive ? Colors.primary : Colors.textMuted }}>
                   {code}
                 </Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.securityLabel}>{code}</Text>
-                {isActive && (
-                  <Text style={styles.securityDesc}>
-                    {currencySource === 'manual' ? t('account.currencyManualTag') : t('account.currencyAutoTag')}
-                  </Text>
-                )}
-              </View>
-              {isSaving ? (
-                <FontAwesome6 name="spinner" size={16} color={Colors.textMuted} />
+              }
+              label={code}
+              description={isActive ? (currencySource === 'manual' ? t('account.currencyManualTag') : t('account.currencyAutoTag')) : undefined}
+              onPress={() => changeCurrency(code)}
+              disabled={!!savingCurrency}
+              trailing={isSaving ? (
+                <ActivityIndicator size="small" color={Colors.textMuted} />
               ) : isActive ? (
                 <FontAwesome6 name="circle-check" size={16} color={Colors.primary} />
-              ) : null}
-            </TouchableOpacity>
+              ) : undefined}
+            />
           );
         })}
       </View>
@@ -169,32 +163,5 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontFamily: Fonts.regular,
     marginTop: -Spacing.sm,
     marginBottom: Spacing.md,
-  },
-  securityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    gap: Spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
-  securityIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.inputBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  securityLabel: {
-    color: Colors.text,
-    fontSize: FontSize.md,
-    fontFamily: Fonts.medium,
-  },
-  securityDesc: {
-    color: Colors.textMuted,
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.regular,
-    marginTop: 1,
   },
 });

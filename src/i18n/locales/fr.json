@@ -418,6 +418,7 @@
     "statusWait": "En attente",
     "claimHint": "Soyez aussi clair que possible. Réclamez uniquement en cas de débit injustifié.",
     "claimHintShort": "Soyez aussi clair que possible.",
+    "claimCryptoWarning": "⚠️ Vérifiez correctement votre portefeuille crypto et l'adresse de réception avant toute réclamation.",
     "describeProblem": "Décrivez votre problème...",
     "yourNote": "Votre note..."
   },

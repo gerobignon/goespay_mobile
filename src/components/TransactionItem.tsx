@@ -7,6 +7,7 @@ import { useThemedStyles } from '../hooks/useThemedStyles';
 import { TRANSACTION_STATUS, getTransactionStatus, OPERATORS } from '../constants/config';
 import { useCatalogStore } from '../stores/catalogStore';
 import { formatAmount, formatDate, useFormatXof } from '../utils/format';
+import { getStatusIcon, normalizeStatut } from '../utils/transactionStatus';
 import type { Transaction } from '../types';
 
 interface TransactionItemProps {
@@ -60,7 +61,7 @@ const PAYMENT_MODE_LOGOS: Record<string, ImageSourcePropType> = {
   'visa-mastercard-2': require('../../assets/operators/pay_card.jpg'),
   // Rails Fincra (mode stocké par rail : fincra-bank_transfer / -mobile_money / -checkout)
   'fincra-bank_transfer': require('../../assets/operators/pay_bank.png'),
-  'fincra-mobile_money': require('../../assets/operators/pay_fincra.png'),
+  'fincra-mobile_money': require('../../assets/operators/pay_momo.png'),
   'fincra-checkout': require('../../assets/operators/pay_card.jpg'),
   // Types spéciaux
   'referal': require('../../assets/picto.png'),
@@ -154,24 +155,14 @@ const getTypeLabel = (t: any) => ({
   crypto: t('transaction.crypto'),
 });
 
-const STATUS_ICONS: Record<string, string> = {
-  success: 'circle-check',
-  wait: 'clock',
-  failed: 'circle-xmark',
-  fail: 'circle-xmark',
-};
-
 export function TransactionItem({ transaction, onPress, padded = false }: TransactionItemProps) {
   const { t } = useTranslation();
   const fmtXof = useFormatXof();
-  const normalizedStatut =
-    transaction.type === 'crypto'
-      ? transaction.statut == 1 ? 'success' : transaction.statut == 0 ? 'failed' : 'wait'
-      : transaction.statut;
+  const normalizedStatut = normalizeStatut(transaction.statut, transaction.type);
   const styles = useThemedStyles(createStyles);
   const status = getTransactionStatus(t)[normalizedStatut] || { label: String(transaction.statut), color: '#888' };
   const icon = TYPE_ICONS[transaction.type] || 'circle-question';
-  const statusIcon = STATUS_ICONS[normalizedStatut] || 'circle-question';
+  const statusIcon = getStatusIcon(normalizedStatut);
   const logo = getTransactionLogo(transaction);
 
   return (

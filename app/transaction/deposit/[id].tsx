@@ -6,10 +6,6 @@ import {
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
-  Modal,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
@@ -20,6 +16,9 @@ import { CustomAlert } from '../../../src/components/CustomAlert';
 import { walletService } from '../../../src/services/walletService';
 import { Card } from '../../../src/components/Card';
 import { TransactionDetailRow } from '../../../src/components/TransactionDetailRow';
+import TransactionHero from '../../../src/components/TransactionHero';
+import ClaimNoteModal from '../../../src/components/ClaimNoteModal';
+import ActionButtonRow from '../../../src/components/ActionButtonRow';
 import { TRANSACTION_STATUS, getTransactionStatus } from '../../../src/constants/config';
 import { formatCurrency, formatDate, useFormatXof, useCurrencyCode } from '../../../src/utils/format';
 import { shareReceipt } from '../../../src/utils/receipt';
@@ -27,7 +26,6 @@ import { downloadInvoice } from '../../../src/utils/invoice';
 import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../../../src/constants/theme';
 import type { ColorPalette } from '../../../src/constants/theme';
 import { useThemedStyles } from '../../../src/hooks/useThemedStyles';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Transaction } from '../../../src/types';
 
 import { DepositModal } from '../../../src/components/DepositModal';
@@ -39,7 +37,6 @@ export default function DepositDetailScreen() {
   const fmtXof = useFormatXof();
   const currencyCode = useCurrencyCode();
   const styles = useThemedStyles(createStyles);
-  const insets = useSafeAreaInsets();
   const [tx, setTx] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -145,72 +142,42 @@ export default function DepositDetailScreen() {
         </View>
 
         {/* Action buttons */}
-        <View style={styles.actionRow}>
-          {tx.statut === 'failed' && (
-            <TouchableOpacity
-              style={styles.retryBtn}
-              onPress={() => setRetryVisible(true)}
-              activeOpacity={0.7}
-            >
-              <FontAwesome6 name="rotate-right" size={12} color={Colors.white} />
-              <Text style={styles.retryBtnText}>{t('common.retry', 'Réessayer')}</Text>
-            </TouchableOpacity>
-          )}
-          {tx.statut === 'success' && (
-            <TouchableOpacity
-              style={[styles.invoiceBtn, invoiceLoading && { opacity: 0.6 }]}
-              onPress={async () => {
+        <ActionButtonRow
+          actions={[
+            ...(tx.statut === 'failed' ? [{
+              key: 'retry', icon: 'rotate-right', label: t('common.retry', 'Réessayer'),
+              color: Colors.primary, onPress: () => setRetryVisible(true),
+            }] : []),
+            ...(tx.statut === 'success' ? [{
+              key: 'invoice', icon: 'file-invoice-dollar', label: t('transaction.viewInvoice'),
+              color: Colors.confirmAction, loading: invoiceLoading,
+              onPress: async () => {
                 setInvoiceLoading(true);
                 try { await downloadInvoice('deposit', tx.id); } catch { showAlert('Erreur', 'Impossible de générer le reçu.'); }
                 finally { setInvoiceLoading(false); }
-              }}
-              activeOpacity={0.7}
-              disabled={invoiceLoading}
-            >
-              <FontAwesome6 name="file-invoice-dollar" size={12} color={Colors.white} />
-              <Text style={styles.invoiceBtnText}>{t('transaction.viewInvoice')}</Text>
-            </TouchableOpacity>
-          )}
-          {tx.statut !== 'success' && (
-          <TouchableOpacity
-            style={styles.claimBtn}
-            onPress={() => setClaimVisible(true)}
-            activeOpacity={0.7}
-          >
-            <FontAwesome6 name="triangle-exclamation" size={12} color={Colors.white} />
-            <Text style={styles.claimBtnText}>{t('transaction.claim')}</Text>
-          </TouchableOpacity>
-          )}
-          {!tx.note && (
-            <TouchableOpacity
-              style={styles.noteBtn}
-              onPress={() => setNoteVisible(true)}
-              activeOpacity={0.7}
-            >
-              <FontAwesome6 name="comment-dots" size={12} color={Colors.white} />
-              <Text style={styles.noteBtnText}>{t('transaction.addNote')}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+              },
+            }] : []),
+            ...(tx.statut !== 'success' ? [{
+              key: 'claim', icon: 'triangle-exclamation', label: t('transaction.claim'),
+              color: Colors.error, onPress: () => setClaimVisible(true),
+            }] : []),
+            ...(!tx.note ? [{
+              key: 'note', icon: 'comment-dots', label: t('transaction.addNote'),
+              color: Colors.primary, onPress: () => setNoteVisible(true),
+            }] : []),
+          ]}
+        />
 
         <Card>
-          <View style={styles.statusRow}>
-            <View style={[styles.statusBadge, { backgroundColor: status.color + '22' }]}>
-              <FontAwesome6
-                name={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'}
-                size={14}
-                color={status.color}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
-            </View>
-          </View>
-
-          <Text style={styles.amount}>+{fmtXof(tx.amount, { withCode: false })}</Text>
-          <Text style={styles.currency}>{currencyCode}</Text>
+          <TransactionHero
+            statut={tx.statut}
+            amount={fmtXof(tx.amount, { withCode: false })}
+            sign="+"
+            currencyCode={currencyCode}
+          />
 
           <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
-          <TransactionDetailRow label={t('transaction.type')} value={t('transaction.deposit')} badge badgeColor="#3ecf8e" badgeIcon="arrow-down" />
+          <TransactionDetailRow label={t('transaction.type')} value={t('transaction.deposit')} badge badgeColor={Colors.positive} badgeIcon="arrow-down" />
           <TransactionDetailRow
             label={t('transaction.status')}
             value={status.label}
@@ -243,80 +210,25 @@ export default function DepositDetailScreen() {
         </Card>
       </ScrollView>
 
-      {/* Claim Modal */}
-      <Modal visible={claimVisible} transparent animationType="slide" statusBarTranslucent>
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior="padding">
-          <View style={[styles.modalContent, { paddingBottom: Spacing.lg + insets.bottom }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('transaction.addClaim')}</Text>
-              <TouchableOpacity onPress={() => setClaimVisible(false)}>
-                <FontAwesome6 name="xmark" size={18} color={Colors.text} />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.modalHint}>
-              Soyez aussi clair que possible. Réclamez uniquement en cas de débit injustifié.
-            </Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Décrivez votre problème..."
-              placeholderTextColor={Colors.textMuted}
-              value={claimMessage}
-              onChangeText={setClaimMessage}
-              multiline
-              numberOfLines={5}
-              textAlignVertical="top"
-              selectionColor={Colors.secondary}
-            />
-            <TouchableOpacity
-              style={[styles.modalSubmitBtn, claimLoading && { opacity: 0.6 }]}
-              onPress={handleClaim}
-              disabled={claimLoading}
-              activeOpacity={0.7}
-            >
-              <FontAwesome6 name="paper-plane" size={14} color={Colors.white} />
-              <Text style={styles.modalSubmitText}>
-                {claimLoading ? t('common.sending') : t('common.send')}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <ClaimNoteModal
+        visible={claimVisible}
+        mode="claim"
+        value={claimMessage}
+        onChangeText={setClaimMessage}
+        onClose={() => setClaimVisible(false)}
+        onSubmit={handleClaim}
+        loading={claimLoading}
+      />
 
-      {/* Note Modal */}
-      <Modal visible={noteVisible} transparent animationType="slide" statusBarTranslucent>
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior="padding">
-          <View style={[styles.modalContent, { paddingBottom: Spacing.lg + insets.bottom }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('transaction.addNote')}</Text>
-              <TouchableOpacity onPress={() => setNoteVisible(false)}>
-                <FontAwesome6 name="xmark" size={18} color={Colors.text} />
-              </TouchableOpacity>
-            </View>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Votre note..."
-              placeholderTextColor={Colors.textMuted}
-              value={noteMessage}
-              onChangeText={setNoteMessage}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-              selectionColor={Colors.secondary}
-            />
-            <TouchableOpacity
-              style={[styles.modalSubmitBtn, noteLoading && { opacity: 0.6 }]}
-              onPress={handleNote}
-              disabled={noteLoading}
-              activeOpacity={0.7}
-            >
-              <FontAwesome6 name="comment-dots" size={14} color={Colors.white} />
-              <Text style={styles.modalSubmitText}>
-                {noteLoading ? t('common.sending') : t('common.add')}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <ClaimNoteModal
+        visible={noteVisible}
+        mode="note"
+        value={noteMessage}
+        onChangeText={setNoteMessage}
+        onClose={() => setNoteVisible(false)}
+        onSubmit={handleNote}
+        loading={noteLoading}
+      />
 
       <DepositModal
         visible={retryVisible}
@@ -353,152 +265,5 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: FontSize.xl,
     fontFamily: Fonts.bold,
     color: Colors.text,
-  },
-  statusRow: {
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.xs + 2,
-    borderRadius: 50,
-  },
-  statusText: {
-    fontFamily: Fonts.bold,
-    fontSize: FontSize.md,
-  },
-  amount: {
-    fontSize: FontSize.hero,
-    fontFamily: Fonts.bold,
-    color: Colors.secondary,
-    textAlign: 'center',
-  },
-  currency: {
-    fontSize: FontSize.sm,
-    fontFamily: Fonts.semiBold,
-    color: Colors.textMuted,
-    textAlign: 'center',
-    letterSpacing: 2,
-    marginBottom: Spacing.lg,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.lg,
-  },
-  claimBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    backgroundColor: Colors.error,
-    borderRadius: BorderRadius.pill,
-  },
-  claimBtnText: {
-    color: Colors.white,
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.bold,
-  },
-  retryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    backgroundColor: Colors.primary,
-    borderRadius: BorderRadius.pill,
-  },
-  retryBtnText: {
-    color: Colors.white,
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.bold,
-  },
-  invoiceBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    backgroundColor: Colors.confirmAction,
-    borderRadius: BorderRadius.pill,
-  },
-  invoiceBtnText: {
-    color: Colors.white,
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.bold,
-  },
-  noteBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    backgroundColor: Colors.primary,
-    borderRadius: BorderRadius.pill,
-  },
-  noteBtnText: {
-    color: Colors.white,
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.bold,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalContent: {
-    backgroundColor: Colors.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: Spacing.lg,
-    paddingBottom: Spacing.xxl,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  modalTitle: {
-    fontSize: FontSize.lg,
-    fontFamily: Fonts.bold,
-    color: Colors.text,
-  },
-  modalHint: {
-    color: Colors.textMuted,
-    fontSize: FontSize.xs,
-    lineHeight: 18,
-    marginBottom: Spacing.md,
-  },
-  modalInput: {
-    backgroundColor: Colors.inputBg,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    color: Colors.text,
-    fontSize: FontSize.md,
-    fontFamily: Fonts.regular,
-    padding: Spacing.md,
-    minHeight: 120,
-    marginBottom: Spacing.md,
-  },
-  modalSubmitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.primary,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-  },
-  modalSubmitText: {
-    color: Colors.white,
-    fontSize: FontSize.md,
-    fontFamily: Fonts.bold,
   },
 });

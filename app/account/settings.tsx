@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 import i18n from '../../src/i18n';
 import { SUPPORTED_LANGUAGES, setLanguage } from '../../src/i18n';
 import { CustomAlert } from '../../src/components/CustomAlert';
+import SettingsRow from '../../src/components/SettingsRow';
 import { useResponsive } from '../../src/hooks/useResponsive';
 
 export default function SettingsScreen() {
@@ -55,22 +56,17 @@ export default function SettingsScreen() {
           <FontAwesome6 name="palette" size={14} color={Colors.secondary} /> {t('account.theme')}
         </Text>
         {themeOptions.map((opt) => (
-          <TouchableOpacity
+          <SettingsRow
             key={opt.key}
-            style={styles.securityRow}
+            icon={opt.icon}
+            iconColor={themeMode === opt.key ? Colors.primary : Colors.textMuted}
+            label={opt.label}
+            description={opt.desc}
             onPress={() => setThemeMode(opt.key)}
-          >
-            <View style={styles.securityIcon}>
-              <FontAwesome6 name={opt.icon} size={16} color={themeMode === opt.key ? Colors.primary : Colors.textMuted} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.securityLabel}>{opt.label}</Text>
-              <Text style={styles.securityDesc}>{opt.desc}</Text>
-            </View>
-            {themeMode === opt.key && (
+            trailing={themeMode === opt.key ? (
               <FontAwesome6 name="circle-check" size={16} color={Colors.primary} />
-            )}
-          </TouchableOpacity>
+            ) : undefined}
+          />
         ))}
       </View>
 
@@ -80,19 +76,15 @@ export default function SettingsScreen() {
           <FontAwesome6 name="language" size={14} color={Colors.secondary} /> {t('account.language')}
         </Text>
         {SUPPORTED_LANGUAGES.map((lang) => (
-          <TouchableOpacity
+          <SettingsRow
             key={lang.code}
-            style={styles.securityRow}
+            leadingInCircle={<Text style={{ fontSize: FontSize.md }}>{lang.flag}</Text>}
+            label={lang.label}
             onPress={() => changeLanguage(lang.code)}
-          >
-            <Text style={{ fontSize: FontSize.lg, marginRight: Spacing.sm }}>{lang.flag}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.securityLabel}>{lang.label}</Text>
-            </View>
-            {i18n.language === lang.code && (
+            trailing={i18n.language === lang.code ? (
               <FontAwesome6 name="circle-check" size={16} color={Colors.primary} />
-            )}
-          </TouchableOpacity>
+            ) : undefined}
+          />
         ))}
       </View>
     </>
@@ -163,32 +155,5 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontFamily: Fonts.regular,
     marginTop: -Spacing.sm,
     marginBottom: Spacing.md,
-  },
-  securityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    gap: Spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
-  securityIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.inputBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  securityLabel: {
-    color: Colors.text,
-    fontSize: FontSize.md,
-    fontFamily: Fonts.medium,
-  },
-  securityDesc: {
-    color: Colors.textMuted,
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.regular,
-    marginTop: 1,
   },
 });
