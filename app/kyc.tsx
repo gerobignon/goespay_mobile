@@ -394,8 +394,14 @@ export default function KycScreen() {
               {'  '}Photo de la pièce d'identité
             </Text>
             <View style={styles.guideImageDocWrapper}>
-              <Image source={require('../assets/vali0.jpg')} style={styles.guideImageFill} />
+              <Image source={require('../assets/kyc_id_sample.jpg')} style={styles.guideImageFill} />
             </View>
+            <Card style={{ marginBottom: Spacing.sm, paddingVertical: Spacing.sm }}>
+              <View style={styles.instructionRow}>
+                <FontAwesome6 name="circle-info" size={14} color={Colors.secondary} />
+                <Text style={styles.selfieHint}>{t('kyc.idHint')}</Text>
+              </View>
+            </Card>
             <TouchableOpacity
               style={styles.imagePicker}
               onPress={() => takePhoto(setFileUri)}
@@ -420,14 +426,12 @@ export default function KycScreen() {
               {'  '}Selfie avec la pièce
             </Text>
             <View style={styles.guideImageWrapper}>
-              <Image source={require('../assets/vali2.png')} style={styles.guideImageFill} />
+              <Image source={require('../assets/kyc_selfie_sample.jpg')} style={styles.guideImageFill} />
             </View>
             <Card style={{ marginBottom: Spacing.sm, paddingVertical: Spacing.sm }}>
               <View style={styles.instructionRow}>
                 <FontAwesome6 name="circle-info" size={14} color={Colors.secondary} />
-                <Text style={styles.selfieHint}>
-                  Prenez un selfie en tenant clairement votre pièce d'identité à côté de votre visage.
-                </Text>
+                <Text style={styles.selfieHint}>{t('kyc.selfieHint')}</Text>
               </View>
             </Card>
             <TouchableOpacity
