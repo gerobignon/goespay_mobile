@@ -126,6 +126,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const user = useAuthStore((s) => s.user);
   const countryFees = useConfigStore((s) => s.country_fees);
   const outgoingFees = useConfigStore((s) => s.outgoing_fees);
+  const intlRails = useConfigStore((s) => s.intl_rails);
   const transferMin = useConfigStore((s) => s.transfer_min);
   const transferMinWorld = useConfigStore((s) => s.transfer_min_world);
   const transferMinNg = useConfigStore((s) => s.transfer_min_ng);
@@ -140,7 +141,6 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // Corridors server-driven (aggregator_routing) : masquage temps réel + badge.
   const corridorsLoaded = useCorridorStore((s) => s.isLoaded);
   const isCodeEnabled = useCorridorStore((s) => s.isCodeEnabled);
-  const isCodeIntlEnabled = useCorridorStore((s) => s.isCodeIntlEnabled);
   const isPayoutAvailable = useCorridorStore((s) => s.isPayoutAvailable);
   const audienceFor = useCorridorStore((s) => s.audienceFor);
   // Moyen réservé VIP : masqué aux non-VIP (le backend bloque déjà la transaction).
@@ -166,10 +166,10 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // Opérateurs MM Fincra par pays (fincraOperator présent) → affichés par pays
   // comme le softpay, pas sous « Autres ».
   const isZoneFincra = (op: any) => !!op.fincra && ZONE_CURRENCIES.includes(op.currency) && !op.fincraOperator;
-  // Groupe « International » : gaté par l'audience International (intl_payout),
-  // indépendante des toggles pays (fiche Marchés → card « International »).
+  // Groupe « International » : piloté par /config.intl_rails (calculé serveur —
+  // dim 3 par pays listé, ou dim 2 pour les pays non listés).
   const otherOps = displayOperators.filter(
-    (op) => isZoneFincra(op) && (isAdmin || isCodeIntlEnabled(op.id, 'payout')) && audienceOk(op.id)
+    (op) => isZoneFincra(op) && (isAdmin || (intlRails?.payout ?? []).includes(op.id))
   );
   const operatorOthersLabel = (op: any): string => {
     if (!op?.fincra) return op?.name ?? '';

@@ -102,6 +102,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const consecutiveErrorsRef = useRef(0);
   const fetchBalance = useWalletStore((s) => s.fetchBalance);
   const user = useAuthStore((s) => s.user);
+  const intlRails = useConfigStore((s) => s.intl_rails);
   const depositMin = useConfigStore((s) => s.deposit_min);
   const depositMax = useConfigStore((s) => s.deposit_max);
   const cryptoRates = useCryptoStore((s) => s.rates);
@@ -269,7 +270,6 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // Corridors server-driven (aggregator_routing) : masquage payin temps réel.
   const corridorsLoaded = useCorridorStore((s) => s.isLoaded);
   const isCodeEnabled = useCorridorStore((s) => s.isCodeEnabled);
-  const isCodeIntlEnabled = useCorridorStore((s) => s.isCodeIntlEnabled);
   const audienceFor = useCorridorStore((s) => s.audienceFor);
   // Moyen réservé VIP : masqué aux non-VIP (le backend bloque déjà la transaction).
   const isVip = isAdmin || user?.group === 'vip';
@@ -359,8 +359,11 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // Groupe « International » : gaté par l'audience International (intl_payin),
   // indépendante des toggles pays. Un rail n'y apparaît que si l'admin l'a activé
   // pour l'International (fiche Marchés → card « International »).
+  // Groupe « International » : piloté par /config.intl_rails (calculé serveur —
+  // dim 3 par pays listé, ou dim 2 pour les pays non listés). Couvre donc aussi
+  // les users de pays listés (un Béninois peut envoyer en USD si activé pour BJ).
   const otherOps = operatorsBase.filter(isOtherOp).filter(
-    (op) => (isAdmin || isCodeIntlEnabled(op.id, 'payin')) && audienceOk(op.id)
+    (op) => isAdmin || (intlRails?.payin ?? []).includes(op.id)
   );
 
   const baseForStep = useCountryStep
@@ -380,13 +383,9 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // « Crypto-monnaies »). L'admin garde le groupe pour ses tests.
   const flattenCrypto = !isAdmin && cryptoEnabled;
   const operatorsForStep = othersOpen ? otherOps : (clientFlattenOthers ? otherOps : primaryOps);
-  // Entrée « International » : accessible uniquement depuis le picker pays initial.
-  // Une fois un pays sélectionné, on n'affiche QUE ses opérateurs (pas de bouton
-  // qui sortirait du contexte pays). Masquée pour un user d'un pays listé dans
-  // Marchés (il a déjà des moyens locaux) et quand on aplatit déjà « Autres ».
-  const showOthersEntry = otherOps.length > 0 && !selectedCountry && !clientFlattenOthers
-    && (showCard || primaryOps.length === 0)
-    && (isAdmin || !userCountryListed);
+  // Entrée « International » : visible dès qu'il y a des rails internationaux pour
+  // ce user (y compris pays listés — dim 3), au niveau du picker, hors flatten.
+  const showOthersEntry = otherOps.length > 0 && !selectedCountry && !clientFlattenOthers;
 
   const needsOtp = ['orange-money-burkina', 'orange-money-ci', 'orange-money-senegal', 'orange-gn'].includes(operator);
   const selectedOp = OPERATORS_SRC.find((op) => op.id === operator);

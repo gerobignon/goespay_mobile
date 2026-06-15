@@ -51,6 +51,9 @@ export interface AppConfig {
   transaction_alerts: TransactionAlerts;
   // Carrousel promo de l'accueil (configuré via /admin/settings). Liste ordonnée.
   promo_slides: PromoSlideConfig[];
+  // Rails internationaux disponibles pour CE user (codes corridor), par sens.
+  // Calculé serveur (dim 3 si pays listé, dim 2 sinon) → groupe « International ».
+  intl_rails: { payin: string[]; payout: string[] };
 }
 
 export interface PromoSlideConfig {
@@ -105,6 +108,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
     crypto_sell: { message: '', level: 'info' },
   },
   promo_slides: [],
+  intl_rails: { payin: [], payout: [] },
 };
 
 export const useConfigStore = create<ConfigState>((set) => ({
@@ -114,7 +118,9 @@ export const useConfigStore = create<ConfigState>((set) => ({
   fetchConfig: async () => {
     try {
       const { data } = await api.get<FeatureFlags & AppConfig>('/config');
-      set({ ...data, isLoaded: true });
+      // intl_rails peut manquer (backend non déployé / config non authentifiée) →
+      // défaut sûr pour éviter un accès .payin sur undefined.
+      set({ ...data, intl_rails: data.intl_rails ?? { payin: [], payout: [] }, isLoaded: true });
     } catch {
       // En cas d'erreur réseau, conserver les valeurs par défaut
       set({ ...defaultFlags, ...DEFAULT_APP_CONFIG, isLoaded: true });
