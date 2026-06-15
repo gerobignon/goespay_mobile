@@ -165,7 +165,9 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
         const isZone = !!zoneMembers[r.country];
         const isFincraAgg = r.aggregator === 'fincra' || r.aggregator === 'fincra_checkout';
         const fincraRail = isFincraAgg ? fincraRailFor(r.code, r.currency) : undefined;
-        const baseName = net?.label ?? r.network;
+        // Le label réseau Fincra MM est suffixé « (Fincra) » côté admin (distinction
+        // corridor) — inutile et parasite pour l'utilisateur. On le retire à l'affichage.
+        const baseName = (net?.label ?? r.network).replace(/\s*\(fincra\)\s*$/i, '');
         return {
           id: r.code,
           name: isFincraAgg ? fincraDisplayName(baseName, fincraRail, r.currency) : baseName,
