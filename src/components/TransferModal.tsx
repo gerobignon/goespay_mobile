@@ -344,6 +344,10 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     setBankName(b.bank_name || '');
     setBankCode(b.bank_code || '');
     setBankSwiftCode(b.swift_code || '');
+    // BIC (SEPA) et code SWIFT sont stockés dans swift_code → on réhydrate les
+    // deux champs selon le rail pour que la validation et l'envoi les retrouvent.
+    setBic(b.swift_code || '');
+    setSwiftCode(b.swift_code || '');
     setIban(b.iban || '');
     setBankCountry(b.country || '');
   };
@@ -634,7 +638,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
         bank_name: bankName.trim(),
         currency: fincraCurrency,
         country: bankCountry.trim() || undefined,
-        swift_code: (bankSwiftCode.trim() || swiftCode.trim()) || undefined,
+        swift_code: (bankSwiftCode.trim() || swiftCode.trim() || bic.trim()) || undefined,
         iban: iban.trim() || undefined,
         rail: fincraRail || undefined,
       });
@@ -709,6 +713,18 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
         showAlert(t('common.error'), t('transferModal.insufficientBalance'));
         return;
       }
+      // SEPA/SWIFT : Fincra exige IBAN + nom du bénéficiaire + BIC/code SWIFT
+      // (mappé sur beneficiary.bankCode). On bloque avant l'envoi pour éviter le
+      // 422 « beneficiary.bankCode is not allowed to be empty ».
+      if (fincraRail === 'SEPA' || fincraRail === 'SWIFT') {
+        const code = fincraRail === 'SEPA'
+          ? (bic.trim() || bankSwiftCode.trim())
+          : (swiftCode.trim() || bankSwiftCode.trim());
+        if (!iban.trim() || !bankAccountHolder.trim() || !code) {
+          showAlert(t('common.error'), t('transferModal.bankFieldsRequired'));
+          return;
+        }
+      }
     }
     setConfirmed(false);
     setConfirmVisible(true);
@@ -725,10 +741,15 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           lastName: bankAccountHolder.trim().split(' ').slice(-1).join(' ') || '',
           accountNumber: bankAccountNumber.trim() || iban.trim(),
           bankName: bankName.trim(),
-          bankCode: bankCode.trim(),
+          // Fincra exige un bankCode NON vide. Virements locaux (NGN/GHS) : code
+          // banque du sélecteur. SEPA : le BIC. SWIFT : le code SWIFT. Sans ça,
+          // Fincra renvoie 422 « beneficiary.bankCode is not allowed to be empty ».
+          bankCode: bankCode.trim()
+            || (fincraRail === 'SEPA' ? (bic.trim() || bankSwiftCode.trim()) : '')
+            || (fincraRail === 'SWIFT' ? (swiftCode.trim() || bankSwiftCode.trim()) : ''),
           // bankSwiftCode : sélectionné via le picker pour GHS/KES/etc., ou saisi
           // manuellement pour SWIFT/SEPA via le champ dédié.
-          bankSwiftCode: (bankSwiftCode.trim() || swiftCode.trim()) || undefined,
+          bankSwiftCode: (bankSwiftCode.trim() || swiftCode.trim() || bic.trim()) || undefined,
           // country (bénéficiaire) requis par Fincra pour UGX/ZMW/TZS — on
           // l'envoie systématiquement pour les rails bancaires (= pays de la
           // devise Fincra), sauf SWIFT/SEPA où l'utilisateur peut le surcharger
@@ -1325,7 +1346,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       autoCapitalize="characters"
                     />
                     <Input
-                      label="BIC (optionnel)"
+                      label="BIC"
                       placeholder="ex: BNPAFRPP"
                       value={bic}
                       onChangeText={setBic}

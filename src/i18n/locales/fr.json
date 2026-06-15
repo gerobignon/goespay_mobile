@@ -525,6 +525,7 @@
     "fincraReceives": "Le bénéficiaire reçoit",
     "rateLoading": "Calcul du taux…",
     "insufficientBalance": "Solde insuffisant.",
+    "bankFieldsRequired": "Renseignez le nom du bénéficiaire, l'IBAN et le code BIC/SWIFT.",
     "savedNumbers": "Numéros enregistrés",
     "saveThisNumber": "Enregistrer ce numéro",
     "saveThisBank": "Enregistrer ce bénéficiaire",
