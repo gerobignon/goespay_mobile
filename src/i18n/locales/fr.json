@@ -497,6 +497,7 @@
     "amountLabel": "Montant ({{currency}})",
     "phoneLabel": "Numéro de téléphone",
     "otpLabel": "Code OTP ({{operator}})",
+    "otpHint": "Générez votre code OTP depuis le menu Mobile Money (USSD) de votre opérateur, puis saisissez-le ici pour valider le paiement.",
     "kycRequired2": "Vous devez compléter la vérification KYC avant de pouvoir faire des transactions.",
     "kycRequired3": "KYC requis",
     "nameLabel": "Nom / libellé"

@@ -387,7 +387,14 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // ce user (y compris pays listés — dim 3), au niveau du picker, hors flatten.
   const showOthersEntry = otherOps.length > 0 && !selectedCountry && !clientFlattenOthers;
 
-  const needsOtp = ['orange-money-burkina', 'orange-money-ci', 'orange-money-senegal', 'orange-gn'].includes(operator);
+  // Opérateurs exigeant un code OTP saisi dans l'app (généré via USSD côté client) :
+  // - Softpay/PayDunya : orange-money-* (BF/CI/SN)
+  // - AfribaPay : Orange CI/BF/SN/GN exigent l'OTP (cf. doc AfribaPay « PAYIN with OTP »).
+  //   ML/CM/CD Orange n'en demandent pas ; Wave passe par provider_link (redirect).
+  const needsOtp = [
+    'orange-money-burkina', 'orange-money-ci', 'orange-money-senegal',
+    'orange-gn', 'orange-ci-afp', 'orange-bf-afp', 'orange-sn-afp',
+  ].includes(operator);
   const selectedOp = OPERATORS_SRC.find((op) => op.id === operator);
   const isFincra = !!(selectedOp as any)?.fincra;
   // Routing Fincra : le rail est désormais porté directement par l'opérateur
@@ -1171,13 +1178,19 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                 )}
 
                 {showPhoneField && needsOtp && (
-                  <Input
-                    label={t('depositModal.otpLabel', { operator: OPERATORS_SRC.find((op) => op.id === operator)?.name ?? '' })}
-                    placeholder={t('depositModal.refPlaceholder')}
-                    value={otp}
-                    onChangeText={setOtp}
-                    keyboardType="numeric"
-                  />
+                  <>
+                    <View style={styles.hintBox}>
+                      <FontAwesome6 name="circle-info" size={14} color={Colors.primary} />
+                      <Text style={styles.hintText}>{t('depositModal.otpHint')}</Text>
+                    </View>
+                    <Input
+                      label={t('depositModal.otpLabel', { operator: OPERATORS_SRC.find((op) => op.id === operator)?.name ?? '' })}
+                      placeholder={t('depositModal.refPlaceholder')}
+                      value={otp}
+                      onChangeText={setOtp}
+                      keyboardType="numeric"
+                    />
+                  </>
                 )}
 
                 <Button
@@ -1185,7 +1198,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                   onPress={user?.validate !== 1 ? () => showAlert(t('depositModal.kycRequired3'), t('depositModal.kycRequired2')) : handleDeposit}
                   icon="arrow-down"
                   loading={loading}
-                  disabled={!amount || fincraRateBlocking || classicRateBlocking || (showPhoneField && !phone) || (!!fincraZoneList && !fincraZoneCountry)}
+                  disabled={!amount || fincraRateBlocking || classicRateBlocking || (showPhoneField && !phone) || (showPhoneField && needsOtp && !otp.trim()) || (!!fincraZoneList && !fincraZoneCountry)}
                   style={{ marginTop: Spacing.lg }}
                 />
               </>
