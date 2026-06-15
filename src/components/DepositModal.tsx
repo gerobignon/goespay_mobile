@@ -444,11 +444,15 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // Fincra MM utilise le champ téléphone, Fincra BT n'a besoin de rien.
   // Reconnaît 'card' (INTL) ET 'card-<cc>' (carte PayDunya par pays).
   const isCard = (!!operator && (operator === 'card' || operator.startsWith('card-'))) || isFincraCH;
-  // Téléphone requis UNIQUEMENT pour le mobile money (le seul moyen qui encaisse
-  // via un numéro) : Fincra MM, ou MoMo classique PayDunya/AfribaPay (= un
-  // opérateur non-carte). Carte / virement / checkout n'en ont JAMAIS besoin —
-  // allowlist robuste plutôt qu'une denylist qui rate les cartes mal détectées.
-  const showPhoneField = isFincraMM || (!isFincra && !!selectedOp && !isCardOp(selectedOp));
+  // Téléphone UNIQUEMENT pour le mobile money (seul moyen encaissé via un numéro).
+  // Détection POSITIVE par réseau/rail → jamais de champ sur une carte / virement /
+  // checkout, quelle que soit la forme du code (card, card-<cc>, fincra-checkout-<cc>…).
+  const opNet  = String((selectedOp as any)?.network || '').toLowerCase();
+  const opRail = String((selectedOp as any)?.rail || '').toLowerCase();
+  const isCardLike = isCardOp(selectedOp)
+    || ['card', 'bank', 'checkout'].includes(opNet)
+    || ['checkout', 'bank_transfer', 'swift', 'sepa'].includes(opRail);
+  const showPhoneField = isFincraMM || (!isFincra && !!selectedOp && !isCardLike);
 
   const normalizedPhone = phone.replace(/\s+/g, '').trim();
 
