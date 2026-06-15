@@ -101,6 +101,15 @@ function fincraRailFor(code: string, currency?: string): string | undefined {
   return rail;
 }
 
+// Comme l'admin : sur les cartes et virements Fincra, on suffixe le nom avec la
+// devise gérée — « Virement bancaire (NGN) », « Carte bancaire (XOF) ». Le Mobile
+// Money n'est pas suffixé (le drapeau pays suffit à le distinguer).
+const FINCRA_CUR_RAILS = new Set(['bank_transfer', 'SWIFT', 'SEPA', 'checkout']);
+function fincraDisplayName(name: string, rail?: string, currency?: string): string {
+  if (!rail || !currency || !FINCRA_CUR_RAILS.has(rail)) return name;
+  return name.includes(currency) ? name : `${name} (${currency})`;
+}
+
 export interface CatalogZoneEntry { code: string; flag: string; name: string; phone: string; }
 
 interface CatalogState {
@@ -154,9 +163,12 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
         .map((r) => {
         const net = netByCode[r.network];
         const isZone = !!zoneMembers[r.country];
+        const isFincraAgg = r.aggregator === 'fincra' || r.aggregator === 'fincra_checkout';
+        const fincraRail = isFincraAgg ? fincraRailFor(r.code, r.currency) : undefined;
+        const baseName = net?.label ?? r.network;
         return {
           id: r.code,
-          name: net?.label ?? r.network,
+          name: isFincraAgg ? fincraDisplayName(baseName, fincraRail, r.currency) : baseName,
           // Drapeau : celui du pays catalogue, sinon dérivé du code ISO (US/EU/GB/NG…
           // — pays des rails internationaux souvent sans emoji stocké en base).
           flag: countryByCode[r.country]?.flag || flagFromCode(r.country),
@@ -164,9 +176,7 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
           countries: isZone ? zoneMembers[r.country] : undefined,
           currency: r.currency,
           // fincra_checkout (page hébergée) traité comme Fincra, rail = checkout.
-          rail: (r.aggregator === 'fincra' || r.aggregator === 'fincra_checkout')
-            ? fincraRailFor(r.code, r.currency)
-            : undefined,
+          rail: fincraRail,
           withdraw: !!r.payout,
           payin: !!r.payin,
           afribapay: r.aggregator === 'afribapay' || undefined,

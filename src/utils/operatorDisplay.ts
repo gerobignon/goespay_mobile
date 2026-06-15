@@ -53,8 +53,12 @@ export function resolveOperatorDisplay(
   const m = mode.match(/^fincra-(bank_transfer|bank|mobile_money|mm|checkout|card)$/i);
   if (m) {
     const rail = m[1].toLowerCase();
-    const name = FINCRA_RAIL_LABEL[rail] || 'Fincra';
-    const flag = currencyDest ? (FINCRA_CUR_FLAG[currencyDest.toUpperCase()] || '') : '';
+    const baseLabel = FINCRA_RAIL_LABEL[rail] || 'Fincra';
+    const cur = currencyDest ? currencyDest.toUpperCase() : '';
+    // Comme l'admin : suffixe la devise sur les cartes et virements (pas le MM).
+    const isCardOrBank = ['bank_transfer', 'bank', 'checkout', 'card'].includes(rail);
+    const name = (isCardOrBank && cur && !baseLabel.includes(cur)) ? `${baseLabel} (${cur})` : baseLabel;
+    const flag = cur ? (FINCRA_CUR_FLAG[cur] || '') : '';
     const normRail = rail === 'mm' ? 'mobile_money' : rail;
     // logo = même visuel que dépôt/retrait → OperatorLogo affiche l'image (pas l'icône).
     return { name, flag, op: { fincra: true, rail: normRail, logo: FINCRA_RAIL_LOGO[rail] } };
