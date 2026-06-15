@@ -2,8 +2,7 @@ import { useCurrencyStore } from '../stores/currencyStore';
 
 // Format brut (locale FR), sans conversion ni symbole.
 export function formatAmount(amount: number): string {
-  const value = Math.floor(amount * 100) / 100;
-  return value.toLocaleString('fr-FR', {
+  return amount.toLocaleString('fr-FR', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   });
@@ -28,7 +27,7 @@ export function useFormatXof(): (xofAmount: number, opts?: { withCode?: boolean;
       : xofAmount * rates[userCurrency];
     const formatted = value.toLocaleString('fr-FR', {
       minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
+      maximumFractionDigits: Math.max(decimals, 2),
     });
     const withCode = opts?.withCode !== false;
     const approx = opts?.approx !== false;

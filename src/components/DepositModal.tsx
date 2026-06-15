@@ -270,6 +270,10 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const corridorsLoaded = useCorridorStore((s) => s.isLoaded);
   const isCodeEnabled = useCorridorStore((s) => s.isCodeEnabled);
   const isCodeIntlEnabled = useCorridorStore((s) => s.isCodeIntlEnabled);
+  const audienceFor = useCorridorStore((s) => s.audienceFor);
+  // Moyen réservé VIP : masqué aux non-VIP (le backend bloque déjà la transaction).
+  const isVip = isAdmin || user?.group === 'vip';
+  const audienceOk = (id: string) => isVip || audienceFor(id) !== 'vip';
   // Référentiel serveur (P3) : opérateurs construits depuis /catalog (admin Marchés).
   // Fallback sur la liste statique config.ts tant que le catalogue n'est pas chargé.
   const catalogOperators = useCatalogStore((s) => s.operators);
@@ -301,7 +305,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
     ? [...operatorsBase]
     : [
         ...operatorsBase.filter(
-          (op) => operatorServesCountry(op as any, userCountry || '') && (isAdmin || isCodeEnabled(op.id, 'payin'))
+          (op) => operatorServesCountry(op as any, userCountry || '') && (isAdmin || isCodeEnabled(op.id, 'payin')) && audienceOk(op.id)
         ),
         // Fallback carte : SEULEMENT l'INTL 'card'. Les per-country card-<cc>
         // passent par le filtre normal (operatorServesCountry + isCodeEnabled).
@@ -356,7 +360,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // indépendante des toggles pays. Un rail n'y apparaît que si l'admin l'a activé
   // pour l'International (fiche Marchés → card « International »).
   const otherOps = operatorsBase.filter(isOtherOp).filter(
-    (op) => isAdmin || isCodeIntlEnabled(op.id, 'payin')
+    (op) => (isAdmin || isCodeIntlEnabled(op.id, 'payin')) && audienceOk(op.id)
   );
 
   const baseForStep = useCountryStep

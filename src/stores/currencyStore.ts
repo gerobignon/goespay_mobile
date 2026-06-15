@@ -50,9 +50,12 @@ interface CurrencyState {
 }
 
 const formatNumber = (value: number, decimals: number): string => {
+  // Pas d'arrondi à l'affichage : on garde jusqu'à 2 décimales si présentes
+  // (les devises à 0 décimale comme XOF n'écrasent plus la partie décimale),
+  // sans forcer de zéros au-delà de la convention de la devise.
   return value.toLocaleString('fr-FR', {
     minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
+    maximumFractionDigits: Math.max(decimals, 2),
   });
 };
 

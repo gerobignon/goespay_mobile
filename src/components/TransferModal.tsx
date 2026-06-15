@@ -142,6 +142,10 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const isCodeEnabled = useCorridorStore((s) => s.isCodeEnabled);
   const isCodeIntlEnabled = useCorridorStore((s) => s.isCodeIntlEnabled);
   const isPayoutAvailable = useCorridorStore((s) => s.isPayoutAvailable);
+  const audienceFor = useCorridorStore((s) => s.audienceFor);
+  // Moyen réservé VIP : masqué aux non-VIP (le backend bloque déjà la transaction).
+  const isVip = isAdmin || user?.group === 'vip';
+  const audienceOk = (id: string) => isVip || audienceFor(id) !== 'vip';
 
   // Référentiel serveur (P3) : opérateurs depuis /catalog (admin Marchés), fallback config.ts.
   const catalogOperators = useCatalogStore((s) => s.operators);
@@ -165,7 +169,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // Groupe « International » : gaté par l'audience International (intl_payout),
   // indépendante des toggles pays (fiche Marchés → card « International »).
   const otherOps = displayOperators.filter(
-    (op) => isZoneFincra(op) && (isAdmin || isCodeIntlEnabled(op.id, 'payout'))
+    (op) => isZoneFincra(op) && (isAdmin || isCodeIntlEnabled(op.id, 'payout')) && audienceOk(op.id)
   );
   const operatorOthersLabel = (op: any): string => {
     if (!op?.fincra) return op?.name ?? '';
@@ -188,7 +192,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       ? displayOperators.filter(
           (op) =>
             operatorServesCountry(op as any, selectedCountry) &&
-            (isAdmin || isCodeEnabled(op.id, 'payout'))
+            (isAdmin || isCodeEnabled(op.id, 'payout')) &&
+            audienceOk(op.id)
         )
       : [];
   // Entrée « International » au niveau du picker pays (rails internationaux).

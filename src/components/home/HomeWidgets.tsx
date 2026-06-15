@@ -188,11 +188,13 @@ export function MonthlyInsights() {
 // ═══════════════════════════════════════════════════════════════════
 const PALETTE = ['#3176FE', '#F4900C', '#10B981', '#A855F7', '#EC4899', '#0EA5E9'];
 
-export function RecentBeneficiaries({ onPick, onPickBank, onAdd }: { onPick: (tel: string) => void; onPickBank: (bank: SavedBank) => void; onAdd: () => void }) {
+export function RecentBeneficiaries({ onPick, onPickBank, onAdd, allowCrypto = false }: { onPick: (tel: string) => void; onPickBank: (bank: SavedBank) => void; onAdd: (type: 'phone' | 'bank' | 'crypto') => void; allowCrypto?: boolean }) {
   const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
   const [phones, setPhones] = useState<{ id: number; tel: string; name?: string }[]>([]);
   const [banks, setBanks] = useState<SavedBank[]>([]);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const pick = (type: 'phone' | 'bank' | 'crypto') => { setAddMenuOpen(false); onAdd(type); };
 
   React.useEffect(() => {
     walletService.getSavedPhones({ type: 'transfer' })
@@ -207,7 +209,7 @@ export function RecentBeneficiaries({ onPick, onPickBank, onAdd }: { onPick: (te
     <View style={{ marginTop: Spacing.lg }}>
       <Text style={styles.sectionTitle}>{t('home.benefTitle')}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.benefList}>
-        <Bounce style={styles.benefTile} onPress={onAdd}>
+        <Bounce style={styles.benefTile} onPress={() => setAddMenuOpen(true)}>
           <View style={styles.benefAvatarAdd}>
             <FontAwesome6 name="plus" size={16} color={Colors.secondary} />
           </View>
@@ -237,6 +239,27 @@ export function RecentBeneficiaries({ onPick, onPickBank, onAdd }: { onPick: (te
           );
         })}
       </ScrollView>
+
+      <Modal visible={addMenuOpen} transparent animationType="fade" onRequestClose={() => setAddMenuOpen(false)}>
+        <TouchableOpacity style={styles.addMenuOverlay} activeOpacity={1} onPress={() => setAddMenuOpen(false)}>
+          <View style={styles.addMenuSheet}>
+            <TouchableOpacity style={styles.addMenuItem} onPress={() => pick('phone')}>
+              <FontAwesome6 name="mobile-screen-button" size={16} color={Colors.secondary} iconStyle="solid" />
+              <Text style={styles.addMenuItemText}>{t('home.benefAddPhone')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.addMenuItem} onPress={() => pick('bank')}>
+              <FontAwesome6 name="building-columns" size={16} color={Colors.secondary} iconStyle="solid" />
+              <Text style={styles.addMenuItemText}>{t('home.benefAddBank')}</Text>
+            </TouchableOpacity>
+            {allowCrypto && (
+              <TouchableOpacity style={styles.addMenuItem} onPress={() => pick('crypto')}>
+                <FontAwesome6 name="bitcoin-sign" size={16} color={Colors.secondary} iconStyle="solid" />
+                <Text style={styles.addMenuItemText}>{t('home.benefAddCrypto')}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -500,6 +523,33 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontFamily: Fonts.medium ?? Fonts.regular,
     color: Colors.text,
     textAlign: 'center',
+  },
+  addMenuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
+  },
+  addMenuSheet: {
+    backgroundColor: Colors.card,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.xs,
+    width: '100%',
+    maxWidth: 320,
+    overflow: 'hidden',
+  },
+  addMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+  },
+  addMenuItemText: {
+    fontSize: FontSize.md,
+    fontFamily: Fonts.semiBold ?? Fonts.regular,
+    color: Colors.text,
   },
 
   // C — Convertisseur : trigger compact sur la home + modal centré.

@@ -141,7 +141,9 @@ export default function DashboardScreen() {
     setTransferPrefillBank(bank);
     setTransferVisible(true);
   }, [isValidated]);
-  const onBenefAdd = useCallback(() => router.push('/account/phones'), [router]);
+  const onBenefAdd = useCallback((type: 'phone' | 'bank' | 'crypto') => {
+    router.push(type === 'bank' ? '/account/bank-accounts' : type === 'crypto' ? '/account/wallets' : '/account/phones');
+  }, [router]);
   const prefetchRates = useCryptoStore((s) => s.fetchRates);
   const { isWide, isDesktop, contentMaxWidth } = useResponsive();
   const { isDark } = useTheme();
@@ -312,7 +314,7 @@ export default function DashboardScreen() {
 
               {/* Widgets en dessous : G + A + C + E. */}
               <PromoCarousel slides={promoSlides} />
-              {showTransfer && <RecentBeneficiaries onPick={onBenefPick} onPickBank={onBenefPickBank} onAdd={onBenefAdd} />}
+              {showTransfer && <RecentBeneficiaries onPick={onBenefPick} onPickBank={onBenefPickBank} onAdd={onBenefAdd} allowCrypto={isCryptoUser} />}
               <ReferralCard />
             </View>
 
@@ -387,7 +389,7 @@ export default function DashboardScreen() {
 
             {/* Widgets en dessous : G + A + C + E. */}
             <PromoCarousel slides={promoSlides} />
-            {showTransfer && <RecentBeneficiaries onPick={onBenefPick} onPickBank={onBenefPickBank} onAdd={onBenefAdd} />}
+            {showTransfer && <RecentBeneficiaries onPick={onBenefPick} onPickBank={onBenefPickBank} onAdd={onBenefAdd} allowCrypto={isCryptoUser} />}
             <ReferralCard />
 
             <View style={[styles.recentHeader, { marginTop: Spacing.lg }]}>
