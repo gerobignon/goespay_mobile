@@ -937,7 +937,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                       ]}
                       numberOfLines={1}
                     >
-                      {othersOpen ? operatorOthersLabel(op) : opName(op)}
+                      {op.flag ? `${op.flag} ` : ''}{othersOpen ? operatorOthersLabel(op) : opName(op)}
                     </Text>
                     <GatewayBadge op={op} visible={isAdmin} size={14} />
                   </TouchableOpacity>
@@ -1000,7 +1000,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                       ]}
                       numberOfLines={1}
                     >
-                      {othersOpen ? operatorOthersLabel(op) : opName(op)}
+                      {op.flag ? `${op.flag} ` : ''}{othersOpen ? operatorOthersLabel(op) : opName(op)}
                     </Text>
                     <GatewayBadge op={op} visible={isAdmin} size={16} />
                     {operator === op.id && (

@@ -977,7 +977,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                         style={[styles.operatorRowName, operator === op.id && styles.operatorRowNameSelected]}
                         numberOfLines={1}
                       >
-                        {operatorOthersLabel(op)}
+                        {op.flag ? `${op.flag} ` : ''}{operatorOthersLabel(op)}
                       </Text>
                       <GatewayBadge op={op} visible={isAdmin} size={16} />
                       {operator === op.id && (
@@ -1059,7 +1059,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       ]}
                       numberOfLines={1}
                     >
-                      {opName(op)}
+                      {op.flag ? `${op.flag} ` : ''}{opName(op)}
                     </Text>
                     <GatewayBadge op={op} visible={isAdmin} size={14} />
                   </TouchableOpacity>
@@ -1081,7 +1081,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       style={[styles.operatorRowName, operator === op.id && styles.operatorRowNameSelected]}
                       numberOfLines={1}
                     >
-                      {opName(op)}
+                      {op.flag ? `${op.flag} ` : ''}{opName(op)}
                     </Text>
                     <GatewayBadge op={op} visible={isAdmin} size={16} />
                     {operator === op.id && (

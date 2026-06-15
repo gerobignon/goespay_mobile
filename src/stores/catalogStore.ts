@@ -69,6 +69,15 @@ export interface CatalogOperator {
 }
 export interface CatalogCountryEntry { code: string; name: string; prefix: string; flag: string; }
 
+// Drapeau emoji dérivé d'un code pays ISO-2 (US → 🇺🇸, EU → 🇪🇺, GB → 🇬🇧…).
+// Fallback quand le pays n'a pas de drapeau stocké (rails internationaux).
+function flagFromCode(code?: string): string {
+  const c = (code || '').toUpperCase();
+  if (c === 'INTL') return '🌍';
+  if (!/^[A-Z]{2}$/.test(c)) return ''; // zones (XOF/XAF) etc. → pas de drapeau unique
+  return String.fromCodePoint(...[...c].map((ch) => 0x1f1e6 + ch.charCodeAt(0) - 65));
+}
+
 // Rail Fincra déduit du code corridor.
 function railFromCode(code: string): string | undefined {
   // Fincra Checkout (page hébergée) : fincra-checkout-<pays> → method=checkout.
@@ -148,7 +157,9 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
         return {
           id: r.code,
           name: net?.label ?? r.network,
-          flag: countryByCode[r.country]?.flag ?? '',
+          // Drapeau : celui du pays catalogue, sinon dérivé du code ISO (US/EU/GB/NG…
+          // — pays des rails internationaux souvent sans emoji stocké en base).
+          flag: countryByCode[r.country]?.flag || flagFromCode(r.country),
           country: r.country,
           countries: isZone ? zoneMembers[r.country] : undefined,
           currency: r.currency,
