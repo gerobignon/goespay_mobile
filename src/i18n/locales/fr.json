@@ -38,6 +38,8 @@
     "continue": "Continuer la saisie",
     "quit": "Quitter",
     "connectionError": "Connexion impossible. Vérifiez votre réseau et réessayez.",
+    "offline": "Vous semblez hors ligne. Vérifiez votre connexion internet.",
+    "serverUnreachable": "Connexion au serveur impossible. Réessayez dans un instant.",
     "timeout": "Le serveur met trop de temps à répondre. Vérifiez votre connexion et réessayez.",
     "serverError": "Une erreur serveur est survenue. Réessayez dans un instant.",
     "rateUnavailable": "Taux de conversion indisponible pour le moment. Réessayez.",

@@ -311,8 +311,8 @@ function RootInner() {
         <FontAwesome6 name="wifi" size={48} color={Colors.error} style={{ marginBottom: Spacing.lg }} />
         <Text style={styles.errorTitle}>{t('layout.connectionError')}</Text>
         <Text style={styles.errorText}>
-          Impossible de joindre le serveur.{'\n'}
-          Vérifiez votre connexion internet.
+          Impossible de joindre GoesPay pour le moment.{'\n'}
+          Vérifiez votre connexion ou réessayez dans un instant.
         </Text>
         {__DEV__ && (
           <Text style={styles.debugText}>{API_BASE_URL}</Text>

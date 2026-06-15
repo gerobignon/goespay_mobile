@@ -48,6 +48,7 @@ import { CountryPickerStep } from './CountryPickerStep';
 import FincraConversionHint from './FincraConversionHint';
 import { OperatorLogo } from './OperatorLogo';
 import { pickCryptoSource } from '../utils/cryptoLogos';
+import { noConnectionMessage } from '../utils/apiError';
 
 interface TransferModalProps {
   visible: boolean;
@@ -860,7 +861,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       const base = (serverMsg && typeof serverMsg === 'string' && serverMsg.trim())
         ? serverMsg
         : isTimeout ? t('transferModal.requestTimeout')
-        : !error?.response ? t('common.connectionError')
+        : !error?.response ? noConnectionMessage(t)
         : error?.response?.status >= 500 ? t('common.serverError')
         : t('transferModal.transferError');
       showAlert(t('common.error'), base);

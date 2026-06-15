@@ -2,10 +2,13 @@
 //
 // Priorité :
 //   1. Message renvoyé par le backend (error / message / errors de validation)
-//   2. Timeout (axios ECONNABORTED) → message dédié
-//   3. Aucune réponse (réseau coupé / serveur injoignable) → message réseau
-//   4. Erreur serveur 5xx → message serveur
-//   5. Fallback fourni par l'appelant (spécifique à l'écran)
+//      → c'est TOUJOURS le vrai message, on le montre en priorité absolue.
+//   2. Timeout (axios ECONNABORTED) → message dédié (l'opération a pu aboutir).
+//   3. Réponse présente mais sans message exploitable → 5xx = erreur serveur,
+//      sinon le fallback spécifique à l'écran.
+//   4. Aucune réponse lisible → on NE blâme PAS le réseau de l'utilisateur par
+//      défaut : on distingue un appareil réellement hors-ligne d'un serveur
+//      injoignable (timeout passerelle, 5xx Cloudflare, etc.).
 export function getApiErrorMessage(
   error: any,
   t: (key: string) => string,
@@ -22,8 +25,25 @@ export function getApiErrorMessage(
 
   const msg = String(error?.message || '');
   if (error?.code === 'ECONNABORTED' || /timeout/i.test(msg)) return t('common.timeout');
-  if (!error?.response) return t('common.connectionError');
-  if (error.response.status >= 500) return t('common.serverError');
 
-  return fallback;
+  // Une réponse existe (avec CORS) mais sans message exploitable (page HTML d'une
+  // passerelle, corps vide…). 5xx → serveur ; sinon fallback de l'écran.
+  if (error?.response) {
+    return error.response.status >= 500 ? t('common.serverError') : fallback;
+  }
+
+  // Aucune réponse : message honnête (jamais « vérifiez votre réseau » par défaut).
+  return noConnectionMessage(t);
+}
+
+/**
+ * Message honnête quand la requête n'a renvoyé AUCUNE réponse lisible.
+ * Web : si l'appareil est réellement hors-ligne, on le dit ; sinon c'est le
+ * serveur qui est injoignable (on ne fait pas porter le chapeau au réseau du
+ * client). Natif : `navigator.onLine` est indéfini → message « serveur ».
+ */
+export function noConnectionMessage(t: (key: string) => string): string {
+  const offline =
+    typeof navigator !== 'undefined' && (navigator as any)?.onLine === false;
+  return offline ? t('common.offline') : t('common.serverUnreachable');
 }
