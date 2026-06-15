@@ -136,33 +136,23 @@ export function MonthlyInsights() {
   const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
   const fmtXof = useFormatXof();
-  const transactions = useWalletStore((s) => s.transactions);
   // Gains = commissions de parrainage cumulées (total affiliation).
   const [gains, setGains] = useState<number | null>(null);
+  // Totaux du mois : agrégation SERVEUR (exacte, indépendante de la pagination
+  // de l'historique). Évite que les KPI « baissent » à chaque nouvelle opération.
+  const [insights, setInsights] = useState<{ deposit_month: number; sent_month: number; count_month: number } | null>(null);
 
   React.useEffect(() => {
     affiliationService.getStats()
       .then((s) => setGains(Number(s?.total) || 0))
       .catch(() => setGains(null));
+    walletService.getInsights()
+      .then(setInsights)
+      .catch(() => setInsights(null));
   }, []);
 
-  const insights = useMemo(() => {
-    const now = new Date();
-    const mStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-    const monthly = transactions.filter((tx) => {
-      const ts = new Date((tx as any).created_at || (tx as any).date || 0).getTime();
-      return ts >= mStart;
-    });
-    const sent = monthly
-      .filter((tx) => tx.type === 'transfer' || tx.type === 'withdraw')
-      .reduce((s, tx) => s + (Number((tx as any).amount) || 0), 0);
-    const received = monthly
-      .filter((tx) => tx.type === 'deposit')
-      .reduce((s, tx) => s + (Number((tx as any).amount) || 0), 0);
-    return { sent, received, count: monthly.length };
-  }, [transactions]);
-
-  if (insights.count === 0) return null;
+  // Caché uniquement si chargé ET aucune opération ce mois.
+  if (insights && insights.count_month === 0) return null;
 
   const cell = (icon: string, color: string, label: string, value: string) => (
     <View style={[styles.insightCell, { backgroundColor: color + '22', borderColor: color + '40' }]}>
@@ -176,8 +166,8 @@ export function MonthlyInsights() {
 
   return (
     <View style={styles.insightsGrid}>
-      {cell('arrow-down', '#10B981', t('home.insightsDeposit'), fmtXof(insights.received, { withCode: false }))}
-      {cell('arrow-up', '#3176FE', t('home.insightsSent'), fmtXof(insights.sent, { withCode: false }))}
+      {cell('arrow-down', '#10B981', t('home.insightsDeposit'), insights ? fmtXof(insights.deposit_month, { withCode: false }) : '—')}
+      {cell('arrow-up', '#3176FE', t('home.insightsSent'), insights ? fmtXof(insights.sent_month, { withCode: false }) : '—')}
       {cell('sack-dollar', '#F4B228', t('home.insightsGains'), gains !== null ? fmtXof(gains, { withCode: false }) : '—')}
     </View>
   );

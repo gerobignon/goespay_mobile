@@ -97,6 +97,13 @@ export const walletService = {
     return body;
   },
 
+  // Totaux du mois courant (agrégation serveur, exacte). Indépendant de la
+  // pagination de l'historique → ne « baisse » pas quand de nouvelles ops arrivent.
+  getInsights: async (): Promise<{ deposit_month: number; sent_month: number; count_month: number }> => {
+    const response = await api.get('/me/insights');
+    return response.data;
+  },
+
   getTransaction: async (id: number, type?: string): Promise<Transaction> => {
     const params: Record<string, string> = {};
     if (type) params.type = type;
