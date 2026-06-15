@@ -49,6 +49,19 @@ import FincraConversionHint from './FincraConversionHint';
 import { OperatorLogo } from './OperatorLogo';
 import { pickCryptoSource } from '../utils/cryptoLogos';
 
+// Combinaison USSD Orange Money pour générer le code OTP de paiement, par
+// opérateur (Softpay orange-money-* ET AfribaPay orange-*-afp). Codes officiels
+// AfribaPay (/v1/countries → ussd_code). « montant » = montant saisi.
+const ORANGE_OTP_USSD: Record<string, string> = {
+  'orange-money-ci':      '#144*82#',
+  'orange-ci-afp':        '#144*82#',
+  'orange-money-burkina': '*144*4*6*montant#',
+  'orange-bf-afp':        '*144*4*6*montant#',
+  'orange-money-senegal': '#144*391#',
+  'orange-sn-afp':        '#144*391#',
+  'orange-gn':            '*144*4*2*1#',
+};
+
 interface DepositModalProps {
   visible: boolean;
   onClose: () => void;
@@ -486,6 +499,15 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // conversion retomberait silencieusement en 1:1 (montant erroné). On bloque.
   const classicRateBlocking =
     !isFincra && userCurrency !== 'XOF' && !((currencyRates[userCurrency] ?? 0) > 0);
+
+  // Combinaison USSD à composer pour générer le code OTP, par opérateur Orange
+  // (source : AfribaPay /v1/countries → ussd_code). « montant » = montant local
+  // facturé (XOF pour la zone UEMOA). Affichée au-dessus du champ OTP.
+  const otpUssd: string | null = (() => {
+    const raw = ORANGE_OTP_USSD[operator];
+    if (!raw) return null;
+    return numAmountXofLive > 0 ? raw.replace('montant', String(numAmountXofLive)) : raw;
+  })();
 
   // Charge les numéros enregistrés pour cet opérateur dès qu'un opérateur non-card est sélectionné
   useEffect(() => {
@@ -1185,7 +1207,14 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                   <>
                     <View style={styles.hintBox}>
                       <FontAwesome6 name="circle-info" size={14} color={Colors.primary} />
-                      <Text style={styles.hintText}>{t('depositModal.otpHint')}</Text>
+                      {otpUssd ? (
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.hintText}>{t('depositModal.otpHintUssd')}</Text>
+                          <Text style={styles.ussdCode} selectable>{otpUssd}</Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.hintText}>{t('depositModal.otpHint')}</Text>
+                      )}
                     </View>
                     <Input
                       label={t('depositModal.otpLabel', { operator: OPERATORS_SRC.find((op) => op.id === operator)?.name ?? '' })}
@@ -1369,6 +1398,13 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.text,
     fontFamily: Fonts.regular,
     lineHeight: 16,
+  },
+  ussdCode: {
+    fontSize: FontSize.lg,
+    fontFamily: Fonts.bold,
+    color: Colors.primary,
+    letterSpacing: 1,
+    marginTop: 4,
   },
   zoneLabel: {
     fontSize: FontSize.sm,

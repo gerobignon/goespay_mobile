@@ -498,6 +498,7 @@
     "phoneLabel": "Phone number",
     "otpLabel": "OTP Code ({{operator}})",
     "otpHint": "Generate your OTP code from your operator's Mobile Money menu (USSD), then enter it here to validate the payment.",
+    "otpHintUssd": "Dial this code on your phone to generate your OTP code, then enter it below:",
     "kycRequired2": "You must complete KYC verification before making transactions.",
     "kycRequired3": "KYC required",
     "nameLabel": "Name / label"
