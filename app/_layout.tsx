@@ -157,6 +157,13 @@ function RootInner() {
     const ref = params.get('reference');
     if (!ref || !ref.startsWith('FCD-')) return;
 
+    // Si on revient dans le POPUP de paiement (ouvert par l'app via window.open),
+    // on ferme la fenêtre : l'onglet d'origine suit déjà le statut (polling).
+    // Préférence user : fenêtre fermée plutôt que rechargement de l'app.
+    if (window.opener && window.opener !== window) {
+      try { window.close(); return; } catch { /* fallback : on affiche le statut */ }
+    }
+
     // Nettoyer l'URL
     window.history.replaceState({}, '', window.location.pathname);
 
