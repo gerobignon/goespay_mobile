@@ -52,8 +52,6 @@ interface CryptoModalProps {
 
 type Tab = 'buy' | 'sell';
 
-const SELL_BLOCKED_COUNTRIES = ['BF', 'NE', 'ML', 'CM', 'NG'];
-
 const CRYPTO_IMAGES: Record<string, ImageSourcePropType> = {
   BTC: require('../../assets/crypto/btc.png'),
   ETH: require('../../assets/crypto/eth.png'),
@@ -125,7 +123,10 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
   const [saveWalletLoading, setSaveWalletLoading] = useState(false);
 
   const country = user?.country ?? '';
-  const isSellBlocked = SELL_BLOCKED_COUNTRIES.includes(country);
+  // Vente bloquée si le corridor de vente crypto n'est pas actif pour ce user
+  // (piloté par Marchés via crypto_sell_enabled / sellAvailable) — plus de liste
+  // de pays codée en dur. L'admin garde l'accès (bandeau d'avertissement).
+  const isSellBlocked = !sellAvailable;
 
   const loadSavedWallets = async () => {
     try {
