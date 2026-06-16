@@ -17,7 +17,7 @@ import { TransactionItem, getTransactionLogo, getModeName } from '../../src/comp
 import { useAuthStore } from '../../src/stores/authStore';
 import { TransactionDetailModal, type TxType } from '../../src/components/TransactionDetailModal';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
-import { TRANSACTION_STATUS, getTransactionStatus, COUNTRIES } from '../../src/constants/config';
+import { TRANSACTION_STATUS, getTransactionStatus } from '../../src/constants/config';
 import { formatAmount, formatDate, useFormatXof, useCurrencyCode } from '../../src/utils/format';
 import { normalizeStatut } from '../../src/utils/transactionStatus';
 import type { Transaction } from '../../src/types';
@@ -56,9 +56,12 @@ export default function HistoryScreen() {
   } = useWalletStore();
   const { user } = useAuthStore();
   const crypto_buy_enabled = useConfigStore((s) => s.crypto_buy_enabled);
+  const crypto_sell_enabled = useConfigStore((s) => s.crypto_sell_enabled);
   const isAdmin = user?.group === 'admin';
-  const isSupportedCountry = COUNTRIES.some((c) => c.code === user?.country);
-  const isCryptoUser = isAdmin || user?.group === 'crypto' || isSupportedCountry;
+  // Éligibilité crypto : groupe `crypto` OU corridor crypto (NowPayments/futur)
+  // actif en payin (vente) et/ou payout (achat) pour le pays — porté par les flags
+  // /config crypto_*_enabled. Plus de dépendance à la liste statique COUNTRIES.
+  const isCryptoUser = isAdmin || user?.group === 'crypto' || crypto_buy_enabled || crypto_sell_enabled;
   // crypto_buy_enabled est prioritaire : si off, seuls les admins voient le filtre Crypto.
   const showCrypto = isAdmin || (isCryptoUser && crypto_buy_enabled);
   const filteredFilterKeys = FILTER_KEYS.filter((f) => f.key !== 'crypto' || showCrypto);

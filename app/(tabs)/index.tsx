@@ -33,7 +33,7 @@ import {
   BorderRadius,
   Fonts,
 } from '../../src/constants/theme';
-import { API_BASE_URL, COUNTRIES } from '../../src/constants/config';
+import { API_BASE_URL } from '../../src/constants/config';
 import { getAccountMenuItems } from '../../src/constants/accountMenu';
 import { DepositModal } from '../../src/components/DepositModal';
 import { TransferModal } from '../../src/components/TransferModal';
@@ -91,8 +91,12 @@ export default function DashboardScreen() {
   const fetchCorridors = useCorridorStore((s) => s.fetchCorridors);
   const fetchCatalog = useCatalogStore((s) => s.fetchCatalog);
   const isAdmin = user?.group === 'admin';
-  const isSupportedCountry = COUNTRIES.some((c) => c.code === user?.country);
-  const isCryptoUser = isAdmin || user?.group === 'crypto' || isSupportedCountry;
+  // Éligibilité crypto : groupe `crypto` OU un corridor crypto (NowPayments ou
+  // futur agrégateur crypto) actif en payin (vente) et/ou payout (achat) pour le
+  // pays du user. Les flags /config crypto_*_enabled portent DÉJÀ cette logique
+  // par pays (api_mobile.php → RoutingResolver::cryptoBuy/SellEnabledFor =
+  // corridor nowpayments-<cc>). On ne dépend donc plus de la liste statique COUNTRIES.
+  const isCryptoUser = isAdmin || user?.group === 'crypto' || crypto_buy_enabled || crypto_sell_enabled;
   // L'admin voit tous les services même désactivés (un bandeau s'affiche dans le modal concerné).
   // Conditions vérifiées AVANT rendu : tant que /config n'a pas répondu (isLoaded
   // false), on ne rend AUCUNE action (skeleton à la place). Évite le flash

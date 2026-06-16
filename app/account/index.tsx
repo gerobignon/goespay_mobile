@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../../src/stores/authStore';
+import { useConfigStore } from '../../src/stores/configStore';
 import { usePinStore } from '../../src/stores/pinStore';
 import { authService } from '../../src/services/authService';
 import { Button } from '../../src/components/Button';
@@ -74,7 +75,12 @@ export default function AccountScreen() {
     ? { uri: user.avatar.startsWith('http') ? user.avatar : `${API_BASE_URL.replace('/api/mobile/v1', '')}${user.avatar}` }
     : null;
 
-  const isCryptoUser = user?.group === 'admin' || user?.group === 'crypto';
+  // Éligibilité crypto : groupe `crypto`/admin OU corridor crypto (NowPayments/
+  // futur) actif en payin (vente) et/ou payout (achat) pour le pays — porté par
+  // les flags /config crypto_*_enabled (cohérent avec l'accueil et l'historique).
+  const cryptoBuyEnabled = useConfigStore((s) => s.crypto_buy_enabled);
+  const cryptoSellEnabled = useConfigStore((s) => s.crypto_sell_enabled);
+  const isCryptoUser = user?.group === 'admin' || user?.group === 'crypto' || cryptoBuyEnabled || cryptoSellEnabled;
   const menuItems = getAccountMenuItems(t, { isCryptoUser });
 
   return (
