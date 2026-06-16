@@ -29,7 +29,10 @@ import { affiliationService } from '../../src/services/affiliationService';
 import { formatAmount, formatDate, useFormatXof, useCurrencyCode } from '../../src/utils/format';
 import type { AffiliationStats, AffiliationChild, AffiliationHistoryItem } from '../../src/types';
 
-const REFERRAL_BASE_URL = 'https://goespay.io/register';
+const REFERRAL_BASE_URL = 'https://goespay.io';
+// Vrai code parrainage = 5 car. [A-Z0-9] → lien court goespay.io/<CODE>.
+// Repli numérique (id) → forme longue ?ref= (le routeur court ne capte que 5 car.).
+const isShortCode = (c: string) => /^[A-Z0-9]{5}$/.test(c);
 
 // Masque un nom complet en gardant la 1ère et dernière lettre de chaque mot.
 // Ex: "Erol Bignon" → "E**l B****n", "Jo" → "J*", "X" → "X"
@@ -66,7 +69,11 @@ export default function AffiliationScreen() {
   const [tab, setTab] = useState<'children' | 'history'>('children');
 
   const referralCode = stats?.referral_code || (user?.id ? String(user.id) : '');
-  const referralLink = referralCode ? `${REFERRAL_BASE_URL}?ref=${referralCode}` : '';
+  const referralLink = referralCode
+    ? (isShortCode(referralCode)
+        ? `${REFERRAL_BASE_URL}/${referralCode}`
+        : `${REFERRAL_BASE_URL}/register?ref=${referralCode}`)
+    : '';
 
   const loadAll = useCallback(async () => {
     try {
