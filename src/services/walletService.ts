@@ -131,6 +131,12 @@ export const walletService = {
     return response.data;
   },
 
+  // Soumet l'OTP d'une charge MM Fincra (opérateurs en auth_model=OTP, ex. Orange SN).
+  authorizeFincraDeposit: async (payload: { charge_id: string; otp: string }): Promise<{ status: string }> => {
+    const response = await api.post('/deposit/fincra/authorize', payload, { timeout: 60000 });
+    return response.data;
+  },
+
   transfer: async (
     data: TransferRequest
   ): Promise<any> => {

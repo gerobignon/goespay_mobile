@@ -131,6 +131,10 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const [savedPhonesLoadError, setSavedPhonesLoadError] = useState<string | null>(null);
   const [savePhoneModalVisible, setSavePhoneModalVisible] = useState(false);
   const [savePhoneName, setSavePhoneName] = useState('');
+  // Étape OTP Fincra MM (opérateurs en auth_model=OTP, ex. Orange Sénégal) : la
+  // charge est créée, on collecte l'OTP (généré via USSD) puis on l'autorise.
+  const [fincraOtpStep, setFincraOtpStep] = useState<{ chargeId: string; depositId: number; reference: string | null; message: string } | null>(null);
+  const [fincraOtpInput, setFincraOtpInput] = useState('');
   const [savePhoneOperator, setSavePhoneOperator] = useState('');
   const [savePhoneLoading, setSavePhoneLoading] = useState(false);
 
@@ -156,6 +160,8 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
     setManualPaymentUrl(null);
     setBankTransferInfo(null);
     setCopiedField(null);
+    setFincraOtpStep(null);
+    setFincraOtpInput('');
     setSavedPhones([]);
     setSavedPhonesLoadError(null);
     setSavePhoneModalVisible(false);
@@ -684,6 +690,12 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
         result = { deposit_id: data.deposit_id, reference: data.reference };
         if (isFincraCH) {
           result.checkout_url = data.payment_url;
+        } else if (isFincraMM && data.auth_model === 'redirect' && data.payment_url) {
+          // Wave & co : Fincra renvoie un lien à ouvrir (comme un checkout).
+          result.checkout_url = data.payment_url;
+        } else if (isFincraMM && data.auth_model === 'otp' && data.charge_id) {
+          // Orange Sénégal & co : charge créée, on doit soumettre un OTP.
+          result.fincraOtp = { chargeId: data.charge_id, message: data.message || '' };
         } else if (isFincraBT) {
           const va = data?.data?.virtualAccount || {};
           const amt = Number(data?.data?.amount ?? numAmount);
@@ -707,6 +719,21 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
         if (!isCard) payload.tel = phone.trim();
         if (needsOtp && otp) payload.otp = otp;
         result = await walletService.deposit(payload);
+      }
+
+      // Étape OTP Fincra MM : on suspend le flux, on affiche le champ OTP, et on
+      // autorisera la charge à la soumission (submitFincraOtp).
+      if (result?.fincraOtp) {
+        if (cardWindow && !cardWindow.closed) cardWindow.close();
+        setFincraOtpStep({
+          chargeId: result.fincraOtp.chargeId,
+          depositId: result.deposit_id,
+          reference: result.reference ?? null,
+          message: result.fincraOtp.message || '',
+        });
+        setFincraOtpInput('');
+        setLoading(false);
+        return;
       }
 
       const redirectUrl = result?.checkout_url || result?.url;
@@ -740,6 +767,27 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
       setOtp('');
     } catch (error: any) {
       if (cardWindow && !cardWindow.closed) cardWindow.close();
+      showAlert(t('common.error'), getApiErrorMessage(error, t, t('depositModal.depositError')));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Soumet l'OTP saisi pour autoriser la charge MM Fincra (Orange SN…), puis
+  // bascule sur le polling du statut comme un dépôt MM classique.
+  const submitFincraOtp = async () => {
+    if (!fincraOtpStep || !fincraOtpInput.trim()) return;
+    setLoading(true);
+    try {
+      await walletService.authorizeFincraDeposit({ charge_id: fincraOtpStep.chargeId, otp: fincraOtpInput.trim() });
+      pollingRefRef.current = fincraOtpStep.reference;
+      setPollingMessage(t('depositModal.waitingConfirmation'));
+      startPolling(fincraOtpStep.depositId);
+      setFincraOtpStep(null);
+      setFincraOtpInput('');
+      setAmount('');
+      setPhone('');
+    } catch (error: any) {
       showAlert(t('common.error'), getApiErrorMessage(error, t, t('depositModal.depositError')));
     } finally {
       setLoading(false);
@@ -1240,6 +1288,36 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
           </View>
       </KeyboardAvoidingView>
       <CustomAlert />
+
+      {/* Étape OTP Fincra MM (Orange Sénégal & co) : saisie + validation de l'OTP */}
+      <Modal visible={!!fincraOtpStep} transparent animationType="fade" onRequestClose={() => { if (!loading) { setFincraOtpStep(null); setFincraOtpInput(''); } }}>
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmSheet}>
+            <Text style={styles.confirmTitle}>{t('depositModal.otpLabel', { operator: selectedOp?.name ?? '' })}</Text>
+            <Text style={styles.confirmSubtitle}>
+              {fincraOtpStep?.message?.trim() ? fincraOtpStep.message : t('depositModal.otpHint')}
+            </Text>
+            <Input
+              label=""
+              placeholder={t('depositModal.refPlaceholder')}
+              value={fincraOtpInput}
+              onChangeText={setFincraOtpInput}
+              keyboardType="numeric"
+              containerStyle={{ alignSelf: 'stretch' }}
+            />
+            <View style={styles.confirmBtns}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => { if (!loading) { setFincraOtpStep(null); setFincraOtpInput(''); } }}>
+                <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.confirmBtn, !fincraOtpInput.trim() && styles.confirmBtnDisabled]} onPress={submitFincraOtp} disabled={loading || !fincraOtpInput.trim()}>
+                {loading
+                  ? <ActivityIndicator size="small" color={Colors.white} />
+                  : <Text style={styles.confirmBtnText}>{t('common.validate')}</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={savePhoneModalVisible} transparent animationType="fade" onRequestClose={() => setSavePhoneModalVisible(false)}>
         <View style={styles.confirmOverlay}>
