@@ -23,6 +23,7 @@ import { TRANSACTION_STATUS, getTransactionStatus } from '../../../src/constants
 import { formatCurrency, formatDate, useFormatXof, useCurrencyCode } from '../../../src/utils/format';
 import { shareReceipt } from '../../../src/utils/receipt';
 import { downloadInvoice } from '../../../src/utils/invoice';
+import { resolveOperatorDisplay } from '../../../src/utils/operatorDisplay';
 import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../../../src/constants/theme';
 import type { ColorPalette } from '../../../src/constants/theme';
 import { useThemedStyles } from '../../../src/hooks/useThemedStyles';
@@ -185,7 +186,7 @@ export default function DepositDetailScreen() {
             badgeColor={status.color}
             badgeIcon={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'}
           />
-          <TransactionDetailRow label={t('transaction.operator')} value={tx.mode ?? '—'} badge badgeColor={Colors.secondary} />
+          <TransactionDetailRow label={t('transaction.operator')} value={resolveOperatorDisplay(tx.mode, tx.currency_dest)?.name ?? tx.mode ?? '—'} badge badgeColor={Colors.secondary} />
           <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />
           {tx.statut === 'success' && (
             <>
