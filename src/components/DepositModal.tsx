@@ -60,9 +60,6 @@ const ORANGE_OTP_USSD: Record<string, string> = {
   'orange-money-senegal': '#144#391#',
   'orange-sn-afp':        '#144#391#',
   'orange-gn':            '*144*4*2*1#',
-  // Klasha MoMo (device-poll) : Orange CI/SN valident sur le téléphone via le même USSD.
-  'klasha-mm-ci-orange':  '#144*82#',
-  'klasha-mm-sn-orange':  '#144#391#',
 };
 
 interface DepositModalProps {
@@ -1283,19 +1280,6 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                       keyboardType="numeric"
                     />
                   </>
-                )}
-
-                {/* Klasha MoMo = validation sur le téléphone (device-poll, pas d'OTP
-                    in-app) : on affiche juste le code USSD à composer pour valider,
-                    comme AfribaPay Orange. */}
-                {showPhoneField && isKlasha && isFincraMM && otpUssd && (
-                  <View style={styles.hintBox}>
-                    <FontAwesome6 name="circle-info" size={14} color={Colors.primary} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.hintText}>{t('depositModal.otpHintUssd')}</Text>
-                      <Text style={styles.ussdCode} selectable>{otpUssd}</Text>
-                    </View>
-                  </View>
                 )}
 
                 <Button
