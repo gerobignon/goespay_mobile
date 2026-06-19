@@ -159,7 +159,7 @@ export default function KycScreen() {
       const msg = data?.error
         || data?.message
         || (data?.errors ? Object.values(data.errors).flat().join('\n') : null)
-        || (typeof data === 'string' ? data.slice(0, 200) : null)
+        || (typeof data === 'string' && !data.trim().startsWith('<') ? data.slice(0, 200) : null)
         || error?.message
         || "Erreur lors de l'envoi des documents.";
       showAlert('Erreur', msg as string);
