@@ -57,12 +57,12 @@ const ORANGE_OTP_USSD: Record<string, string> = {
   'orange-ci-afp':        '#144*82#',
   'orange-money-burkina': '*144*4*6*montant#',
   'orange-bf-afp':        '*144*4*6*montant#',
-  'orange-money-senegal': '#144*391#',
-  'orange-sn-afp':        '#144*391#',
+  'orange-money-senegal': '#144#391#',
+  'orange-sn-afp':        '#144#391#',
   'orange-gn':            '*144*4*2*1#',
   // Klasha MoMo (device-poll) : Orange CI/SN valident sur le téléphone via le même USSD.
   'klasha-mm-ci-orange':  '#144*82#',
-  'klasha-mm-sn-orange':  '#144*391#',
+  'klasha-mm-sn-orange':  '#144#391#',
 };
 
 interface DepositModalProps {
