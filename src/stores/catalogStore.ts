@@ -23,6 +23,7 @@ const LOGO_BY_KEY: Record<string, any> = {
   pay_telecel:  require('../../assets/operators/pay_telecel.png'),
   pay_card:     require('../../assets/operators/pay_card.jpg'),
   pay_fincra:   require('../../assets/operators/pay_fincra.png'),
+  pay_klasha:   require('../../assets/operators/pay_klasha.png'),
   pay_momo:     require('../../assets/operators/pay_momo.png'),
   paydunya:     require('../../assets/operators/paydunya.png'),
   // Opérateurs AfribaPay / Fincra additionnels (catalogue Marchés).
@@ -64,6 +65,10 @@ export interface CatalogOperator {
   fincra?: boolean;
   // Code opérateur Fincra (ORANGE, MTN…) pour les corridors fincra-mm-<pays>-<op>.
   fincraOperator?: string;
+  // Klasha : réutilise l'UI Fincra (fincra:true) ; ce flag route les appels API.
+  klasha?: boolean;
+  // Opérateur Klasha (MTN, ORANGE…) pour les corridors klasha-mm-<pays>-<op>.
+  klashaOperator?: string;
   aggregator: string;
   logo: any;
 }
@@ -99,6 +104,16 @@ function fincraRailFor(code: string, currency?: string): string | undefined {
     if (currency === 'EUR') return 'SEPA';
   }
   return rail;
+}
+
+// Rail Klasha déduit du code corridor : klasha-mm-<pays>-<op> → mobile_money ;
+// klasha-<cur>-bt → bank_transfer ; klasha-<cur>-card → checkout (réutilise l'UI
+// carte Fincra ; le routage /deposit/klasha traduit checkout → card).
+function klashaRailFor(code: string): string | undefined {
+  if (code.startsWith('klasha-mm-')) return 'mobile_money';
+  if (code.endsWith('-bt')) return 'bank_transfer';
+  if (code.endsWith('-card')) return 'checkout';
+  return undefined;
 }
 
 // Comme l'admin : sur les cartes et virements Fincra, on suffixe le nom avec la
@@ -164,13 +179,16 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
         const net = netByCode[r.network];
         const isZone = !!zoneMembers[r.country];
         const isFincraAgg = r.aggregator === 'fincra' || r.aggregator === 'fincra_checkout';
-        const fincraRail = isFincraAgg ? fincraRailFor(r.code, r.currency) : undefined;
+        const isKlashaAgg = r.aggregator === 'klasha';
+        // Klasha réutilise la machinerie UI Fincra (fincra:true) → rail dérivé pareil.
+        const fincraRail = isFincraAgg ? fincraRailFor(r.code, r.currency)
+                         : isKlashaAgg ? klashaRailFor(r.code) : undefined;
         // Le label réseau Fincra MM est suffixé « (Fincra) » côté admin (distinction
         // corridor) — inutile et parasite pour l'utilisateur. On le retire à l'affichage.
-        const baseName = (net?.label ?? r.network).replace(/\s*\(fincra\)\s*$/i, '');
+        const baseName = (net?.label ?? r.network).replace(/\s*\((?:fincra|klasha)\)\s*$/i, '');
         return {
           id: r.code,
-          name: isFincraAgg ? fincraDisplayName(baseName, fincraRail, r.currency) : baseName,
+          name: (isFincraAgg || isKlashaAgg) ? fincraDisplayName(baseName, fincraRail, r.currency) : baseName,
           // Drapeau : celui du pays catalogue, sinon dérivé du code ISO (US/EU/GB/NG…
           // — pays des rails internationaux souvent sans emoji stocké en base).
           flag: countryByCode[r.country]?.flag || flagFromCode(r.country),
@@ -182,9 +200,12 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
           withdraw: !!r.payout,
           payin: !!r.payin,
           afribapay: r.aggregator === 'afribapay' || undefined,
-          fincra: (r.aggregator === 'fincra' || r.aggregator === 'fincra_checkout') || undefined,
-          // Opérateur Fincra (ORANGE…) porté par les corridors fincra-mm-<pays>-<op>.
-          fincraOperator: r.code.startsWith('fincra-mm-') ? r.network.toUpperCase() : undefined,
+          // Klasha réutilise l'UI Fincra → fincra:true aussi pour les corridors klasha.
+          fincra: (r.aggregator === 'fincra' || r.aggregator === 'fincra_checkout' || r.aggregator === 'klasha') || undefined,
+          klasha: r.aggregator === 'klasha' || undefined,
+          // Opérateur MM (ORANGE…) porté par les corridors fincra-mm-/klasha-mm-.
+          fincraOperator: (r.code.startsWith('fincra-mm-') || r.code.startsWith('klasha-mm-')) ? r.network.toUpperCase() : undefined,
+          klashaOperator: r.code.startsWith('klasha-mm-') ? r.network.toUpperCase() : undefined,
           aggregator: r.aggregator,
           logo: (net && LOGO_BY_KEY[net.logo_key]) || DEFAULT_LOGO,
         };

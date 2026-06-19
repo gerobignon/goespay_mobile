@@ -192,8 +192,10 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
     try {
       // Fincra : check directement auprès de Fincra via la référence
       const fincraRef = pollingRefRef.current;
-      if (fincraRef && fincraRef.startsWith('FCD-')) {
-        const fRes = await walletService.getFincraDepositStatus(fincraRef);
+      if (fincraRef && (fincraRef.startsWith('FCD-') || fincraRef.startsWith('KLD-'))) {
+        const fRes = fincraRef.startsWith('KLD-')
+          ? await walletService.getKlashaDepositStatus(fincraRef)
+          : await walletService.getFincraDepositStatus(fincraRef);
         consecutiveErrorsRef.current = 0;
         if (fRes.status === 'success') {
           stopPolling(); setPollingState('success'); fetchBalance().catch(() => {}); return true;
@@ -416,6 +418,8 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   ].includes(operator);
   const selectedOp = OPERATORS_SRC.find((op) => op.id === operator);
   const isFincra = !!(selectedOp as any)?.fincra;
+  // Klasha réutilise l'UI Fincra ; ce flag route les appels API vers /deposit/klasha.
+  const isKlasha = !!(selectedOp as any)?.klasha;
   // Routing Fincra : le rail est désormais porté directement par l'opérateur
   // (cf. OPERATORS dans config.ts). 1 opérateur = 1 rail, plus de sélecteur.
   const fincraCurrency = isFincra ? ((selectedOp as any)?.currency || 'XOF') : '';
@@ -486,7 +490,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const numAmountXofLive = userCurrency === 'XOF'
     ? Math.round(numAmountDisplayLive)
     : convertToXof(numAmountDisplayLive);
-  const fincraRate = useFincraRate(fincraCurrency, isFincra);
+  const fincraRate = useFincraRate(fincraCurrency, isFincra, isKlasha);
   // Montant à encaisser côté Fincra (devise Fincra).
   const fincraChargeAmount =
     isFincra && numAmountDisplayLive > 0
@@ -686,16 +690,16 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
           fincraPayload.country  = mmCountry;
           fincraPayload.phone    = formatFincraPhone(phone, fincraDialCode || '', true);
         }
-        const { data } = await api.post('/deposit/fincra', fincraPayload, { timeout: 70000 });
+        const { data } = await api.post(isKlasha ? '/deposit/klasha' : '/deposit/fincra', fincraPayload, { timeout: 70000 });
         result = { deposit_id: data.deposit_id, reference: data.reference };
         if (isFincraCH) {
           result.checkout_url = data.payment_url;
         } else if (isFincraMM && data.auth_model === 'redirect' && data.payment_url) {
           // Wave & co : Fincra renvoie un lien à ouvrir (comme un checkout).
           result.checkout_url = data.payment_url;
-        } else if (isFincraMM && data.auth_model === 'otp' && data.charge_id) {
-          // Orange Sénégal & co : charge créée, on doit soumettre un OTP.
-          result.fincraOtp = { chargeId: data.charge_id, message: data.message || '' };
+        } else if (isFincraMM && data.auth_model === 'otp' && (data.charge_id || data.reference)) {
+          // Orange Sénégal & co (Fincra : charge_id) / Klasha MoMo (reference) : OTP requis.
+          result.fincraOtp = { chargeId: data.charge_id || data.reference, message: data.message || '' };
         } else if (isFincraBT) {
           const va = data?.data?.virtualAccount || {};
           const amt = Number(data?.data?.amount ?? numAmount);
@@ -779,7 +783,11 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
     if (!fincraOtpStep || !fincraOtpInput.trim()) return;
     setLoading(true);
     try {
-      await walletService.authorizeFincraDeposit({ charge_id: fincraOtpStep.chargeId, otp: fincraOtpInput.trim() });
+      if (isKlasha) {
+        await walletService.authorizeKlashaDeposit({ reference: fincraOtpStep.chargeId, otp: fincraOtpInput.trim(), currency: fincraCurrency, type: 'mobilemoney' });
+      } else {
+        await walletService.authorizeFincraDeposit({ charge_id: fincraOtpStep.chargeId, otp: fincraOtpInput.trim() });
+      }
       pollingRefRef.current = fincraOtpStep.reference;
       setPollingMessage(t('depositModal.waitingConfirmation'));
       startPolling(fincraOtpStep.depositId);

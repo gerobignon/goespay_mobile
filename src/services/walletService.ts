@@ -188,6 +188,62 @@ export const walletService = {
     return response.data;
   },
 
+  // ── Klasha (4e agrégateur — mêmes patterns que Fincra) ──
+  klashaDeposit: async (payload: {
+    amount: number; currency: string; method: 'mobile_money' | 'bank_transfer' | 'card';
+    operator?: string; phone?: string; country?: string; code?: string; card?: any;
+  }): Promise<any> => {
+    const response = await api.post('/deposit/klasha', payload, { timeout: 70000 });
+    return response.data;
+  },
+
+  getKlashaDepositStatus: async (ref: string): Promise<{ status: 'wait' | 'success' | 'fail'; user_error?: string | null }> => {
+    const response = await api.get(`/deposit/klasha/status/${ref}`);
+    return response.data;
+  },
+
+  // Soumet l'OTP d'une charge MM/carte Klasha (par référence KLD-).
+  authorizeKlashaDeposit: async (payload: { reference: string; otp: string; currency?: string; type?: string }): Promise<{ status: string }> => {
+    const response = await api.post('/deposit/klasha/authorize', payload, { timeout: 60000 });
+    return response.data;
+  },
+
+  klashaPayout: async (payload: FincraPayoutRequest): Promise<FincraPayoutResponse> => {
+    const response = await api.post('/payout/klasha', payload, { timeout: 70000 });
+    return response.data;
+  },
+
+  getKlashaPayoutStatus: async (reference: string): Promise<{ transfer_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; amount_sent: number; mode: string }> => {
+    const response = await api.get(`/payout/klasha/status/${encodeURIComponent(reference)}`);
+    return response.data;
+  },
+
+  getKlashaPayoutRails: async (currency: string): Promise<{ currency: string; rails: string[] }> => {
+    const response = await api.get('/klasha/payout-rails', { params: { currency } });
+    return response.data;
+  },
+
+  getKlashaBanks: async (currency: string): Promise<{ currency: string; banks: { code: string; name: string }[] }> => {
+    const response = await api.get('/klasha/banks', { params: { currency } });
+    return response.data;
+  },
+
+  // Taux Klasha : 1 unité de `currency` = N XOF (pivot du wallet, swap via USD).
+  getKlashaRate: async (currency: string): Promise<{ currency: string; rate_to_xof: number }> => {
+    const response = await api.get('/klasha/rates', { params: { currency } });
+    return response.data;
+  },
+
+  getKlashaMobileMoneyOperators: async (country: string): Promise<{ country: string; operators: string[] }> => {
+    const response = await api.get('/klasha/mobile-money-operators', { params: { country } });
+    return response.data;
+  },
+
+  resolveKlashaAccount: async (payload: { accountNumber: string; bankCode: string; currency: string }): Promise<{ resolved: boolean; accountName: string | null; raw: any }> => {
+    const response = await api.post('/klasha/resolve-account', payload);
+    return response.data;
+  },
+
   submitClaim: async (data: { transaction_id: number; type: string; message: string }): Promise<any> => {
     const response = await api.post('/claim', data);
     return response.data;

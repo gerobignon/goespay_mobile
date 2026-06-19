@@ -4,11 +4,13 @@ import { Image, StyleSheet, View, ImageStyle, ViewStyle } from 'react-native';
 const PAYDUNYA = require('../../assets/operators/paydunya.png');
 const AFRIBAPAY = require('../../assets/operators/afribapay.png');
 const FINCRA = require('../../assets/operators/pay_fincra.png');
+const KLASHA = require('../../assets/operators/pay_klasha.png');
 
 interface OperatorLike {
   id: string;
   afribapay?: true;
   fincra?: true;
+  klasha?: true;
 }
 
 interface Props {
@@ -28,7 +30,8 @@ interface Props {
  */
 export function GatewayBadge({ op, visible, size = 16, style }: Props) {
   if (!visible) return null;
-  const source = op.fincra    ? FINCRA
+  const source = op.klasha    ? KLASHA
+               : op.fincra    ? FINCRA
                : op.afribapay ? AFRIBAPAY
                : PAYDUNYA;
   const imgStyle: ImageStyle = { width: size, height: size, borderRadius: size / 2 };

@@ -5,6 +5,8 @@ import { useCatalogStore } from '../stores/catalogStore';
 const FINCRA_CUR_FLAG: Record<string, string> = {
   NGN: '🇳🇬', GHS: '🇬🇭', KES: '🇰🇪', UGX: '🇺🇬', ZMW: '🇿🇲', TZS: '🇹🇿',
   ZAR: '🇿🇦', EGP: '🇪🇬', USD: '🇺🇸', EUR: '🇪🇺', GBP: '🇬🇧',
+  // Devises Klasha additionnelles.
+  CDF: '🇨🇩', RWF: '🇷🇼', MWK: '🇲🇼', MZN: '🇲🇿', SLL: '🇸🇱',
 };
 
 // Libellé propre par rail Fincra (jamais la string brute « fincra-… »).
@@ -63,5 +65,18 @@ export function resolveOperatorDisplay(
     // logo = même visuel que dépôt/retrait → OperatorLogo affiche l'image (pas l'icône).
     return { name, flag, op: { fincra: true, rail: normRail, logo: FINCRA_RAIL_LOGO[rail] } };
   }
+
+  // Klasha : mode stocké = klasha-<mobile_money|bank_transfer|card> (mêmes visuels).
+  const k = mode.match(/^klasha-(bank_transfer|mobile_money|card)$/i);
+  if (k) {
+    const rail = k[1].toLowerCase();
+    const baseLabel = FINCRA_RAIL_LABEL[rail] || 'Klasha';
+    const cur = currencyDest ? currencyDest.toUpperCase() : '';
+    const isCardOrBank = ['bank_transfer', 'card'].includes(rail);
+    const name = (isCardOrBank && cur && !baseLabel.includes(cur)) ? `${baseLabel} (${cur})` : baseLabel;
+    const flag = cur ? (FINCRA_CUR_FLAG[cur] || '') : '';
+    return { name, flag, op: { klasha: true, rail, logo: FINCRA_RAIL_LOGO[rail] } };
+  }
+
   return { name: mode, flag: '', op: null };
 }

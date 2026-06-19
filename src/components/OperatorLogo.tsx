@@ -6,6 +6,7 @@ import { Colors as DefaultColors } from '../constants/theme';
 interface OperatorLike {
   id: string;
   fincra?: true;
+  klasha?: true;
   rail?: string;
   logo?: any;
 }
@@ -42,12 +43,12 @@ export function OperatorLogo({ op, size = 26, style, rounded }: Props) {
 
   // Fincra : on affiche le visuel résolu (logo de marque MM, carte, virement) dès
   // qu'il existe ; icône générique en dernier recours.
-  if (op.fincra && op.logo) {
+  if ((op.fincra || op.klasha) && op.logo) {
     return renderImage(op.logo);
   }
-  if (op.fincra) {
+  if (op.fincra || op.klasha) {
     const iconName: any = op.rail === 'bank_transfer' ? 'building-columns'
-                       : op.rail === 'checkout'      ? 'credit-card'
+                       : (op.rail === 'checkout' || op.rail === 'card') ? 'credit-card'
                        : 'mobile-screen';
     return (
       <View style={[styles.iconWrap, { width: size, height: size, borderRadius: size / 2 }, style as ViewStyle]}>

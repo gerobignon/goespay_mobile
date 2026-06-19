@@ -208,6 +208,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
 
   const selectedOp = OPERATORS_SRC.find((op) => op.id === operator);
   const isFincraOp = !!(selectedOp as any)?.fincra;
+  // Klasha réutilise l'UI Fincra ; ce flag route les appels API vers /payout/klasha.
+  const isKlashaOp = !!(selectedOp as any)?.klasha;
   const fincraCurrency = isFincraOp ? ((selectedOp as any)?.currency as string) || 'XOF' : '';
   // Le rail est porté directement par l'opérateur Fincra (cf. config.ts).
   // Plus de sélecteur dynamique ; chaque opérateur Fincra = 1 rail.
@@ -266,7 +268,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // Cas spécial : si userCurrency === fincraCurrency (ex : compte GHS + opérateur
   // Fincra Ghana), le montant saisi EST déjà le montant à envoyer chez Fincra —
   // aucune double-conversion (qui causerait une perte sur la triangulation).
-  const fincraRate = useFincraRate(fincraCurrency, isFincraOp);
+  const fincraRate = useFincraRate(fincraCurrency, isFincraOp, isKlashaOp);
   const fincraSendAmount =
     isFincraOp && numAmountDisplay > 0
       ? (userCurrency === fincraCurrency
@@ -421,12 +423,12 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     if (!isFincraOp || fincraRail !== 'bank_transfer' || !fincraCurrency) return;
     let cancelled = false;
     setBanksLoading(true);
-    walletService.getFincraBanks(fincraCurrency, fincraCountry)
+    (isKlashaOp ? walletService.getKlashaBanks(fincraCurrency) : walletService.getFincraBanks(fincraCurrency, fincraCountry))
       .then((res) => { if (!cancelled) setFincraBanks(res.banks || []); })
       .catch(() => { if (!cancelled) setFincraBanks([]); })
       .finally(() => { if (!cancelled) setBanksLoading(false); });
     return () => { cancelled = true; };
-  }, [isFincraOp, fincraRail, fincraCurrency, fincraCountry]);
+  }, [isFincraOp, isKlashaOp, fincraRail, fincraCurrency, fincraCountry]);
 
   // Résolution automatique du compte bénéficiaire (debounce 600ms).
   // Sandbox Fincra renvoie data:null → on signale "non vérifié" sans bloquer.
@@ -451,7 +453,13 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
         const payload = fincraCurrency === 'NGN'
           ? { accountNumber: num, bankCode: bankCode.trim(), type: 'nuban' as const, currency: 'NGN' }
           : { accountNumber: num, bankSwiftCode: bankSwiftCode.trim(), type: 'bank_account' as const, currency: fincraCurrency };
-        const res = await walletService.resolveFincraAccount(payload);
+        const res = isKlashaOp
+          ? await walletService.resolveKlashaAccount({
+              accountNumber: (payload as any).accountNumber,
+              bankCode: (payload as any).bankCode ?? (payload as any).bankSwiftCode ?? '',
+              currency: (payload as any).currency,
+            })
+          : await walletService.resolveFincraAccount(payload);
         if (res.resolved && res.accountName) {
           setResolvedHolder(res.accountName);
           setBankAccountHolder(res.accountName);
@@ -487,7 +495,9 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const checkStatus = useCallback(async (opts: { transferId?: number; fincraRef?: string }): Promise<boolean> => {
     try {
       const res = opts.fincraRef
-        ? await walletService.getFincraPayoutStatus(opts.fincraRef)
+        ? (opts.fincraRef.startsWith('KLW-')
+            ? await walletService.getKlashaPayoutStatus(opts.fincraRef)
+            : await walletService.getFincraPayoutStatus(opts.fincraRef))
         : await walletService.getTransferStatus(opts.transferId!);
       consecutiveErrorsRef.current = 0;
       if (res.statut === 'success') {
@@ -782,7 +792,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           ? formatFincraPhone(normalizedPhone, dialCode, false)
           : undefined;
 
-        const result = await walletService.fincraPayout({
+        const result = await (isKlashaOp ? walletService.klashaPayout : walletService.fincraPayout)({
           amount: numAmount,
           // XOF saisi par l'utilisateur = base du débit wallet (le backend débite
           // amount_xof + frais, sans round-trip via le taux → débit = devis montré).

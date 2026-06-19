@@ -26,18 +26,22 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // aligné sur le cache backend (5 min)
 const cache = new Map<string, CacheEntry>();
 
 // Récupère le taux XOF (XOF pour 1 unité de $currency). null si indisponible.
-export async function fetchFincraRate(currency: string): Promise<number | null> {
+export async function fetchFincraRate(currency: string, isKlasha = false): Promise<number | null> {
   const cur = (currency || '').toUpperCase();
   if (!cur) return null;
   if (cur === 'XOF') return 1;
 
-  const hit = cache.get(cur);
+  // Cache namespacé : Klasha et Fincra peuvent coter la même devise différemment.
+  const key = (isKlasha ? 'KL:' : 'FC:') + cur;
+  const hit = cache.get(key);
   if (hit && Date.now() - hit.ts < CACHE_TTL_MS) return hit.rate;
 
   try {
-    const { rate_to_xof } = await walletService.getFincraRate(cur);
+    const { rate_to_xof } = isKlasha
+      ? await walletService.getKlashaRate(cur)
+      : await walletService.getFincraRate(cur);
     if (typeof rate_to_xof !== 'number' || !isFinite(rate_to_xof) || rate_to_xof <= 0) return null;
-    cache.set(cur, { rate: rate_to_xof, ts: Date.now() });
+    cache.set(key, { rate: rate_to_xof, ts: Date.now() });
     return rate_to_xof;
   } catch {
     return null;
@@ -53,7 +57,7 @@ export interface FincraRateState {
 // Hook réactif : charge le taux XOF pour une devise Fincra donnée.
 // Le taux est indépendant du montant (taux mid unique) → un seul fetch/devise.
 // `enabled` permet de désactiver l'appel (ex : opérateur non-Fincra, ou XOF).
-export function useFincraRate(currency: string, enabled: boolean = true): FincraRateState {
+export function useFincraRate(currency: string, enabled: boolean = true, isKlasha: boolean = false): FincraRateState {
   const [state, setState] = useState<FincraRateState>({ rate: null, loading: false, error: false });
   const reqId = useRef(0);
 
@@ -74,11 +78,11 @@ export function useFincraRate(currency: string, enabled: boolean = true): Fincra
     setState((s) => ({ ...s, loading: true, error: false }));
 
     (async () => {
-      const rate = await fetchFincraRate(cur);
+      const rate = await fetchFincraRate(cur, isKlasha);
       if (id !== reqId.current) return; // appel obsolète
       setState({ rate, loading: false, error: rate === null });
     })();
-  }, [currency, enabled]);
+  }, [currency, enabled, isKlasha]);
 
   return state;
 }
