@@ -98,6 +98,9 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const pollingTransferIdRef = useRef<number | null>(null);
   const pollingFincraRefRef = useRef<string | null>(null);
   const consecutiveErrorsRef = useRef(0);
+  // Wire Klasha : réf KLW- comme un payout normal → ce flag route le polling vers
+  // /transfer/klasha/wire/status (statut lu par la transactionReference Klasha).
+  const pollingIsWireRef = useRef(false);
 
   // Sous-pays Fincra (XOF/XAF) pour le mobile_money payout.
   const [fincraZoneCountry, setFincraZoneCountry] = useState<string | null>(null);
@@ -109,6 +112,11 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const [iban, setIban] = useState('');
   const [bic, setBic] = useState('');
   const [swiftCode, setSwiftCode] = useState('');
+  // Champs additionnels du wire international Klasha (process Klasha : la création
+  // de bénéficiaire exige adresses + routing en plus des IBAN/SWIFT).
+  const [bankAddress, setBankAddress] = useState('');
+  const [beneficiaryAddress, setBeneficiaryAddress] = useState('');
+  const [routingNumber, setRoutingNumber] = useState('');
 
   // Picker de banques + résolution de compte (Fincra bank_transfer)
   const [fincraBanks, setFincraBanks] = useState<{ code: string; name: string; swiftCode?: string }[]>([]);
@@ -489,15 +497,18 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
     pollingTransferIdRef.current = null;
     pollingFincraRefRef.current = null;
+    pollingIsWireRef.current = false;
     consecutiveErrorsRef.current = 0;
   }, []);
 
-  const checkStatus = useCallback(async (opts: { transferId?: number; fincraRef?: string }): Promise<boolean> => {
+  const checkStatus = useCallback(async (opts: { transferId?: number; fincraRef?: string; isWire?: boolean }): Promise<boolean> => {
     try {
       const res = opts.fincraRef
-        ? (opts.fincraRef.startsWith('KLW-')
-            ? await walletService.getKlashaPayoutStatus(opts.fincraRef)
-            : await walletService.getFincraPayoutStatus(opts.fincraRef))
+        ? (opts.isWire
+            ? await walletService.getKlashaWireStatus(opts.fincraRef)
+            : opts.fincraRef.startsWith('KLW-')
+              ? await walletService.getKlashaPayoutStatus(opts.fincraRef)
+              : await walletService.getFincraPayoutStatus(opts.fincraRef))
         : await walletService.getTransferStatus(opts.transferId!);
       consecutiveErrorsRef.current = 0;
       if (res.statut === 'success') {
@@ -522,12 +533,13 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     return false;
   }, [fetchBalance, stopPolling]);
 
-  const startPolling = useCallback((opts: { transferId?: number; fincraRef?: string }) => {
+  const startPolling = useCallback((opts: { transferId?: number; fincraRef?: string; isWire?: boolean }) => {
     let attempts = 0;
     const MAX_ATTEMPTS = 60; // 5 min max (toutes les 5s)
     setPollingState('pending');
     pollingTransferIdRef.current = opts.transferId ?? null;
     pollingFincraRefRef.current = opts.fincraRef ?? null;
+    pollingIsWireRef.current = !!opts.isWire;
     consecutiveErrorsRef.current = 0;
 
     const poll = async () => {
@@ -548,7 +560,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   useEffect(() => {
     const sub = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active' && pollingState === 'pending') {
-        if (pollingFincraRefRef.current) checkStatus({ fincraRef: pollingFincraRefRef.current });
+        if (pollingFincraRefRef.current) checkStatus({ fincraRef: pollingFincraRefRef.current, isWire: pollingIsWireRef.current });
         else if (pollingTransferIdRef.current) checkStatus({ transferId: pollingTransferIdRef.current });
       }
     });
@@ -559,7 +571,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     if (Platform.OS !== 'web') return;
     const handleVisibility = () => {
       if (document.visibilityState === 'visible' && pollingState === 'pending') {
-        if (pollingFincraRefRef.current) checkStatus({ fincraRef: pollingFincraRefRef.current });
+        if (pollingFincraRefRef.current) checkStatus({ fincraRef: pollingFincraRefRef.current, isWire: pollingIsWireRef.current });
         else if (pollingTransferIdRef.current) checkStatus({ transferId: pollingTransferIdRef.current });
       }
     };
@@ -746,6 +758,42 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     setLoading(true);
     try {
       if (isFincraOp) {
+        // ── Wire international Klasha (USD/EUR/GBP) : process Klasha distinct
+        // (bénéficiaire → quote → initiate côté backend). Bénéficiaire avec le jeu
+        // de champs Klasha (≠ payout MM/bank). Réf KLW-, polling wire dédié. ──
+        if (isKlashaOp && fincraRail === 'wire') {
+          const isoCountry = bankCountry.trim().toUpperCase();
+          const result = await walletService.klashaWire({
+            amount: numAmount,
+            currency: fincraCurrency,
+            amount_xof: fincraDebitXof ?? numAmountXof,
+            beneficiary: {
+              beneficiaryName: bankAccountHolder.trim(),
+              accountNumber: bankAccountNumber.trim() || iban.trim(),
+              bankName: bankName.trim(),
+              swiftCode: swiftCode.trim() || bic.trim(),
+              country: isoCountry,
+              countryCode: isoCountry,
+              iban: iban.trim() || undefined,
+              routingNumber: routingNumber.trim() || undefined,
+              bankAddress: bankAddress.trim() || undefined,
+              beneficiaryAddress: beneficiaryAddress.trim() || undefined,
+              phone: (user as any)?.phone || undefined,
+              email: (user as any)?.email || undefined,
+            },
+          });
+          await fetchBalance();
+          setAmount('');
+          setPendingDetails({
+            amount_sent: numAmount,
+            fees: Number(result.fees) || 0,
+            phone: bankAccountNumber || iban,
+            debit_xof: fincraTotalDebitXof ?? fincraDebitXof ?? 0,
+          });
+          startPolling({ fincraRef: result.reference, isWire: true });
+          return;
+        }
+
         const beneficiary = fincraRail !== 'mobile_money' ? {
           accountHolderName: bankAccountHolder.trim(),
           firstName: bankAccountHolder.trim().split(' ').slice(0, -1).join(' ') || bankAccountHolder.trim(),
@@ -1371,6 +1419,63 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                     />
                   </>
                 )}
+                {fincraRail === 'wire' && (
+                  <>
+                    <Input
+                      label="Numéro de compte"
+                      placeholder="N° de compte du bénéficiaire"
+                      value={bankAccountNumber}
+                      onChangeText={setBankAccountNumber}
+                      autoCapitalize="characters"
+                    />
+                    <Input
+                      label="IBAN (si applicable)"
+                      placeholder="ex: DE89 3704 0044 0532 0130 00"
+                      value={iban}
+                      onChangeText={setIban}
+                      autoCapitalize="characters"
+                    />
+                    <Input
+                      label="Code SWIFT / BIC"
+                      placeholder="ex: CHASUS33"
+                      value={swiftCode}
+                      onChangeText={setSwiftCode}
+                      autoCapitalize="characters"
+                    />
+                    <Input
+                      label="Numéro de routage (USA uniquement)"
+                      placeholder="ex: 021000021"
+                      value={routingNumber}
+                      onChangeText={setRoutingNumber}
+                      keyboardType="numeric"
+                    />
+                    <Input
+                      label="Banque"
+                      placeholder="ex: JPMorgan Chase"
+                      value={bankName}
+                      onChangeText={setBankName}
+                    />
+                    <Input
+                      label="Adresse de la banque"
+                      placeholder="Rue, ville, pays de la banque"
+                      value={bankAddress}
+                      onChangeText={setBankAddress}
+                    />
+                    <Input
+                      label="Adresse du bénéficiaire"
+                      placeholder="Adresse complète du bénéficiaire"
+                      value={beneficiaryAddress}
+                      onChangeText={setBeneficiaryAddress}
+                    />
+                    <Input
+                      label="Pays de la banque (code ISO)"
+                      placeholder="ex: US, GB, DE"
+                      value={bankCountry}
+                      onChangeText={(v) => setBankCountry(v.toUpperCase().slice(0, 2))}
+                      autoCapitalize="characters"
+                    />
+                  </>
+                )}
               </View>
             )}
 
@@ -1468,6 +1573,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       || (fincraRail === 'bank_transfer' && (!bankAccountHolder || !bankAccountNumber || !bankCode))
                       || (fincraRail === 'SWIFT' && (!bankAccountHolder || !iban || !swiftCode))
                       || (fincraRail === 'SEPA' && (!bankAccountHolder || !iban))
+                      || (fincraRail === 'wire' && (!bankAccountHolder || (!bankAccountNumber && !iban) || !bankName || !swiftCode || !bankCountry))
                     : !phone)
               }
               style={{ marginTop: Spacing.lg }}
@@ -1532,7 +1638,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                   <Text style={styles.confirmMethodText} numberOfLines={1}>
                     {selectedOp.flag} {selectedOp.name}
                     {isFincraOp && fincraRail
-                      ? ` · ${fincraRail === 'mobile_money' ? 'Mobile Money' : fincraRail === 'bank_transfer' ? 'Virement bancaire' : fincraRail}`
+                      ? ` · ${fincraRail === 'mobile_money' ? 'Mobile Money' : fincraRail === 'bank_transfer' ? 'Virement bancaire' : fincraRail === 'wire' ? 'Virement international' : fincraRail}`
                       : ''}
                   </Text>
                 </View>

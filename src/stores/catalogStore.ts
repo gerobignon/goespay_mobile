@@ -108,9 +108,10 @@ function fincraRailFor(code: string, currency?: string): string | undefined {
 
 // Rail Klasha déduit du code corridor : klasha-mm-<pays>-<op> → mobile_money ;
 // klasha-<cur>-bt → bank_transfer ; klasha-<cur>-card → checkout (réutilise l'UI
-// carte Fincra ; le routage /deposit/klasha traduit checkout → card).
+// carte Fincra) ; klasha-wire-<cur> → wire (transfert international, formulaire dédié).
 function klashaRailFor(code: string): string | undefined {
   if (code.startsWith('klasha-mm-')) return 'mobile_money';
+  if (code.startsWith('klasha-wire-')) return 'wire';
   if (code.endsWith('-bt')) return 'bank_transfer';
   if (code.endsWith('-card')) return 'checkout';
   return undefined;
@@ -119,8 +120,10 @@ function klashaRailFor(code: string): string | undefined {
 // Comme l'admin : sur les cartes et virements Fincra, on suffixe le nom avec la
 // devise gérée — « Virement bancaire (NGN) », « Carte bancaire (XOF) ». Le Mobile
 // Money n'est pas suffixé (le drapeau pays suffit à le distinguer).
-const FINCRA_CUR_RAILS = new Set(['bank_transfer', 'SWIFT', 'SEPA', 'checkout']);
+const FINCRA_CUR_RAILS = new Set(['bank_transfer', 'SWIFT', 'SEPA', 'checkout', 'wire']);
 function fincraDisplayName(name: string, rail?: string, currency?: string): string {
+  // Wire Klasha : nom explicite « Virement international (USD) ».
+  if (rail === 'wire' && currency) return `Virement international (${currency})`;
   if (!rail || !currency || !FINCRA_CUR_RAILS.has(rail)) return name;
   return name.includes(currency) ? name : `${name} (${currency})`;
 }

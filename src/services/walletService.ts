@@ -6,7 +6,7 @@ import type {
   PaginatedResponse,
 } from '../types';
 
-export type FincraRail = 'mobile_money' | 'bank_transfer' | 'SWIFT' | 'SEPA';
+export type FincraRail = 'mobile_money' | 'bank_transfer' | 'SWIFT' | 'SEPA' | 'wire';
 
 export interface FincraBeneficiary {
   firstName?: string;
@@ -45,6 +45,31 @@ export interface FincraPayoutResponse {
   amount_sent: number;
   fees: number;
   fincra_balance: number;
+}
+
+// Klasha Wire (transfert international USD/EUR/GBP) — process Klasha (bénéficiaire
+// → quote → initiate côté backend). Champs requis par la Klasha Wire API.
+export interface KlashaWireBeneficiary {
+  beneficiaryName: string;
+  accountNumber: string;
+  bankName: string;
+  swiftCode: string;
+  country: string;        // nom du pays du bénéficiaire (ex. "United States")
+  countryCode: string;    // ISO-2 (ex. "US")
+  iban?: string;
+  routingNumber?: string; // US uniquement
+  bankAddress?: string;
+  beneficiaryAddress?: string;
+  phone?: string;
+  email?: string;
+  narration?: string;
+}
+
+export interface KlashaWireRequest {
+  amount: number;      // montant DESTINATION (USD/EUR/GBP)
+  currency: string;    // USD | EUR | GBP
+  amount_xof: number;  // XOF débité du wallet
+  beneficiary: KlashaWireBeneficiary;
 }
 
 export interface SavedBank {
@@ -241,6 +266,18 @@ export const walletService = {
 
   resolveKlashaAccount: async (payload: { accountNumber: string; bankCode: string; currency: string }): Promise<{ resolved: boolean; accountName: string | null; raw: any }> => {
     const response = await api.post('/klasha/resolve-account', payload);
+    return response.data;
+  },
+
+  // Wire international Klasha (USD/EUR/GBP). Le backend orchestre bénéficiaire→quote→initiate.
+  klashaWire: async (payload: KlashaWireRequest): Promise<FincraPayoutResponse> => {
+    const response = await api.post('/transfer/klasha/wire', payload, { timeout: 70000 });
+    return response.data;
+  },
+
+  // Statut d'un wire (par notre réf KLW-) : le backend poll Klasha par sa transactionReference.
+  getKlashaWireStatus: async (reference: string): Promise<{ transfer_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; amount_sent: number; mode: string }> => {
+    const response = await api.get(`/transfer/klasha/wire/status/${encodeURIComponent(reference)}`);
     return response.data;
   },
 
