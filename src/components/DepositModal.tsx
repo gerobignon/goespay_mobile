@@ -705,6 +705,25 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
         } else if (isFincraMM && data.auth_model === 'otp' && (data.charge_id || data.reference)) {
           // Orange Sénégal & co (Fincra : charge_id) / Klasha MoMo (reference) : OTP requis.
           result.fincraOtp = { chargeId: data.charge_id || data.reference, message: data.message || '' };
+        } else if (isFincraBT && isKlasha) {
+          // Klasha bank transfer : NGN → compte virtuel (data.account avec
+          // transfer_account/transfer_bank/transfer_amount) ; ZAR/GHS → redirect.
+          if (data.payment_url) {
+            result.checkout_url = data.payment_url;
+          } else {
+            const acc = data?.account || {};
+            const amt = Number(acc.transfer_amount ?? numAmount);
+            setBankTransferInfo({
+              bankName:       acc.transfer_bank    ?? '',
+              accountNumber:  acc.transfer_account ?? '',
+              accountName:    acc.account_name ?? acc.accountName ?? '',
+              amountNet:      amt,
+              fee:            0,
+              vat:            0,
+              amountExpected: amt,
+              currency:       fincraCurrency,
+            });
+          }
         } else if (isFincraBT) {
           const va = data?.data?.virtualAccount || {};
           const amt = Number(data?.data?.amount ?? numAmount);
