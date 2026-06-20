@@ -316,6 +316,11 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const isCardOp = (op: any) => !!op?.id && (op.id === 'card' || (typeof op.id === 'string' && op.id.startsWith('card-')));
   const operatorsBase = OPERATORS_SRC.filter((op) => {
     if (!corridorsLoaded && !afribapayEnabled && !isAdmin && (op as any).afribapay) return false;
+    // Exclure les corridors PAYOUT-ONLY du modal de DÉPÔT — via la CAPACITÉ
+    // (supportsPayin), pas l'état activé : un corridor désactivé mais capable
+    // reste visible (admin), seul un vrai payout-only (Klasha wire, Fincra intl bt)
+    // est masqué. supportsPayin absent (statique) → conservé.
+    if ((op as any).supportsPayin === false) return false;
     return true;
   });
   // "Has mobile money for country" : on accepte op.country === userCountry OU

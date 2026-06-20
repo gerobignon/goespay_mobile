@@ -202,6 +202,10 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
           rail: fincraRail,
           withdraw: !!r.payout,
           payin: !!r.payin,
+          // Capacité brute (≠ activé) : distingue un corridor PAYOUT-ONLY d'un
+          // corridor désactivé. Défaut true si absent (backend ancien / fallback).
+          supportsPayin:  (r as any).supports_payin  !== false,
+          supportsPayout: (r as any).supports_payout !== false,
           afribapay: r.aggregator === 'afribapay' || undefined,
           // Klasha réutilise l'UI Fincra → fincra:true aussi pour les corridors klasha.
           fincra: (r.aggregator === 'fincra' || r.aggregator === 'fincra_checkout' || r.aggregator === 'klasha') || undefined,

@@ -165,8 +165,12 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // Plus de dédup statique PayDunya : la visibilité dépend UNIQUEMENT du corridor
   // payout activé dans le routing admin (isCodeEnabled). Un seul agrégateur actif
   // par (pays, réseau) → un seul moyen visible par opérateur.
+  // Base = corridors CAPABLES de payout (supportsPayout, ≠ état activé) ; le filtre
+  // activé/désactivé est appliqué ensuite par corridor (isAdmin || isCodeEnabled).
+  // Ainsi l'admin voit aussi les corridors désactivés. Fallback statique : op.withdraw.
+  const canPayout = (op: any) => ((op as any).supportsPayout ?? op.withdraw);
   const displayOperators = OPERATORS_SRC.filter(
-    (op) => op.withdraw && (!corridorsLoaded ? (afribapayEnabled || isAdmin || !(op as any).afribapay) : true)
+    (op) => canPayout(op) && (!corridorsLoaded ? (afribapayEnabled || isAdmin || !(op as any).afribapay) : true)
   );
 
   // « Autres » : rails Fincra de zone (XOF/XAF) + internationaux (USD/EUR/GBP) en
