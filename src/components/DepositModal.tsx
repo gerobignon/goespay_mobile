@@ -316,10 +316,6 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const isCardOp = (op: any) => !!op?.id && (op.id === 'card' || (typeof op.id === 'string' && op.id.startsWith('card-')));
   const operatorsBase = OPERATORS_SRC.filter((op) => {
     if (!corridorsLoaded && !afribapayEnabled && !isAdmin && (op as any).afribapay) return false;
-    // Exclure les corridors PAYOUT-only (payin === false) du modal de DÉPÔT — sinon
-    // les virements internationaux (Klasha wire EUR/USD/GBP, Fincra EUR/USD/GBP bt)
-    // s'affichent en dépôt (même pour l'admin) et le backend rejette la devise.
-    if ((op as any).payin === false) return false;
     return true;
   });
   // "Has mobile money for country" : on accepte op.country === userCountry OU
