@@ -6,7 +6,7 @@ import type {
   PaginatedResponse,
 } from '../types';
 
-export type FincraRail = 'mobile_money' | 'bank_transfer' | 'SWIFT' | 'SEPA' | 'wire';
+export type FincraRail = 'mobile_money' | 'bank_transfer' | 'SWIFT' | 'SEPA' | 'wire' | 'cny';
 
 export interface FincraBeneficiary {
   firstName?: string;
@@ -70,6 +70,29 @@ export interface KlashaWireRequest {
   currency: string;    // USD | EUR | GBP
   amount_xof: number;  // XOF débité du wallet
   beneficiary: KlashaWireBeneficiary;
+}
+
+// Bénéficiaire CNY (Chine) — payout B2C : KYC bénéficiaire + compte bancaire.
+// L'expéditeur (« business ») est GoesPay, géré côté backend (config).
+export interface KlashaCnyBeneficiary {
+  receiverFirstName: string;   // prénom (caractères chinois)
+  receiverLastName: string;    // nom (caractères chinois)
+  receiverIdNumber: string;    // n° pièce d'identité
+  receiverMobileNumber: string;// +86…
+  receiverIdType?: string;     // ID_CARD (défaut) | HONGKONG_MACAO_TAIWAN_PERMIT
+  receiverRelationship?: string;
+  bankCode: string;            // code CNAPS (sélecteur banques Chine)
+  bankName: string;
+  accountNumber: string;
+  accountName: string;         // titulaire (caractères chinois)
+  accountType?: string;        // INDIVIDUAL (défaut) | COMPANY
+  purpose?: string;
+}
+
+export interface KlashaCnyRequest {
+  amount: number;      // montant DESTINATION (CNY)
+  amount_xof: number;  // XOF débité du wallet
+  beneficiary: KlashaCnyBeneficiary;
 }
 
 export interface SavedBank {
@@ -279,6 +302,24 @@ export const walletService = {
   getKlashaWireStatus: async (reference: string): Promise<{ transfer_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; amount_sent: number; mode: string }> => {
     const response = await api.get(`/transfer/klasha/wire/status/${encodeURIComponent(reference)}`);
     return response.data;
+  },
+
+  // Payout CNY (Chine) B2C. Le backend orchestre quote→initiate (corps 3DES).
+  klashaCny: async (payload: KlashaCnyRequest): Promise<FincraPayoutResponse> => {
+    const response = await api.post('/transfer/klasha/cny', payload, { timeout: 70000 });
+    return response.data;
+  },
+
+  // Statut d'un payout CNY (par notre réf KLC-) : terminal posé par le webhook Klasha.
+  getKlashaCnyStatus: async (reference: string): Promise<{ transfer_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; amount_sent: number; mode: string }> => {
+    const response = await api.get(`/transfer/klasha/cny/status/${encodeURIComponent(reference)}`);
+    return response.data;
+  },
+
+  // Banques chinoises (code CNAPS + nom) pour le sélecteur du formulaire Chine.
+  getKlashaChinaBanks: async (): Promise<{ code: string; name: string }[]> => {
+    const response = await api.get('/transfer/klasha/cny/banks');
+    return response.data?.data ?? [];
   },
 
   submitClaim: async (data: { transaction_id: number; type: string; message: string }): Promise<any> => {

@@ -530,6 +530,7 @@
     "insufficientBalance": "Insufficient balance.",
     "bankFieldsRequired": "Enter the beneficiary name, IBAN and BIC/SWIFT code.",
     "bankCountryRequired": "Enter the bank country (ISO code, e.g. CN for China).",
+    "cnyFieldsRequired": "Enter the beneficiary (name, ID, phone), bank, account number and account holder.",
     "savedNumbers": "Saved numbers",
     "saveThisNumber": "Save this number",
     "saveThisBank": "Save this beneficiary",

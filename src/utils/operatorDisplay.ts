@@ -6,7 +6,7 @@ const FINCRA_CUR_FLAG: Record<string, string> = {
   NGN: '🇳🇬', GHS: '🇬🇭', KES: '🇰🇪', UGX: '🇺🇬', ZMW: '🇿🇲', TZS: '🇹🇿',
   ZAR: '🇿🇦', EGP: '🇪🇬', USD: '🇺🇸', EUR: '🇪🇺', GBP: '🇬🇧',
   // Devises Klasha additionnelles.
-  CDF: '🇨🇩', RWF: '🇷🇼', MWK: '🇲🇼', MZN: '🇲🇿', SLL: '🇸🇱',
+  CDF: '🇨🇩', RWF: '🇷🇼', MWK: '🇲🇼', MZN: '🇲🇿', SLL: '🇸🇱', CNY: '🇨🇳',
 };
 
 // Libellé propre par rail Fincra (jamais la string brute « fincra-… »).
@@ -66,13 +66,15 @@ export function resolveOperatorDisplay(
     return { name, flag, op: { fincra: true, rail: normRail, logo: FINCRA_RAIL_LOGO[rail] } };
   }
 
-  // Klasha : mode stocké = klasha-<mobile_money|bank_transfer|card|wire> (mêmes visuels).
-  const k = mode.match(/^klasha-(bank_transfer|mobile_money|card|wire)$/i);
+  // Klasha : mode stocké = klasha-<mobile_money|bank_transfer|card|wire|cny> (mêmes visuels).
+  const k = mode.match(/^klasha-(bank_transfer|mobile_money|card|wire|cny)$/i);
   if (k) {
     const rail = k[1].toLowerCase();
-    const baseLabel = rail === 'wire' ? 'Virement international' : (FINCRA_RAIL_LABEL[rail] || 'Klasha');
+    const baseLabel = rail === 'wire' ? 'Virement international'
+      : rail === 'cny' ? 'Virement Chine'
+      : (FINCRA_RAIL_LABEL[rail] || 'Klasha');
     const cur = currencyDest ? currencyDest.toUpperCase() : '';
-    const isCardOrBank = ['bank_transfer', 'card', 'wire'].includes(rail);
+    const isCardOrBank = ['bank_transfer', 'card', 'wire', 'cny'].includes(rail);
     const name = (isCardOrBank && cur && !baseLabel.includes(cur)) ? `${baseLabel} (${cur})` : baseLabel;
     const flag = cur ? (FINCRA_CUR_FLAG[cur] || '') : '';
     return { name, flag, op: { klasha: true, rail, logo: FINCRA_RAIL_LOGO[rail] ?? FINCRA_RAIL_LOGO['bank_transfer'] } };

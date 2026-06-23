@@ -530,6 +530,7 @@
     "insufficientBalance": "Solde insuffisant.",
     "bankFieldsRequired": "Renseignez le nom du bénéficiaire, l'IBAN et le code BIC/SWIFT.",
     "bankCountryRequired": "Indiquez le pays de la banque (code ISO, ex. CN pour la Chine).",
+    "cnyFieldsRequired": "Renseignez le bénéficiaire (nom, pièce d'identité, téléphone), la banque, le numéro et le titulaire du compte.",
     "savedNumbers": "Numéros enregistrés",
     "saveThisNumber": "Enregistrer ce numéro",
     "saveThisBank": "Enregistrer ce bénéficiaire",

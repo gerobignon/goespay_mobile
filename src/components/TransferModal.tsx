@@ -118,6 +118,14 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const [beneficiaryAddress, setBeneficiaryAddress] = useState('');
   const [routingNumber, setRoutingNumber] = useState('');
 
+  // CNY (Chine) — bénéficiaire B2C : KYC + compte. accountName/Number/bankCode/
+  // bankName réutilisent les états bank* ci-dessus ; ici les champs spécifiques.
+  const [cnyFirstName, setCnyFirstName] = useState('');
+  const [cnyLastName, setCnyLastName] = useState('');
+  const [cnyIdNumber, setCnyIdNumber] = useState('');
+  const [cnyMobile, setCnyMobile] = useState('');
+  const [chinaBanks, setChinaBanks] = useState<{ code: string; name: string }[]>([]);
+
   // Picker de banques + résolution de compte (Fincra bank_transfer)
   const [fincraBanks, setFincraBanks] = useState<{ code: string; name: string; swiftCode?: string }[]>([]);
   const [bankSwiftCode, setBankSwiftCode] = useState('');
@@ -442,6 +450,19 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     return () => { cancelled = true; };
   }, [isFincraOp, isKlashaOp, fincraRail, fincraCurrency, fincraCountry]);
 
+  // CNY (Chine) : charge la liste des banques (CNAPS) et la réutilise dans le
+  // même picker que les virements bancaires (fincraBanks → bankCode/bankName).
+  useEffect(() => {
+    if (!isKlashaOp || fincraRail !== 'cny') return;
+    let cancelled = false;
+    setBanksLoading(true);
+    walletService.getKlashaChinaBanks()
+      .then((banks) => { if (!cancelled) { setChinaBanks(banks); setFincraBanks(banks); } })
+      .catch(() => { if (!cancelled) { setChinaBanks([]); setFincraBanks([]); } })
+      .finally(() => { if (!cancelled) setBanksLoading(false); });
+    return () => { cancelled = true; };
+  }, [isKlashaOp, fincraRail]);
+
   // Résolution automatique du compte bénéficiaire (debounce 600ms).
   // Sandbox Fincra renvoie data:null → on signale "non vérifié" sans bloquer.
   // Fincra ne supporte la résolution que pour NGN (NUBAN) et GHS (bank_account + bankSwiftCode).
@@ -508,11 +529,13 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const checkStatus = useCallback(async (opts: { transferId?: number; fincraRef?: string; isWire?: boolean }): Promise<boolean> => {
     try {
       const res = opts.fincraRef
-        ? (opts.isWire
-            ? await walletService.getKlashaWireStatus(opts.fincraRef)
-            : opts.fincraRef.startsWith('KLW-')
-              ? await walletService.getKlashaPayoutStatus(opts.fincraRef)
-              : await walletService.getFincraPayoutStatus(opts.fincraRef))
+        ? (opts.fincraRef.startsWith('KLC-')
+            ? await walletService.getKlashaCnyStatus(opts.fincraRef)
+            : opts.isWire
+              ? await walletService.getKlashaWireStatus(opts.fincraRef)
+              : opts.fincraRef.startsWith('KLW-')
+                ? await walletService.getKlashaPayoutStatus(opts.fincraRef)
+                : await walletService.getFincraPayoutStatus(opts.fincraRef))
         : await walletService.getTransferStatus(opts.transferId!);
       consecutiveErrorsRef.current = 0;
       if (res.statut === 'success') {
@@ -764,6 +787,15 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           return;
         }
       }
+      // CNY (Chine) : KYC bénéficiaire + compte + banque tous requis.
+      if (fincraRail === 'cny') {
+        if (!cnyFirstName.trim() || !cnyLastName.trim() || !cnyIdNumber.trim()
+          || !cnyMobile.trim() || !bankCode.trim() || !bankName.trim()
+          || !bankAccountNumber.trim() || !bankAccountHolder.trim()) {
+          showAlert(t('common.error'), t('transferModal.cnyFieldsRequired'));
+          return;
+        }
+      }
     }
     setConfirmed(false);
     setConfirmVisible(true);
@@ -810,6 +842,36 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             debit_xof: fincraTotalDebitXof ?? fincraDebitXof ?? 0,
           });
           startPolling({ fincraRef: result.reference, isWire: true });
+          return;
+        }
+
+        // ── Payout CNY (Chine) Klasha : process B2C (quote → initiate côté backend).
+        // Bénéficiaire = individu chinois (KYC + compte). L'expéditeur business est
+        // GoesPay (config backend). Réf KLC-, polling CNY dédié. ──
+        if (isKlashaOp && fincraRail === 'cny') {
+          const result = await walletService.klashaCny({
+            amount: numAmount,
+            amount_xof: fincraDebitXof ?? numAmountXof,
+            beneficiary: {
+              receiverFirstName: cnyFirstName.trim(),
+              receiverLastName: cnyLastName.trim(),
+              receiverIdNumber: cnyIdNumber.trim(),
+              receiverMobileNumber: cnyMobile.trim(),
+              bankCode: bankCode.trim(),
+              bankName: bankName.trim(),
+              accountNumber: bankAccountNumber.trim(),
+              accountName: bankAccountHolder.trim(),
+            },
+          });
+          await fetchBalance();
+          setAmount('');
+          setPendingDetails({
+            amount_sent: numAmount,
+            fees: Number(result.fees) || 0,
+            phone: bankAccountNumber,
+            debit_xof: fincraTotalDebitXof ?? fincraDebitXof ?? 0,
+          });
+          startPolling({ fincraRef: result.reference });
           return;
         }
 
@@ -1307,7 +1369,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             {/* Champs bénéficiaire bancaire (Fincra bank_transfer / SWIFT / SEPA) */}
             {isFincraOp && fincraRail && fincraRail !== 'mobile_money' && (
               <View style={{ gap: Spacing.xs }}>
-                {fincraRail !== 'bank_transfer' && (
+                {fincraRail !== 'bank_transfer' && fincraRail !== 'cny' && (
                   <Input
                     label="Nom du bénéficiaire"
                     placeholder="Prénom NOM"
@@ -1495,6 +1557,55 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                     />
                   </>
                 )}
+                {fincraRail === 'cny' && (
+                  <>
+                    <Input
+                      label="Prénom du bénéficiaire (中文) *"
+                      placeholder="ex: 伟"
+                      value={cnyFirstName}
+                      onChangeText={setCnyFirstName}
+                    />
+                    <Input
+                      label="Nom du bénéficiaire (中文) *"
+                      placeholder="ex: 张"
+                      value={cnyLastName}
+                      onChangeText={setCnyLastName}
+                    />
+                    <Input
+                      label="N° pièce d'identité (ID card) *"
+                      placeholder="N° de carte d'identité chinoise"
+                      value={cnyIdNumber}
+                      onChangeText={setCnyIdNumber}
+                    />
+                    <Input
+                      label="Téléphone du bénéficiaire *"
+                      placeholder="ex: +8613699262597"
+                      value={cnyMobile}
+                      onChangeText={setCnyMobile}
+                      keyboardType="phone-pad"
+                    />
+                    <Text style={styles.fieldLabel}>Banque (Chine) *</Text>
+                    <TouchableOpacity style={styles.bankPickerBtn} onPress={() => setBankPickerVisible(true)}>
+                      <FontAwesome6 name="building-columns" size={14} color={Colors.textMuted} iconStyle="solid" />
+                      <Text style={[styles.bankPickerText, !bankName && styles.bankPickerPlaceholder]} numberOfLines={1}>
+                        {banksLoading ? 'Chargement des banques…' : (bankName || 'Sélectionner une banque')}
+                      </Text>
+                      <FontAwesome6 name="chevron-down" size={12} color={Colors.textMuted} />
+                    </TouchableOpacity>
+                    <Input
+                      label="Numéro de compte *"
+                      placeholder="N° de compte du bénéficiaire"
+                      value={bankAccountNumber}
+                      onChangeText={setBankAccountNumber}
+                    />
+                    <Input
+                      label="Titulaire du compte (中文) *"
+                      placeholder="Nom du titulaire en caractères chinois"
+                      value={bankAccountHolder}
+                      onChangeText={setBankAccountHolder}
+                    />
+                  </>
+                )}
               </View>
             )}
 
@@ -1593,6 +1704,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       || (fincraRail === 'SWIFT' && (!bankAccountHolder || !iban || !swiftCode || !bankCountry))
                       || (fincraRail === 'SEPA' && (!bankAccountHolder || !iban))
                       || (fincraRail === 'wire' && (!bankAccountHolder || (!bankAccountNumber && !iban) || !bankName || !swiftCode || !bankCountry))
+                      || (fincraRail === 'cny' && (!cnyFirstName || !cnyLastName || !cnyIdNumber || !cnyMobile || !bankCode || !bankName || !bankAccountNumber || !bankAccountHolder))
                     : !phone)
               }
               style={{ marginTop: Spacing.lg }}
