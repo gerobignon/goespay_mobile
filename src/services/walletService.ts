@@ -72,27 +72,40 @@ export interface KlashaWireRequest {
   beneficiary: KlashaWireBeneficiary;
 }
 
-// Bénéficiaire CNY (Chine) — payout B2C : KYC bénéficiaire + compte bancaire.
-// L'expéditeur (« business ») est GoesPay, géré côté backend (config).
+// Bénéficiaire CNY (Chine) — payout C2C : KYC bénéficiaire + compte bancaire
+// + relation avec l'expéditeur (le user).
 export interface KlashaCnyBeneficiary {
   receiverFirstName: string;   // prénom (caractères chinois)
   receiverLastName: string;    // nom (caractères chinois)
   receiverIdNumber: string;    // n° pièce d'identité
   receiverMobileNumber: string;// +86…
+  receiverRelationship: string;// SELF | SPOUSE | PARENTS | … (relation expéditeur↔bénéficiaire)
   receiverIdType?: string;     // ID_CARD (défaut) | HONGKONG_MACAO_TAIWAN_PERMIT
-  receiverRelationship?: string;
   bankCode: string;            // code CNAPS (sélecteur banques Chine)
   bankName: string;
   accountNumber: string;
   accountName: string;         // titulaire (caractères chinois)
   accountType?: string;        // INDIVIDUAL (défaut) | COMPANY
-  purpose?: string;
+}
+
+// Expéditeur CNY = le user GoesPay (particulier). Identité requise par la
+// conformité chinoise (C2C). Prénom/nom viennent du profil côté backend.
+export interface KlashaCnySender {
+  nationality: string;   // ISO-2
+  idType: string;        // PASSPORT | ID_CARD | …
+  idNumber: string;
+  city: string;
+  street: string;
+  state?: string;
+  postcode?: string;
+  countryCode: string;   // ISO-2 (pays de résidence de l'expéditeur)
 }
 
 export interface KlashaCnyRequest {
   amount: number;      // montant DESTINATION (CNY)
   amount_xof: number;  // XOF débité du wallet
   beneficiary: KlashaCnyBeneficiary;
+  sender: KlashaCnySender;
 }
 
 export interface SavedBank {
@@ -304,7 +317,7 @@ export const walletService = {
     return response.data;
   },
 
-  // Payout CNY (Chine) B2C. Le backend orchestre quote→initiate (corps 3DES).
+  // Payout CNY (Chine) C2C. Le backend orchestre quote→initiate (corps 3DES).
   klashaCny: async (payload: KlashaCnyRequest): Promise<FincraPayoutResponse> => {
     const response = await api.post('/transfer/klasha/cny', payload, { timeout: 70000 });
     return response.data;

@@ -118,13 +118,23 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const [beneficiaryAddress, setBeneficiaryAddress] = useState('');
   const [routingNumber, setRoutingNumber] = useState('');
 
-  // CNY (Chine) — bénéficiaire B2C : KYC + compte. accountName/Number/bankCode/
+  // CNY (Chine) — bénéficiaire C2C : KYC + compte. accountName/Number/bankCode/
   // bankName réutilisent les états bank* ci-dessus ; ici les champs spécifiques.
   const [cnyFirstName, setCnyFirstName] = useState('');
   const [cnyLastName, setCnyLastName] = useState('');
   const [cnyIdNumber, setCnyIdNumber] = useState('');
   const [cnyMobile, setCnyMobile] = useState('');
-  const [chinaBanks, setChinaBanks] = useState<{ code: string; name: string }[]>([]);
+  // Relation expéditeur↔bénéficiaire (C2C, requise par la conformité chinoise).
+  const [cnyRelationship, setCnyRelationship] = useState('SELF');
+  // Expéditeur = le user (particulier) : identité KYC saisie.
+  const [cnySenderIdType, setCnySenderIdType] = useState('PASSPORT');
+  const [cnySenderIdNumber, setCnySenderIdNumber] = useState('');
+  const [cnySenderNationality, setCnySenderNationality] = useState('');
+  const [cnySenderCity, setCnySenderCity] = useState('');
+  const [cnySenderStreet, setCnySenderStreet] = useState('');
+  const [cnySenderState, setCnySenderState] = useState('');
+  const [cnySenderPostcode, setCnySenderPostcode] = useState('');
+  const [cnySenderCountryCode, setCnySenderCountryCode] = useState('');
 
   // Picker de banques + résolution de compte (Fincra bank_transfer)
   const [fincraBanks, setFincraBanks] = useState<{ code: string; name: string; swiftCode?: string }[]>([]);
@@ -399,6 +409,21 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     setIban('');
     setBic('');
     setSwiftCode('');
+    // CNY (Chine) : purge bénéficiaire + identité expéditeur (PII) à chaque ouverture
+    // → pas de ré-soumission silencieuse de l'ancien bénéficiaire/expéditeur.
+    setCnyFirstName('');
+    setCnyLastName('');
+    setCnyIdNumber('');
+    setCnyMobile('');
+    setCnyRelationship('SELF');
+    setCnySenderIdType('PASSPORT');
+    setCnySenderIdNumber('');
+    setCnySenderNationality('');
+    setCnySenderCity('');
+    setCnySenderStreet('');
+    setCnySenderState('');
+    setCnySenderPostcode('');
+    setCnySenderCountryCode('');
     setResolvedHolder(null);
     setResolveError(null);
     setResolving(false);
@@ -457,9 +482,15 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     let cancelled = false;
     setBanksLoading(true);
     walletService.getKlashaChinaBanks()
-      .then((banks) => { if (!cancelled) { setChinaBanks(banks); setFincraBanks(banks); } })
-      .catch(() => { if (!cancelled) { setChinaBanks([]); setFincraBanks([]); } })
+      .then((banks) => { if (!cancelled) setFincraBanks(banks); })
+      .catch(() => { if (!cancelled) setFincraBanks([]); })
       .finally(() => { if (!cancelled) setBanksLoading(false); });
+    // Préremplit nationalité + pays de l'expéditeur depuis le profil (modifiable).
+    const uc = (user?.country ?? '').toUpperCase();
+    if (uc) {
+      setCnySenderNationality((v) => v || uc);
+      setCnySenderCountryCode((v) => v || uc);
+    }
     return () => { cancelled = true; };
   }, [isKlashaOp, fincraRail]);
 
@@ -787,12 +818,18 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           return;
         }
       }
-      // CNY (Chine) : KYC bénéficiaire + compte + banque tous requis.
+      // CNY (Chine, C2C) : bénéficiaire + compte + banque + identité de
+      // l'expéditeur (le user) tous requis par la conformité chinoise.
       if (fincraRail === 'cny') {
         if (!cnyFirstName.trim() || !cnyLastName.trim() || !cnyIdNumber.trim()
           || !cnyMobile.trim() || !bankCode.trim() || !bankName.trim()
           || !bankAccountNumber.trim() || !bankAccountHolder.trim()) {
           showAlert(t('common.error'), t('transferModal.cnyFieldsRequired'));
+          return;
+        }
+        if (!cnySenderNationality.trim() || !cnySenderIdNumber.trim()
+          || !cnySenderCity.trim() || !cnySenderStreet.trim() || !cnySenderCountryCode.trim()) {
+          showAlert(t('common.error'), t('transferModal.cnySenderRequired'));
           return;
         }
       }
@@ -845,7 +882,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           return;
         }
 
-        // ── Payout CNY (Chine) Klasha : process B2C (quote → initiate côté backend).
+        // ── Payout CNY (Chine) Klasha : process C2C (quote → initiate côté backend).
         // Bénéficiaire = individu chinois (KYC + compte). L'expéditeur business est
         // GoesPay (config backend). Réf KLC-, polling CNY dédié. ──
         if (isKlashaOp && fincraRail === 'cny') {
@@ -857,14 +894,31 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               receiverLastName: cnyLastName.trim(),
               receiverIdNumber: cnyIdNumber.trim(),
               receiverMobileNumber: cnyMobile.trim(),
+              receiverRelationship: cnyRelationship,
               bankCode: bankCode.trim(),
               bankName: bankName.trim(),
               accountNumber: bankAccountNumber.trim(),
               accountName: bankAccountHolder.trim(),
             },
+            sender: {
+              nationality: cnySenderNationality.trim().toUpperCase(),
+              idType: cnySenderIdType,
+              idNumber: cnySenderIdNumber.trim(),
+              city: cnySenderCity.trim(),
+              street: cnySenderStreet.trim(),
+              state: cnySenderState.trim() || undefined,
+              postcode: cnySenderPostcode.trim() || undefined,
+              countryCode: cnySenderCountryCode.trim().toUpperCase(),
+            },
           });
           await fetchBalance();
           setAmount('');
+          // Purge l'identité (bénéficiaire + expéditeur) après envoi → pas de PII
+          // résiduelle réutilisée pour un second envoi.
+          setCnyFirstName(''); setCnyLastName(''); setCnyIdNumber(''); setCnyMobile('');
+          setCnySenderIdNumber(''); setCnySenderCity(''); setCnySenderStreet('');
+          setCnySenderState(''); setCnySenderPostcode('');
+          setBankCode(''); setBankName(''); setBankAccountNumber(''); setBankAccountHolder('');
           setPendingDetails({
             amount_sent: numAmount,
             fees: Number(result.fees) || 0,
@@ -1604,6 +1658,82 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       value={bankAccountHolder}
                       onChangeText={setBankAccountHolder}
                     />
+
+                    <Text style={styles.fieldLabel}>Votre relation avec le bénéficiaire *</Text>
+                    <View style={styles.cnyChipsRow}>
+                      {[
+                        ['SELF', 'Moi-même'], ['SPOUSE', 'Conjoint(e)'], ['PARENTS', 'Parents'],
+                        ['SONS_AND_DAUGHTERS', 'Enfants'], ['BROTHERS_AND_SISTERS', 'Frères/Sœurs'],
+                        ['GRANDPARENTS', 'Grands-parents'], ['GRANDCHILDREN', 'Petits-enfants'],
+                      ].map(([val, label]) => (
+                        <TouchableOpacity
+                          key={val}
+                          style={[styles.cnyChip, cnyRelationship === val && styles.cnyChipActive]}
+                          onPress={() => setCnyRelationship(val)}
+                        >
+                          <Text style={[styles.cnyChipText, cnyRelationship === val && styles.cnyChipTextActive]}>{label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    <Text style={[styles.fieldLabel, { marginTop: Spacing.sm }]}>Expéditeur (vous) — requis par la Chine</Text>
+                    <Text style={styles.fieldLabel}>Type de pièce *</Text>
+                    <View style={styles.cnyChipsRow}>
+                      {[['PASSPORT', 'Passeport'], ['ID_CARD', "Carte d'identité"], ['DRIVER_LICENSE', 'Permis']].map(([val, label]) => (
+                        <TouchableOpacity
+                          key={val}
+                          style={[styles.cnyChip, cnySenderIdType === val && styles.cnyChipActive]}
+                          onPress={() => setCnySenderIdType(val)}
+                        >
+                          <Text style={[styles.cnyChipText, cnySenderIdType === val && styles.cnyChipTextActive]}>{label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <Input
+                      label="N° de votre pièce d'identité *"
+                      placeholder="N° passeport / CNI"
+                      value={cnySenderIdNumber}
+                      onChangeText={setCnySenderIdNumber}
+                      autoCapitalize="characters"
+                    />
+                    <Input
+                      label="Votre nationalité (code ISO) *"
+                      placeholder="ex: BJ, CI, CM"
+                      value={cnySenderNationality}
+                      onChangeText={(v) => setCnySenderNationality(v.toUpperCase().slice(0, 2))}
+                      autoCapitalize="characters"
+                    />
+                    <Input
+                      label="Votre ville *"
+                      placeholder="ex: Cotonou"
+                      value={cnySenderCity}
+                      onChangeText={setCnySenderCity}
+                    />
+                    <Input
+                      label="Votre adresse (rue) *"
+                      placeholder="Rue, quartier"
+                      value={cnySenderStreet}
+                      onChangeText={setCnySenderStreet}
+                    />
+                    <Input
+                      label="Province / État"
+                      placeholder="Optionnel"
+                      value={cnySenderState}
+                      onChangeText={setCnySenderState}
+                    />
+                    <Input
+                      label="Code postal"
+                      placeholder="Optionnel"
+                      value={cnySenderPostcode}
+                      onChangeText={setCnySenderPostcode}
+                    />
+                    <Input
+                      label="Votre pays de résidence (code ISO) *"
+                      placeholder="ex: BJ"
+                      value={cnySenderCountryCode}
+                      onChangeText={(v) => setCnySenderCountryCode(v.toUpperCase().slice(0, 2))}
+                      autoCapitalize="characters"
+                    />
                   </>
                 )}
               </View>
@@ -1704,7 +1834,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       || (fincraRail === 'SWIFT' && (!bankAccountHolder || !iban || !swiftCode || !bankCountry))
                       || (fincraRail === 'SEPA' && (!bankAccountHolder || !iban))
                       || (fincraRail === 'wire' && (!bankAccountHolder || (!bankAccountNumber && !iban) || !bankName || !swiftCode || !bankCountry))
-                      || (fincraRail === 'cny' && (!cnyFirstName || !cnyLastName || !cnyIdNumber || !cnyMobile || !bankCode || !bankName || !bankAccountNumber || !bankAccountHolder))
+                      || (fincraRail === 'cny' && (!cnyFirstName || !cnyLastName || !cnyIdNumber || !cnyMobile || !bankCode || !bankName || !bankAccountNumber || !bankAccountHolder || !cnySenderNationality || !cnySenderIdNumber || !cnySenderCity || !cnySenderStreet || !cnySenderCountryCode))
                     : !phone)
               }
               style={{ marginTop: Spacing.lg }}
@@ -2639,6 +2769,33 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: FontSize.sm,
     fontFamily: Fonts.semiBold,
     marginBottom: 6,
+  },
+  cnyChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 4,
+  },
+  cnyChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.inputBg,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  cnyChipActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  cnyChipText: {
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.medium,
+    color: Colors.text,
+  },
+  cnyChipTextActive: {
+    color: Colors.white,
   },
   bankPickerBtn: {
     flexDirection: 'row',
