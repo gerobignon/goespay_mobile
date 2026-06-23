@@ -740,15 +740,27 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
         showAlert(t('common.error'), t('transferModal.insufficientBalance'));
         return;
       }
-      // SEPA/SWIFT : Fincra exige IBAN + nom du bénéficiaire + BIC/code SWIFT
-      // (mappé sur beneficiary.bankCode). On bloque avant l'envoi pour éviter le
-      // 422 « beneficiary.bankCode is not allowed to be empty ».
-      if (fincraRail === 'SEPA' || fincraRail === 'SWIFT') {
-        const code = fincraRail === 'SEPA'
-          ? (bic.trim() || bankSwiftCode.trim())
-          : (swiftCode.trim() || bankSwiftCode.trim());
+      // SEPA : Fincra exige IBAN + nom du bénéficiaire + BIC. On bloque avant
+      // l'envoi pour éviter le 422 « beneficiary.bankCode is not allowed to be empty ».
+      if (fincraRail === 'SEPA') {
+        const code = bic.trim() || bankSwiftCode.trim();
         if (!iban.trim() || !bankAccountHolder.trim() || !code) {
           showAlert(t('common.error'), t('transferModal.bankFieldsRequired'));
+          return;
+        }
+      }
+      // SWIFT : pas d'IBAN hors Europe (Chine, USA… = n° de compte local) → on
+      // accepte compte OU IBAN. Le PAYS de la banque (ISO-2) est OBLIGATOIRE :
+      // Fincra l'exige et il n'est pas dérivable sans IBAN → sinon 422 Fincra.
+      if (fincraRail === 'SWIFT') {
+        const code = swiftCode.trim() || bankSwiftCode.trim();
+        const account = bankAccountNumber.trim() || iban.trim();
+        if (!account || !bankAccountHolder.trim() || !code) {
+          showAlert(t('common.error'), t('transferModal.bankFieldsRequired'));
+          return;
+        }
+        if (!/^[A-Z]{2}$/.test(bankCountry.trim().toUpperCase())) {
+          showAlert(t('common.error'), t('transferModal.bankCountryRequired'));
           return;
         }
       }
@@ -767,6 +779,9 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
         // de champs Klasha (≠ payout MM/bank). Réf KLW-, polling wire dédié. ──
         if (isKlashaOp && fincraRail === 'wire') {
           const isoCountry = bankCountry.trim().toUpperCase();
+          // Klasha Wire attend `country` = nom complet (« China ») et `countryCode`
+          // = ISO-2 (« CN »). On résout le nom via ALL_COUNTRIES (repli = code).
+          const countryName = ALL_COUNTRIES.find((c) => c.code === isoCountry)?.name || isoCountry;
           const result = await walletService.klashaWire({
             amount: numAmount,
             currency: fincraCurrency,
@@ -776,7 +791,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               accountNumber: bankAccountNumber.trim() || iban.trim(),
               bankName: bankName.trim(),
               swiftCode: swiftCode.trim() || bic.trim(),
-              country: isoCountry,
+              country: countryName,
               countryCode: isoCountry,
               iban: iban.trim() || undefined,
               routingNumber: routingNumber.trim() || undefined,
@@ -1391,8 +1406,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       onChangeText={setBankName}
                     />
                     <Input
-                      label="Pays de la banque (code ISO)"
-                      placeholder="ex: DE, US, GB"
+                      label="Pays de la banque (code ISO) *"
+                      placeholder="ex: CN (Chine), US, GB, DE"
                       value={bankCountry}
                       onChangeText={(v) => setBankCountry(v.toUpperCase().slice(0, 2))}
                       autoCapitalize="characters"
@@ -1575,7 +1590,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                     ? !fincraRail
                       || (fincraRail === 'mobile_money' && !phone)
                       || (fincraRail === 'bank_transfer' && (!bankAccountHolder || !bankAccountNumber || !bankCode))
-                      || (fincraRail === 'SWIFT' && (!bankAccountHolder || !iban || !swiftCode))
+                      || (fincraRail === 'SWIFT' && (!bankAccountHolder || !iban || !swiftCode || !bankCountry))
                       || (fincraRail === 'SEPA' && (!bankAccountHolder || !iban))
                       || (fincraRail === 'wire' && (!bankAccountHolder || (!bankAccountNumber && !iban) || !bankName || !swiftCode || !bankCountry))
                     : !phone)
