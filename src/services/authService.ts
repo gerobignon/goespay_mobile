@@ -110,8 +110,8 @@ export const authService = {
       telegram?: string;
       resubmit?: boolean; // re-soumission d'un KYC déjà validé/en attente
     },
-    fileUri: string,
-    selfieUri: string
+    fileUri: string | null,   // null = garder le document déjà uploadé (re-soumission)
+    selfieUri: string | null  // null = garder le selfie déjà uploadé
   ): Promise<{ message: string; validate: number }> => {
     const formData = new FormData();
     const appendFile = async (key: string, uri: string) => {
@@ -139,9 +139,9 @@ export const authService = {
     if (data.country) formData.append('country', data.country);
     if (data.telegram) formData.append('telegram', data.telegram);
     if (data.resubmit) formData.append('resubmit', '1');
-    // Fichiers
-    await appendFile('file', fileUri);
-    await appendFile('tof', selfieUri);
+    // Fichiers : seulement si l'utilisateur en a (re)pris (sinon on garde l'existant).
+    if (fileUri) await appendFile('file', fileUri);
+    if (selfieUri) await appendFile('tof', selfieUri);
 
     const response = await api.post('/me/kyc', formData, {
       headers: Platform.OS === 'web'

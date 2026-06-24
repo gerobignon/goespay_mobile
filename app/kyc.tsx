@@ -52,7 +52,11 @@ export default function KycScreen() {
   const [city, setCity] = useState(user?.city ?? '');
   const [address, setAddress] = useState(user?.address ?? '');
   const [idnumber, setIdnumber] = useState(user?.idnumber ?? '');
-  const [birthdate, setBirthdate] = useState(user?.birthdate ?? ''); // AAAA-MM-JJ
+  // Date de naissance : 3 cases JJ / MM / AAAA, préremplies depuis le profil (YYYY-MM-DD).
+  const bparts = (user?.birthdate ?? '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const [birthDay, setBirthDay] = useState(bparts ? bparts[3] : '');
+  const [birthMonth, setBirthMonth] = useState(bparts ? bparts[2] : '');
+  const [birthYear, setBirthYear] = useState(bparts ? bparts[1] : '');
   // Date d'expiration : mois + année séparés. Prérempli depuis le profil, que la
   // valeur stockée soit « MM/YYYY » ou « JJ/MM/YYYY » → [2]=mois, [3]=année.
   const existingParts = (user?.idexp ?? '').match(/^(?:(\d{1,2})\/)?(\d{1,2})\/(\d{4})$/);
@@ -61,8 +65,8 @@ export default function KycScreen() {
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [telegram, setTelegram] = useState(user?.telegram ?? '');
 
-  // KYC docs state
-  const [docType, setDocType] = useState('');
+  // KYC docs state — type de pièce prérempli depuis la précédente soumission.
+  const [docType, setDocType] = useState(user?.kyc_type ?? '');
   const [fileUri, setFileUri] = useState<string | null>(null);
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -110,7 +114,13 @@ export default function KycScreen() {
     if (!city.trim()) { showAlert('Erreur', 'Veuillez entrer votre ville.'); return; }
     if (!address.trim()) { showAlert('Erreur', 'Veuillez entrer votre adresse.'); return; }
     if (!idnumber.trim()) { showAlert('Erreur', 'Veuillez entrer le numéro de votre pièce.'); return; }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(birthdate.trim())) { showAlert('Erreur', 'Date de naissance invalide (format AAAA-MM-JJ).'); return; }
+    // Date de naissance (3 cases) → AAAA-MM-JJ
+    if (!birthDay.trim() || !birthMonth.trim() || birthYear.length !== 4) { showAlert('Erreur', 'Veuillez entrer votre date de naissance (JJ / MM / AAAA).'); return; }
+    const bDay = parseInt(birthDay, 10), bMonth = parseInt(birthMonth, 10), bYear = parseInt(birthYear, 10);
+    if (isNaN(bDay) || bDay < 1 || bDay > 31 || isNaN(bMonth) || bMonth < 1 || bMonth > 12 || bYear < 1900 || bYear > new Date().getFullYear()) {
+      showAlert('Erreur', 'Date de naissance invalide.'); return;
+    }
+    const birthdateIso = `${birthYear}-${birthMonth.padStart(2, '0')}-${birthDay.padStart(2, '0')}`;
     if (!idexpMonth.trim() || !idexpYear.trim()) { showAlert('Erreur', "Veuillez entrer la date d'expiration."); return; }
     const monthNum = parseInt(idexpMonth, 10);
     if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) { showAlert('Erreur', 'Mois invalide (1-12).'); return; }
@@ -126,8 +136,8 @@ export default function KycScreen() {
     const idexp = `${idexpMonth.padStart(2, '0')}/${idexpYear}`;
     if (!phone.trim()) { showAlert('Erreur', 'Veuillez entrer votre numéro de téléphone.'); return; }
     if (!docType) { showAlert('Erreur', 'Veuillez choisir un type de document.'); return; }
-    if (!fileUri) { showAlert('Erreur', "Veuillez ajouter la photo de votre pièce d'identité."); return; }
-    if (!selfieUri) { showAlert('Erreur', 'Veuillez ajouter votre selfie.'); return; }
+    if (!fileUri && !user?.kyc_file_url) { showAlert('Erreur', "Veuillez ajouter la photo de votre pièce d'identité."); return; }
+    if (!selfieUri && !user?.kyc_tof_url) { showAlert('Erreur', 'Veuillez ajouter votre selfie.'); return; }
 
     setLoading(true);
     try {
@@ -142,7 +152,7 @@ export default function KycScreen() {
           city: city.trim(),
           address: address.trim(),
           idnumber: idnumber.trim(),
-          birthdate: birthdate.trim(),
+          birthdate: birthdateIso,
           idexp: idexpIso,
           phone: phone.trim(),
           country,
@@ -316,14 +326,55 @@ export default function KycScreen() {
           <Text style={styles.fieldLabel}>N° pièce d'identité</Text>
           <Input placeholder="Numéro de la pièce" value={idnumber} onChangeText={setIdnumber} />
 
-          {/* Date de naissance */}
+          {/* Date de naissance : JJ / MM / AAAA */}
           <Text style={styles.fieldLabel}>Date de naissance</Text>
-          <Input
-            placeholder="AAAA-MM-JJ"
-            value={birthdate}
-            onChangeText={(v) => setBirthdate(v.replace(/[^0-9-]/g, '').slice(0, 10))}
-            keyboardType="numbers-and-punctuation"
-          />
+          <View style={styles.expiryRow}>
+            <View style={styles.expiryField}>
+              <Input
+                placeholder="JJ"
+                value={birthDay}
+                onChangeText={(v) => {
+                  const digits = v.replace(/[^0-9]/g, '').slice(0, 2);
+                  if (digits.length === 2) {
+                    const n = parseInt(digits, 10);
+                    if (n < 1) { setBirthDay('01'); return; }
+                    if (n > 31) { setBirthDay('31'); return; }
+                  }
+                  setBirthDay(digits);
+                }}
+                keyboardType="number-pad"
+                maxLength={2}
+              />
+            </View>
+            <Text style={styles.expirySep}>/</Text>
+            <View style={styles.expiryField}>
+              <Input
+                placeholder="MM"
+                value={birthMonth}
+                onChangeText={(v) => {
+                  const digits = v.replace(/[^0-9]/g, '').slice(0, 2);
+                  if (digits.length === 2) {
+                    const n = parseInt(digits, 10);
+                    if (n < 1) { setBirthMonth('01'); return; }
+                    if (n > 12) { setBirthMonth('12'); return; }
+                  }
+                  setBirthMonth(digits);
+                }}
+                keyboardType="number-pad"
+                maxLength={2}
+              />
+            </View>
+            <Text style={styles.expirySep}>/</Text>
+            <View style={styles.expiryFieldWide}>
+              <Input
+                placeholder="AAAA"
+                value={birthYear}
+                onChangeText={(v) => setBirthYear(v.replace(/[^0-9]/g, '').slice(0, 4))}
+                keyboardType="number-pad"
+                maxLength={4}
+              />
+            </View>
+          </View>
 
           {/* Date d'expiration */}
           <Text style={styles.fieldLabel}>{t('kyc.expiryDate')}</Text>
@@ -427,6 +478,8 @@ export default function KycScreen() {
             >
               {fileUri ? (
                 <Image source={{ uri: fileUri }} style={styles.previewImage} />
+              ) : user?.kyc_file_url ? (
+                <Image source={{ uri: user.kyc_file_url }} style={styles.previewImage} />
               ) : (
                 <View style={styles.placeholderContainer}>
                   <View style={styles.placeholderIcon}>
@@ -459,6 +512,8 @@ export default function KycScreen() {
             >
               {selfieUri ? (
                 <Image source={{ uri: selfieUri }} style={styles.previewImage} />
+              ) : user?.kyc_tof_url ? (
+                <Image source={{ uri: user.kyc_tof_url }} style={styles.previewImage} />
               ) : (
                 <View style={styles.placeholderContainer}>
                   <View style={styles.placeholderIcon}>
@@ -477,7 +532,7 @@ export default function KycScreen() {
           onPress={handleSubmit}
           icon="fingerprint"
           loading={loading}
-          disabled={!docType || !fileUri || !selfieUri || !city || !address || !idnumber || !idexpMonth || !idexpYear || !phone}
+          disabled={!docType || (!fileUri && !user?.kyc_file_url) || (!selfieUri && !user?.kyc_tof_url) || !city || !address || !idnumber || !birthDay || !birthMonth || !birthYear || !idexpMonth || !idexpYear || !phone}
           style={{ marginTop: Spacing.xl, marginBottom: Spacing.xxl }}
         />
 
