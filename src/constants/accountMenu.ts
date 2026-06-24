@@ -34,7 +34,6 @@ export function getAccountMenuItems(
     { key: 'bank-accounts', label: t('account.savedBanks'), icon: 'building-columns', route: '/account/bank-accounts' },
     { key: 'wallets', label: t('account.savedWallets'), icon: 'wallet', route: '/account/wallets', cryptoOnly: true },
     { key: 'settings', label: t('account.customization'), icon: 'gear', route: '/account/settings' },
-    { key: 'currency', label: t('account.currency'), icon: 'coins', route: '/account/currency' },
   ];
   return items.filter((item) => !(item.cryptoOnly && !opts.isCryptoUser));
 }

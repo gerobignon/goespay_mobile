@@ -1,5 +1,3 @@
-import { useCurrencyStore } from '../stores/currencyStore';
-
 // Format brut (locale FR), sans conversion ni symbole.
 export function formatAmount(amount: number): string {
   return amount.toLocaleString('fr-FR', {
@@ -8,42 +6,31 @@ export function formatAmount(amount: number): string {
   });
 }
 
-// Formate un montant XOF (canonique) dans la devise utilisateur.
-// Ex : 5000 XOF → "≈ 8.93 USD" (si user en USD), ou "5 000 XOF" (si user en XOF).
-// Variante non-réactive : pour usage hors composant (alerts, receipts, logs).
+// Formate un montant XOF (canonique). Le multi-devise d'affichage a été retiré :
+// le solde et tous les montants s'affichent désormais en XOF pour tout le monde.
+// La devise étrangère n'intervient plus qu'au niveau d'une transaction (recharge/
+// envoi), gérée localement par les modals (≈ crypto). Variante non-réactive.
 export function formatXof(xofAmount: number, opts?: { withCode?: boolean; approx?: boolean }): string {
-  const { formatFromXof } = useCurrencyStore.getState();
-  return formatFromXof(xofAmount, { approx: true, withCode: true, ...opts });
+  const formatted = xofAmount.toLocaleString('fr-FR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+  return `${formatted}${opts?.withCode === false ? '' : ' XOF'}`;
 }
 
-// Hook réactif : se met à jour quand la devise/les taux changent.
+// Hook réactif (conservé pour compat) — formate toujours en XOF.
 export function useFormatXof(): (xofAmount: number, opts?: { withCode?: boolean; approx?: boolean }) => string {
-  const userCurrency = useCurrencyStore((s) => s.userCurrency);
-  const rates = useCurrencyStore((s) => s.rates);
-  return (xofAmount: number, opts) => {
-    const decimals = useCurrencyStore.getState().decimalsFor(userCurrency);
-    const value = userCurrency === 'XOF' || !rates[userCurrency]
-      ? xofAmount
-      : xofAmount * rates[userCurrency];
-    const formatted = value.toLocaleString('fr-FR', {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: Math.max(decimals, 2),
-    });
-    const withCode = opts?.withCode !== false;
-    const approx = opts?.approx !== false;
-    const prefix = approx && userCurrency !== 'XOF' ? '≈ ' : '';
-    return `${prefix}${formatted}${withCode ? ` ${userCurrency}` : ''}`;
-  };
+  return (xofAmount: number, opts) => formatXof(xofAmount, opts);
 }
 
-// Hook qui retourne uniquement le code devise courant (réactif).
+// Devise d'affichage : toujours XOF (le sélecteur multi-devise a été supprimé).
 export function useCurrencyCode(): string {
-  return useCurrencyStore((s) => s.userCurrency);
+  return 'XOF';
 }
 
 // Variante non-réactive (hors composant).
 export function currentCurrencyCode(): string {
-  return useCurrencyStore.getState().userCurrency;
+  return 'XOF';
 }
 
 // Conserve l'ancien nom pour rétro-compat (équivalent à formatXof).

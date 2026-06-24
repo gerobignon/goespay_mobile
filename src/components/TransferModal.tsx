@@ -37,9 +37,8 @@ import type { SavedPhone } from '../types';
 import { useTranslation } from 'react-i18next';
 
 import { useConfigStore } from '../stores/configStore';
-import { useCurrencyStore } from '../stores/currencyStore';
 import { useCryptoStore } from '../stores/cryptoStore';
-import { useFormatXof, useCurrencyCode } from '../utils/format';
+import { useFormatXof } from '../utils/format';
 import { useFincraRate } from '../stores/fincraRateStore';
 import { formatFincraPhone, resolveFincraZone } from '../utils/fincraPhone';
 import { AdminDisabledBanner } from './AdminDisabledBanner';
@@ -167,9 +166,6 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const afribapayEnabled = useConfigStore((s) => s.afribapay_enabled);
   const transferEnabled = useConfigStore((s) => s.transfer_enabled);
   const isAdmin = user?.group === 'admin';
-  const userCurrency = useCurrencyCode();
-  const convertToXof = useCurrencyStore((s) => s.convertToXof);
-  const currencyRates = useCurrencyStore((s) => s.rates);
   const fmtXof = useFormatXof();
 
   // Corridors server-driven (aggregator_routing) : masquage temps réel + badge.
@@ -270,12 +266,9 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
         : ((fincraZoneCountry && catalogDial[fincraZoneCountry]) || resolveFincraZone(fincraCurrency, fincraZoneCountry).dialCode))
     : undefined;
 
-  // L'utilisateur saisit toujours dans la devise de son compte (XOF). La
-  // conversion en XOF canonique sert aux frais, validations, contrôle de solde.
-  const numAmountDisplay = parseFloat(amount) || 0;
-  const numAmountXof = userCurrency === 'XOF'
-    ? Math.round(numAmountDisplay)
-    : convertToXof(numAmountDisplay);
+  // Multi-devise d'affichage retiré : le solde est en XOF et l'envoi se saisit
+  // en XOF débité. Cette valeur sert aux frais, validations et contrôle de solde.
+  const numAmountXof = Math.round(parseFloat(amount) || 0);
   const userCountry = user?.country?.toUpperCase();
   // Frais = A→B : source = pays du user, destination = pays de l'opérateur visé
   // (= corridor.country_code côté backend). On affiche le frais résolu par le
@@ -303,44 +296,27 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const fmtFincra = (n: number) =>
     `${n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fincraCurrency}`;
 
-  // wallet_fincra est en XOF : on débite exactement le montant XOF saisi.
-  // On convertit ce XOF vers la devise Fincra pour le montant réellement envoyé
-  // au bénéficiaire (NGN, GHS…), via les taux Fincra (isolés).
-  //
-  // Cas spécial : si userCurrency === fincraCurrency (ex : compte GHS + opérateur
-  // Fincra Ghana), le montant saisi EST déjà le montant à envoyer chez Fincra —
-  // aucune double-conversion (qui causerait une perte sur la triangulation).
+  // wallet est en XOF : on débite exactement le montant XOF saisi. On convertit
+  // ce XOF vers la devise Fincra pour le montant réellement envoyé au bénéficiaire
+  // (NGN, GHS…), via les taux Fincra isolés. fincraRate.rate = valeur XOF d'1
+  // unité étrangère → montant reçu = XOF débité ÷ taux.
   const fincraRate = useFincraRate(fincraCurrency, isFincraOp, isKlashaOp);
   const fincraSendAmount =
-    isFincraOp && numAmountDisplay > 0
-      ? (userCurrency === fincraCurrency
-          ? numAmountDisplay
-          : fincraCurrency === 'XOF'
-              ? numAmountXof
-              : (fincraRate.rate && fincraRate.rate > 0
-                  ? Math.round((numAmountXof / fincraRate.rate) * 100) / 100
-                  : null))
+    isFincraOp && numAmountXof > 0
+      ? (fincraCurrency === 'XOF'
+          ? numAmountXof
+          : (fincraRate.rate && fincraRate.rate > 0
+              ? Math.round((numAmountXof / fincraRate.rate) * 100) / 100
+              : null))
       : null;
-  // Le débit XOF du wallet : en cas de short-circuit (userCurrency===fincraCurrency),
-  // on aligne sur le taux Fincra pour rester cohérent ; sinon on garde la
-  // conversion currencyStore (numAmountXof) déjà utilisée par les flux classiques.
-  const fincraDebitXof = isFincraOp
-    ? (userCurrency === fincraCurrency && fincraRate.rate && fincraRate.rate > 0
-        ? Math.round(numAmountDisplay * fincraRate.rate)
-        : numAmountXof)
-    : null;
+  // Le débit XOF du wallet = exactement le montant XOF saisi.
+  const fincraDebitXof = isFincraOp ? numAmountXof : null;
   // Montant transmis au backend : Fincra = devise Fincra ; sinon XOF.
   const numAmount = isFincraOp ? (fincraSendAmount ?? 0) : numAmountXof;
-  // Bloque l'envoi tant que le taux Fincra n'est pas résolu (chargement / erreur).
-  // Quand userCurrency === fincraCurrency, on n'a pas besoin du taux pour calculer
-  // le montant envoyé — mais on garde le blocage si le taux est nécessaire pour
-  // afficher fincraDebitXof correctement (sinon on tomberait sur numAmountXof).
+  // Bloque l'envoi tant que le taux Fincra (devise étrangère) n'est pas résolu.
   const fincraRateBlocking =
-    isFincraOp && fincraCurrency !== 'XOF' && userCurrency !== fincraCurrency && numAmountDisplay > 0
+    isFincraOp && fincraCurrency !== 'XOF' && numAmountXof > 0
     && (fincraRate.loading || fincraRate.error || fincraRate.rate === null);
-  // Flux classiques : user non-XOF sans taux global → conversion 1:1 erronée.
-  const classicRateBlocking =
-    !isFincraOp && userCurrency !== 'XOF' && !((currencyRates[userCurrency] ?? 0) > 0);
 
   // Frais indisponibles : un moyen est choisi + un montant saisi mais le backend
   // n'a pas fourni de frais pour cette destination → on bloque (pas de devinette).
@@ -784,7 +760,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       showAlert(t('depositModal.kycRequired3'), t('depositModal.kycRequired2'));
       return;
     }
-    if (classicRateBlocking) {
+    if (fincraRateBlocking) {
       showAlert(t('common.error'), t('common.rateUnavailable'));
       return;
     }
@@ -1372,7 +1348,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             {(!isFincraOp || !!fincraRail) && (
             <>
             <Input
-              label={t('transferModal.amountLabel', { currency: userCurrency })}
+              label={t('transferModal.amountLabel', { currency: 'XOF' })}
               placeholder={`Min. ${fmtXof(
                 (user?.country ?? '').toUpperCase() === 'NG'
                   ? transferMinNg
@@ -1383,9 +1359,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               keyboardType="decimal-pad"
             />
 
-            {/* Montant reçu par le bénéficiaire (devise Fincra). XOF→XOF ou
-                userCurrency === fincraCurrency : pas d'affichage redondant. */}
-            {isFincraOp && fincraCurrency !== 'XOF' && userCurrency !== fincraCurrency && numAmountDisplay > 0 && (
+            {/* Montant reçu par le bénéficiaire (devise Fincra) pour le XOF débité. */}
+            {isFincraOp && fincraCurrency !== 'XOF' && numAmountXof > 0 && (
               <FincraConversionHint
                 loading={fincraRate.loading}
                 error={fincraRate.error || fincraSendAmount === null}
@@ -1393,12 +1368,6 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 amount={fincraSendAmount}
                 currency={fincraCurrency}
               />
-            )}
-
-            {classicRateBlocking && (
-              <View style={{ marginTop: -Spacing.xs, marginBottom: Spacing.sm }}>
-                <Text style={[styles.phoneHint, { color: Colors.error }]}>{t('common.rateUnavailable')}</Text>
-              </View>
             )}
 
             {feeUnavailable && (
@@ -1892,7 +1861,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               loading={loading}
               disabled={
                 !amount || !operator
-                || fincraRateBlocking || classicRateBlocking || feeUnavailable
+                || fincraRateBlocking || feeUnavailable
                 || (isFincraOp
                     ? !fincraRail
                       || (fincraRail === 'mobile_money' && !phone)
@@ -1936,7 +1905,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               <Text style={styles.confirmCardLabel}>{t('transferModal.amountSent')}</Text>
               <View style={styles.confirmAmountRow}>
                 <Text style={styles.confirmAmount}>{fmtXof(numAmountXof, { withCode: false })}</Text>
-                <Text style={styles.confirmAmountCurrency}>{userCurrency}</Text>
+                <Text style={styles.confirmAmountCurrency}>XOF</Text>
               </View>
             </View>
 

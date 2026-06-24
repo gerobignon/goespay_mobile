@@ -35,9 +35,8 @@ import type { SavedPhone } from '../types';
 import { useTranslation } from 'react-i18next';
 
 import { useConfigStore } from '../stores/configStore';
-import { useCurrencyStore } from '../stores/currencyStore';
 import { useCryptoStore } from '../stores/cryptoStore';
-import { useFormatXof, useCurrencyCode } from '../utils/format';
+import { useFormatXof } from '../utils/format';
 import { useFincraRate } from '../stores/fincraRateStore';
 import { getApiErrorMessage } from '../utils/apiError';
 import { formatFincraPhone, resolveFincraZone, type FincraCollectionRail } from '../utils/fincraPhone';
@@ -120,9 +119,6 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const depositMax = useConfigStore((s) => s.deposit_max);
   const cryptoRates = useCryptoStore((s) => s.rates);
   const fetchCryptoRates = useCryptoStore((s) => s.fetchRates);
-  const userCurrency = useCurrencyCode();
-  const convertToXof = useCurrencyStore((s) => s.convertToXof);
-  const currencyRates = useCurrencyStore((s) => s.rates);
   const fmtXof = useFormatXof();
   // Garde une trace si l'utilisateur a vidé/modifié le champ téléphone manuellement
   const phoneUserEditedRef = useRef(false);
@@ -484,38 +480,36 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
 
   const normalizedPhone = phone.replace(/\s+/g, '').trim();
 
-  // L'utilisateur saisit dans la devise de son compte (XOF, GHS, NGN…). On
-  // convertit ce montant vers la devise Fincra (NGN, GHS…) pour ce que Fincra
-  // encaisse réellement. wallet_fincra reste crédité en XOF.
-  //
-  // Cas spécial : si userCurrency === fincraCurrency (ex : compte GHS + opérateur
-  // Fincra Ghana), le montant saisi EST déjà le montant à payer côté Fincra —
-  // aucune double-conversion (qui causerait une perte sur la triangulation).
-  const numAmountDisplayLive = parseFloat(amount) || 0;
-  const numAmountXofLive = userCurrency === 'XOF'
-    ? Math.round(numAmountDisplayLive)
-    : convertToXof(numAmountDisplayLive);
+  // Modèle « calque crypto » : le multi-devise d'affichage est retiré (tout le
+  // monde est en XOF). À la recharge, l'utilisateur saisit DIRECTEMENT dans la
+  // devise du rail/marché (NGN, GHS… pour Fincra/Klasha ; XOF pour les rails
+  // UEMOA). On lui annonce l'équivalent crédité en XOF sur son compte.
+  const railCurrency = isFincra ? (fincraCurrency || 'XOF') : 'XOF';
+  const isForeignRail = isFincra && railCurrency !== 'XOF';
+  const numInputLive = parseFloat(amount) || 0;   // dans railCurrency
   // forDeposit=true : Klasha cote le dépôt en taux direct (≠ payout triangulé) →
   // le taux affiché ici correspond à celui réellement appliqué à la charge.
+  // fincraRate.rate = valeur XOF d'1 unité de la devise étrangère.
   const fincraRate = useFincraRate(fincraCurrency, isFincra, isKlasha, true);
-  // Montant à encaisser côté Fincra (devise Fincra).
-  const fincraChargeAmount =
-    isFincra && numAmountDisplayLive > 0
-      ? (userCurrency === fincraCurrency
-          ? numAmountDisplayLive
-          : fincraCurrency === 'XOF'
-              ? numAmountXofLive
-              : (fincraRate.rate && fincraRate.rate > 0
-                  ? Math.round((numAmountXofLive / fincraRate.rate) * 100) / 100
-                  : null))
-      : null;
+  // Montant à encaisser côté provider (devise du rail) = montant saisi tel quel.
+  const fincraChargeAmount = isFincra && numInputLive > 0 ? numInputLive : null;
+  // Équivalent crédité en XOF (canonique) : sert à l'aperçu, aux contrôles
+  // min/max et au calcul de frais. Rails étrangers : montant saisi × taux.
+  const numAmountXofLive: number | null = isForeignRail
+    ? (fincraRate.rate && fincraRate.rate > 0 ? Math.round(numInputLive * fincraRate.rate) : null)
+    : Math.round(numInputLive);
   const fincraRateBlocking =
-    isFincra && fincraCurrency !== 'XOF' && userCurrency !== fincraCurrency && numAmountDisplayLive > 0
+    isForeignRail && numInputLive > 0
     && (fincraRate.loading || fincraRate.error || fincraRate.rate === null);
-  // Flux classiques : pour un user non-XOF, si le taux global manque, la
-  // conversion retomberait silencieusement en 1:1 (montant erroné). On bloque.
-  const classicRateBlocking =
-    !isFincra && userCurrency !== 'XOF' && !((currencyRates[userCurrency] ?? 0) > 0);
+
+  // Trace le taux LIVE Klasha affiché dans le form de dépôt. NB : console.log est
+  // retiré en prod (babel) → le log serveur « [Klasha] deposit form live rate »
+  // fait foi ; celui-ci sert au debug en dev/web.
+  useEffect(() => {
+    if (isKlasha && isForeignRail && fincraRate.rate) {
+      console.log(`[Klasha] taux dépôt live affiché : 1 ${fincraCurrency} = ${fincraRate.rate} XOF`);
+    }
+  }, [isKlasha, isForeignRail, fincraRate.rate, fincraCurrency]);
 
   // Combinaison USSD à composer pour générer le code OTP, par opérateur Orange
   // (source : AfribaPay /v1/countries → ussd_code). « montant » = montant local
@@ -523,7 +517,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const otpUssd: string | null = (() => {
     const raw = ORANGE_OTP_USSD[operator];
     if (!raw) return null;
-    return numAmountXofLive > 0 ? raw.replace('montant', String(numAmountXofLive)) : raw;
+    return numAmountXofLive && numAmountXofLive > 0 ? raw.replace('montant', String(numAmountXofLive)) : raw;
   })();
 
   // Charge les numéros enregistrés pour cet opérateur dès qu'un opérateur non-card est sélectionné
@@ -626,14 +620,17 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   };
 
   const handleDeposit = async () => {
-    const numAmountDisplay = parseFloat(amount);
-    // Montant XOF (devise du compte) saisi par l'utilisateur.
-    const numAmountXof = userCurrency === 'XOF'
-      ? Math.round(numAmountDisplay || 0)
-      : convertToXof(numAmountDisplay || 0);
-    // Pour Fincra, on transmet le montant dans la devise Fincra (XOF converti
-    // via le taux Fincra) : c'est ce que Fincra encaisse. Sinon, XOF.
-    const numAmount = isFincra ? (fincraChargeAmount ?? 0) : numAmountXof;
+    const numInput = parseFloat(amount) || 0;   // saisi dans railCurrency
+    // Taux du rail étranger indisponible → on refuse (pas de crédit hasardeux).
+    if (fincraRateBlocking) {
+      showAlert(t('common.error'), t('common.rateUnavailable'));
+      return;
+    }
+    // Équivalent XOF crédité (déjà dérivé live) : contrôles min/max + frais.
+    const numAmountXof = numAmountXofLive ?? 0;
+    // Montant transmis au provider, dans la devise du rail : pour Fincra/Klasha
+    // c'est le montant saisi tel quel (NGN, GHS…) ; rails classiques = XOF.
+    const numAmount = isFincra ? (fincraChargeAmount ?? 0) : Math.round(numInput);
     if (!numAmountXof || (!isFincra && numAmountXof < depositMin)) {
       showAlert(
         t('common.error'),
@@ -648,7 +645,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
       );
       return;
     }
-    if (fincraRateBlocking || classicRateBlocking || (isFincra && !numAmount)) {
+    if (isFincra && !numAmount) {
       showAlert(t('common.error'), t('common.rateUnavailable'));
       return;
     }
@@ -1166,29 +1163,23 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
             {!!operator && (
               <>
                 <Input
-                  label={t('depositModal.amountLabel', { currency: userCurrency })}
-                  placeholder={`${t('depositModal.minDeposit')} ${fmtXof(depositMin)}`}
+                  label={t('depositModal.amountLabel', { currency: railCurrency })}
+                  placeholder={isForeignRail ? '' : `${t('depositModal.minDeposit')} ${fmtXof(depositMin)}`}
                   value={amount}
                   onChangeText={(t) => setAmount(t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
                   keyboardType="decimal-pad"
                 />
 
-                {/* Montant à payer côté Fincra (devise Fincra). XOF→XOF ou
-                    userCurrency === fincraCurrency : pas d'affichage redondant. */}
-                {isFincra && fincraCurrency !== 'XOF' && userCurrency !== fincraCurrency && numAmountDisplayLive > 0 && (
+                {/* Rail étranger (NGN, GHS…) : le montant saisi EST la devise du
+                    marché → on annonce l'équivalent crédité en XOF sur le compte. */}
+                {isForeignRail && numInputLive > 0 && (
                   <FincraConversionHint
                     loading={fincraRate.loading}
-                    error={fincraRate.error || fincraChargeAmount === null}
-                    label={t('depositModal.fincraToPay')}
-                    amount={fincraChargeAmount}
-                    currency={fincraCurrency}
+                    error={fincraRate.error || numAmountXofLive === null}
+                    label={t('depositModal.fincraCredit')}
+                    amount={numAmountXofLive}
+                    currency="XOF"
                   />
-                )}
-
-                {classicRateBlocking && (
-                  <View style={{ marginBottom: 8 }}>
-                    <Text style={[styles.hintText, { color: Colors.error }]}>{t('common.rateUnavailable')}</Text>
-                  </View>
                 )}
 
                 {isFincraBT && (
@@ -1313,7 +1304,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                   onPress={user?.validate !== 1 ? () => showAlert(t('depositModal.kycRequired3'), t('depositModal.kycRequired2')) : handleDeposit}
                   icon="arrow-down"
                   loading={loading}
-                  disabled={!amount || fincraRateBlocking || classicRateBlocking || (showPhoneField && !phone) || (showPhoneField && needsOtp && !otp.trim()) || (!!fincraZoneList && !fincraZoneCountry)}
+                  disabled={!amount || fincraRateBlocking || (showPhoneField && !phone) || (showPhoneField && needsOtp && !otp.trim()) || (!!fincraZoneList && !fincraZoneCountry)}
                   style={{ marginTop: Spacing.lg }}
                 />
               </>

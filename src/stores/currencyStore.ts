@@ -3,7 +3,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
 
 const RATES_CACHE_KEY = 'currency_rates_cache_v1';
-const USER_CURRENCY_KEY = 'user_currency_v1';
 const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
 
 // Décimales par devise (rule canonique #8)
@@ -69,14 +68,8 @@ export const useCurrencyStore = create<CurrencyState>((set, get) => ({
 
   init: async () => {
     try {
-      const cachedCurrency = await AsyncStorage.getItem(USER_CURRENCY_KEY);
-      if (cachedCurrency) {
-        const parsed = JSON.parse(cachedCurrency);
-        set({
-          userCurrency: parsed.currency || 'XOF',
-          currencySource: parsed.source || 'auto',
-        });
-      }
+      // userCurrency d'affichage retiré : on ne restaure plus de devise en cache,
+      // tout le monde reste en XOF. (Ancienne clé USER_CURRENCY_KEY ignorée.)
       const cachedRates = await AsyncStorage.getItem(RATES_CACHE_KEY);
       if (cachedRates) {
         const parsed: { data: RatesResponse; ts: number } = JSON.parse(cachedRates);
@@ -114,26 +107,14 @@ export const useCurrencyStore = create<CurrencyState>((set, get) => ({
     }
   },
 
-  setUserCurrency: async (currency, source = 'manual') => {
-    if (!SUPPORTED.includes(currency as SupportedCurrency)) return;
-    set({ userCurrency: currency, currencySource: source });
-    await AsyncStorage.setItem(
-      USER_CURRENCY_KEY,
-      JSON.stringify({ currency, source })
-    );
+  // Multi-devise d'affichage RETIRÉ : tout le monde reste en XOF. Ces setters
+  // sont conservés (compat appels existants) mais n'altèrent plus la devise.
+  setUserCurrency: async () => {
+    /* no-op : userCurrency reste 'XOF' */
   },
 
-  hydrateFromUser: async (currency, source) => {
-    if (currency && SUPPORTED.includes(currency as SupportedCurrency)) {
-      set({
-        userCurrency: currency,
-        currencySource: source === 'manual' ? 'manual' : 'auto',
-      });
-      await AsyncStorage.setItem(
-        USER_CURRENCY_KEY,
-        JSON.stringify({ currency, source: source || 'auto' })
-      );
-    }
+  hydrateFromUser: async () => {
+    /* no-op : userCurrency reste 'XOF' */
   },
 
   convertFromXof: (xofAmount, target) => {
