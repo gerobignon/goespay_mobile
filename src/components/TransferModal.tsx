@@ -243,8 +243,11 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const isFincraOp = !!(selectedOp as any)?.fincra;
   // Klasha réutilise l'UI Fincra ; ce flag route les appels API vers /payout/klasha.
   const isKlashaOp = !!(selectedOp as any)?.klasha;
-  // Service Chine porté par la tuile sélectionnée (klasha-cny-bt/card/wallet).
+  // Service Chine porté par la tuile sélectionnée (klasha-cny-bt/card/wallet/wechat).
   const cnyService: 'BANK_ACCOUNT' | 'BANK_CARD' | 'WALLET' = ((selectedOp as any)?.cnyService) ?? 'BANK_ACCOUNT';
+  // Wallet chinois : Alipay (défaut) ou WeChat — porte le serviceCode + le libellé.
+  const cnyServiceCode: 'ALIPAY' | 'WECHAT' = ((selectedOp as any)?.cnyServiceCode) ?? 'ALIPAY';
+  const cnyWalletLabel = cnyServiceCode === 'WECHAT' ? 'WeChat' : 'Alipay';
   const fincraCurrency = isFincraOp ? ((selectedOp as any)?.currency as string) || 'XOF' : '';
   // Le rail est porté directement par l'opérateur Fincra (cf. config.ts).
   // Plus de sélecteur dynamique ; chaque opérateur Fincra = 1 rail.
@@ -818,8 +821,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           ok = namesOk && !!bankCode.trim() && !!bankName.trim()
             && !!cnyCardNumber.trim() && !!cnyCardHolder.trim();
         } else {
-          // WALLET (Alipay) : nom + identifiant + pièce + relation.
-          ok = namesOk && !!cnyWalletAccount.trim() && !!cnyIdNumber.trim();
+          // WALLET (Alipay / WeChat) : nom + compte seulement.
+          ok = namesOk && !!cnyWalletAccount.trim();
         }
         if (!ok) {
           showAlert(t('common.error'), t('transferModal.cnyFieldsRequired'));
@@ -898,16 +901,16 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             ben.cardNumber = cnyCardNumber.trim();
             ben.cardHolderName = cnyCardHolder.trim();
           } else {
-            // WALLET (Alipay) — compte + identifiant + pièce + relation (cf. exemple).
+            // WALLET (Alipay / WeChat) — compte + accountId seulement.
             ben.accountNumber = cnyWalletAccount.trim();
             ben.accountId = cnyWalletAccountId;
-            ben.receiverIdNumber = cnyIdNumber.trim();
-            ben.receiverRelationship = cnyRelationship;
           }
           const result = await walletService.klashaCny({
             amount: numAmount,
             amount_xof: fincraDebitXof ?? numAmountXof,
             service: cnyService,
+            // Wallet : ALIPAY | WECHAT (ignoré par le backend hors WALLET).
+            serviceCode: cnyService === 'WALLET' ? cnyServiceCode : undefined,
             beneficiary: ben,
           });
           await fetchBalance();
@@ -1729,10 +1732,10 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       </>
                     )}
 
-                    {/* Alipay (wallet) — seuls compte + identifiant requis (ID/relation optionnels) */}
+                    {/* Wallet (Alipay / WeChat) — nom + compte uniquement */}
                     {cnyService === 'WALLET' && (
                       <>
-                        <Text style={styles.fieldLabel}>Identifiant Alipay *</Text>
+                        <Text style={styles.fieldLabel}>Identifiant {cnyWalletLabel} *</Text>
                         <View style={styles.cnyChipsRow}>
                           {([['MOBILE', 'Téléphone'], ['EMAIL', 'Email']] as const).map(([val, label]) => (
                             <TouchableOpacity key={val} style={[styles.cnyChip, cnyWalletAccountId === val && styles.cnyChipActive]} onPress={() => setCnyWalletAccountId(val)}>
@@ -1741,30 +1744,13 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                           ))}
                         </View>
                         <Input
-                          label={cnyWalletAccountId === 'EMAIL' ? 'Email Alipay *' : 'Téléphone Alipay *'}
+                          label={cnyWalletAccountId === 'EMAIL' ? `Email ${cnyWalletLabel} *` : `Téléphone ${cnyWalletLabel} *`}
                           placeholder={cnyWalletAccountId === 'EMAIL' ? 'email@exemple.com' : 'ex: +8613699262597'}
                           value={cnyWalletAccount}
                           onChangeText={setCnyWalletAccount}
                           keyboardType={cnyWalletAccountId === 'EMAIL' ? 'email-address' : 'phone-pad'}
                           autoCapitalize="none"
                         />
-                        <Input label="N° pièce d'identité du bénéficiaire *" placeholder="N° de pièce d'identité" value={cnyIdNumber} onChangeText={setCnyIdNumber} />
-                        <Text style={[styles.fieldLabel, { marginTop: Spacing.sm }]}>Votre relation avec le bénéficiaire *</Text>
-                        <View style={styles.cnyChipsRow}>
-                          {[
-                            ['SELF', 'Moi-même'], ['SPOUSE', 'Conjoint(e)'], ['PARENTS', 'Parents'],
-                            ['SONS_AND_DAUGHTERS', 'Enfants'], ['BROTHERS_AND_SISTERS', 'Frères/Sœurs'],
-                            ['GRANDPARENTS', 'Grands-parents'], ['GRANDCHILDREN', 'Petits-enfants'],
-                          ].map(([val, label]) => (
-                            <TouchableOpacity
-                              key={val}
-                              style={[styles.cnyChip, cnyRelationship === val && styles.cnyChipActive]}
-                              onPress={() => setCnyRelationship(val)}
-                            >
-                              <Text style={[styles.cnyChipText, cnyRelationship === val && styles.cnyChipTextActive]}>{label}</Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
                       </>
                     )}
 
@@ -1877,7 +1863,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       || (fincraRail === 'cny' && (!cnyFirstName || !cnyLastName))
                       || (fincraRail === 'cny' && cnyService === 'BANK_ACCOUNT' && (!cnyIdNumber || !cnyMobile || !bankCode || !bankName || !bankAccountNumber || !bankAccountHolder))
                       || (fincraRail === 'cny' && cnyService === 'BANK_CARD' && (!bankCode || !bankName || !cnyCardNumber || !cnyCardHolder))
-                      || (fincraRail === 'cny' && cnyService === 'WALLET' && (!cnyWalletAccount || !cnyIdNumber))
+                      || (fincraRail === 'cny' && cnyService === 'WALLET' && !cnyWalletAccount)
                     : !phone)
               }
               style={{ marginTop: Spacing.lg }}
