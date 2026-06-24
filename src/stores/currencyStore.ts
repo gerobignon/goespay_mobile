@@ -133,7 +133,7 @@ export const useCurrencyStore = create<CurrencyState>((set, get) => ({
     const rate = rates[cur];
     if (!rate || !isFinite(rate) || rate <= 0) return displayAmount;
     // Inverse : 1 unité de cur = (1 / rate) XOF
-    return Math.round(displayAmount / rate);
+    return displayAmount / rate;
   },
 
   formatFromXof: (xofAmount, opts = {}) => {

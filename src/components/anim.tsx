@@ -110,5 +110,5 @@ export function useCountUpValue(target: number, duration = 1100): number {
  * Rejoue l'animation quand `target` change.
  */
 export function useCountUp(target: number, duration = 1100): string {
-  return Math.round(useCountUpValue(target, duration)).toLocaleString('fr-FR').replace(/,/g, ' ');
+  return useCountUpValue(target, duration).toLocaleString('fr-FR').replace(/,/g, ' ');
 }

@@ -142,7 +142,7 @@ export function CryptoSellDetailsModal({ visible, onClose, data }: CryptoSellDet
                     <View style={styles.receiveRow}>
                       <FontAwesome6 name="arrow-down" size={11} color={Colors.secondary} />
                       <Text style={styles.receiveLabel}>{t('cryptoModal.youWillReceive')}</Text>
-                      <Text style={styles.receiveAmount}>{fmtXof(Math.round(xofAmount))}</Text>
+                      <Text style={styles.receiveAmount}>{fmtXof(xofAmount)}</Text>
                     </View>
                   </View>
 

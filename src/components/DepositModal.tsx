@@ -496,8 +496,8 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // Équivalent crédité en XOF (canonique) : sert à l'aperçu, aux contrôles
   // min/max et au calcul de frais. Rails étrangers : montant saisi × taux.
   const numAmountXofLive: number | null = isForeignRail
-    ? (fincraRate.rate && fincraRate.rate > 0 ? Math.round(numInputLive * fincraRate.rate) : null)
-    : Math.round(numInputLive);
+    ? (fincraRate.rate && fincraRate.rate > 0 ? numInputLive * fincraRate.rate : null)
+    : numInputLive;
   const fincraRateBlocking =
     isForeignRail && numInputLive > 0
     && (fincraRate.loading || fincraRate.error || fincraRate.rate === null);
@@ -630,7 +630,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
     const numAmountXof = numAmountXofLive ?? 0;
     // Montant transmis au provider, dans la devise du rail : pour Fincra/Klasha
     // c'est le montant saisi tel quel (NGN, GHS…) ; rails classiques = XOF.
-    const numAmount = isFincra ? (fincraChargeAmount ?? 0) : Math.round(numInput);
+    const numAmount = isFincra ? (fincraChargeAmount ?? 0) : numInput;
     if (!numAmountXof || (!isFincra && numAmountXof < depositMin)) {
       showAlert(
         t('common.error'),
@@ -853,7 +853,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                     { key: 'account', label: t('depositModal.accountNumber'), value: bankTransferInfo.accountNumber, copy: true, strong: true },
                     { key: 'name',    label: t('depositModal.beneficiary'), value: bankTransferInfo.accountName },
                     { key: 'net',     label: t('depositModal.amountNet'),   value: `${bankTransferInfo.amountNet} ${bankTransferInfo.currency}` },
-                    ...(bankTransferInfo.fee > 0 ? [{ key: 'fee', label: t('depositModal.fincraFees'), value: `${(bankTransferInfo.fee + bankTransferInfo.vat).toFixed(2)} ${bankTransferInfo.currency}` }] : []),
+                    ...(bankTransferInfo.fee > 0 ? [{ key: 'fee', label: t('depositModal.fincraFees'), value: `${bankTransferInfo.fee + bankTransferInfo.vat} ${bankTransferInfo.currency}` }] : []),
                     { key: 'amount',  label: t('depositModal.amountExact'), value: `${bankTransferInfo.amountExpected} ${bankTransferInfo.currency}`, copy: true, strong: true },
                   ].filter((row) => !!row.value).map((row) => (
                     <View key={row.key} style={styles.btRow}>

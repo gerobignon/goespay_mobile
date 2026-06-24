@@ -268,7 +268,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
 
   // Multi-devise d'affichage retiré : le solde est en XOF et l'envoi se saisit
   // en XOF débité. Cette valeur sert aux frais, validations et contrôle de solde.
-  const numAmountXof = Math.round(parseFloat(amount) || 0);
+  const numAmountXof = parseFloat(amount) || 0;
   const userCountry = user?.country?.toUpperCase();
   // Frais = A→B : source = pays du user, destination = pays de l'opérateur visé
   // (= corridor.country_code côté backend). On affiche le frais résolu par le
@@ -306,7 +306,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       ? (fincraCurrency === 'XOF'
           ? numAmountXof
           : (fincraRate.rate && fincraRate.rate > 0
-              ? Math.round((numAmountXof / fincraRate.rate) * 100) / 100
+              ? numAmountXof / fincraRate.rate
               : null))
       : null;
   // Le débit XOF du wallet = exactement le montant XOF saisi.

@@ -287,7 +287,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
       const giveXof = userCurrency === 'XOF' ? numAmountRaw : convertToXof(numAmountRaw);
       // bubuy (live_rate) = USD par unité crypto. rate = XOF par USD. Donc crypto = (XOF/rate)/bubuy.
       const cryptoAmount = (giveXof / rate) / bubuy;
-      return `${t('cryptoModal.youWillReceive')}${cryptoAmount.toFixed(8)} ${getCurrencyName(selectedCurrency)}`;
+      return `${t('cryptoModal.youWillReceive')}${cryptoAmount} ${getCurrencyName(selectedCurrency)}`;
     } else {
       // User gives crypto, receives XOF → on affiche dans la devise utilisateur
       const rate = getSellRate(selectedRate);
@@ -295,7 +295,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
       if (!Number.isFinite(bubuy) || bubuy <= 0) return t('cryptoModal.loadingRate');
       // XOF reçu = (crypto * USD/crypto) * XOF/USD
       const xofAmount = (numAmountRaw * rate) * bubuy;
-      const xofRounded = Math.round(xofAmount);
+      const xofRounded = xofAmount;
       // Affichage dans la devise utilisateur (≈ XOF si différente), comme pour l'achat
       if (userCurrency === 'XOF') {
         return `${t('cryptoModal.youWillReceive')}${fmtXof(xofRounded)}`;
@@ -667,7 +667,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                         const minCrypto = minXof / (sellRate * liveRate);
                         const formatted = minCrypto < 0.0001
                           ? minCrypto.toExponential(2)
-                          : minCrypto.toFixed(minCrypto < 1 ? 6 : 4).replace(/\.?0+$/, '');
+                          : minCrypto.toString().replace(/\.?0+$/, '');
                         return `Min. ${formatted}`;
                       }
                     }
