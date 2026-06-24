@@ -33,18 +33,24 @@ export async function fetchFincraRate(currency: string, isKlasha = false, forDep
   if (!cur) return null;
   if (cur === 'XOF') return 1;
 
+  // Le taux LIVE du form de dépôt Klasha n'est JAMAIS caché : on veut la valeur
+  // fraîche à chaque affichage (Fincra et payout Klasha gardent leur cache 5 min).
+  const liveOnly = isKlasha && forDeposit;
+
   // Cache namespacé : Klasha/Fincra (et, pour Klasha, dépôt vs payout) peuvent
   // coter la même devise différemment.
   const key = (isKlasha ? (forDeposit ? 'KLD:' : 'KL:') : 'FC:') + cur;
-  const hit = cache.get(key);
-  if (hit && Date.now() - hit.ts < CACHE_TTL_MS) return hit.rate;
+  if (!liveOnly) {
+    const hit = cache.get(key);
+    if (hit && Date.now() - hit.ts < CACHE_TTL_MS) return hit.rate;
+  }
 
   try {
     const { rate_to_xof } = isKlasha
       ? await walletService.getKlashaRate(cur, forDeposit)
       : await walletService.getFincraRate(cur);
     if (typeof rate_to_xof !== 'number' || !isFinite(rate_to_xof) || rate_to_xof <= 0) return null;
-    cache.set(key, { rate: rate_to_xof, ts: Date.now() });
+    if (!liveOnly) cache.set(key, { rate: rate_to_xof, ts: Date.now() });
     return rate_to_xof;
   } catch {
     return null;
