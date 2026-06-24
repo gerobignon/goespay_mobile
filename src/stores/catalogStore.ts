@@ -130,9 +130,11 @@ function klashaCnyService(code: string): 'BANK_ACCOUNT' | 'BANK_CARD' | 'WALLET'
   return undefined;
 }
 function klashaCnyName(code: string): string {
-  if (code === 'klasha-cny-card')   return 'UnionPay Chine (CNY)';
-  if (code === 'klasha-cny-wallet') return 'Alipay Chine (CNY)';
-  return 'Virement Chine (CNY)';
+  // Cohérent avec les autres corridors (« Virement bancaire (CUR) ») ; le drapeau 🇨🇳
+  // indique déjà la Chine. UnionPay/Alipay = noms de marque.
+  if (code === 'klasha-cny-card')   return 'UnionPay (CNY)';
+  if (code === 'klasha-cny-wallet') return 'Alipay (CNY)';
+  return 'Virement bancaire (CNY)';
 }
 
 // Comme l'admin : sur les cartes et virements Fincra, on suffixe le nom avec la
