@@ -44,6 +44,8 @@ export default function ProfileScreen() {
     surname: user?.surname || '',
     phone: user?.phone || '',
     city: user?.city || '',
+    state: user?.state || '',
+    postcode: user?.postcode || '',
     address: user?.address || '',
     telegram: user?.telegram || '',
   });
@@ -129,6 +131,18 @@ export default function ProfileScreen() {
                   label={t('account.city')}
                   value={form.city}
                   onChangeText={(v) => setField('city', v)}
+                  editable={!isReadonly}
+                />
+                <Input
+                  label={t('kyc.state')}
+                  value={form.state}
+                  onChangeText={(v) => setField('state', v)}
+                  editable={!isReadonly}
+                />
+                <Input
+                  label={t('kyc.postcode')}
+                  value={form.postcode}
+                  onChangeText={(v) => setField('postcode', v)}
                   editable={!isReadonly}
                 />
                 <Input
