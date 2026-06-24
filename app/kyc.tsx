@@ -9,7 +9,7 @@ import {
   FlatList,
   TextInput,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ScreenBackground } from '../src/components/ScreenBackground';
 import { ResponsiveModal } from '../src/components/ResponsiveModal';
 import { useResponsive } from '../src/hooks/useResponsive';
@@ -36,6 +36,10 @@ const DOC_TYPES_KEYS = [
 
 export default function KycScreen() {
   const router = useRouter();
+  // Mode édition (?edit=1) : force le FORMULAIRE même si déjà validé / en attente,
+  // pour permettre une re-soumission (ex. ajout de la date de naissance pour la Chine).
+  const { edit } = useLocalSearchParams<{ edit?: string }>();
+  const editMode = edit === '1';
   const { user, refreshProfile } = useAuthStore();
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();
@@ -49,8 +53,9 @@ export default function KycScreen() {
   const [address, setAddress] = useState(user?.address ?? '');
   const [idnumber, setIdnumber] = useState(user?.idnumber ?? '');
   const [birthdate, setBirthdate] = useState(user?.birthdate ?? ''); // AAAA-MM-JJ
-  // Date d'expiration : mois + année séparés
-  const existingParts = (user?.idexp ?? '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  // Date d'expiration : mois + année séparés. Prérempli depuis le profil, que la
+  // valeur stockée soit « MM/YYYY » ou « JJ/MM/YYYY » → [2]=mois, [3]=année.
+  const existingParts = (user?.idexp ?? '').match(/^(?:(\d{1,2})\/)?(\d{1,2})\/(\d{4})$/);
   const [idexpMonth, setIdexpMonth] = useState(existingParts ? existingParts[2] : '');
   const [idexpYear, setIdexpYear] = useState(existingParts ? existingParts[3] : '');
   const [phone, setPhone] = useState(user?.phone ?? '');
@@ -142,6 +147,7 @@ export default function KycScreen() {
           phone: phone.trim(),
           country,
           telegram: telegram.trim(),
+          resubmit: editMode,
         },
         fileUri,
         selfieUri
@@ -171,8 +177,8 @@ export default function KycScreen() {
     }
   };
 
-  // --- État: validate == 2 (en attente) ---
-  if (user?.validate === 2) {
+  // --- État: validate == 2 (en attente) — sauf en mode édition (re-soumission) ---
+  if (user?.validate === 2 && !editMode) {
     return (
       <ScreenBackground>
         <ScrollView contentContainerStyle={styles.scroll}>
@@ -209,8 +215,8 @@ export default function KycScreen() {
     );
   }
 
-  // --- État: validate == 1 (déjà validé) ---
-  if (user?.validate === 1) {
+  // --- État: validate == 1 (déjà validé) — sauf en mode édition (re-soumission) ---
+  if (user?.validate === 1 && !editMode) {
     return (
       <ScreenBackground>
         <ScrollView contentContainerStyle={styles.scroll}>

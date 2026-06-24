@@ -1361,7 +1361,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 <Button
                   title="Compléter mon KYC"
                   icon="id-card"
-                  onPress={() => { onClose(); router.push('/kyc'); }}
+                  onPress={() => { onClose(); router.push('/kyc?edit=1'); }}
                   style={{ marginTop: Spacing.md }}
                 />
               </View>

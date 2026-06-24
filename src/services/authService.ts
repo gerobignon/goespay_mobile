@@ -108,6 +108,7 @@ export const authService = {
       phone: string;
       country?: string;
       telegram?: string;
+      resubmit?: boolean; // re-soumission d'un KYC déjà validé/en attente
     },
     fileUri: string,
     selfieUri: string
@@ -137,6 +138,7 @@ export const authService = {
     formData.append('phone', data.phone);
     if (data.country) formData.append('country', data.country);
     if (data.telegram) formData.append('telegram', data.telegram);
+    if (data.resubmit) formData.append('resubmit', '1');
     // Fichiers
     await appendFile('file', fileUri);
     await appendFile('tof', selfieUri);
