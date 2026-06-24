@@ -11,6 +11,7 @@ export interface User {
   address?: string;
   idnumber?: string;
   idexp?: string;
+  birthdate?: string; // AAAA-MM-JJ (KYC, requis payouts Chine)
   idexp_expired?: boolean;
   idexp_days_left?: number | null;
   idexp_warning?: boolean;

@@ -48,6 +48,7 @@ export default function KycScreen() {
   const [city, setCity] = useState(user?.city ?? '');
   const [address, setAddress] = useState(user?.address ?? '');
   const [idnumber, setIdnumber] = useState(user?.idnumber ?? '');
+  const [birthdate, setBirthdate] = useState(user?.birthdate ?? ''); // AAAA-MM-JJ
   // Date d'expiration : mois + année séparés
   const existingParts = (user?.idexp ?? '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   const [idexpMonth, setIdexpMonth] = useState(existingParts ? existingParts[2] : '');
@@ -104,6 +105,7 @@ export default function KycScreen() {
     if (!city.trim()) { showAlert('Erreur', 'Veuillez entrer votre ville.'); return; }
     if (!address.trim()) { showAlert('Erreur', 'Veuillez entrer votre adresse.'); return; }
     if (!idnumber.trim()) { showAlert('Erreur', 'Veuillez entrer le numéro de votre pièce.'); return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(birthdate.trim())) { showAlert('Erreur', 'Date de naissance invalide (format AAAA-MM-JJ).'); return; }
     if (!idexpMonth.trim() || !idexpYear.trim()) { showAlert('Erreur', "Veuillez entrer la date d'expiration."); return; }
     const monthNum = parseInt(idexpMonth, 10);
     if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) { showAlert('Erreur', 'Mois invalide (1-12).'); return; }
@@ -135,6 +137,7 @@ export default function KycScreen() {
           city: city.trim(),
           address: address.trim(),
           idnumber: idnumber.trim(),
+          birthdate: birthdate.trim(),
           idexp: idexpIso,
           phone: phone.trim(),
           country,
@@ -306,6 +309,15 @@ export default function KycScreen() {
           {/* N° pièce d'identité */}
           <Text style={styles.fieldLabel}>N° pièce d'identité</Text>
           <Input placeholder="Numéro de la pièce" value={idnumber} onChangeText={setIdnumber} />
+
+          {/* Date de naissance */}
+          <Text style={styles.fieldLabel}>Date de naissance</Text>
+          <Input
+            placeholder="AAAA-MM-JJ"
+            value={birthdate}
+            onChangeText={(v) => setBirthdate(v.replace(/[^0-9-]/g, '').slice(0, 10))}
+            keyboardType="numbers-and-punctuation"
+          />
 
           {/* Date d'expiration */}
           <Text style={styles.fieldLabel}>{t('kyc.expiryDate')}</Text>

@@ -104,6 +104,8 @@ export interface KlashaCnyRequest {
   amount_xof: number;        // XOF débité du wallet
   service: KlashaCnyService;
   beneficiary: KlashaCnyBeneficiary;
+  // L'expéditeur (identité + date de naissance + adresse) vient du profil KYC,
+  // côté backend → non transmis ici.
 }
 
 export interface SavedBank {
@@ -287,9 +289,13 @@ export const walletService = {
     return response.data;
   },
 
-  // Taux Klasha : 1 unité de `currency` = N XOF (pivot du wallet, swap via USD).
-  getKlashaRate: async (currency: string): Promise<{ currency: string; rate_to_xof: number }> => {
-    const response = await api.get('/klasha/rates', { params: { currency } });
+  // Taux Klasha : 1 unité de `currency` = N XOF (pivot du wallet).
+  // forDeposit → taux direct (sans triangulation), cohérent avec la charge dépôt ;
+  // sinon (payout) → triangulé via USD.
+  getKlashaRate: async (currency: string, forDeposit = false): Promise<{ currency: string; rate_to_xof: number }> => {
+    const params: Record<string, string> = { currency };
+    if (forDeposit) params.for = 'deposit';
+    const response = await api.get('/klasha/rates', { params });
     return response.data;
   },
 

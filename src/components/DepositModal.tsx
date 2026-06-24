@@ -495,7 +495,9 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const numAmountXofLive = userCurrency === 'XOF'
     ? Math.round(numAmountDisplayLive)
     : convertToXof(numAmountDisplayLive);
-  const fincraRate = useFincraRate(fincraCurrency, isFincra, isKlasha);
+  // forDeposit=true : Klasha cote le dépôt en taux direct (≠ payout triangulé) →
+  // le taux affiché ici correspond à celui réellement appliqué à la charge.
+  const fincraRate = useFincraRate(fincraCurrency, isFincra, isKlasha, true);
   // Montant à encaisser côté Fincra (devise Fincra).
   const fincraChargeAmount =
     isFincra && numAmountDisplayLive > 0

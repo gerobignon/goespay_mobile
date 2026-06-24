@@ -16,6 +16,7 @@ import {
   FlatList,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { Input } from './Input';
 import { Button } from './Button';
 import { ResponsiveModal } from './ResponsiveModal';
@@ -65,6 +66,7 @@ interface TransferModalProps {
 
 export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCrypto, prefillPhone, prefillBank }: TransferModalProps) {
   const { t } = useTranslation();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const { isDesktop, isWide } = useResponsive();
@@ -251,6 +253,9 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // Le rail est porté directement par l'opérateur Fincra (cf. config.ts).
   // Plus de sélecteur dynamique ; chaque opérateur Fincra = 1 rail.
   const fincraRail: FincraRail | '' = isFincraOp ? (((selectedOp as any)?.rail as FincraRail) || '') : '';
+  // Chine : la date de naissance (KYC) est requise par Klasha. Si absente du profil,
+  // on bloque tout le formulaire de retrait et on demande de compléter le KYC.
+  const chinaKycGate = isKlashaOp && fincraRail === 'cny' && !(user as any)?.birthdate;
   // Sous-pays Fincra (XOF/XAF). Si le pays est déjà connu (pays sélectionné, ou
   // pays de l'utilisateur), on le déduit du contexte et on masque la liste.
   // Opérateur MM par pays (catalogue serveur) : pays figé = op.country (pas de picker).
@@ -835,8 +840,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           ok = namesOk && !!bankCode.trim() && !!bankName.trim()
             && !!cnyCardNumber.trim() && !!cnyCardHolder.trim();
         } else {
-          // WALLET (Alipay) : nom + identifiant suffisent (ID/relation optionnels).
-          ok = namesOk && !!cnyWalletAccount.trim();
+          // WALLET (Alipay) : nom + identifiant + pièce + relation.
+          ok = namesOk && !!cnyWalletAccount.trim() && !!cnyIdNumber.trim();
         }
         if (!ok) {
           showAlert(t('common.error'), t('transferModal.cnyFieldsRequired'));
@@ -915,9 +920,11 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             ben.cardNumber = cnyCardNumber.trim();
             ben.cardHolderName = cnyCardHolder.trim();
           } else {
-            // WALLET (Alipay) — ID/relation optionnels, non envoyés.
+            // WALLET (Alipay) — compte + identifiant + pièce + relation (cf. exemple).
             ben.accountNumber = cnyWalletAccount.trim();
             ben.accountId = cnyWalletAccountId;
+            ben.receiverIdNumber = cnyIdNumber.trim();
+            ben.receiverRelationship = cnyRelationship;
           }
           const result = await walletService.klashaCny({
             amount: numAmount,
@@ -1342,6 +1349,24 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               </Text>
             </View>
 
+            {/* Chine : si la date de naissance (KYC) manque, on n'affiche AUCUN
+                formulaire de retrait — juste une alerte jaune renvoyant au KYC. */}
+            {chinaKycGate ? (
+              <View style={styles.kycGateCard}>
+                <FontAwesome6 name="triangle-exclamation" size={22} color={Colors.warning} iconStyle="solid" />
+                <Text style={styles.kycGateTitle}>Complétez votre KYC</Text>
+                <Text style={styles.kycGateText}>
+                  Pour un envoi vers la Chine, votre date de naissance est requise. Mettez à jour et re-soumettez votre KYC, puis attendez sa validation pour continuer.
+                </Text>
+                <Button
+                  title="Compléter mon KYC"
+                  icon="id-card"
+                  onPress={() => { onClose(); router.push('/kyc'); }}
+                  style={{ marginTop: Spacing.md }}
+                />
+              </View>
+            ) : (
+            <>
             {/* Montant + suite. Pour Fincra, le rail est porté par l'opérateur lui-même
                 (cf. config.ts), plus de sélecteur intermédiaire. */}
             {(!isFincraOp || !!fincraRail) && (
@@ -1752,11 +1777,28 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                           keyboardType={cnyWalletAccountId === 'EMAIL' ? 'email-address' : 'phone-pad'}
                           autoCapitalize="none"
                         />
+                        <Input label="N° pièce d'identité du bénéficiaire *" placeholder="N° de pièce d'identité" value={cnyIdNumber} onChangeText={setCnyIdNumber} />
+                        <Text style={[styles.fieldLabel, { marginTop: Spacing.sm }]}>Votre relation avec le bénéficiaire *</Text>
+                        <View style={styles.cnyChipsRow}>
+                          {[
+                            ['SELF', 'Moi-même'], ['SPOUSE', 'Conjoint(e)'], ['PARENTS', 'Parents'],
+                            ['SONS_AND_DAUGHTERS', 'Enfants'], ['BROTHERS_AND_SISTERS', 'Frères/Sœurs'],
+                            ['GRANDPARENTS', 'Grands-parents'], ['GRANDCHILDREN', 'Petits-enfants'],
+                          ].map(([val, label]) => (
+                            <TouchableOpacity
+                              key={val}
+                              style={[styles.cnyChip, cnyRelationship === val && styles.cnyChipActive]}
+                              onPress={() => setCnyRelationship(val)}
+                            >
+                              <Text style={[styles.cnyChipText, cnyRelationship === val && styles.cnyChipTextActive]}>{label}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
                       </>
                     )}
 
                     <Text style={[styles.fieldLabel, { marginTop: Spacing.sm, opacity: 0.7 }]}>
-                      Votre identité d'expéditeur est reprise automatiquement de votre profil (KYC).
+                      Votre identité d'expéditeur (nom, pièce, date de naissance, adresse) est reprise automatiquement de votre profil (KYC).
                     </Text>
                   </>
                 )}
@@ -1864,11 +1906,13 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       || (fincraRail === 'cny' && (!cnyFirstName || !cnyLastName))
                       || (fincraRail === 'cny' && cnyService === 'BANK_ACCOUNT' && (!cnyIdNumber || !cnyMobile || !bankCode || !bankName || !bankAccountNumber || !bankAccountHolder))
                       || (fincraRail === 'cny' && cnyService === 'BANK_CARD' && (!bankCode || !bankName || !cnyCardNumber || !cnyCardHolder))
-                      || (fincraRail === 'cny' && cnyService === 'WALLET' && !cnyWalletAccount)
+                      || (fincraRail === 'cny' && cnyService === 'WALLET' && (!cnyWalletAccount || !cnyIdNumber))
                     : !phone)
               }
               style={{ marginTop: Spacing.lg }}
             />
+            </>
+            )}
             </>
             )}
             </>
@@ -2174,6 +2218,30 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.warning,
     fontSize: FontSize.xs,
     fontFamily: Fonts.semiBold,
+  },
+  kycGateCard: {
+    alignItems: 'center',
+    backgroundColor: Colors.warning + '15',
+    borderWidth: 1,
+    borderColor: Colors.warning + '55',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    marginTop: Spacing.md,
+  },
+  kycGateTitle: {
+    color: Colors.text,
+    fontSize: FontSize.lg,
+    fontFamily: Fonts.bold,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xs,
+    textAlign: 'center',
+  },
+  kycGateText: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.medium,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   operatorLabel: {
     color: Colors.textSecondary,

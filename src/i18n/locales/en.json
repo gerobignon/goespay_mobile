@@ -531,6 +531,7 @@
     "bankFieldsRequired": "Enter the beneficiary name, IBAN and BIC/SWIFT code.",
     "bankCountryRequired": "Enter the bank country (ISO code, e.g. CN for China).",
     "cnyFieldsRequired": "Enter the beneficiary (name, ID, phone), bank, account number and account holder.",
+    "cnyBirthDateRequired": "Enter your date of birth in YYYY-MM-DD format.",
     "cnySenderRequired": "Enter your sender identity: nationality, ID number, city, address and country (required by China).",
     "savedNumbers": "Saved numbers",
     "saveThisNumber": "Save this number",

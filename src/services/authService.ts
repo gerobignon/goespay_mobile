@@ -104,6 +104,7 @@ export const authService = {
       address: string;
       idnumber: string;
       idexp: string;
+      birthdate: string; // AAAA-MM-JJ
       phone: string;
       country?: string;
       telegram?: string;
@@ -132,6 +133,7 @@ export const authService = {
     formData.append('address', data.address);
     formData.append('idnumber', data.idnumber);
     formData.append('idexp', data.idexp);
+    formData.append('birthdate', data.birthdate);
     formData.append('phone', data.phone);
     if (data.country) formData.append('country', data.country);
     if (data.telegram) formData.append('telegram', data.telegram);
