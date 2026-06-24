@@ -404,7 +404,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
               // inter-devises (amount XOF − amount_sent NGN).
               const isFincraTx = (!!tx.currency_dest && tx.currency_dest !== 'XOF')
                 || !!(tx.mode && tx.mode.startsWith('fincra-'));
-              const fmtDest = (n: number) => `${n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${tx.currency_dest}`;
+              const fmtDest = (n: number) => `${n.toLocaleString('fr-FR', { maximumFractionDigits: 20 })} ${tx.currency_dest}`;
               // Frais en XOF : explicite (fee_xof) ; fallback classique XOF→XOF.
               const feeXof = tx.fee_xof != null
                 ? tx.fee_xof

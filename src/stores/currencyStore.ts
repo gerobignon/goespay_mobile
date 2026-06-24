@@ -54,7 +54,7 @@ const formatNumber = (value: number, decimals: number): string => {
   // sans forcer de zéros au-delà de la convention de la devise.
   return value.toLocaleString('fr-FR', {
     minimumFractionDigits: decimals,
-    maximumFractionDigits: Math.max(decimals, 2),
+    maximumFractionDigits: 20,
   });
 };
 

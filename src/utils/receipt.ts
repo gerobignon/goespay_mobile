@@ -34,7 +34,7 @@ function buildRows(tx: Transaction, type: 'deposit' | 'withdraw' | 'transfer' | 
     if (isFincraTx) {
       if (tx.currency_dest && tx.amount_sent != null) {
         const fmtDest = (n: number) =>
-          `${n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${tx.currency_dest}`;
+          `${n.toLocaleString('fr-FR', { maximumFractionDigits: 20 })} ${tx.currency_dest}`;
         rows.push({ label: 'Le bénéficiaire reçoit', value: fmtDest(tx.amount_sent) });
       }
       if (tx.fee_xof != null && tx.fee_xof !== 0) {

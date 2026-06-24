@@ -131,7 +131,7 @@ export default function WithdrawDetailScreen() {
         <Card>
           {(() => {
             // Valeurs EXACTES (pas d'arrondi) dans le détail.
-            const exact = (n: number) => Number(n).toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+            const exact = (n: number) => Number(n).toLocaleString('fr-FR', { maximumFractionDigits: 20 });
             const exactXof = (n?: number | null) => (n == null ? '—' : `${exact(n)} XOF`);
             // Fincra = devise destinataire ≠ XOF, détecté via currency_dest OU le mode.
             const isFincraTx =

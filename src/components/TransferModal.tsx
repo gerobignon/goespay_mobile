@@ -294,7 +294,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
 
   const fmt = (n: number) => n.toLocaleString('fr-FR').replace(/\s/g, '.');
   const fmtFincra = (n: number) =>
-    `${n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fincraCurrency}`;
+    `${n.toLocaleString('fr-FR', { maximumFractionDigits: 20 })} ${fincraCurrency}`;
 
   // wallet est en XOF : on débite exactement le montant XOF saisi. On convertit
   // ce XOF vers la devise Fincra pour le montant réellement envoyé au bénéficiaire

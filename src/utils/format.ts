@@ -2,7 +2,7 @@
 export function formatAmount(amount: number): string {
   return amount.toLocaleString('fr-FR', {
     minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
+    maximumFractionDigits: 20,
   });
 }
 
@@ -13,7 +13,7 @@ export function formatAmount(amount: number): string {
 export function formatXof(xofAmount: number, opts?: { withCode?: boolean; approx?: boolean }): string {
   const formatted = xofAmount.toLocaleString('fr-FR', {
     minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
+    maximumFractionDigits: 20,
   });
   return `${formatted}${opts?.withCode === false ? '' : ' XOF'}`;
 }
