@@ -287,7 +287,7 @@ export default function DashboardScreen() {
                   {/* Bloc 1 : solde + boutons (padding latéral généreux) */}
                   <View style={styles.balanceTop}>
                     <Text style={styles.balanceLabel}>{ t('home.balance') }</Text>
-                    <Text style={styles.balanceAmount}>{fmtXof(animBalance, { withCode: false })}</Text>
+                    <Text style={styles.balanceAmount}>{fmtXof(animBalance, { withCode: false, decimals: 2 })}</Text>
                     <Text style={styles.currency}>{currencyCode}</Text>
                     <View style={styles.balanceActions}>
                       {!configReady && (<><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /></>)}
@@ -362,7 +362,7 @@ export default function DashboardScreen() {
                 {/* Bloc 1 : solde + boutons (padding latéral généreux) */}
                 <View style={styles.balanceTop}>
                   <Text style={styles.balanceLabel}>{ t('home.balance') }</Text>
-                  <Text style={styles.balanceAmount}>{fmtXof(animBalance, { withCode: false })}</Text>
+                  <Text style={styles.balanceAmount}>{fmtXof(animBalance, { withCode: false, decimals: 2 })}</Text>
                   <Text style={styles.currency}>{currencyCode}</Text>
                   <View style={styles.balanceActions}>
                     {!configReady && (<><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /></>)}

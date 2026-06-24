@@ -10,16 +10,18 @@ export function formatAmount(amount: number): string {
 // le solde et tous les montants s'affichent désormais en XOF pour tout le monde.
 // La devise étrangère n'intervient plus qu'au niveau d'une transaction (recharge/
 // envoi), gérée localement par les modals (≈ crypto). Variante non-réactive.
-export function formatXof(xofAmount: number, opts?: { withCode?: boolean; approx?: boolean }): string {
+export function formatXof(xofAmount: number, opts?: { withCode?: boolean; approx?: boolean; decimals?: number }): string {
   const formatted = xofAmount.toLocaleString('fr-FR', {
     minimumFractionDigits: 0,
-    maximumFractionDigits: 20,
+    // Par défaut pleine précision (pas d'arrondi) ; `decimals` permet de capper
+    // l'affichage (ex. solde → 2 décimales).
+    maximumFractionDigits: opts?.decimals ?? 20,
   });
   return `${formatted}${opts?.withCode === false ? '' : ' XOF'}`;
 }
 
 // Hook réactif (conservé pour compat) — formate toujours en XOF.
-export function useFormatXof(): (xofAmount: number, opts?: { withCode?: boolean; approx?: boolean }) => string {
+export function useFormatXof(): (xofAmount: number, opts?: { withCode?: boolean; approx?: boolean; decimals?: number }) => string {
   return (xofAmount: number, opts) => formatXof(xofAmount, opts);
 }
 
