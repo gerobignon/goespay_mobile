@@ -8,8 +8,8 @@ import { walletService } from '../services/walletService';
 // devise de son compte (XOF). On convertit ce montant vers la devise Fincra
 // (NGN, GHS, USD…) pour ce que Fincra encaisse (dépôt) ou envoie (payout).
 //
-// `rate` = nombre de XOF pour 1 unité de la devise Fincra (triangulé via USD
-// côté backend, taux mid unique). Donc :
+// `rate` = nombre de XOF pour 1 unité de la devise Fincra (taux DIRECT cur↔XOF
+// + directionnel côté backend : side buy pour le dépôt, sell pour le payout). Donc :
 //   - XOF → devise Fincra : montantFincra = montantXof / rate
 //   - devise Fincra → XOF : montantXof   = montantFincra * rate
 //
@@ -26,8 +26,9 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // aligné sur le cache backend (5 min)
 const cache = new Map<string, CacheEntry>();
 
 // Récupère le taux XOF (XOF pour 1 unité de $currency). null si indisponible.
-// forDeposit : Klasha cote le DÉPÔT en taux direct (sans triangulation USD) ≠ le
-// payout (triangulé) → cache et appel distincts. Sans effet côté Fincra (symétrique).
+// forDeposit : le DÉPÔT (encaissement) et le payout (versement) sont cotés
+// DIFFÉREMMENT — Klasha (direct vs triangulé) ET Fincra (side buy vs sell) →
+// cache et appel distincts par sens.
 export async function fetchFincraRate(currency: string, isKlasha = false, forDeposit = false): Promise<number | null> {
   const cur = (currency || '').toUpperCase();
   if (!cur) return null;
@@ -37,9 +38,9 @@ export async function fetchFincraRate(currency: string, isKlasha = false, forDep
   // fraîche à chaque affichage (Fincra et payout Klasha gardent leur cache 5 min).
   const liveOnly = isKlasha && forDeposit;
 
-  // Cache namespacé : Klasha/Fincra (et, pour Klasha, dépôt vs payout) peuvent
-  // coter la même devise différemment.
-  const key = (isKlasha ? (forDeposit ? 'KLD:' : 'KL:') : 'FC:') + cur;
+  // Cache namespacé : Klasha/Fincra ET dépôt vs payout cotent la même devise
+  // différemment (Klasha : KLD/KL ; Fincra : FCD/FC).
+  const key = (isKlasha ? (forDeposit ? 'KLD:' : 'KL:') : (forDeposit ? 'FCD:' : 'FC:')) + cur;
   if (!liveOnly) {
     const hit = cache.get(key);
     if (hit && Date.now() - hit.ts < CACHE_TTL_MS) return hit.rate;
@@ -48,7 +49,7 @@ export async function fetchFincraRate(currency: string, isKlasha = false, forDep
   try {
     const { rate_to_xof } = isKlasha
       ? await walletService.getKlashaRate(cur, forDeposit)
-      : await walletService.getFincraRate(cur);
+      : await walletService.getFincraRate(cur, forDeposit);
     if (typeof rate_to_xof !== 'number' || !isFinite(rate_to_xof) || rate_to_xof <= 0) return null;
     if (!liveOnly) cache.set(key, { rate: rate_to_xof, ts: Date.now() });
     return rate_to_xof;
@@ -64,7 +65,7 @@ export interface FincraRateState {
 }
 
 // Hook réactif : charge le taux XOF pour une devise Fincra donnée.
-// Le taux est indépendant du montant (taux mid unique) → un seul fetch/devise.
+// Le taux est indépendant du montant → un seul fetch par devise et par sens.
 // `enabled` permet de désactiver l'appel (ex : opérateur non-Fincra, ou XOF).
 export function useFincraRate(currency: string, enabled: boolean = true, isKlasha: boolean = false, forDeposit: boolean = false): FincraRateState {
   const [state, setState] = useState<FincraRateState>({ rate: null, loading: false, error: false });

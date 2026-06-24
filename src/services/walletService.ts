@@ -231,9 +231,12 @@ export const walletService = {
   },
 
   // Taux de conversion Fincra : 1 unité de `currency` = N XOF (pivot du wallet).
-  // Triangulé via USD côté backend, taux mid unique (cf. /fincra/rates).
-  getFincraRate: async (currency: string): Promise<{ currency: string; rate_to_xof: number }> => {
-    const response = await api.get('/fincra/rates', { params: { currency } });
+  // Direct + directionnel côté backend (side buy=dépôt / sell=payout), cf.
+  // /fincra/rates. forDeposit → taux d'encaissement (≠ versement).
+  getFincraRate: async (currency: string, forDeposit = false): Promise<{ currency: string; rate_to_xof: number }> => {
+    const params: Record<string, string> = { currency };
+    if (forDeposit) params.for = 'deposit';
+    const response = await api.get('/fincra/rates', { params });
     return response.data;
   },
 
