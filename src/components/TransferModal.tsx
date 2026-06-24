@@ -128,8 +128,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
 
   // CNY (Chine) — bénéficiaire C2C. L'EXPÉDITEUR (le user) est auto-rempli côté
   // backend depuis le profil KYC → aucune saisie expéditeur ici. Le service
-  // (virement / UnionPay / Alipay) détermine les champs bénéficiaire affichés.
-  const [cnyService, setCnyService] = useState<'BANK_ACCOUNT' | 'BANK_CARD' | 'WALLET'>('BANK_ACCOUNT');
+  // (virement / UnionPay / Alipay) est porté par la TUILE choisie (cnyService dérivé).
   const [cnyFirstName, setCnyFirstName] = useState('');   // prénom bénéficiaire (中文)
   const [cnyLastName, setCnyLastName] = useState('');     // nom bénéficiaire (中文)
   const [cnyIdNumber, setCnyIdNumber] = useState('');     // pièce bénéficiaire (BANK_ACCOUNT/WALLET)
@@ -246,6 +245,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const isFincraOp = !!(selectedOp as any)?.fincra;
   // Klasha réutilise l'UI Fincra ; ce flag route les appels API vers /payout/klasha.
   const isKlashaOp = !!(selectedOp as any)?.klasha;
+  // Service Chine porté par la tuile sélectionnée (klasha-cny-bt/card/wallet).
+  const cnyService: 'BANK_ACCOUNT' | 'BANK_CARD' | 'WALLET' = ((selectedOp as any)?.cnyService) ?? 'BANK_ACCOUNT';
   const fincraCurrency = isFincraOp ? ((selectedOp as any)?.currency as string) || 'XOF' : '';
   // Le rail est porté directement par l'opérateur Fincra (cf. config.ts).
   // Plus de sélecteur dynamique ; chaque opérateur Fincra = 1 rail.
@@ -423,7 +424,6 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     setBankRecipientEmail('');
     // CNY (Chine) : purge le bénéficiaire (PII) à chaque ouverture → pas de
     // ré-soumission silencieuse de l'ancien bénéficiaire. (Expéditeur = profil KYC.)
-    setCnyService('BANK_ACCOUNT');
     setCnyFirstName('');
     setCnyLastName('');
     setCnyIdNumber('');
@@ -496,6 +496,14 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       .finally(() => { if (!cancelled) setBanksLoading(false); });
     return () => { cancelled = true; };
   }, [isKlashaOp, fincraRail]);
+
+  // Alipay (WALLET) n'autorise pas SELF comme relation → on défausse vers un membre
+  // du sous-ensemble documenté dès que la tuile Alipay est sélectionnée.
+  useEffect(() => {
+    if (fincraRail === 'cny' && cnyService === 'WALLET' && cnyRelationship === 'SELF') {
+      setCnyRelationship('SPOUSE');
+    }
+  }, [fincraRail, cnyService, cnyRelationship]);
 
   // Résolution automatique du compte bénéficiaire (debounce 600ms).
   // Sandbox Fincra renvoie data:null → on signale "non vérifié" sans bloquer.
@@ -1678,24 +1686,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 )}
                 {fincraRail === 'cny' && (
                   <>
-                    {/* Méthode de paiement Chine */}
-                    <Text style={styles.fieldLabel}>Méthode (Chine) *</Text>
-                    <View style={styles.cnyChipsRow}>
-                      {([['BANK_ACCOUNT', 'Virement bancaire'], ['BANK_CARD', 'UnionPay'], ['WALLET', 'Alipay']] as const).map(([val, label]) => (
-                        <TouchableOpacity
-                          key={val}
-                          style={[styles.cnyChip, cnyService === val && styles.cnyChipActive]}
-                          onPress={() => {
-                            setCnyService(val);
-                            // Alipay n'autorise pas SELF comme relation → on défausse.
-                            if (val === 'WALLET' && cnyRelationship === 'SELF') setCnyRelationship('SPOUSE');
-                          }}
-                        >
-                          <Text style={[styles.cnyChipText, cnyService === val && styles.cnyChipTextActive]}>{label}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-
+                    {/* La méthode (virement / UnionPay / Alipay) est portée par la tuile
+                        choisie en haut → pas de sélecteur ici. */}
                     {/* Bénéficiaire (commun aux 3 méthodes) */}
                     <Input label="Prénom du bénéficiaire (中文) *" placeholder="ex: 伟" value={cnyFirstName} onChangeText={setCnyFirstName} />
                     <Input label="Nom du bénéficiaire (中文) *" placeholder="ex: 张" value={cnyLastName} onChangeText={setCnyLastName} />

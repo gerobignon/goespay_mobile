@@ -69,6 +69,8 @@ export interface CatalogOperator {
   klasha?: boolean;
   // Opérateur Klasha (MTN, ORANGE…) pour les corridors klasha-mm-<pays>-<op>.
   klashaOperator?: string;
+  // Service Chine porté par la tuile (klasha-cny-bt/card/wallet).
+  cnyService?: 'BANK_ACCOUNT' | 'BANK_CARD' | 'WALLET';
   aggregator: string;
   logo: any;
 }
@@ -112,10 +114,25 @@ function fincraRailFor(code: string, currency?: string): string | undefined {
 function klashaRailFor(code: string): string | undefined {
   if (code.startsWith('klasha-mm-')) return 'mobile_money';
   if (code.startsWith('klasha-wire-')) return 'wire';
-  if (code === 'klasha-cny-bt') return 'cny'; // Chine : payout B2C dédié (quote + KYC)
+  // Chine : 3 corridors (bt/card/wallet) → MÊME rail 'cny' (form C2C dédié), le
+  // service est porté par l'opérateur (cnyService). À placer AVANT le test -card.
+  if (code.startsWith('klasha-cny-')) return 'cny';
   if (code.endsWith('-bt')) return 'bank_transfer';
   if (code.endsWith('-card')) return 'checkout';
   return undefined;
+}
+
+// Service Klasha CNY déduit du code corridor (1 tuile par service).
+function klashaCnyService(code: string): 'BANK_ACCOUNT' | 'BANK_CARD' | 'WALLET' | undefined {
+  if (code === 'klasha-cny-card')   return 'BANK_CARD';
+  if (code === 'klasha-cny-wallet') return 'WALLET';
+  if (code === 'klasha-cny-bt')     return 'BANK_ACCOUNT';
+  return undefined;
+}
+function klashaCnyName(code: string): string {
+  if (code === 'klasha-cny-card')   return 'UnionPay Chine (CNY)';
+  if (code === 'klasha-cny-wallet') return 'Alipay Chine (CNY)';
+  return 'Virement Chine (CNY)';
 }
 
 // Comme l'admin : sur les cartes et virements Fincra, on suffixe le nom avec la
@@ -194,7 +211,11 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
         const baseName = (net?.label ?? r.network).replace(/\s*\((?:fincra|klasha)\)\s*$/i, '');
         return {
           id: r.code,
-          name: (isFincraAgg || isKlashaAgg) ? fincraDisplayName(baseName, fincraRail, r.currency) : baseName,
+          name: (isKlashaAgg && r.code.startsWith('klasha-cny-'))
+            ? klashaCnyName(r.code)
+            : ((isFincraAgg || isKlashaAgg) ? fincraDisplayName(baseName, fincraRail, r.currency) : baseName),
+          // Service Chine (BANK_ACCOUNT|BANK_CARD|WALLET) porté par la tuile.
+          cnyService: isKlashaAgg ? klashaCnyService(r.code) : undefined,
           // Drapeau : celui du pays catalogue, sinon dérivé du code ISO (US/EU/GB/NG…
           // — pays des rails internationaux souvent sans emoji stocké en base).
           flag: countryByCode[r.country]?.flag || flagFromCode(r.country),
