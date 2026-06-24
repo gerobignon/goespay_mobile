@@ -118,23 +118,29 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const [beneficiaryAddress, setBeneficiaryAddress] = useState('');
   const [routingNumber, setRoutingNumber] = useState('');
 
-  // CNY (Chine) — bénéficiaire C2C : KYC + compte. accountName/Number/bankCode/
-  // bankName réutilisent les états bank* ci-dessus ; ici les champs spécifiques.
-  const [cnyFirstName, setCnyFirstName] = useState('');
-  const [cnyLastName, setCnyLastName] = useState('');
-  const [cnyIdNumber, setCnyIdNumber] = useState('');
-  const [cnyMobile, setCnyMobile] = useState('');
-  // Relation expéditeur↔bénéficiaire (C2C, requise par la conformité chinoise).
-  const [cnyRelationship, setCnyRelationship] = useState('SELF');
-  // Expéditeur = le user (particulier) : identité KYC saisie.
-  const [cnySenderIdType, setCnySenderIdType] = useState('PASSPORT');
-  const [cnySenderIdNumber, setCnySenderIdNumber] = useState('');
-  const [cnySenderNationality, setCnySenderNationality] = useState('');
-  const [cnySenderCity, setCnySenderCity] = useState('');
-  const [cnySenderStreet, setCnySenderStreet] = useState('');
-  const [cnySenderState, setCnySenderState] = useState('');
-  const [cnySenderPostcode, setCnySenderPostcode] = useState('');
-  const [cnySenderCountryCode, setCnySenderCountryCode] = useState('');
+  // Klasha bank payout — champs requis par devise : GHS→branchCode, KES→serviceCode,
+  // ZAR→mobileNumber/recipientAddress/recipientEmail.
+  const [bankBranchCode, setBankBranchCode] = useState('');
+  const [bankServiceCode, setBankServiceCode] = useState('');
+  const [bankMobileNumber, setBankMobileNumber] = useState('');
+  const [bankRecipientAddress, setBankRecipientAddress] = useState('');
+  const [bankRecipientEmail, setBankRecipientEmail] = useState('');
+
+  // CNY (Chine) — bénéficiaire C2C. L'EXPÉDITEUR (le user) est auto-rempli côté
+  // backend depuis le profil KYC → aucune saisie expéditeur ici. Le service
+  // (virement / UnionPay / Alipay) détermine les champs bénéficiaire affichés.
+  const [cnyService, setCnyService] = useState<'BANK_ACCOUNT' | 'BANK_CARD' | 'WALLET'>('BANK_ACCOUNT');
+  const [cnyFirstName, setCnyFirstName] = useState('');   // prénom bénéficiaire (中文)
+  const [cnyLastName, setCnyLastName] = useState('');     // nom bénéficiaire (中文)
+  const [cnyIdNumber, setCnyIdNumber] = useState('');     // pièce bénéficiaire (BANK_ACCOUNT/WALLET)
+  const [cnyMobile, setCnyMobile] = useState('');         // tel bénéficiaire (BANK_ACCOUNT)
+  const [cnyRelationship, setCnyRelationship] = useState('SELF'); // relation (BANK_ACCOUNT/WALLET)
+  // UnionPay (BANK_CARD)
+  const [cnyCardNumber, setCnyCardNumber] = useState('');
+  const [cnyCardHolder, setCnyCardHolder] = useState('');
+  // Alipay (WALLET)
+  const [cnyWalletAccount, setCnyWalletAccount] = useState('');           // email ou mobile
+  const [cnyWalletAccountId, setCnyWalletAccountId] = useState<'MOBILE' | 'EMAIL'>('MOBILE');
 
   // Picker de banques + résolution de compte (Fincra bank_transfer)
   const [fincraBanks, setFincraBanks] = useState<{ code: string; name: string; swiftCode?: string }[]>([]);
@@ -409,21 +415,24 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     setIban('');
     setBic('');
     setSwiftCode('');
-    // CNY (Chine) : purge bénéficiaire + identité expéditeur (PII) à chaque ouverture
-    // → pas de ré-soumission silencieuse de l'ancien bénéficiaire/expéditeur.
+    // Klasha bank — champs requis par devise (GHS/KES/ZAR).
+    setBankBranchCode('');
+    setBankServiceCode('');
+    setBankMobileNumber('');
+    setBankRecipientAddress('');
+    setBankRecipientEmail('');
+    // CNY (Chine) : purge le bénéficiaire (PII) à chaque ouverture → pas de
+    // ré-soumission silencieuse de l'ancien bénéficiaire. (Expéditeur = profil KYC.)
+    setCnyService('BANK_ACCOUNT');
     setCnyFirstName('');
     setCnyLastName('');
     setCnyIdNumber('');
     setCnyMobile('');
     setCnyRelationship('SELF');
-    setCnySenderIdType('PASSPORT');
-    setCnySenderIdNumber('');
-    setCnySenderNationality('');
-    setCnySenderCity('');
-    setCnySenderStreet('');
-    setCnySenderState('');
-    setCnySenderPostcode('');
-    setCnySenderCountryCode('');
+    setCnyCardNumber('');
+    setCnyCardHolder('');
+    setCnyWalletAccount('');
+    setCnyWalletAccountId('MOBILE');
     setResolvedHolder(null);
     setResolveError(null);
     setResolving(false);
@@ -485,12 +494,6 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       .then((banks) => { if (!cancelled) setFincraBanks(banks); })
       .catch(() => { if (!cancelled) setFincraBanks([]); })
       .finally(() => { if (!cancelled) setBanksLoading(false); });
-    // Préremplit nationalité + pays de l'expéditeur depuis le profil (modifiable).
-    const uc = (user?.country ?? '').toUpperCase();
-    if (uc) {
-      setCnySenderNationality((v) => v || uc);
-      setCnySenderCountryCode((v) => v || uc);
-    }
     return () => { cancelled = true; };
   }, [isKlashaOp, fincraRail]);
 
@@ -821,15 +824,21 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       // CNY (Chine, C2C) : bénéficiaire + compte + banque + identité de
       // l'expéditeur (le user) tous requis par la conformité chinoise.
       if (fincraRail === 'cny') {
-        if (!cnyFirstName.trim() || !cnyLastName.trim() || !cnyIdNumber.trim()
-          || !cnyMobile.trim() || !bankCode.trim() || !bankName.trim()
-          || !bankAccountNumber.trim() || !bankAccountHolder.trim()) {
-          showAlert(t('common.error'), t('transferModal.cnyFieldsRequired'));
-          return;
+        // Bénéficiaire requis (noms 中文) commun ; le reste dépend du service.
+        const namesOk = !!cnyFirstName.trim() && !!cnyLastName.trim();
+        let ok = namesOk;
+        if (cnyService === 'BANK_ACCOUNT') {
+          ok = namesOk && !!cnyIdNumber.trim() && !!cnyMobile.trim()
+            && !!bankCode.trim() && !!bankName.trim()
+            && !!bankAccountNumber.trim() && !!bankAccountHolder.trim();
+        } else if (cnyService === 'BANK_CARD') {
+          ok = namesOk && !!bankCode.trim() && !!bankName.trim()
+            && !!cnyCardNumber.trim() && !!cnyCardHolder.trim();
+        } else {
+          ok = namesOk && !!cnyIdNumber.trim() && !!cnyWalletAccount.trim();
         }
-        if (!cnySenderNationality.trim() || !cnySenderIdNumber.trim()
-          || !cnySenderCity.trim() || !cnySenderStreet.trim() || !cnySenderCountryCode.trim()) {
-          showAlert(t('common.error'), t('transferModal.cnySenderRequired'));
+        if (!ok) {
+          showAlert(t('common.error'), t('transferModal.cnyFieldsRequired'));
           return;
         }
       }
@@ -883,46 +892,50 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
         }
 
         // ── Payout CNY (Chine) Klasha : process C2C (quote → initiate côté backend).
-        // Bénéficiaire = individu chinois (KYC + compte). L'expéditeur business est
-        // GoesPay (config backend). Réf KLC-, polling CNY dédié. ──
+        // 3 services : virement (BANK_ACCOUNT), UnionPay (BANK_CARD), Alipay (WALLET).
+        // L'expéditeur (le user) est auto-rempli côté backend depuis le profil KYC.
+        // Réf KLC-, polling CNY dédié. ──
         if (isKlashaOp && fincraRail === 'cny') {
+          const ben: any = {
+            receiverFirstName: cnyFirstName.trim(),
+            receiverLastName: cnyLastName.trim(),
+          };
+          if (cnyService === 'BANK_ACCOUNT') {
+            ben.receiverIdNumber = cnyIdNumber.trim();
+            ben.receiverMobileNumber = cnyMobile.trim();
+            ben.receiverRelationship = cnyRelationship;
+            ben.bankCode = bankCode.trim();
+            ben.bankName = bankName.trim();
+            ben.accountNumber = bankAccountNumber.trim();
+            ben.accountName = bankAccountHolder.trim();
+          } else if (cnyService === 'BANK_CARD') {
+            ben.bankCode = bankCode.trim();
+            ben.bankName = bankName.trim();
+            ben.cardNumber = cnyCardNumber.trim();
+            ben.cardHolderName = cnyCardHolder.trim();
+          } else {
+            // WALLET (Alipay)
+            ben.receiverIdNumber = cnyIdNumber.trim();
+            ben.receiverRelationship = cnyRelationship;
+            ben.accountNumber = cnyWalletAccount.trim();
+            ben.accountId = cnyWalletAccountId;
+          }
           const result = await walletService.klashaCny({
             amount: numAmount,
             amount_xof: fincraDebitXof ?? numAmountXof,
-            beneficiary: {
-              receiverFirstName: cnyFirstName.trim(),
-              receiverLastName: cnyLastName.trim(),
-              receiverIdNumber: cnyIdNumber.trim(),
-              receiverMobileNumber: cnyMobile.trim(),
-              receiverRelationship: cnyRelationship,
-              bankCode: bankCode.trim(),
-              bankName: bankName.trim(),
-              accountNumber: bankAccountNumber.trim(),
-              accountName: bankAccountHolder.trim(),
-            },
-            sender: {
-              nationality: cnySenderNationality.trim().toUpperCase(),
-              idType: cnySenderIdType,
-              idNumber: cnySenderIdNumber.trim(),
-              city: cnySenderCity.trim(),
-              street: cnySenderStreet.trim(),
-              state: cnySenderState.trim() || undefined,
-              postcode: cnySenderPostcode.trim() || undefined,
-              countryCode: cnySenderCountryCode.trim().toUpperCase(),
-            },
+            service: cnyService,
+            beneficiary: ben,
           });
           await fetchBalance();
           setAmount('');
-          // Purge l'identité (bénéficiaire + expéditeur) après envoi → pas de PII
-          // résiduelle réutilisée pour un second envoi.
+          // Purge le bénéficiaire (PII) après envoi → pas de réutilisation silencieuse.
           setCnyFirstName(''); setCnyLastName(''); setCnyIdNumber(''); setCnyMobile('');
-          setCnySenderIdNumber(''); setCnySenderCity(''); setCnySenderStreet('');
-          setCnySenderState(''); setCnySenderPostcode('');
+          setCnyCardNumber(''); setCnyCardHolder(''); setCnyWalletAccount('');
           setBankCode(''); setBankName(''); setBankAccountNumber(''); setBankAccountHolder('');
           setPendingDetails({
             amount_sent: numAmount,
             fees: Number(result.fees) || 0,
-            phone: bankAccountNumber,
+            phone: bankAccountNumber || cnyCardNumber || cnyWalletAccount,
             debit_xof: fincraTotalDebitXof ?? fincraDebitXof ?? 0,
           });
           startPolling({ fincraRef: result.reference });
@@ -956,6 +969,16 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           bic: bic.trim() || undefined,
           swiftCode: swiftCode.trim() || undefined,
           type: 'individual' as const,
+          // Klasha bank payout : champs requis par devise (GHS branchCode, KES
+          // serviceCode, ZAR mobileNumber/recipientAddress/recipientEmail).
+          // NON envoyés pour Fincra (schéma strict → « not allowed »).
+          ...(isKlashaOp && fincraRail === 'bank_transfer' ? {
+            branchCode: bankBranchCode.trim() || undefined,
+            serviceCode: bankServiceCode.trim() || undefined,
+            mobileNumber: bankMobileNumber.trim() || undefined,
+            recipientAddress: bankRecipientAddress.trim() || undefined,
+            recipientEmail: bankRecipientEmail.trim() || undefined,
+          } : {}),
         } : undefined;
 
         // Fincra payout MM exige le phone SANS `+` (ex: 256770000000) et le
@@ -1453,6 +1476,48 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       onChangeText={setBankAccountNumber}
                       keyboardType="numeric"
                     />
+                    {/* Champs requis par devise (Klasha) : GHS / KES / ZAR */}
+                    {isKlashaOp && fincraCurrency === 'GHS' && (
+                      <Input
+                        label="Code agence (branch code) *"
+                        placeholder="Code agence de la banque"
+                        value={bankBranchCode}
+                        onChangeText={setBankBranchCode}
+                      />
+                    )}
+                    {isKlashaOp && fincraCurrency === 'KES' && (
+                      <Input
+                        label="Code court banque (serviceCode) *"
+                        placeholder="Short code du compte bénéficiaire"
+                        value={bankServiceCode}
+                        onChangeText={setBankServiceCode}
+                      />
+                    )}
+                    {isKlashaOp && fincraCurrency === 'ZAR' && (
+                      <>
+                        <Input
+                          label="Téléphone du bénéficiaire *"
+                          placeholder="ex: +27721234567"
+                          value={bankMobileNumber}
+                          onChangeText={setBankMobileNumber}
+                          keyboardType="phone-pad"
+                        />
+                        <Input
+                          label="Adresse du bénéficiaire *"
+                          placeholder="Adresse complète"
+                          value={bankRecipientAddress}
+                          onChangeText={setBankRecipientAddress}
+                        />
+                        <Input
+                          label="Email du bénéficiaire *"
+                          placeholder="email@exemple.com"
+                          value={bankRecipientEmail}
+                          onChangeText={setBankRecipientEmail}
+                          keyboardType="email-address"
+                          autoCapitalize="none"
+                        />
+                      </>
+                    )}
                     {/* Carte du bénéficiaire — affichée dès que numéro + banque sont saisis */}
                     {!!bankAccountNumber && !!bankCode && (
                       <View style={[
@@ -1613,127 +1678,111 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 )}
                 {fincraRail === 'cny' && (
                   <>
-                    <Input
-                      label="Prénom du bénéficiaire (中文) *"
-                      placeholder="ex: 伟"
-                      value={cnyFirstName}
-                      onChangeText={setCnyFirstName}
-                    />
-                    <Input
-                      label="Nom du bénéficiaire (中文) *"
-                      placeholder="ex: 张"
-                      value={cnyLastName}
-                      onChangeText={setCnyLastName}
-                    />
-                    <Input
-                      label="N° pièce d'identité (ID card) *"
-                      placeholder="N° de carte d'identité chinoise"
-                      value={cnyIdNumber}
-                      onChangeText={setCnyIdNumber}
-                    />
-                    <Input
-                      label="Téléphone du bénéficiaire *"
-                      placeholder="ex: +8613699262597"
-                      value={cnyMobile}
-                      onChangeText={setCnyMobile}
-                      keyboardType="phone-pad"
-                    />
-                    <Text style={styles.fieldLabel}>Banque (Chine) *</Text>
-                    <TouchableOpacity style={styles.bankPickerBtn} onPress={() => setBankPickerVisible(true)}>
-                      <FontAwesome6 name="building-columns" size={14} color={Colors.textMuted} iconStyle="solid" />
-                      <Text style={[styles.bankPickerText, !bankName && styles.bankPickerPlaceholder]} numberOfLines={1}>
-                        {banksLoading ? 'Chargement des banques…' : (bankName || 'Sélectionner une banque')}
-                      </Text>
-                      <FontAwesome6 name="chevron-down" size={12} color={Colors.textMuted} />
-                    </TouchableOpacity>
-                    <Input
-                      label="Numéro de compte *"
-                      placeholder="N° de compte du bénéficiaire"
-                      value={bankAccountNumber}
-                      onChangeText={setBankAccountNumber}
-                    />
-                    <Input
-                      label="Titulaire du compte (中文) *"
-                      placeholder="Nom du titulaire en caractères chinois"
-                      value={bankAccountHolder}
-                      onChangeText={setBankAccountHolder}
-                    />
-
-                    <Text style={styles.fieldLabel}>Votre relation avec le bénéficiaire *</Text>
+                    {/* Méthode de paiement Chine */}
+                    <Text style={styles.fieldLabel}>Méthode (Chine) *</Text>
                     <View style={styles.cnyChipsRow}>
-                      {[
-                        ['SELF', 'Moi-même'], ['SPOUSE', 'Conjoint(e)'], ['PARENTS', 'Parents'],
-                        ['SONS_AND_DAUGHTERS', 'Enfants'], ['BROTHERS_AND_SISTERS', 'Frères/Sœurs'],
-                        ['GRANDPARENTS', 'Grands-parents'], ['GRANDCHILDREN', 'Petits-enfants'],
-                      ].map(([val, label]) => (
+                      {([['BANK_ACCOUNT', 'Virement bancaire'], ['BANK_CARD', 'UnionPay'], ['WALLET', 'Alipay']] as const).map(([val, label]) => (
                         <TouchableOpacity
                           key={val}
-                          style={[styles.cnyChip, cnyRelationship === val && styles.cnyChipActive]}
-                          onPress={() => setCnyRelationship(val)}
+                          style={[styles.cnyChip, cnyService === val && styles.cnyChipActive]}
+                          onPress={() => {
+                            setCnyService(val);
+                            // Alipay n'autorise pas SELF comme relation → on défausse.
+                            if (val === 'WALLET' && cnyRelationship === 'SELF') setCnyRelationship('SPOUSE');
+                          }}
                         >
-                          <Text style={[styles.cnyChipText, cnyRelationship === val && styles.cnyChipTextActive]}>{label}</Text>
+                          <Text style={[styles.cnyChipText, cnyService === val && styles.cnyChipTextActive]}>{label}</Text>
                         </TouchableOpacity>
                       ))}
                     </View>
 
-                    <Text style={[styles.fieldLabel, { marginTop: Spacing.sm }]}>Expéditeur (vous) — requis par la Chine</Text>
-                    <Text style={styles.fieldLabel}>Type de pièce *</Text>
-                    <View style={styles.cnyChipsRow}>
-                      {[['PASSPORT', 'Passeport'], ['ID_CARD', "Carte d'identité"], ['DRIVER_LICENSE', 'Permis']].map(([val, label]) => (
-                        <TouchableOpacity
-                          key={val}
-                          style={[styles.cnyChip, cnySenderIdType === val && styles.cnyChipActive]}
-                          onPress={() => setCnySenderIdType(val)}
-                        >
-                          <Text style={[styles.cnyChipText, cnySenderIdType === val && styles.cnyChipTextActive]}>{label}</Text>
+                    {/* Bénéficiaire (commun aux 3 méthodes) */}
+                    <Input label="Prénom du bénéficiaire (中文) *" placeholder="ex: 伟" value={cnyFirstName} onChangeText={setCnyFirstName} />
+                    <Input label="Nom du bénéficiaire (中文) *" placeholder="ex: 张" value={cnyLastName} onChangeText={setCnyLastName} />
+
+                    {/* Sélecteur de banque (virement + UnionPay) */}
+                    {(cnyService === 'BANK_ACCOUNT' || cnyService === 'BANK_CARD') && (
+                      <>
+                        <Text style={styles.fieldLabel}>Banque (Chine) *</Text>
+                        <TouchableOpacity style={styles.bankPickerBtn} onPress={() => setBankPickerVisible(true)}>
+                          <FontAwesome6 name="building-columns" size={14} color={Colors.textMuted} iconStyle="solid" />
+                          <Text style={[styles.bankPickerText, !bankName && styles.bankPickerPlaceholder]} numberOfLines={1}>
+                            {banksLoading ? 'Chargement des banques…' : (bankName || 'Sélectionner une banque')}
+                          </Text>
+                          <FontAwesome6 name="chevron-down" size={12} color={Colors.textMuted} />
                         </TouchableOpacity>
-                      ))}
-                    </View>
-                    <Input
-                      label="N° de votre pièce d'identité *"
-                      placeholder="N° passeport / CNI"
-                      value={cnySenderIdNumber}
-                      onChangeText={setCnySenderIdNumber}
-                      autoCapitalize="characters"
-                    />
-                    <Input
-                      label="Votre nationalité (code ISO) *"
-                      placeholder="ex: BJ, CI, CM"
-                      value={cnySenderNationality}
-                      onChangeText={(v) => setCnySenderNationality(v.toUpperCase().slice(0, 2))}
-                      autoCapitalize="characters"
-                    />
-                    <Input
-                      label="Votre ville *"
-                      placeholder="ex: Cotonou"
-                      value={cnySenderCity}
-                      onChangeText={setCnySenderCity}
-                    />
-                    <Input
-                      label="Votre adresse (rue) *"
-                      placeholder="Rue, quartier"
-                      value={cnySenderStreet}
-                      onChangeText={setCnySenderStreet}
-                    />
-                    <Input
-                      label="Province / État"
-                      placeholder="Optionnel"
-                      value={cnySenderState}
-                      onChangeText={setCnySenderState}
-                    />
-                    <Input
-                      label="Code postal"
-                      placeholder="Optionnel"
-                      value={cnySenderPostcode}
-                      onChangeText={setCnySenderPostcode}
-                    />
-                    <Input
-                      label="Votre pays de résidence (code ISO) *"
-                      placeholder="ex: BJ"
-                      value={cnySenderCountryCode}
-                      onChangeText={(v) => setCnySenderCountryCode(v.toUpperCase().slice(0, 2))}
-                      autoCapitalize="characters"
-                    />
+                      </>
+                    )}
+
+                    {/* Virement bancaire */}
+                    {cnyService === 'BANK_ACCOUNT' && (
+                      <>
+                        <Input label="Numéro de compte *" placeholder="N° de compte du bénéficiaire" value={bankAccountNumber} onChangeText={setBankAccountNumber} />
+                        <Input label="Titulaire du compte (中文) *" placeholder="Nom du titulaire en caractères chinois" value={bankAccountHolder} onChangeText={setBankAccountHolder} />
+                        <Input label="N° pièce d'identité du bénéficiaire *" placeholder="N° de carte d'identité chinoise" value={cnyIdNumber} onChangeText={setCnyIdNumber} />
+                        <Input label="Téléphone du bénéficiaire *" placeholder="ex: +8613699262597" value={cnyMobile} onChangeText={setCnyMobile} keyboardType="phone-pad" />
+                      </>
+                    )}
+
+                    {/* UnionPay (carte) */}
+                    {cnyService === 'BANK_CARD' && (
+                      <>
+                        <Input label="Numéro de carte UnionPay *" placeholder="N° de carte" value={cnyCardNumber} onChangeText={setCnyCardNumber} keyboardType="numeric" />
+                        <Input label="Titulaire de la carte (中文) *" placeholder="Nom du titulaire" value={cnyCardHolder} onChangeText={setCnyCardHolder} />
+                      </>
+                    )}
+
+                    {/* Alipay (wallet) */}
+                    {cnyService === 'WALLET' && (
+                      <>
+                        <Text style={styles.fieldLabel}>Identifiant Alipay *</Text>
+                        <View style={styles.cnyChipsRow}>
+                          {([['MOBILE', 'Téléphone'], ['EMAIL', 'Email']] as const).map(([val, label]) => (
+                            <TouchableOpacity key={val} style={[styles.cnyChip, cnyWalletAccountId === val && styles.cnyChipActive]} onPress={() => setCnyWalletAccountId(val)}>
+                              <Text style={[styles.cnyChipText, cnyWalletAccountId === val && styles.cnyChipTextActive]}>{label}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                        <Input
+                          label={cnyWalletAccountId === 'EMAIL' ? 'Email Alipay *' : 'Téléphone Alipay *'}
+                          placeholder={cnyWalletAccountId === 'EMAIL' ? 'email@exemple.com' : 'ex: +8613699262597'}
+                          value={cnyWalletAccount}
+                          onChangeText={setCnyWalletAccount}
+                          keyboardType={cnyWalletAccountId === 'EMAIL' ? 'email-address' : 'phone-pad'}
+                          autoCapitalize="none"
+                        />
+                        <Input label="N° pièce d'identité du bénéficiaire *" placeholder="N° de carte d'identité chinoise" value={cnyIdNumber} onChangeText={setCnyIdNumber} />
+                      </>
+                    )}
+
+                    {/* Relation expéditeur↔bénéficiaire (virement + Alipay) */}
+                    {cnyService !== 'BANK_CARD' && (
+                      <>
+                        <Text style={[styles.fieldLabel, { marginTop: Spacing.sm }]}>Votre relation avec le bénéficiaire *</Text>
+                        <View style={styles.cnyChipsRow}>
+                          {(cnyService === 'WALLET'
+                            ? [['SPOUSE', 'Conjoint(e)'], ['PARENTS', 'Parents'], ['SONS_AND_DAUGHTERS', 'Enfants']]
+                            : [
+                              ['SELF', 'Moi-même'], ['SPOUSE', 'Conjoint(e)'], ['PARENTS', 'Parents'],
+                              ['SONS_AND_DAUGHTERS', 'Enfants'], ['BROTHERS_AND_SISTERS', 'Frères/Sœurs'],
+                              ['GRANDPARENTS', 'Grands-parents'], ['GRANDCHILDREN', 'Petits-enfants'],
+                            ]
+                          ).map(([val, label]) => (
+                            <TouchableOpacity
+                              key={val}
+                              style={[styles.cnyChip, cnyRelationship === val && styles.cnyChipActive]}
+                              onPress={() => setCnyRelationship(val)}
+                            >
+                              <Text style={[styles.cnyChipText, cnyRelationship === val && styles.cnyChipTextActive]}>{label}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </>
+                    )}
+
+                    <Text style={[styles.fieldLabel, { marginTop: Spacing.sm, opacity: 0.7 }]}>
+                      Votre identité d'expéditeur est reprise automatiquement de votre profil (KYC).
+                    </Text>
                   </>
                 )}
               </View>
@@ -1831,10 +1880,16 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                     ? !fincraRail
                       || (fincraRail === 'mobile_money' && !phone)
                       || (fincraRail === 'bank_transfer' && (!bankAccountHolder || !bankAccountNumber || !bankCode))
+                      || (isKlashaOp && fincraRail === 'bank_transfer' && fincraCurrency === 'GHS' && !bankBranchCode)
+                      || (isKlashaOp && fincraRail === 'bank_transfer' && fincraCurrency === 'KES' && !bankServiceCode)
+                      || (isKlashaOp && fincraRail === 'bank_transfer' && fincraCurrency === 'ZAR' && (!bankMobileNumber || !bankRecipientAddress || !bankRecipientEmail))
                       || (fincraRail === 'SWIFT' && (!bankAccountHolder || !iban || !swiftCode || !bankCountry))
                       || (fincraRail === 'SEPA' && (!bankAccountHolder || !iban))
                       || (fincraRail === 'wire' && (!bankAccountHolder || (!bankAccountNumber && !iban) || !bankName || !swiftCode || !bankCountry))
-                      || (fincraRail === 'cny' && (!cnyFirstName || !cnyLastName || !cnyIdNumber || !cnyMobile || !bankCode || !bankName || !bankAccountNumber || !bankAccountHolder || !cnySenderNationality || !cnySenderIdNumber || !cnySenderCity || !cnySenderStreet || !cnySenderCountryCode))
+                      || (fincraRail === 'cny' && (!cnyFirstName || !cnyLastName))
+                      || (fincraRail === 'cny' && cnyService === 'BANK_ACCOUNT' && (!cnyIdNumber || !cnyMobile || !bankCode || !bankName || !bankAccountNumber || !bankAccountHolder))
+                      || (fincraRail === 'cny' && cnyService === 'BANK_CARD' && (!bankCode || !bankName || !cnyCardNumber || !cnyCardHolder))
+                      || (fincraRail === 'cny' && cnyService === 'WALLET' && (!cnyIdNumber || !cnyWalletAccount))
                     : !phone)
               }
               style={{ marginTop: Spacing.lg }}

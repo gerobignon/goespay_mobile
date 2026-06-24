@@ -72,40 +72,38 @@ export interface KlashaWireRequest {
   beneficiary: KlashaWireBeneficiary;
 }
 
-// Bénéficiaire CNY (Chine) — payout C2C : KYC bénéficiaire + compte bancaire
-// + relation avec l'expéditeur (le user).
-export interface KlashaCnyBeneficiary {
-  receiverFirstName: string;   // prénom (caractères chinois)
-  receiverLastName: string;    // nom (caractères chinois)
-  receiverIdNumber: string;    // n° pièce d'identité
-  receiverMobileNumber: string;// +86…
-  receiverRelationship: string;// SELF | SPOUSE | PARENTS | … (relation expéditeur↔bénéficiaire)
-  receiverIdType?: string;     // ID_CARD (défaut) | HONGKONG_MACAO_TAIWAN_PERMIT
-  bankCode: string;            // code CNAPS (sélecteur banques Chine)
-  bankName: string;
-  accountNumber: string;
-  accountName: string;         // titulaire (caractères chinois)
-  accountType?: string;        // INDIVIDUAL (défaut) | COMPANY
-}
+// Service de payout Chine : virement bancaire, carte UnionPay, ou wallet Alipay.
+export type KlashaCnyService = 'BANK_ACCOUNT' | 'BANK_CARD' | 'WALLET';
 
-// Expéditeur CNY = le user GoesPay (particulier). Identité requise par la
-// conformité chinoise (C2C). Prénom/nom viennent du profil côté backend.
-export interface KlashaCnySender {
-  nationality: string;   // ISO-2
-  idType: string;        // PASSPORT | ID_CARD | …
-  idNumber: string;
-  city: string;
-  street: string;
-  state?: string;
-  postcode?: string;
-  countryCode: string;   // ISO-2 (pays de résidence de l'expéditeur)
+// Bénéficiaire CNY (Chine) — champs variables selon le service. L'expéditeur (le
+// user) est auto-rempli côté backend depuis le profil KYC → non transmis ici.
+export interface KlashaCnyBeneficiary {
+  receiverFirstName: string;     // prénom (caractères chinois) — tous services
+  receiverLastName: string;      // nom (caractères chinois) — tous services
+  // BANK_ACCOUNT + WALLET :
+  receiverIdNumber?: string;     // n° pièce d'identité
+  receiverRelationship?: string; // SELF | SPOUSE | PARENTS | …
+  receiverIdType?: string;       // ID_CARD (défaut)
+  receiverMobileNumber?: string; // +86… (BANK_ACCOUNT)
+  // BANK_ACCOUNT + BANK_CARD :
+  bankCode?: string;             // code CNAPS (sélecteur banques Chine)
+  bankName?: string;
+  // BANK_ACCOUNT :
+  accountNumber?: string;
+  accountName?: string;          // titulaire (caractères chinois)
+  accountType?: string;          // INDIVIDUAL (défaut)
+  // BANK_CARD (UnionPay) :
+  cardNumber?: string;
+  cardHolderName?: string;
+  // WALLET (Alipay) : accountNumber = email|mobile, accountId = MOBILE|EMAIL.
+  accountId?: string;
 }
 
 export interface KlashaCnyRequest {
-  amount: number;      // montant DESTINATION (CNY)
-  amount_xof: number;  // XOF débité du wallet
+  amount: number;            // montant DESTINATION (CNY)
+  amount_xof: number;        // XOF débité du wallet
+  service: KlashaCnyService;
   beneficiary: KlashaCnyBeneficiary;
-  sender: KlashaCnySender;
 }
 
 export interface SavedBank {
