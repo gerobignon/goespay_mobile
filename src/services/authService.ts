@@ -137,6 +137,8 @@ export const authService = {
     formData.append('idnumber', data.idnumber);
     formData.append('idexp', data.idexp);
     formData.append('birthdate', data.birthdate);
+    formData.append('state', data.state);
+    formData.append('postcode', data.postcode);
     formData.append('phone', data.phone);
     if (data.country) formData.append('country', data.country);
     if (data.telegram) formData.append('telegram', data.telegram);
