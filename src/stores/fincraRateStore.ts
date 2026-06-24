@@ -34,9 +34,9 @@ export async function fetchFincraRate(currency: string, isKlasha = false, forDep
   if (!cur) return null;
   if (cur === 'XOF') return 1;
 
-  // Le taux LIVE du form de dépôt Klasha n'est JAMAIS caché : on veut la valeur
-  // fraîche à chaque affichage (Fincra et payout Klasha gardent leur cache 5 min).
-  const liveOnly = isKlasha && forDeposit;
+  // Le taux LIVE du form de DÉPÔT (Klasha ET Fincra) n'est JAMAIS caché : on veut
+  // la valeur fraîche à chaque affichage (les payouts gardent leur cache 5 min).
+  const liveOnly = forDeposit;
 
   // Cache namespacé : Klasha/Fincra ET dépôt vs payout cotent la même devise
   // différemment (Klasha : KLD/KL ; Fincra : FCD/FC).
