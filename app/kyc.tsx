@@ -175,9 +175,14 @@ export default function KycScreen() {
         message: error?.message,
       });
       const data = error?.response?.data;
-      const msg = data?.error
+      // Erreurs de champ (422) EN PRIORITÉ : le détail (« téléphone déjà associé… »)
+      // avant le message générique « Les données fournies sont invalides. ».
+      const fieldErrors = data?.errors && typeof data.errors === 'object'
+        ? Object.values(data.errors).flat().filter(Boolean).join('\n')
+        : null;
+      const msg = fieldErrors
+        || data?.error
         || data?.message
-        || (data?.errors ? Object.values(data.errors).flat().join('\n') : null)
         || (typeof data === 'string' && !data.trim().startsWith('<') ? data.slice(0, 200) : null)
         || error?.message
         || "Erreur lors de l'envoi des documents.";

@@ -26,6 +26,7 @@ import VerifiedBadge from '../../src/components/VerifiedBadge';
 import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 import { useResponsive } from '../../src/hooks/useResponsive';
+import { getApiErrorMessage } from '../../src/utils/apiError';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -57,7 +58,7 @@ export default function ProfileScreen() {
       setUser(updated);
       showAlert(t('common.success'), t('account.profileUpdated'));
     } catch (error: any) {
-      showAlert(t('common.error'), error?.response?.data?.message || t('account.profileUpdateError'));
+      showAlert(t('common.error'), getApiErrorMessage(error, t, t('account.profileUpdateError')));
     } finally {
       setLoading(false);
     }

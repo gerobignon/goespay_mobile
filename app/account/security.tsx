@@ -38,6 +38,7 @@ import SettingsRow from '../../src/components/SettingsRow';
 import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 import { useResponsive } from '../../src/hooks/useResponsive';
+import { getApiErrorMessage } from '../../src/utils/apiError';
 
 export default function SecurityScreen() {
   const router = useRouter();
@@ -190,7 +191,7 @@ export default function SecurityScreen() {
     } catch (error: any) {
       showAlert(
         t('common.error'),
-        error?.response?.data?.error || error?.response?.data?.message || t('account.changePasswordError')
+        getApiErrorMessage(error, t, t('account.changePasswordError'))
       );
     } finally {
       setPwLoading(false);

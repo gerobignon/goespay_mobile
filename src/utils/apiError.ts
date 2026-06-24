@@ -15,12 +15,14 @@ export function getApiErrorMessage(
   fallback: string
 ): string {
   const data = error?.response?.data;
-  const fromBody =
-    data?.error
-    || data?.message
-    || (data?.errors && typeof data.errors === 'object'
-        ? Object.values(data.errors).flat().filter(Boolean).join('\n')
-        : null);
+  // Erreurs de champ (Laravel 422) EN PRIORITÉ : elles portent le vrai détail
+  // (« Ce numéro est déjà associé… »), alors que `message` est souvent générique
+  // (« Les données fournies sont invalides. »).
+  const fieldErrors =
+    data?.errors && typeof data.errors === 'object'
+      ? Object.values(data.errors).flat().filter(Boolean).join('\n')
+      : null;
+  const fromBody = fieldErrors || data?.error || data?.message;
   if (fromBody && typeof fromBody === 'string' && fromBody.trim()) return fromBody;
 
   const msg = String(error?.message || '');
