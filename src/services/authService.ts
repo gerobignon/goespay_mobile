@@ -105,6 +105,8 @@ export const authService = {
       idnumber: string;
       idexp: string;
       birthdate: string; // AAAA-MM-JJ
+      state: string;     // province / état
+      postcode: string;  // code postal
       phone: string;
       country?: string;
       telegram?: string;

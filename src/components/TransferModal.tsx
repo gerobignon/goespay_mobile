@@ -249,9 +249,11 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // Le rail est porté directement par l'opérateur Fincra (cf. config.ts).
   // Plus de sélecteur dynamique ; chaque opérateur Fincra = 1 rail.
   const fincraRail: FincraRail | '' = isFincraOp ? (((selectedOp as any)?.rail as FincraRail) || '') : '';
-  // Chine : la date de naissance (KYC) est requise par Klasha. Si absente du profil,
-  // on bloque tout le formulaire de retrait et on demande de compléter le KYC.
-  const chinaKycGate = isKlashaOp && fincraRail === 'cny' && !(user as any)?.birthdate;
+  // Chine : Klasha exige tout le senderAddress (date de naissance + province/état +
+  // code postal) en plus de l'identité. Si l'un manque dans le profil KYC, on bloque
+  // tout le formulaire de retrait et on demande de compléter le KYC.
+  const chinaKycGate = isKlashaOp && fincraRail === 'cny'
+    && (!(user as any)?.birthdate || !(user as any)?.state || !(user as any)?.postcode);
   // Sous-pays Fincra (XOF/XAF). Si le pays est déjà connu (pays sélectionné, ou
   // pays de l'utilisateur), on le déduit du contexte et on masque la liste.
   // Opérateur MM par pays (catalogue serveur) : pays figé = op.country (pas de picker).
@@ -1321,7 +1323,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               <FontAwesome6 name="wallet" size={12} color={Colors.textMuted} />
               <Text style={styles.balanceText}>{t('transferModal.availableBalance')} : </Text>
               <Text style={styles.balanceAmount}>
-                {fmtXof(balance ?? 0)}
+                {fmtXof(balance ?? 0, { decimals: 2 })}
               </Text>
             </View>
 

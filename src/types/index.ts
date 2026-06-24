@@ -12,6 +12,8 @@ export interface User {
   idnumber?: string;
   idexp?: string;
   birthdate?: string; // AAAA-MM-JJ (KYC, requis payouts Chine)
+  state?: string;     // province / état (KYC, senderAddress Chine)
+  postcode?: string;  // code postal (KYC, senderAddress Chine)
   kyc_type?: string;            // type de pièce KYC précédemment soumis
   kyc_file_url?: string | null; // document KYC déjà uploadé
   kyc_tof_url?: string | null;  // selfie KYC déjà uploadé

@@ -36,6 +36,9 @@ const DOC_TYPES_KEYS = [
 
 export default function KycScreen() {
   const router = useRouter();
+  // Retour robuste : revient à l'écran précédent s'il existe, sinon va à l'accueil
+  // (le KYC peut être ouvert directement, sans pile de navigation → back() inerte).
+  const goBack = () => { if (router.canGoBack()) router.back(); else router.replace('/(tabs)'); };
   // Mode édition (?edit=1) : force le FORMULAIRE même si déjà validé / en attente,
   // pour permettre une re-soumission (ex. ajout de la date de naissance pour la Chine).
   const { edit } = useLocalSearchParams<{ edit?: string }>();
@@ -50,6 +53,8 @@ export default function KycScreen() {
   // Personal info state (pre-filled from user)
   const [country, setCountry] = useState(user?.country ?? '');
   const [city, setCity] = useState(user?.city ?? '');
+  const [stateProv, setStateProv] = useState(user?.state ?? '');
+  const [postcode, setPostcode] = useState(user?.postcode ?? '');
   const [address, setAddress] = useState(user?.address ?? '');
   const [idnumber, setIdnumber] = useState(user?.idnumber ?? '');
   // Date de naissance : 3 cases JJ / MM / AAAA, préremplies depuis le profil (YYYY-MM-DD).
@@ -112,6 +117,8 @@ export default function KycScreen() {
 
   const handleSubmit = async () => {
     if (!city.trim()) { showAlert('Erreur', 'Veuillez entrer votre ville.'); return; }
+    if (!stateProv.trim()) { showAlert('Erreur', 'Veuillez entrer votre province / état.'); return; }
+    if (!postcode.trim()) { showAlert('Erreur', 'Veuillez entrer votre code postal.'); return; }
     if (!address.trim()) { showAlert('Erreur', 'Veuillez entrer votre adresse.'); return; }
     if (!idnumber.trim()) { showAlert('Erreur', 'Veuillez entrer le numéro de votre pièce.'); return; }
     // Date de naissance (3 cases) → AAAA-MM-JJ
@@ -150,6 +157,8 @@ export default function KycScreen() {
         {
           type: docType,
           city: city.trim(),
+          state: stateProv.trim(),
+          postcode: postcode.trim(),
           address: address.trim(),
           idnumber: idnumber.trim(),
           birthdate: birthdateIso,
@@ -166,7 +175,7 @@ export default function KycScreen() {
       showAlert(
         t('kyc.docsSent'),
         t('kyc.docsSentMessage'),
-        [{ text: 'OK', onPress: () => router.back() }]
+        [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
       );
     } catch (error: any) {
       console.error('[KYC] upload failed', {
@@ -199,7 +208,7 @@ export default function KycScreen() {
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={[styles.contentWrapper, { maxWidth: contentMaxWidth }]}>
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()}>
+            <TouchableOpacity onPress={goBack}>
               <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
             </TouchableOpacity>
             <Text style={styles.title}>{t('kyc.title')}</Text>
@@ -237,7 +246,7 @@ export default function KycScreen() {
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={[styles.contentWrapper, { maxWidth: contentMaxWidth }]}>
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()}>
+            <TouchableOpacity onPress={goBack}>
               <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
             </TouchableOpacity>
             <Text style={styles.title}>{t('kyc.title')}</Text>
@@ -258,7 +267,7 @@ export default function KycScreen() {
 
           <Button
             title="Retour"
-            onPress={() => router.back()}
+            onPress={goBack}
             icon="arrow-left"
             style={{ marginTop: Spacing.xl }}
           />
@@ -278,7 +287,7 @@ export default function KycScreen() {
       >
         <View style={[styles.contentWrapper, { maxWidth: contentMaxWidth }]}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={goBack}>
             <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
           </TouchableOpacity>
           <Text style={styles.title}>{t('kyc.title')}</Text>
@@ -322,6 +331,14 @@ export default function KycScreen() {
           {/* Ville */}
           <Text style={styles.fieldLabel}>{t('kyc.city')}</Text>
           <Input placeholder="Votre ville" value={city} onChangeText={setCity} />
+
+          {/* Province / État */}
+          <Text style={styles.fieldLabel}>{t('kyc.state')}</Text>
+          <Input placeholder={t('kyc.statePlaceholder')} value={stateProv} onChangeText={setStateProv} />
+
+          {/* Code postal */}
+          <Text style={styles.fieldLabel}>{t('kyc.postcode')}</Text>
+          <Input placeholder={t('kyc.postcodePlaceholder')} value={postcode} onChangeText={setPostcode} />
 
           {/* Adresse */}
           <Text style={styles.fieldLabel}>{t('kyc.address')}</Text>
@@ -537,13 +554,13 @@ export default function KycScreen() {
           onPress={handleSubmit}
           icon="fingerprint"
           loading={loading}
-          disabled={!docType || (!fileUri && !user?.kyc_file_url) || (!selfieUri && !user?.kyc_tof_url) || !city || !address || !idnumber || !birthDay || !birthMonth || !birthYear || !idexpMonth || !idexpYear || !phone}
+          disabled={!docType || (!fileUri && !user?.kyc_file_url) || (!selfieUri && !user?.kyc_tof_url) || !city || !stateProv || !postcode || !address || !idnumber || !birthDay || !birthMonth || !birthYear || !idexpMonth || !idexpYear || !phone}
           style={{ marginTop: Spacing.xl, marginBottom: Spacing.xxl }}
         />
 
         <TouchableOpacity
           style={styles.laterBtn}
-          onPress={() => router.back()}
+          onPress={goBack}
           activeOpacity={0.7}
         >
           <FontAwesome6 name="rectangle-xmark" size={14} color={Colors.textMuted} />
