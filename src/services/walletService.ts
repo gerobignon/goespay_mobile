@@ -103,6 +103,8 @@ export interface KlashaCnyRequest {
   amount: number;            // montant DESTINATION (CNY)
   amount_xof: number;        // XOF débité du wallet
   service: KlashaCnyService;
+  // Wallet chinois (service WALLET) : Alipay (défaut) ou WeChat → serviceCode Klasha.
+  serviceCode?: 'ALIPAY' | 'WECHAT';
   beneficiary: KlashaCnyBeneficiary;
   // L'expéditeur (identité + date de naissance + adresse) vient du profil KYC,
   // côté backend → non transmis ici.
@@ -231,7 +233,7 @@ export const walletService = {
   },
 
   // Taux de conversion Fincra : 1 unité de `currency` = N XOF (pivot du wallet).
-  // Direct + directionnel côté backend (side buy=dépôt / sell=payout), cf.
+  // Direct + directionnel côté backend (side sell=dépôt / buy=payout), cf.
   // /fincra/rates. forDeposit → taux d'encaissement (≠ versement).
   getFincraRate: async (currency: string, forDeposit = false): Promise<{ currency: string; rate_to_xof: number }> => {
     const params: Record<string, string> = { currency };

@@ -9,7 +9,7 @@ import { walletService } from '../services/walletService';
 // (NGN, GHS, USD…) pour ce que Fincra encaisse (dépôt) ou envoie (payout).
 //
 // `rate` = nombre de XOF pour 1 unité de la devise Fincra (taux DIRECT cur↔XOF
-// + directionnel côté backend : side buy pour le dépôt, sell pour le payout). Donc :
+// + directionnel côté backend : side sell pour le dépôt, buy pour le payout). Donc :
 //   - XOF → devise Fincra : montantFincra = montantXof / rate
 //   - devise Fincra → XOF : montantXof   = montantFincra * rate
 //
