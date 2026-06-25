@@ -1707,24 +1707,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                         <Input label="Titulaire du compte *" placeholder="Nom du titulaire" value={bankAccountHolder} onChangeText={setBankAccountHolder} />
                         <Input label="N° pièce d'identité du bénéficiaire *" placeholder="N° de pièce d'identité" value={cnyIdNumber} onChangeText={setCnyIdNumber} />
                         <Input label="Téléphone du bénéficiaire *" placeholder="ex: +8613699262597" value={cnyMobile} onChangeText={setCnyMobile} keyboardType="phone-pad" />
-
-                        {/* Relation expéditeur↔bénéficiaire (requise UNIQUEMENT pour le virement) */}
-                        <Text style={[styles.fieldLabel, { marginTop: Spacing.sm }]}>Votre relation avec le bénéficiaire *</Text>
-                        <View style={styles.cnyChipsRow}>
-                          {[
-                            ['SELF', 'Moi-même'], ['SPOUSE', 'Conjoint(e)'], ['PARENTS', 'Parents'],
-                            ['SONS_AND_DAUGHTERS', 'Enfants'], ['BROTHERS_AND_SISTERS', 'Frères/Sœurs'],
-                            ['GRANDPARENTS', 'Grands-parents'], ['GRANDCHILDREN', 'Petits-enfants'],
-                          ].map(([val, label]) => (
-                            <TouchableOpacity
-                              key={val}
-                              style={[styles.cnyChip, cnyRelationship === val && styles.cnyChipActive]}
-                              onPress={() => setCnyRelationship(val)}
-                            >
-                              <Text style={[styles.cnyChipText, cnyRelationship === val && styles.cnyChipTextActive]}>{label}</Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
+                        {/* La relation expéditeur↔bénéficiaire (requise par Klasha) est
+                            renseignée automatiquement (SELF) — pas demandée au client. */}
                       </>
                     )}
 
