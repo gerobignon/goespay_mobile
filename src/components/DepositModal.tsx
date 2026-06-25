@@ -841,7 +841,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
               </View>
 
           {pollingState === 'pending' && (
-            <View style={styles.pollingContainer}>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.pollingScrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <ActivityIndicator size="large" color={Colors.primary} />
               <Text style={styles.pollingTitle}>{t('depositModal.processing')}</Text>
               <Text style={styles.pollingMessage}>{pollingMessage}</Text>
@@ -903,7 +903,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
               ) : (
                 <Button title={t('depositModal.checkLater')} onPress={() => { stopPolling(); setPollingState('idle'); onClose(); }} style={{ marginTop: Spacing.lg }} />
               )}
-            </View>
+            </ScrollView>
           )}
 
           {pollingState === 'success' && (
@@ -1414,6 +1414,16 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.lg,
+    gap: Spacing.md,
+  },
+  // Variante défilable (état pending + infos virement bancaire) : centre quand
+  // le contenu est court, défile quand il dépasse la hauteur du modal.
+  pollingScrollContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
     gap: Spacing.md,
   },
   pollingTitle: {

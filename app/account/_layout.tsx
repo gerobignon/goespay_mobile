@@ -181,6 +181,9 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderColor: Colors.surfaceBorder,
     padding: Spacing.lg,
     alignSelf: 'flex-start',
+    // Borne la hauteur à la zone visible → le ScrollView interne défile quand le
+    // menu dépasse (sinon il prend la hauteur du contenu et ne scrolle jamais).
+    maxHeight: '100%',
   },
   avatarSection: {
     alignItems: 'center',

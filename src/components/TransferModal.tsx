@@ -1102,7 +1102,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           )}
 
           {pollingState === 'success' && (
-            <View style={styles.pollingContainer}>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.pollingScrollContent} showsVerticalScrollIndicator={false}>
               <FontAwesome6 name="circle-check" size={64} color={Colors.success} />
               <Text style={[styles.pollingTitle, { color: Colors.success }]}>{t('transferModal.transferConfirmed')}</Text>
               <Text style={styles.pollingMessage}>{t('transferModal.transferConfirmedMsg')}</Text>
@@ -1137,7 +1137,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 </View>
               )}
               <Button title={t('common.close')} onPress={() => { setPollingState('idle'); setPendingDetails(null); onClose(); }} style={{ marginTop: Spacing.lg }} />
-            </View>
+            </ScrollView>
           )}
 
           {pollingState === 'failed' && (
@@ -2139,6 +2139,15 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.lg,
+    gap: Spacing.md,
+  },
+  // Variante défilable (état success avec détails) : centre si court, défile si long.
+  pollingScrollContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
     gap: Spacing.md,
   },
   pollingTitle: {
