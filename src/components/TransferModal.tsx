@@ -248,6 +248,10 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // Wallet chinois : Alipay (défaut) ou WeChat — porte le serviceCode + le libellé.
   const cnyServiceCode: 'ALIPAY' | 'WECHAT' = ((selectedOp as any)?.cnyServiceCode) ?? 'ALIPAY';
   const cnyWalletLabel = cnyServiceCode === 'WECHAT' ? 'WeChat' : 'Alipay';
+  // WeChat = téléphone uniquement (pas d'email) → force MOBILE.
+  useEffect(() => {
+    if (cnyServiceCode === 'WECHAT') setCnyWalletAccountId('MOBILE');
+  }, [cnyServiceCode]);
   const fincraCurrency = isFincraOp ? ((selectedOp as any)?.currency as string) || 'XOF' : '';
   // Le rail est porté directement par l'opérateur Fincra (cf. config.ts).
   // Plus de sélecteur dynamique ; chaque opérateur Fincra = 1 rail.
@@ -297,9 +301,9 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       ? `${fmtXof(feeConfig.fixed, { approx: false })} + ${feeConfig.percent}%`
       : `${feeConfig.percent}%`;
 
-  const fmt = (n: number) => n.toLocaleString('fr-FR').replace(/\s/g, '.');
+  const fmt = (n: number) => n.toLocaleString('fr-FR', { maximumFractionDigits: 2 }).replace(/\s/g, '.');
   const fmtFincra = (n: number) =>
-    `${n.toLocaleString('fr-FR', { maximumFractionDigits: 20 })} ${fincraCurrency}`;
+    `${n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fincraCurrency}`;
 
   // wallet est en XOF : on débite exactement le montant XOF saisi. On convertit
   // ce XOF vers la devise Fincra pour le montant réellement envoyé au bénéficiaire
@@ -1736,13 +1740,16 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                     {cnyService === 'WALLET' && (
                       <>
                         <Text style={styles.fieldLabel}>Identifiant {cnyWalletLabel} *</Text>
-                        <View style={styles.cnyChipsRow}>
-                          {([['MOBILE', 'Téléphone'], ['EMAIL', 'Email']] as const).map(([val, label]) => (
-                            <TouchableOpacity key={val} style={[styles.cnyChip, cnyWalletAccountId === val && styles.cnyChipActive]} onPress={() => setCnyWalletAccountId(val)}>
-                              <Text style={[styles.cnyChipText, cnyWalletAccountId === val && styles.cnyChipTextActive]}>{label}</Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
+                        {/* WeChat = téléphone uniquement (pas d'email) → pas de sélecteur. */}
+                        {cnyServiceCode !== 'WECHAT' && (
+                          <View style={styles.cnyChipsRow}>
+                            {([['MOBILE', 'Téléphone'], ['EMAIL', 'Email']] as const).map(([val, label]) => (
+                              <TouchableOpacity key={val} style={[styles.cnyChip, cnyWalletAccountId === val && styles.cnyChipActive]} onPress={() => setCnyWalletAccountId(val)}>
+                                <Text style={[styles.cnyChipText, cnyWalletAccountId === val && styles.cnyChipTextActive]}>{label}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        )}
                         <Input
                           label={cnyWalletAccountId === 'EMAIL' ? `Email ${cnyWalletLabel} *` : `Téléphone ${cnyWalletLabel} *`}
                           placeholder={cnyWalletAccountId === 'EMAIL' ? 'email@exemple.com' : 'ex: +8613699262597'}

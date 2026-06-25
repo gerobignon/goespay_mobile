@@ -2,7 +2,7 @@
 export function formatAmount(amount: number): string {
   return amount.toLocaleString('fr-FR', {
     minimumFractionDigits: 0,
-    maximumFractionDigits: 20,
+    maximumFractionDigits: 2,
   });
 }
 
@@ -15,7 +15,7 @@ export function formatXof(xofAmount: number, opts?: { withCode?: boolean; approx
     minimumFractionDigits: 0,
     // Par défaut pleine précision (pas d'arrondi) ; `decimals` permet de capper
     // l'affichage (ex. solde → 2 décimales).
-    maximumFractionDigits: opts?.decimals ?? 20,
+    maximumFractionDigits: opts?.decimals ?? 2,
   });
   return `${formatted}${opts?.withCode === false ? '' : ' XOF'}`;
 }

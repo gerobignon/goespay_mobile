@@ -47,7 +47,7 @@ export default function FincraConversionHint({ loading, error, label, amount, cu
       <FontAwesome6 name="arrow-right-arrow-left" size={13} color={Colors.primary} iconStyle="solid" />
       <Text style={styles.label}>{label}</Text>
       <Text style={styles.amount}>
-        ≈ {(amount ?? 0).toLocaleString('fr-FR', { maximumFractionDigits: 20 })} {currency}
+        ≈ {(amount ?? 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} {currency}
       </Text>
     </View>
   );

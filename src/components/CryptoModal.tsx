@@ -813,7 +813,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
             {tab === 'buy' ? (
               <>
                 <Text style={styles.confirmAmountLabel}>{t('cryptoModal.amountToPayLabel')}</Text>
-                <Text style={styles.confirmAmount}>{parseFloat(amount || '0').toLocaleString('fr-FR').replace(/\s/g, '.')}</Text>
+                <Text style={styles.confirmAmount}>{parseFloat(amount || '0').toLocaleString('fr-FR', { maximumFractionDigits: 2 }).replace(/\s/g, '.')}</Text>
                 <Text style={styles.confirmAmountCurrency}>{userCurrency}</Text>
               </>
             ) : (

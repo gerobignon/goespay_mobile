@@ -352,7 +352,7 @@ export function QuickConverter() {
             <View style={[styles.convField, styles.convFieldHighlight]}>
               <Text style={[styles.convCornerLabel, { color: Colors.secondary }]}>{targetCur}</Text>
               <Text style={styles.convResultBig} numberOfLines={1}>
-                {loading ? '…' : converted !== null ? converted.toLocaleString('fr-FR') : '—'}
+                {loading ? '…' : converted !== null ? converted.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) : '—'}
               </Text>
             </View>
 
