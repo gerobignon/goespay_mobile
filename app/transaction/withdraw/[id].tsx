@@ -205,9 +205,6 @@ export default function WithdrawDetailScreen() {
                   mono
                 />
                 <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />
-                {!!(tx.meta as any)?.provider_ref && (
-                  <TransactionDetailRow label={t('transaction.providerRef')} value={String((tx.meta as any).provider_ref)} copyable mono />
-                )}
                 {tx.statut === 'success' && (
                   <>
                     <TransactionDetailRow label={t('transaction.balanceBefore')} value={exactXof(tx.avant)} mono />

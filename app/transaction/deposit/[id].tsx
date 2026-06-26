@@ -188,9 +188,6 @@ export default function DepositDetailScreen() {
           />
           <TransactionDetailRow label={t('transaction.operator')} value={resolveOperatorDisplay(tx.mode, tx.currency_dest)?.name ?? tx.mode ?? '—'} badge badgeColor={Colors.secondary} />
           <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />
-          {!!tx.real && (
-            <TransactionDetailRow label={t('transaction.providerRef')} value={String(tx.real)} copyable mono />
-          )}
           {tx.statut === 'success' && (
             <>
               <TransactionDetailRow
