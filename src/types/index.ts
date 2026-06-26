@@ -36,7 +36,7 @@ export interface Transaction {
   type: 'deposit' | 'withdraw' | 'transfer' | 'crypto';
   amount: number;
   amount_sent?: number;
-  real?: number;
+  real?: string | number; // ID transaction agrégateur (dépôt) — UUID Klasha ou id legacy
   statut: string | number;
   mode?: string;
   reference?: string;

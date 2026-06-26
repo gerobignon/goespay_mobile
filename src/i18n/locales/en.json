@@ -377,6 +377,7 @@
     "transfer": "Send",
     "crypto": "Crypto",
     "reference": "Reference",
+    "providerRef": "Aggregator ID",
     "date": "Creation date",
     "updatedAt": "Update date",
     "amount": "Amount",

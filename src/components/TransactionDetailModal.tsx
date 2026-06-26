@@ -321,6 +321,9 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
             <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={getStatusIcon(normalizeStatut(tx.statut))} />
             <TransactionDetailRow label={t('transaction.operator')} value={tx.mode ?? '—'} valueNode={<OperatorValue mode={tx.mode} />} />
             <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />
+            {!!tx.real && (
+              <TransactionDetailRow label={t('transaction.providerRef')} value={String(tx.real)} copyable mono />
+            )}
             <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '—'} mono />
             <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '—'} mono color={status.color} />
             {tx.note && <TransactionDetailRow label={t('transaction.note')} value={tx.note} />}
@@ -424,6 +427,9 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
             <TransactionDetailRow label={t('transaction.operator')} value={tx.mode ?? '—'} valueNode={<OperatorValue mode={tx.mode} currencyDest={tx.currency_dest} />} />
             <TransactionDetailRow label={t('transaction.receiver')} value={tx.phone ?? '—'} copyable mono />
             <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />
+            {!!(tx.meta as any)?.provider_ref && (
+              <TransactionDetailRow label={t('transaction.providerRef')} value={String((tx.meta as any).provider_ref)} copyable mono />
+            )}
             <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '—'} mono />
             <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '—'} mono color={status.color} />
             <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />

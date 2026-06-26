@@ -377,6 +377,7 @@
     "transfer": "Envoi",
     "crypto": "Crypto",
     "reference": "Référence",
+    "providerRef": "ID agrégateur",
     "date": "Date de création",
     "updatedAt": "Date de mise à jour",
     "amount": "Montant",
