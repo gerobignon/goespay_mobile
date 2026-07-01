@@ -76,7 +76,6 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // « Crypto-monnaies » : sous-liste des cryptos actives (achat → débite le wallet).
   const [cryptoOpen, setCryptoOpen] = useState(false);
   // « Autres » : rails internationaux Fincra (zones XOF/XAF + USD/EUR/GBP) en payout.
-  const [othersOpen, setOthersOpen] = useState(false);
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
@@ -159,7 +158,6 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const user = useAuthStore((s) => s.user);
   const countryFees = useConfigStore((s) => s.country_fees);
   const outgoingFees = useConfigStore((s) => s.outgoing_fees);
-  const intlRails = useConfigStore((s) => s.intl_rails);
   const transferMin = useConfigStore((s) => s.transfer_min);
   const transferMinWorld = useConfigStore((s) => s.transfer_min_world);
   const transferMinNg = useConfigStore((s) => s.transfer_min_ng);
@@ -361,7 +359,6 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     const cur = (b.currency || '').toUpperCase();
     const op = OPERATORS_SRC.find((o: any) => o.fincra && String(o.id).endsWith('-bt') && (o.currency || '').toUpperCase() === cur);
     if (op) {
-      setOthersOpen(true);
       setSelectedCountry((op as any).country || null);
       setOperator((op as any).id);
     }
@@ -391,7 +388,6 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     setSelectedCountry(null);
     setOperator('');
     setCryptoOpen(false);
-    setOthersOpen(false);
     setFincraZoneCountry(null);
     setBankAccountHolder('');
     setBankAccountNumber('');

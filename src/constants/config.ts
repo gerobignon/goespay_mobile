@@ -148,15 +148,13 @@ export const OPERATORS = [
   { id: 'fincra-egp-mm', name: 'Mobile Money',     flag: '🇪🇬', country: 'EG', withdraw: true, fincra: true, currency: 'EGP', rail: 'mobile_money',  logo: require('../../assets/operators/pay_momo.png') },
   { id: 'fincra-egp-bt', name: 'Virement bancaire (EGP)', flag: '🇪🇬', country: 'EG', withdraw: true, fincra: true, currency: 'EGP', rail: 'bank_transfer', logo: require('../../assets/operators/pay_bank.png') },
 
-  // International (USD/EUR/GBP) — payout via SWIFT/SEPA + pay-in via carte (hosted
-  // checkout Fincra). Pas de bank_transfer en pay-in : Fincra n'expose pas de
-  // virtual accounts dans ces devises.
+  // International (USD/EUR/GBP) — payout via SWIFT/SEPA. Pas de bank_transfer en
+  // pay-in (Fincra n'expose pas de virtual accounts dans ces devises) ni de carte
+  // Fincra dédiée (supprimée) : le pay-in intl passe par l'Open Banking hébergé
+  // (fincra-checkout-<cc>, catalogue serveur).
   { id: 'fincra-usd-bt',   name: 'Virement (SWIFT) USD',      flag: '🇺🇸', country: 'US', withdraw: true,  fincra: true, currency: 'USD', rail: 'SWIFT', logo: require('../../assets/operators/pay_bank.png') },
-  { id: 'fincra-usd-card', name: 'Carte bancaire (USD)',      flag: '🇺🇸', country: 'US', withdraw: false, fincra: true, currency: 'USD', rail: 'checkout',     logo: require('../../assets/operators/pay_card.jpg') },
   { id: 'fincra-eur-bt',   name: 'Virement (SEPA) EUR',       flag: '🇪🇺', country: 'EU', withdraw: true,  fincra: true, currency: 'EUR', rail: 'SEPA', logo: require('../../assets/operators/pay_bank.png') },
-  { id: 'fincra-eur-card', name: 'Carte bancaire (EUR)',      flag: '🇪🇺', country: 'EU', withdraw: false, fincra: true, currency: 'EUR', rail: 'checkout',     logo: require('../../assets/operators/pay_card.jpg') },
   { id: 'fincra-gbp-bt',   name: 'Virement (SWIFT) GBP',      flag: '🇬🇧', country: 'GB', withdraw: true,  fincra: true, currency: 'GBP', rail: 'SWIFT', logo: require('../../assets/operators/pay_bank.png') },
-  { id: 'fincra-gbp-card', name: 'Carte bancaire (GBP)',      flag: '🇬🇧', country: 'GB', withdraw: false, fincra: true, currency: 'GBP', rail: 'checkout',     logo: require('../../assets/operators/pay_card.jpg') },
 ] as const;
 
 // Helper : un opérateur sert-il `selectedCountry` ?
