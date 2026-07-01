@@ -43,3 +43,10 @@ yarn-error.*
 # Build artifacts
 *.apk
 *.aab
+
+# Deploy by Light (déploiement FTP local — secrets & état, jamais committés)
+.env
+.deploy-ftp*
+.deploy-last*
+.deploy-rev
+deploy.sh
