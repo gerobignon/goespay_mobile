@@ -1,6 +1,7 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { formatXof, formatDate, currentCurrencyCode } from './format';
+import { resolveOperatorDisplay } from './operatorDisplay';
 import type { Transaction } from '../types';
 
 interface ReceiptRow {
@@ -48,15 +49,16 @@ function buildRows(tx: Transaction, type: 'deposit' | 'withdraw' | 'transfer' | 
     rows.push({ label: 'Montant', value: formatXof(tx.amount) });
   }
 
-  // Libellé propre (jamais la string brute « fincra-… »).
+  // Libellé propre (jamais la string brute « fincra-… » / « klasha-mm-… ») :
+  // résolveur commun partagé avec l'historique/détail (opérateur précis, rail,
+  // catalogue). Repli sur le code brut seulement si non résolu.
   const cleanMode = (mode?: string) => {
     if (!mode) return '';
-    const m = mode.match(/^fincra-(bank_transfer|bank|mobile_money|mm|checkout|card)$/i);
-    if (!m) return mode;
-    const r = m[1].toLowerCase();
-    return r.startsWith('bank') ? 'Virement bancaire'
-      : (r === 'checkout' || r === 'card') ? 'Carte bancaire'
-      : 'Mobile Money';
+    const disp = resolveOperatorDisplay(mode);
+    if (disp && disp.name && disp.name !== mode) {
+      return `${disp.flag ? disp.flag + ' ' : ''}${disp.name}`.trim();
+    }
+    return mode;
   };
 
   if (type !== 'crypto') {

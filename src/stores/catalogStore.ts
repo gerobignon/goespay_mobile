@@ -217,7 +217,11 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
         const isFincraAgg = r.aggregator === 'fincra' || r.aggregator === 'fincra_checkout';
         const isKlashaAgg = r.aggregator === 'klasha';
         // Klasha réutilise la machinerie UI Fincra (fincra:true) → rail dérivé pareil.
-        const fincraRail = isFincraAgg ? fincraRailFor(r.code, r.currency)
+        // fincra_checkout (page hébergée `fincra-checkout-<cc>`) = TOUJOURS rail checkout :
+        // le code ne finit pas par -card/-bt, donc railFromCode le raterait (rail=undefined
+        // → ni carte ni checkout → le dépôt EU retombe sur un virement). cf. corridor FR payin.
+        const fincraRail = r.aggregator === 'fincra_checkout' ? 'checkout'
+                         : isFincraAgg ? fincraRailFor(r.code, r.currency)
                          : isKlashaAgg ? klashaRailFor(r.code) : undefined;
         // Le label réseau Fincra MM est suffixé « (Fincra) » côté admin (distinction
         // corridor) — inutile et parasite pour l'utilisateur. On le retire à l'affichage.
