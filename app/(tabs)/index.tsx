@@ -134,13 +134,11 @@ export default function DashboardScreen() {
   );
 
   const onBenefPick = useCallback((tel: string) => {
-    if (!isValidated) return;
     setTransferPrefillBank(null);
     setTransferPrefillPhone(tel);
     setTransferVisible(true);
   }, [isValidated]);
   const onBenefPickBank = useCallback((bank: SavedBank) => {
-    if (!isValidated) return;
     setTransferPrefillPhone(undefined);
     setTransferPrefillBank(bank);
     setTransferVisible(true);
@@ -293,8 +291,8 @@ export default function DashboardScreen() {
                       {!configReady && (<><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /></>)}
                       {showDeposit && (
                       <Bounce
-                        style={[styles.actionBtn, { backgroundColor: DarkColors.secondary }, !isValidated && { opacity: 0.4 }]}
-                        onPress={() => isValidated && setDepositVisible(true)}
+                        style={[styles.actionBtn, { backgroundColor: DarkColors.secondary }]}
+                        onPress={() => setDepositVisible(true)}
                       >
                         <FontAwesome6 name="plus" size={16} color={Colors.white} />
                         <Text style={styles.actionLabel}>{ t('home.deposit') }</Text>
@@ -302,8 +300,8 @@ export default function DashboardScreen() {
                       )}
                       {showTransfer && (
                       <Bounce
-                        style={[styles.actionBtn, { backgroundColor: Colors.primary }, !isValidated && { opacity: 0.4 }]}
-                        onPress={() => isValidated && setTransferVisible(true)}
+                        style={[styles.actionBtn, { backgroundColor: Colors.primary }]}
+                        onPress={() => setTransferVisible(true)}
                       >
                         <FontAwesome6 name="paper-plane" size={16} color={Colors.white} />
                         <Text style={styles.actionLabel}>{ t('home.transfer') }</Text>
@@ -368,8 +366,8 @@ export default function DashboardScreen() {
                     {!configReady && (<><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /></>)}
                     {showDeposit && (
                     <Bounce
-                      style={[styles.actionBtn, { backgroundColor: DarkColors.secondary }, !isValidated && { opacity: 0.4 }]}
-                      onPress={() => isValidated && setDepositVisible(true)}
+                      style={[styles.actionBtn, { backgroundColor: DarkColors.secondary }]}
+                      onPress={() => setDepositVisible(true)}
                     >
                       <FontAwesome6 name="plus" size={16} color={Colors.white} />
                       <Text style={styles.actionLabel}>{ t('home.deposit') }</Text>
@@ -377,8 +375,8 @@ export default function DashboardScreen() {
                     )}
                     {showTransfer && (
                     <Bounce
-                      style={[styles.actionBtn, { backgroundColor: Colors.primary }, !isValidated && { opacity: 0.4 }]}
-                      onPress={() => isValidated && setTransferVisible(true)}
+                      style={[styles.actionBtn, { backgroundColor: Colors.primary }]}
+                      onPress={() => setTransferVisible(true)}
                     >
                       <FontAwesome6 name="paper-plane" size={16} color={Colors.white} />
                       <Text style={styles.actionLabel}>{ t('home.transfer') }</Text>

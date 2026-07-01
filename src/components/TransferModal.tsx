@@ -1245,7 +1245,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       ]}
                       numberOfLines={1}
                     >
-                      {op.flag ? `${op.flag} ` : ''}{opName(op)}
+                      {opName(op)}
                     </Text>
                     <GatewayBadge op={op} visible={isAdmin} size={14} />
                   </TouchableOpacity>
@@ -1267,7 +1267,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       style={[styles.operatorRowName, operator === op.id && styles.operatorRowNameSelected]}
                       numberOfLines={1}
                     >
-                      {op.flag ? `${op.flag} ` : ''}{opName(op)}
+                      {opName(op)}
                     </Text>
                     <GatewayBadge op={op} visible={isAdmin} size={16} />
                     {operator === op.id && (
@@ -1960,7 +1960,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                   >
                     <OperatorLogo op={op as any} size={26} />
                     <Text style={[styles.saveOpRowText, sel && styles.saveOpRowTextSelected]} numberOfLines={1}>
-                      {op.flag ? `${op.flag} ` : ''}{op.name}
+                      {op.name}
                     </Text>
                     {sel && <FontAwesome6 name="circle-check" size={16} color={Colors.primary} />}
                   </TouchableOpacity>

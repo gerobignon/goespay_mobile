@@ -14,16 +14,33 @@ export async function downloadInvoice(type: InvoiceType, id: number | string): P
   const path = `transaction/${type}/${id}/invoice`;
 
   if (Platform.OS === 'web') {
-    const response = await api.get(path, { responseType: 'blob' });
-    const blob = response.data as Blob;
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `goespay_${type}_${id}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    // Safari bloque SILENCIEUSEMENT un téléchargement / window.open déclenché APRÈS
+    // un `await` (hors du geste utilisateur) → « rien ne se passe » au clic. On
+    // pré-ouvre l'onglet DANS le geste (même pattern que la fenêtre carte du dépôt),
+    // puis on y pointe le PDF une fois le blob récupéré.
+    const win = typeof window !== 'undefined' ? window.open('', '_blank') : null;
+    try {
+      const response = await api.get(path, { responseType: 'blob' });
+      const blob = new Blob([response.data as BlobPart], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      if (win) {
+        // Onglet pré-ouvert (Safari-safe) → affiche le PDF.
+        win.location.href = url;
+      } else {
+        // Pas de fenêtre (bloqueur de popup) → repli téléchargement classique.
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `goespay_${type}_${id}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+      // Laisse le temps au PDF de charger dans l'onglet avant de révoquer l'URL.
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e) {
+      if (win) win.close();
+      throw e;
+    }
     return;
   }
 

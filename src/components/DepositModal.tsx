@@ -323,11 +323,20 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // op.countries[] inclut userCountry (zones Fincra XOF/XAF).
   const hasMomoForCountry = operatorsBase.some((op) => !isCardOp(op) && operatorServesCountry(op as any, userCountry || ''));
   const showCard = isAdmin || !isKycValidated || !hasMomoForCountry;
-  const filteredOperators = (isAdmin || !isKycValidated)
+  // Trois audiences distinctes :
+  // - admin : TOUT, y compris corridors désactivés / moyens VIP (bandeau rouge) ;
+  // - non validé (exploration) : moyens ACTIFS POUR LE PUBLIC (isCodeEnabled + audienceOk),
+  //   mais TOUS pays confondus (pas de filtre sur le pays user) — l'utilisateur découvre
+  //   l'offre avant KYC ; la transaction reste bloquée à la soumission ;
+  // - validé : moyens actifs de SON pays uniquement (dépôt depuis son compte MM local).
+  const filteredOperators = isAdmin
     ? [...operatorsBase]
     : [
         ...operatorsBase.filter(
-          (op) => operatorServesCountry(op as any, userCountry || '') && (isAdmin || isCodeEnabled(op.id, 'payin')) && audienceOk(op.id)
+          (op) =>
+            (isKycValidated ? operatorServesCountry(op as any, userCountry || '') : true) &&
+            isCodeEnabled(op.id, 'payin') &&
+            audienceOk(op.id)
         ),
         // Fallback carte : SEULEMENT l'INTL 'card'. Les per-country card-<cc>
         // passent par le filtre normal (operatorServesCountry + isCodeEnabled).
@@ -341,8 +350,10 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
     ? filteredOperators
     : (corridorsLoaded ? [] : operatorsBase);
 
-  // Étape pays uniquement en mode admin (les utilisateurs réguliers ont déjà une liste filtrée par pays).
-  const useCountryStep = isAdmin;
+  // Étape « choix du pays » : admin (tous pays, tests) ET utilisateur non validé
+  // (exploration avant KYC — il découvre l'offre de tous les pays). L'utilisateur
+  // validé a déjà une liste filtrée sur son pays, pas d'étape pays.
+  const useCountryStep = isAdmin || !isKycValidated;
 
   // « Autres » regroupe les rails NON rattachés à un pays unique :
   // - Carte bancaire générique (KKiapay)
@@ -1049,7 +1060,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                       ]}
                       numberOfLines={1}
                     >
-                      {op.flag ? `${op.flag} ` : ''}{othersOpen ? operatorOthersLabel(op) : opName(op)}
+                      {othersOpen ? operatorOthersLabel(op) : opName(op)}
                     </Text>
                     <GatewayBadge op={op} visible={isAdmin} size={14} />
                   </TouchableOpacity>
@@ -1112,7 +1123,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                       ]}
                       numberOfLines={1}
                     >
-                      {op.flag ? `${op.flag} ` : ''}{othersOpen ? operatorOthersLabel(op) : opName(op)}
+                      {othersOpen ? operatorOthersLabel(op) : opName(op)}
                     </Text>
                     <GatewayBadge op={op} visible={isAdmin} size={16} />
                     {operator === op.id && (
@@ -1368,7 +1379,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                   >
                     <OperatorLogo op={op as any} size={26} />
                     <Text style={[styles.saveOpRowText, sel && styles.saveOpRowTextSelected]} numberOfLines={1}>
-                      {op.flag ? `${op.flag} ` : ''}{op.name}
+                      {op.name}
                     </Text>
                     {sel && <FontAwesome6 name="circle-check" size={16} color={Colors.primary} />}
                   </TouchableOpacity>
