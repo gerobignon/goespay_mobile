@@ -194,23 +194,11 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     (op) => canPayout(op) && (!corridorsLoaded ? (afribapayEnabled || isAdmin || !(op as any).afribapay) : true)
   );
 
-  // « Autres » : rails Fincra de zone (XOF/XAF) + internationaux (USD/EUR/GBP) en
-  // payout. Conforme au dépôt : les Fincra de zone restent AUSSI visibles par pays.
+  // Rails Fincra de zone (XOF/XAF) + internationaux (EUR/USD/GBP) : exposés PAR PAYS
+  // de destination (chacun sous son/ses pays) — plus de groupe « International » séparé.
   const ZONE_CURRENCIES = ['XOF', 'XAF', 'EUR', 'USD', 'GBP'];
-  // Opérateurs MM Fincra par pays (fincraOperator présent) → affichés par pays
-  // comme le softpay, pas sous « Autres ».
+  // Opérateurs MM Fincra par pays (fincraOperator présent) → affichés par pays comme le softpay.
   const isZoneFincra = (op: any) => !!op.fincra && ZONE_CURRENCIES.includes(op.currency) && !op.fincraOperator;
-  // Groupe « International » : piloté par /config.intl_rails (calculé serveur —
-  // dim 3 par pays listé, ou dim 2 pour les pays non listés).
-  const otherOps = displayOperators.filter(
-    (op) => isZoneFincra(op) && (isAdmin || (intlRails?.payout ?? []).includes(op.id))
-  );
-  const operatorOthersLabel = (op: any): string => {
-    if (!op?.fincra) return op?.name ?? '';
-    const cur = op.currency as string;
-    const zoneTag = cur === 'XOF' ? 'UEMOA · XOF' : cur === 'XAF' ? 'CEMAC · XAF' : cur;
-    return (op.name as string).includes(cur) ? op.name : `${op.name} (${zoneTag})`;
-  };
   // Nom affiché : suffixe la devise (USD, GBP…) sur les rails Fincra virement/carte
   // (libellés génériques) pour les distinguer dans la liste.
   const opName = (op: any): string => {
@@ -220,38 +208,32 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       : (op?.name ?? '');
   };
 
-  const operatorsForStep = othersOpen
-    ? otherOps
-    : selectedCountry
-      ? displayOperators.filter(
-          (op) =>
-            operatorServesCountry(op as any, selectedCountry) &&
-            (isAdmin || isCodeEnabled(op.id, 'payout')) &&
-            audienceOk(op.id)
-        )
-      : [];
-  // Entrée « International » au niveau du picker pays (rails internationaux).
-  // Toujours visible : un transfert peut partir vers n'importe quelle devise
-  // (EUR/USD/GBP/etc.) quel que soit le pays de l'envoyeur.
-  const showOthersEntry = otherOps.length > 0 && !selectedCountry;
+  const operatorsForStep = selectedCountry
+    ? displayOperators.filter(
+        (op) =>
+          operatorServesCountry(op as any, selectedCountry) &&
+          (isAdmin || isCodeEnabled(op.id, 'payout')) &&
+          audienceOk(op.id)
+      )
+    : [];
 
-  // Rails Fincra de zone (EUR/USD/GBP) : regroupés sous « Autres » pour les
-  // envoyeurs hors-zone. Mais pour un utilisateur DANS la zone (ex. un français,
-  // zone EU), ce rail est domestique et /config.intl_rails l'exclut → il n'apparaît
-  // nulle part. On l'expose donc sous la tuile de SON pays (France), sans polluer
-  // le picker avec les 20 pays de la zone. Une fois le pays choisi, operatorsForStep
-  // (basé sur displayOperators) l'affiche déjà via operatorServesCountry.
-  const pickerOperators = displayOperators.flatMap((op) => {
-    if (!isZoneFincra(op)) return [op];
-    const uc = (user?.country ?? '').toUpperCase();
+  // Rails de zone/internationaux : exposés sous CHACUN de leurs pays membres (EUR →
+  // tous les pays SEPA, USD → US, GBP → GB, zones XOF/XAF → leurs pays). Le picker
+  // (CountryPickerStep) crée une tuile par pays présent dans op.countries.
+  const pickerOperators = displayOperators.map((op) => {
+    if (!isZoneFincra(op)) return op;
     const members = (((op as any).countries as string[] | undefined) ?? [op.country])
       .map((c) => String(c).toUpperCase());
-    return uc && members.includes(uc) ? [{ ...op, countries: [uc] }] : [];
+    return { ...op, countries: members };
   });
 
-  // Pays sélectionné mais aucun corridor payout actif → badge "indisponible".
+  // Pays sélectionné mais AUCUN moyen payout servi → badge « indisponible ». Basé sur
+  // operatorsForStep (robuste) et non sur payout_countries seul : un pays de zone
+  // (DE/IT…) servi par un rail de zone n'affiche pas de bannière parasite même si
+  // payout_countries ne le liste pas encore individuellement.
   const showCorridorBanner =
-    !isAdmin && corridorsLoaded && !!selectedCountry && !isPayoutAvailable(selectedCountry);
+    !isAdmin && corridorsLoaded && !!selectedCountry
+    && !isPayoutAvailable(selectedCountry) && operatorsForStep.length === 0;
 
   const selectedOp = OPERATORS_SRC.find((op) => op.id === operator);
   const isFincraOp = !!(selectedOp as any)?.fincra;
@@ -1186,50 +1168,15 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 <Text style={styles.kycBannerText}>{t('transferModal.kycRequired')}</Text>
               </View>
             )}
-            {!selectedCountry && !cryptoOpen && !othersOpen ? (
+            {!selectedCountry && !cryptoOpen ? (
               <CountryPickerStep
                 operators={pickerOperators}
                 onSelectCountry={(code) => { setSelectedCountry(code); setOperator(''); }}
-                showCardTile={showOthersEntry}
-                cardLabel={t('depositModal.others')}
-                onSelectCard={() => { setOthersOpen(true); setOperator(''); }}
                 showCryptoTile={cryptoEnabled}
                 cryptoLabel={t('depositModal.cryptoGroup')}
                 onSelectCrypto={() => { setCryptoOpen(true); setOperator(''); }}
                 label={t('transferModal.chooseCountry')}
               />
-            ) : othersOpen ? (
-              <>
-                <Text style={styles.operatorLabel}>{t('depositModal.others')}</Text>
-                <TouchableOpacity
-                  onPress={() => { setOthersOpen(false); setOperator(''); }}
-                  style={styles.changeCountryBtn}
-                >
-                  <FontAwesome6 name="arrow-left" size={12} color={Colors.secondary} />
-                  <Text style={styles.changeCountryText}>{t('transferModal.changeCountry')}</Text>
-                </TouchableOpacity>
-                <View style={styles.operatorListVertical}>
-                  {(operator ? operatorsForStep.filter((op) => op.id === operator) : operatorsForStep).map((op) => (
-                    <TouchableOpacity
-                      key={op.id}
-                      style={[styles.operatorRow, operator === op.id && styles.operatorRowSelected]}
-                      onPress={() => setOperator(operator === op.id ? '' : op.id)}
-                    >
-                      <Image source={op.logo} style={styles.operatorRowLogo} resizeMode="contain" />
-                      <Text
-                        style={[styles.operatorRowName, operator === op.id && styles.operatorRowNameSelected]}
-                        numberOfLines={1}
-                      >
-                        {op.flag ? `${op.flag} ` : ''}{operatorOthersLabel(op)}
-                      </Text>
-                      <GatewayBadge op={op} visible={isAdmin} size={16} />
-                      {operator === op.id && (
-                        <FontAwesome6 name="xmark" size={14} color={Colors.secondary} />
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </>
             ) : cryptoOpen ? (
               <>
                 <Text style={styles.operatorLabel}>{t('depositModal.cryptoGroup')}</Text>
