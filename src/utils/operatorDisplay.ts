@@ -30,6 +30,21 @@ const FINCRA_RAIL_LOGO: Record<string, any> = {
   card: require('../../assets/operators/pay_card.jpg'),
 };
 
+// Libellé propre par opérateur Mobile Money (repli quand le corridor précis
+// fincra-mm-<pays>-<op> / klasha-mm-<pays>-<op> n'est pas résolu par le catalogue).
+const MM_OP_LABEL: Record<string, string> = {
+  MTN: 'MTN MoMo', ORANGE: 'Orange Money', MOOV: 'Moov Money', WAVE: 'Wave',
+  AIRTEL: 'Airtel Money', MPESA: 'M-Pesa', SAFARICOM: 'M-Pesa', TIGO: 'Tigo',
+  VODAFONE: 'Vodafone Cash', FREE: 'Free Money', EXPRESSO: 'Expresso', TMONEY: 'T-Money',
+};
+
+// Code pays ISO-2 → drapeau emoji (indicateurs régionaux). '' pour un code invalide.
+function isoFlag(cc: string): string {
+  const c = (cc || '').toUpperCase();
+  if (!/^[A-Z]{2}$/.test(c)) return '';
+  return String.fromCodePoint(...[...c].map((ch) => 0x1f1e6 + ch.charCodeAt(0) - 65));
+}
+
 export interface OperatorDisplay {
   name: string;
   flag: string;
@@ -78,6 +93,21 @@ export function resolveOperatorDisplay(
     const name = (isCardOrBank && cur && !baseLabel.includes(cur)) ? `${baseLabel} (${cur})` : baseLabel;
     const flag = cur ? (FINCRA_CUR_FLAG[cur] || '') : '';
     return { name, flag, op: { klasha: true, rail, logo: FINCRA_RAIL_LOGO[rail] ?? FINCRA_RAIL_LOGO['bank_transfer'] } };
+  }
+
+  // Corridor MM précis fincra-mm-<pays>-<op> / klasha-mm-<pays>-<op> non résolu par
+  // le catalogue (offline, corridor retiré) : on dérive l'opérateur + le drapeau du
+  // pays plutôt que d'afficher le code brut.
+  const mm = mode.match(/^(fincra|klasha)-mm-([a-z]{2})-([a-z0-9_]+)$/i);
+  if (mm) {
+    const isKlasha = mm[1].toLowerCase() === 'klasha';
+    const opCode = mm[3].toUpperCase();
+    const name = MM_OP_LABEL[opCode] || (opCode.charAt(0) + opCode.slice(1).toLowerCase());
+    return {
+      name,
+      flag: isoFlag(mm[2]),
+      op: { [isKlasha ? 'klasha' : 'fincra']: true, rail: 'mobile_money', logo: FINCRA_RAIL_LOGO['mobile_money'] },
+    };
   }
 
   return { name: mode, flag: '', op: null };

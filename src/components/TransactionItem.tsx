@@ -10,6 +10,7 @@ const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 import { TRANSACTION_STATUS, getTransactionStatus, OPERATORS } from '../constants/config';
 import { useCatalogStore } from '../stores/catalogStore';
 import { formatAmount, formatDate, useFormatXof } from '../utils/format';
+import { resolveOperatorDisplay } from '../utils/operatorDisplay';
 import { getStatusIcon, normalizeStatut } from '../utils/transactionStatus';
 import type { Transaction } from '../types';
 
@@ -102,7 +103,11 @@ export function getTransactionLogo(transaction: Transaction): ImageSourcePropTyp
     const catOp = useCatalogStore.getState().operators.find((o) => o.id.toLowerCase() === mode);
     if (catOp?.logo) return catOp.logo as ImageSourcePropType;
     // Fallback to payment mode logos (lookup normalisé en minuscule)
-    return PAYMENT_MODE_LOGOS[mode] ?? null;
+    if (PAYMENT_MODE_LOGOS[mode]) return PAYMENT_MODE_LOGOS[mode];
+    // Corridor précis non catalogué (offline, ex. fincra-mm-cm-orange) : logo du rail
+    // via le résolveur commun.
+    const disp = resolveOperatorDisplay(transaction.mode);
+    return (disp?.op?.logo as ImageSourcePropType) ?? null;
   }
   return null;
 }
@@ -144,6 +149,10 @@ export function getModeName(transaction: Transaction, t?: (key: string) => strin
   if (op) return op.name;
   const catOp = useCatalogStore.getState().operators.find((o) => o.id.toLowerCase() === key);
   if (catOp) return catOp.name;
+  // Corridor précis non catalogué (offline, ex. fincra-mm-cm-orange) : opérateur via
+  // le résolveur commun plutôt que le code brut.
+  const disp = resolveOperatorDisplay(transaction.mode);
+  if (disp && disp.name && disp.name !== transaction.mode) return disp.name;
   return transaction.mode;
 }
 
