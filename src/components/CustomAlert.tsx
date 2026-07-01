@@ -7,11 +7,16 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   Animated,
+  Linking,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useAlertStore, AlertType } from '../stores/alertStore';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
+
+// Discussion privée WhatsApp du support (chat 1:1, SANS message pré-saisi → pas de ?text=).
+const WHATSAPP_SUPPORT_URL = 'https://wa.me/237659939340';
 
 const ICON_MAP: Record<AlertType, { name: string; color: string; bg: string }> = {
   error: { name: 'circle-xmark', color: Colors.error, bg: Colors.error + '20' },
@@ -22,6 +27,7 @@ const ICON_MAP: Record<AlertType, { name: string; color: string; bg: string }> =
 
 export function CustomAlert() {
   const styles = useThemedStyles(createStyles);
+  const { t } = useTranslation();
   const visible = useAlertStore((s) => s.visible);
   const title = useAlertStore((s) => s.title);
   const message = useAlertStore((s) => s.message);
@@ -118,6 +124,18 @@ export function CustomAlert() {
                   );
                 })}
               </View>
+
+              {/* Footer support — uniquement sur les alertes d'ERREUR */}
+              {type === 'error' && (
+                <TouchableOpacity
+                  style={styles.supportRow}
+                  onPress={() => { Linking.openURL(WHATSAPP_SUPPORT_URL).catch(() => {}); }}
+                  activeOpacity={0.7}
+                >
+                  <FontAwesome6 name="whatsapp" size={15} color="#25D366" />
+                  <Text style={styles.supportText}>{t('common.contactSupport')}</Text>
+                </TouchableOpacity>
+              )}
             </Animated.View>
           </TouchableWithoutFeedback>
         </View>
@@ -193,5 +211,22 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   cancelButtonText: {
     color: Colors.textSecondary,
+  },
+  supportRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    width: '100%',
+    marginTop: Spacing.md,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  supportText: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+    color: Colors.textSecondary,
+    textAlign: 'center',
   },
 });

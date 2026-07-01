@@ -48,7 +48,8 @@
     "required": "*",
     "tapToCopy": "Appuyer pour copier",
     "addressCopied": "✓  Adresse copiée !",
-    "completeLater": "Compléter plus tard"
+    "completeLater": "Compléter plus tard",
+    "contactSupport": "Contactez le support pour assistance"
   },
   "auth": {
     "login": {
