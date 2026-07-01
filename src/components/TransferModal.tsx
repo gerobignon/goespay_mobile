@@ -235,6 +235,20 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // (EUR/USD/GBP/etc.) quel que soit le pays de l'envoyeur.
   const showOthersEntry = otherOps.length > 0 && !selectedCountry;
 
+  // Rails Fincra de zone (EUR/USD/GBP) : regroupés sous « Autres » pour les
+  // envoyeurs hors-zone. Mais pour un utilisateur DANS la zone (ex. un français,
+  // zone EU), ce rail est domestique et /config.intl_rails l'exclut → il n'apparaît
+  // nulle part. On l'expose donc sous la tuile de SON pays (France), sans polluer
+  // le picker avec les 20 pays de la zone. Une fois le pays choisi, operatorsForStep
+  // (basé sur displayOperators) l'affiche déjà via operatorServesCountry.
+  const pickerOperators = displayOperators.flatMap((op) => {
+    if (!isZoneFincra(op)) return [op];
+    const uc = (user?.country ?? '').toUpperCase();
+    const members = (((op as any).countries as string[] | undefined) ?? [op.country])
+      .map((c) => String(c).toUpperCase());
+    return uc && members.includes(uc) ? [{ ...op, countries: [uc] }] : [];
+  });
+
   // Pays sélectionné mais aucun corridor payout actif → badge "indisponible".
   const showCorridorBanner =
     !isAdmin && corridorsLoaded && !!selectedCountry && !isPayoutAvailable(selectedCountry);
@@ -1174,7 +1188,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             )}
             {!selectedCountry && !cryptoOpen && !othersOpen ? (
               <CountryPickerStep
-                operators={displayOperators.filter((op) => !isZoneFincra(op))}
+                operators={pickerOperators}
                 onSelectCountry={(code) => { setSelectedCountry(code); setOperator(''); }}
                 showCardTile={showOthersEntry}
                 cardLabel={t('depositModal.others')}
