@@ -127,7 +127,7 @@ const MODE_LABELS: Record<string, string> = {
   'orange-money-mali': 'Orange Money', 'moov-mali': 'Moov Money',
   'mtn-cameroun': 'MTN Momo',
   'card': 'Carte Bancaire', 'visa-mastercard': 'Visa/Mastercard', 'visa-mastercard-2': 'Visa/Mastercard',
-  'fincra-bank_transfer': 'Virement bancaire', 'fincra-mobile_money': 'Mobile Money', 'fincra-checkout': 'Carte bancaire',
+  'fincra-bank_transfer': 'Virement bancaire', 'fincra-mobile_money': 'Mobile Money', 'fincra-checkout': 'Open Banking',
   'klasha-mobile_money': 'Mobile Money', 'klasha-bank_transfer': 'Virement bancaire', 'klasha-card': 'Carte bancaire', 'klasha-wire': 'Virement international',
   'referal': 'Parrainage', 'commission': 'Commission', 'reward': 'Récompense', 'manual': 'Manuel',
 };

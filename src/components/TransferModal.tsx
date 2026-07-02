@@ -50,6 +50,20 @@ import { OperatorLogo } from './OperatorLogo';
 import { pickCryptoSource } from '../utils/cryptoLogos';
 import { noConnectionMessage } from '../utils/apiError';
 
+// Zone SEPA (ISO-2) — pays destinataires proposés pour un virement SEPA (EUR).
+const SEPA_COUNTRIES = [
+  'AT', 'BE', 'CY', 'DE', 'EE', 'ES', 'FI', 'FR', 'GR', 'IE', 'IT', 'LT', 'LU',
+  'LV', 'MT', 'NL', 'PT', 'SI', 'SK', 'BG', 'CH', 'CZ', 'DK', 'GB', 'HR', 'HU',
+  'IS', 'LI', 'NO', 'PL', 'RO', 'SE', 'MC', 'SM', 'AD',
+];
+
+// Drapeau emoji depuis un code pays ISO-2 (indicateurs régionaux). '' si invalide.
+const isoToFlag = (cc: string): string => {
+  const c = (cc || '').toUpperCase();
+  if (!/^[A-Z]{2}$/.test(c)) return '';
+  return String.fromCodePoint(...[...c].map((ch) => 0x1f1e6 + ch.charCodeAt(0) - 65));
+};
+
 interface TransferModalProps {
   visible: boolean;
   onClose: () => void;
@@ -147,6 +161,9 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const [banksLoading, setBanksLoading] = useState(false);
   const [bankPickerVisible, setBankPickerVisible] = useState(false);
   const [bankSearchQuery, setBankSearchQuery] = useState('');
+  // Sélecteur de pays destinataire (SWIFT/SEPA) — pilote la liste de banques.
+  const [countryPickerVisible, setCountryPickerVisible] = useState(false);
+  const [countrySearchQuery, setCountrySearchQuery] = useState('');
   const [resolving, setResolving] = useState(false);
   const [resolvedHolder, setResolvedHolder] = useState<string | null>(null);
   const [resolveError, setResolveError] = useState<string | null>(null);
@@ -398,6 +415,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     setIban('');
     setBic('');
     setSwiftCode('');
+    setFincraBanks([]);
     // Klasha bank — champs requis par devise (GHS/KES/ZAR).
     setBankBranchCode('');
     setBankServiceCode('');
@@ -479,6 +497,22 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     return () => { cancelled = true; };
   }, [isKlashaOp, fincraRail]);
 
+  // SWIFT / SEPA (Fincra) : charge la liste des banques du PAYS destinataire choisi
+  // dans le picker → auto-remplit le BIC. Repli sur la saisie manuelle si la liste
+  // revient vide (Fincra ne liste pas toujours les banques d'un pays donné).
+  useEffect(() => {
+    if (!isFincraOp || (fincraRail !== 'SWIFT' && fincraRail !== 'SEPA')) return;
+    const cc = bankCountry.trim().toUpperCase();
+    if (!/^[A-Z]{2}$/.test(cc)) { setFincraBanks([]); return; }
+    let cancelled = false;
+    setBanksLoading(true);
+    walletService.getFincraBanks(fincraCurrency, cc)
+      .then((res) => { if (!cancelled) setFincraBanks(res.banks || []); })
+      .catch(() => { if (!cancelled) setFincraBanks([]); })
+      .finally(() => { if (!cancelled) setBanksLoading(false); });
+    return () => { cancelled = true; };
+  }, [isFincraOp, fincraRail, fincraCurrency, bankCountry]);
+
   // Résolution automatique du compte bénéficiaire (debounce 600ms).
   // Sandbox Fincra renvoie data:null → on signale "non vérifié" sans bloquer.
   // Fincra ne supporte la résolution que pour NGN (NUBAN) et GHS (bank_account + bankSwiftCode).
@@ -533,6 +567,18 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       b.name.toLowerCase().includes(q) || b.code.toLowerCase().includes(q)
     );
   }, [fincraBanks, bankSearchQuery]);
+
+  // Pays destinataires du sélecteur SWIFT/SEPA : SEPA = zone SEPA, SWIFT = tous.
+  const filteredCountries = useMemo(() => {
+    const base = fincraRail === 'SEPA'
+      ? ALL_COUNTRIES.filter((c) => SEPA_COUNTRIES.includes(c.code))
+      : ALL_COUNTRIES;
+    const q = countrySearchQuery.trim().toLowerCase();
+    if (!q) return base;
+    return base.filter((c) =>
+      c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q)
+    );
+  }, [fincraRail, countrySearchQuery]);
 
   const stopPolling = useCallback(() => {
     if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
@@ -1525,6 +1571,30 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 )}
                 {fincraRail === 'SWIFT' && (
                   <>
+                    {/* Pays de la banque (destinataire) — pilote la liste de banques. */}
+                    <Text style={styles.fieldLabel}>Pays de la banque *</Text>
+                    <TouchableOpacity style={styles.bankPickerBtn} onPress={() => setCountryPickerVisible(true)}>
+                      <FontAwesome6 name="globe" size={14} color={Colors.textMuted} iconStyle="solid" />
+                      <Text style={[styles.bankPickerText, !bankCountry && styles.bankPickerPlaceholder]} numberOfLines={1}>
+                        {bankCountry
+                          ? `${isoToFlag(bankCountry)} ${ALL_COUNTRIES.find((c) => c.code === bankCountry)?.name || bankCountry}`
+                          : 'Sélectionner le pays de la banque'}
+                      </Text>
+                      <FontAwesome6 name="chevron-down" size={12} color={Colors.textMuted} />
+                    </TouchableOpacity>
+                    {/* Banque : picker si Fincra liste des banques pour ce pays. */}
+                    {fincraBanks.length > 0 && (
+                      <>
+                        <Text style={styles.fieldLabel}>Banque</Text>
+                        <TouchableOpacity style={styles.bankPickerBtn} onPress={() => setBankPickerVisible(true)}>
+                          <FontAwesome6 name="building-columns" size={14} color={Colors.textMuted} iconStyle="solid" />
+                          <Text style={[styles.bankPickerText, !bankName && styles.bankPickerPlaceholder]} numberOfLines={1}>
+                            {banksLoading ? 'Chargement des banques…' : (bankName || 'Sélectionner une banque')}
+                          </Text>
+                          <FontAwesome6 name="chevron-down" size={12} color={Colors.textMuted} />
+                        </TouchableOpacity>
+                      </>
+                    )}
                     <Input
                       label="IBAN / Numéro de compte"
                       placeholder="ex: DE89 3704 0044 0532 0130 00"
@@ -1533,29 +1603,49 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       autoCapitalize="characters"
                     />
                     <Input
-                      label="Code SWIFT / BIC"
+                      label="Code SWIFT / BIC *"
                       placeholder="ex: DEUTDEFF"
                       value={swiftCode}
                       onChangeText={setSwiftCode}
                       autoCapitalize="characters"
                     />
-                    <Input
-                      label="Banque"
-                      placeholder="ex: Deutsche Bank"
-                      value={bankName}
-                      onChangeText={setBankName}
-                    />
-                    <Input
-                      label="Pays de la banque (code ISO) *"
-                      placeholder="ex: CN (Chine), US, GB, DE"
-                      value={bankCountry}
-                      onChangeText={(v) => setBankCountry(v.toUpperCase().slice(0, 2))}
-                      autoCapitalize="characters"
-                    />
+                    {/* Repli : saisie manuelle du nom de banque si aucune liste. */}
+                    {fincraBanks.length === 0 && (
+                      <Input
+                        label="Banque"
+                        placeholder="ex: Deutsche Bank"
+                        value={bankName}
+                        onChangeText={setBankName}
+                      />
+                    )}
                   </>
                 )}
                 {fincraRail === 'SEPA' && (
                   <>
+                    {/* Pays de la banque (destinataire) — pilote la liste de banques SEPA. */}
+                    <Text style={styles.fieldLabel}>Pays de la banque</Text>
+                    <TouchableOpacity style={styles.bankPickerBtn} onPress={() => setCountryPickerVisible(true)}>
+                      <FontAwesome6 name="globe" size={14} color={Colors.textMuted} iconStyle="solid" />
+                      <Text style={[styles.bankPickerText, !bankCountry && styles.bankPickerPlaceholder]} numberOfLines={1}>
+                        {bankCountry
+                          ? `${isoToFlag(bankCountry)} ${ALL_COUNTRIES.find((c) => c.code === bankCountry)?.name || bankCountry}`
+                          : 'Sélectionner le pays de la banque'}
+                      </Text>
+                      <FontAwesome6 name="chevron-down" size={12} color={Colors.textMuted} />
+                    </TouchableOpacity>
+                    {/* Banque : picker si Fincra liste des banques pour ce pays. */}
+                    {fincraBanks.length > 0 && (
+                      <>
+                        <Text style={styles.fieldLabel}>Banque</Text>
+                        <TouchableOpacity style={styles.bankPickerBtn} onPress={() => setBankPickerVisible(true)}>
+                          <FontAwesome6 name="building-columns" size={14} color={Colors.textMuted} iconStyle="solid" />
+                          <Text style={[styles.bankPickerText, !bankName && styles.bankPickerPlaceholder]} numberOfLines={1}>
+                            {banksLoading ? 'Chargement des banques…' : (bankName || 'Sélectionner une banque')}
+                          </Text>
+                          <FontAwesome6 name="chevron-down" size={12} color={Colors.textMuted} />
+                        </TouchableOpacity>
+                      </>
+                    )}
                     <Input
                       label="IBAN"
                       placeholder="ex: FR14 2004 1010 0505 0001 3M02 606"
@@ -1570,12 +1660,15 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       onChangeText={setBic}
                       autoCapitalize="characters"
                     />
-                    <Input
-                      label="Banque (optionnel)"
-                      placeholder="ex: BNP Paribas"
-                      value={bankName}
-                      onChangeText={setBankName}
-                    />
+                    {/* Repli : saisie manuelle du nom de banque si aucune liste. */}
+                    {fincraBanks.length === 0 && (
+                      <Input
+                        label="Banque (optionnel)"
+                        placeholder="ex: BNP Paribas"
+                        value={bankName}
+                        onChangeText={setBankName}
+                      />
+                    )}
                   </>
                 )}
                 {fincraRail === 'wire' && (
@@ -2044,9 +2137,23 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                   <TouchableOpacity
                     style={[styles.bankRow, bankCode === item.code && styles.bankRowSelected]}
                     onPress={() => {
-                      setBankCode(item.code);
                       setBankName(item.name);
-                      setBankSwiftCode(item.swiftCode ?? '');
+                      // SWIFT/SEPA : Fincra veut le BIC dans beneficiary.bankCode.
+                      // On pose le BIC dans swiftCode/bic (que le payload mappe vers
+                      // bankCode) et on LAISSE bankCode vide — le `code` Fincra local
+                      // n'est PAS un BIC. bank_transfer : code banque + swift.
+                      if (fincraRail === 'SWIFT') {
+                        setSwiftCode(item.swiftCode ?? '');
+                        setBankCode('');
+                        setBankSwiftCode('');
+                      } else if (fincraRail === 'SEPA') {
+                        setBic(item.swiftCode ?? '');
+                        setBankCode('');
+                        setBankSwiftCode('');
+                      } else {
+                        setBankCode(item.code);
+                        setBankSwiftCode(item.swiftCode ?? '');
+                      }
                       setBankPickerVisible(false);
                       setBankSearchQuery('');
                     }}
@@ -2065,6 +2172,64 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 }
               />
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Picker pays de la banque (SWIFT/SEPA) — modal de recherche */}
+      <Modal visible={countryPickerVisible} transparent animationType="fade" onRequestClose={() => setCountryPickerVisible(false)}>
+        <View style={styles.confirmOverlay}>
+          <View style={[styles.confirmSheet, styles.bankPickerSheet]}>
+            <View style={styles.bankPickerHeader}>
+              <Text style={styles.confirmTitle}>Pays de la banque</Text>
+              <TouchableOpacity onPress={() => setCountryPickerVisible(false)}>
+                <FontAwesome6 name="xmark" size={20} color={Colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.bankSearchRow}>
+              <FontAwesome6 name="magnifying-glass" size={14} color={Colors.textMuted} />
+              <TextInput
+                style={styles.bankSearchInput}
+                placeholder="Rechercher (nom ou code)"
+                placeholderTextColor={Colors.textMuted}
+                value={countrySearchQuery}
+                onChangeText={setCountrySearchQuery}
+                autoFocus
+              />
+            </View>
+            <FlatList
+              data={filteredCountries}
+              keyExtractor={(item) => item.code}
+              keyboardShouldPersistTaps="handled"
+              style={styles.bankList}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.bankRow, bankCountry === item.code && styles.bankRowSelected]}
+                  onPress={() => {
+                    // Nouveau pays → banque à re-sélectionner (BIC remis à zéro).
+                    setBankCountry(item.code);
+                    setBankName('');
+                    setBankCode('');
+                    setBankSwiftCode('');
+                    if (fincraRail === 'SWIFT') setSwiftCode('');
+                    if (fincraRail === 'SEPA') setBic('');
+                    setCountryPickerVisible(false);
+                    setCountrySearchQuery('');
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.bankRowName} numberOfLines={1}>{isoToFlag(item.code)} {item.name}</Text>
+                    <Text style={styles.bankRowCode}>{item.code}</Text>
+                  </View>
+                  {bankCountry === item.code && (
+                    <FontAwesome6 name="check" size={14} color={Colors.secondary} />
+                  )}
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <Text style={styles.bankListEmpty}>Aucun pays trouvé.</Text>
+              }
+            />
           </View>
         </View>
       </Modal>

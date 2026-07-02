@@ -15,7 +15,7 @@ const FINCRA_RAIL_LABEL: Record<string, string> = {
   bank: 'Virement bancaire',
   mobile_money: 'Mobile Money',
   mm: 'Mobile Money',
-  checkout: 'Carte bancaire',
+  checkout: 'Open Banking',
   card: 'Carte bancaire',
 };
 
