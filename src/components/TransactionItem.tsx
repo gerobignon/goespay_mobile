@@ -69,6 +69,7 @@ const PAYMENT_MODE_LOGOS: Record<string, ImageSourcePropType> = {
   'fincra-bank_transfer': require('../../assets/operators/pay_bank.png'),
   'fincra-mobile_money': require('../../assets/operators/pay_momo.png'),
   'fincra-checkout': require('../../assets/operators/pay_card.jpg'),
+  'klasha-checkout': require('../../assets/operators/pay_card.jpg'),
   // Types spéciaux
   'referal': require('../../assets/picto.png'),
   'commission': require('../../assets/picto.png'),
@@ -128,7 +129,7 @@ const MODE_LABELS: Record<string, string> = {
   'mtn-cameroun': 'MTN Momo',
   'card': 'Carte Bancaire', 'visa-mastercard': 'Visa/Mastercard', 'visa-mastercard-2': 'Visa/Mastercard',
   'fincra-bank_transfer': 'Virement bancaire', 'fincra-mobile_money': 'Mobile Money', 'fincra-checkout': 'Open Banking',
-  'klasha-mobile_money': 'Mobile Money', 'klasha-bank_transfer': 'Virement bancaire', 'klasha-card': 'Carte bancaire', 'klasha-wire': 'Virement international',
+  'klasha-mobile_money': 'Mobile Money', 'klasha-bank_transfer': 'Virement bancaire', 'klasha-card': 'Carte bancaire', 'klasha-checkout': 'Open Banking', 'klasha-wire': 'Virement international',
   'referal': 'Parrainage', 'commission': 'Commission', 'reward': 'Récompense', 'manual': 'Manuel',
 };
 

@@ -110,10 +110,15 @@ function fincraRailFor(code: string, currency?: string): string | undefined {
   return rail;
 }
 
-// Rail Klasha déduit du code corridor : klasha-mm-<pays>-<op> → mobile_money ;
+// Rail Klasha déduit du code corridor : klasha-checkout-<cc> → checkout (page hébergée
+// « Open Banking » = Payment Link) ; klasha-mm-<pays>-<op> → mobile_money ;
 // klasha-<cur>-bt → bank_transfer ; klasha-<cur>-card → checkout (réutilise l'UI
 // carte Fincra) ; klasha-wire-<cur> → wire (transfert international, formulaire dédié).
 function klashaRailFor(code: string): string | undefined {
+  // Checkout hébergé « Open Banking » : le code ne finit pas par -card/-bt, donc les
+  // tests plus bas le rateraient (rail=undefined → dépôt cassé). À placer EN PREMIER,
+  // symétrique à fincra-checkout- dans railFromCode.
+  if (code.startsWith('klasha-checkout-')) return 'checkout';
   if (code.startsWith('klasha-mm-')) return 'mobile_money';
   if (code.startsWith('klasha-wire-')) return 'wire';
   // Chine : 3 corridors (bt/card/wallet) → MÊME rail 'cny' (form C2C dédié), le

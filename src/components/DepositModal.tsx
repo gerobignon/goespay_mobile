@@ -22,7 +22,7 @@ import { walletService } from '../services/walletService';
 import api from '../services/api';
 import { useWalletStore } from '../stores/walletStore';
 import { useAuthStore } from '../stores/authStore';
-import { OPERATORS, FINCRA_ZONES, operatorServesCountry } from '../constants/config';
+import { OPERATORS, FINCRA_ZONES, operatorServesCountry, walletZone } from '../constants/config';
 import { useCatalogStore } from '../stores/catalogStore';
 import { ALL_COUNTRIES } from '../constants/countries';
 import { useCorridorStore } from '../stores/corridorStore';
@@ -501,7 +501,9 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // forDeposit=true : Klasha cote le dépôt en taux direct (≠ payout triangulé) →
   // le taux affiché ici correspond à celui réellement appliqué à la charge.
   // fincraRate.rate = valeur XOF d'1 unité de la devise étrangère.
-  const fincraRate = useFincraRate(fincraCurrency, isFincra, isKlasha, true);
+  // Zone de cotation = zone CFA du user (XAF pour la CEMAC, XOF sinon) : Fincra/
+  // Klasha cotent cur↔XAF ≠ cur↔XOF. Dépôt ET envoi passent par ce même hook.
+  const fincraRate = useFincraRate(fincraCurrency, isFincra, isKlasha, true, walletZone(userCountry));
   // Montant à encaisser côté provider (devise du rail) = montant saisi tel quel.
   const fincraChargeAmount = isFincra && numInputLive > 0 ? numInputLive : null;
   // Équivalent crédité en XOF (canonique) : sert à l'aperçu, aux contrôles

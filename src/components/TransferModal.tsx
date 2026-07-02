@@ -23,7 +23,7 @@ import { ResponsiveModal } from './ResponsiveModal';
 import { walletService, type FincraRail, type SavedBank } from '../services/walletService';
 import { useWalletStore } from '../stores/walletStore';
 import { useAuthStore } from '../stores/authStore';
-import { OPERATORS, FINCRA_ZONES, operatorServesCountry } from '../constants/config';
+import { OPERATORS, FINCRA_ZONES, operatorServesCountry, walletZone } from '../constants/config';
 import { useCatalogStore } from '../stores/catalogStore';
 import { useCorridorStore } from '../stores/corridorStore';
 import { CorridorUnavailableBanner } from './CorridorUnavailableBanner';
@@ -320,7 +320,9 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // ce XOF vers la devise Fincra pour le montant réellement envoyé au bénéficiaire
   // (NGN, GHS…), via les taux Fincra isolés. fincraRate.rate = valeur XOF d'1
   // unité étrangère → montant reçu = XOF débité ÷ taux.
-  const fincraRate = useFincraRate(fincraCurrency, isFincraOp, isKlashaOp);
+  // Zone de cotation = zone CFA du user (XAF pour la CEMAC, XOF sinon) : Fincra/
+  // Klasha cotent cur↔XAF ≠ cur↔XOF. Dépôt ET envoi passent par ce même hook.
+  const fincraRate = useFincraRate(fincraCurrency, isFincraOp, isKlashaOp, false, walletZone(userCountry));
   const fincraSendAmount =
     isFincraOp && numAmountXof > 0
       ? (fincraCurrency === 'XOF'

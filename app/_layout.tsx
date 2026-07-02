@@ -150,12 +150,15 @@ function RootInner() {
     };
   }, []);
 
-  // Plan C Fincra : détecter ?reference=FCD-xxx dans l'URL après redirect Fincra
+  // Plan C checkout hébergé : détecter ?reference=FCD-xxx (Fincra) ou KLD-xxx (Klasha
+  // « Open Banking » / Payment Link) dans l'URL après redirect du checkout hébergé.
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('reference');
-    if (!ref || !ref.startsWith('FCD-')) return;
+    const isFincra = !!ref && ref.startsWith('FCD-');
+    const isKlasha = !!ref && ref.startsWith('KLD-');
+    if (!ref || (!isFincra && !isKlasha)) return;
 
     // Si on revient dans le POPUP de paiement (ouvert par l'app via window.open),
     // on ferme la fenêtre : l'onglet d'origine suit déjà le statut (polling).
@@ -167,8 +170,11 @@ function RootInner() {
     // Nettoyer l'URL
     window.history.replaceState({}, '', window.location.pathname);
 
-    // Vérifier le statut auprès de Fincra via le backend
-    walletService.getFincraDepositStatus(ref)
+    // Vérifier le statut auprès du provider via le backend (Fincra ou Klasha).
+    const check = isKlasha
+      ? walletService.getKlashaDepositStatus(ref)
+      : walletService.getFincraDepositStatus(ref);
+    check
       .then((res: { status: string }) => {
         if (res.status === 'success') {
           showAlert('✅', 'Recharge créditée avec succès.');

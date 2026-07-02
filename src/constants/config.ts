@@ -216,6 +216,14 @@ export const FINCRA_ZONES: Record<string, Array<{ code: string; flag: string; ph
   ],
 };
 
+// Zone CFA de cotation (pivot) pour un pays donné : XAF pour la CEMAC, XOF sinon.
+// Le wallet reste XOF (parité stricte 1:1) MAIS Fincra/Klasha cotent les corridors
+// cur↔XAF ≠ cur↔XOF → un user CEMAC doit être coté depuis XAF (dépôt ET envoi).
+export function walletZone(country?: string | null): 'XOF' | 'XAF' {
+  const iso = (country || '').toUpperCase();
+  return FINCRA_ZONES.XAF.some((c) => c.code === iso) ? 'XAF' : 'XOF';
+}
+
 export const TRANSACTION_STATUS: Record<string, { label: string; color: string }> = {
   success: { label: 'Succès', color: '#3176FE' },
   wait: { label: 'En attente', color: '#F4B228' },

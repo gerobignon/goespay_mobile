@@ -235,9 +235,10 @@ export const walletService = {
   // Taux de conversion Fincra : 1 unité de `currency` = N XOF (pivot du wallet).
   // Direct + directionnel côté backend (side sell=dépôt / buy=payout), cf.
   // /fincra/rates. forDeposit → taux d'encaissement (≠ versement).
-  getFincraRate: async (currency: string, forDeposit = false): Promise<{ currency: string; rate_to_xof: number }> => {
+  getFincraRate: async (currency: string, forDeposit = false, zone: 'XOF' | 'XAF' = 'XOF'): Promise<{ currency: string; rate_to_xof: number }> => {
     const params: Record<string, string> = { currency };
     if (forDeposit) params.for = 'deposit';
+    if (zone === 'XAF') params.zone = 'XAF';   // pivot de cotation (CEMAC) ; XOF = défaut
     const response = await api.get('/fincra/rates', { params });
     return response.data;
   },
@@ -297,9 +298,10 @@ export const walletService = {
   // Taux Klasha : 1 unité de `currency` = N XOF (pivot du wallet).
   // forDeposit → taux direct (sans triangulation), cohérent avec la charge dépôt ;
   // sinon (payout) → triangulé via USD.
-  getKlashaRate: async (currency: string, forDeposit = false): Promise<{ currency: string; rate_to_xof: number }> => {
+  getKlashaRate: async (currency: string, forDeposit = false, zone: 'XOF' | 'XAF' = 'XOF'): Promise<{ currency: string; rate_to_xof: number }> => {
     const params: Record<string, string> = { currency };
     if (forDeposit) params.for = 'deposit';
+    if (zone === 'XAF') params.zone = 'XAF';   // pivot de cotation (CEMAC) ; XOF = défaut
     const response = await api.get('/klasha/rates', { params });
     return response.data;
   },
