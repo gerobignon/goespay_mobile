@@ -383,8 +383,8 @@ export function ReferralCard() {
   if (!code) return null;
 
   // Lien d'invitation court (goespay.io/<CODE>) → redirige vers l'inscription, code pré-rempli.
-  // Repli ?ref= si le code n'a pas le format attendu (5 car. [A-Z0-9]).
-  const referralLink = /^[A-Z0-9]{5}$/.test(String(code))
+  // Repli ?ref= si le code n'a pas le format attendu (4-32 car. [A-Z0-9]).
+  const referralLink = /^[A-Z0-9]{4,32}$/.test(String(code))
     ? `${REFERRAL_BASE_URL}/${code}`
     : `${REFERRAL_BASE_URL}/register?ref=${encodeURIComponent(code)}`;
   // Message partagé (i18n) : utilise le lien, le code reste mentionné pour info.

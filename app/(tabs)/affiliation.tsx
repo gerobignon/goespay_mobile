@@ -30,9 +30,9 @@ import { formatAmount, formatDate, useFormatXof, useCurrencyCode } from '../../s
 import type { AffiliationStats, AffiliationChild, AffiliationHistoryItem } from '../../src/types';
 
 const REFERRAL_BASE_URL = 'https://goespay.io';
-// Vrai code parrainage = 5 car. [A-Z0-9] → lien court goespay.io/<CODE>.
-// Repli numérique (id) → forme longue ?ref= (le routeur court ne capte que 5 car.).
-const isShortCode = (c: string) => /^[A-Z0-9]{5}$/.test(c);
+// Vrai code parrainage = 4-32 car. [A-Z0-9] (auto 5 car. + codes perso admin) →
+// lien court goespay.io/<CODE>. Repli numérique (id) → forme longue ?ref=.
+const isShortCode = (c: string) => /^[A-Z0-9]{4,32}$/.test(c);
 
 // Masque un nom complet en gardant la 1ère et dernière lettre de chaque mot.
 // Ex: "Erol Bignon" → "E**l B****n", "Jo" → "J*", "X" → "X"

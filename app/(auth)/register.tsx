@@ -195,9 +195,9 @@ export default function RegisterScreen() {
               label={t('auth.register.parrainCode')}
               placeholder={t('auth.register.parrainCodePlaceholder')}
               value={parrainCode}
-              onChangeText={(v) => { setParrainCode(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5)); setFieldErrors((e) => ({ ...e, parrain_code: '' })); }}
+              onChangeText={(v) => { setParrainCode(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 32)); setFieldErrors((e) => ({ ...e, parrain_code: '' })); }}
               autoCapitalize="characters"
-              maxLength={5}
+              maxLength={32}
               error={fieldErrors.parrain_code}
             />
 
