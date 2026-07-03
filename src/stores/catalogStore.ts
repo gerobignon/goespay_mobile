@@ -220,12 +220,12 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
         const net = netByCode[r.network];
         const isZone = !!zoneMembers[r.country];
         const isFincraAgg = r.aggregator === 'fincra' || r.aggregator === 'fincra_checkout';
-        const isKlashaAgg = r.aggregator === 'klasha';
+        const isKlashaAgg = r.aggregator === 'klasha' || r.aggregator === 'klasha_checkout';
         // Klasha réutilise la machinerie UI Fincra (fincra:true) → rail dérivé pareil.
         // fincra_checkout (page hébergée `fincra-checkout-<cc>`) = TOUJOURS rail checkout :
         // le code ne finit pas par -card/-bt, donc railFromCode le raterait (rail=undefined
         // → ni carte ni checkout → le dépôt EU retombe sur un virement). cf. corridor FR payin.
-        const fincraRail = r.aggregator === 'fincra_checkout' ? 'checkout'
+        const fincraRail = (r.aggregator === 'fincra_checkout' || r.aggregator === 'klasha_checkout') ? 'checkout'
                          : isFincraAgg ? fincraRailFor(r.code, r.currency)
                          : isKlashaAgg ? klashaRailFor(r.code) : undefined;
         // Le label réseau Fincra MM est suffixé « (Fincra) » côté admin (distinction
@@ -256,8 +256,8 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
           supportsPayout: (r as any).supports_payout !== false,
           afribapay: r.aggregator === 'afribapay' || undefined,
           // Klasha réutilise l'UI Fincra → fincra:true aussi pour les corridors klasha.
-          fincra: (r.aggregator === 'fincra' || r.aggregator === 'fincra_checkout' || r.aggregator === 'klasha') || undefined,
-          klasha: r.aggregator === 'klasha' || undefined,
+          fincra: (r.aggregator === 'fincra' || r.aggregator === 'fincra_checkout' || r.aggregator === 'klasha' || r.aggregator === 'klasha_checkout') || undefined,
+          klasha: (r.aggregator === 'klasha' || r.aggregator === 'klasha_checkout') || undefined,
           // Opérateur MM (ORANGE…) porté par les corridors fincra-mm-/klasha-mm-.
           fincraOperator: (r.code.startsWith('fincra-mm-') || r.code.startsWith('klasha-mm-')) ? r.network.toUpperCase() : undefined,
           klashaOperator: r.code.startsWith('klasha-mm-') ? r.network.toUpperCase() : undefined,
