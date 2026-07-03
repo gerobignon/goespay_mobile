@@ -61,6 +61,14 @@ const ORANGE_OTP_USSD: Record<string, string> = {
   'orange-gn':            '*144*4*2*1#',
 };
 
+// Frais d'encaissement Klasha (feeBearer = client), hardcodés — MIROIR du backend
+// (Klasha::PAYIN_FEE_RATES). Klasha prélève son frais SUR LE MONTANT ENVOYÉ → le
+// total à payer se calcule par DIVISION : total = net / (1 - taux) (≠ net×(1+taux)).
+const KLASHA_PAYIN_FEE: Record<string, number> = {
+  mobile_money:  0.04,    // 4 %
+  bank_transfer: 0.015,   // 1,5 %
+};
+
 interface DepositModalProps {
   visible: boolean;
   onClose: () => void;
@@ -511,6 +519,13 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const numAmountXofLive: number | null = isForeignRail
     ? (fincraRate.rate && fincraRate.rate > 0 ? numInputLive * fincraRate.rate : null)
     : numInputLive;
+  // Frais Klasha (feeBearer = client) : le client paie le BRUT (net + frais), Klasha
+  // prélève son frais sur le montant envoyé → total à payer = net / (1 - taux). Le
+  // montant SAISI est le net (= crédité) ; on annonce le total avant confirmation
+  // (MoMo : débité sur le téléphone ; virement : montant exact à virer).
+  const klashaFeeRate = isKlasha ? (KLASHA_PAYIN_FEE[fincraMethod ?? ''] ?? 0) : 0;
+  const klashaGrossLive = klashaFeeRate > 0 && numInputLive > 0 ? numInputLive / (1 - klashaFeeRate) : null;
+  const klashaFeeLive = klashaGrossLive !== null ? klashaGrossLive - numInputLive : null;
   const fincraRateBlocking =
     isForeignRail && numInputLive > 0
     && (fincraRate.loading || fincraRate.error || fincraRate.rate === null);
@@ -724,15 +739,18 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
             result.checkout_url = data.payment_url;
           } else {
             const acc = data?.account || {};
-            const amt = Number(acc.transfer_amount ?? numAmount);
+            // transfer_amount = BRUT chargé (net + frais Klasha 1,5 %). On dérive le
+            // frais pour l'afficher : frais = brut × taux ; net crédité = brut − frais.
+            const gross  = Number(acc.transfer_amount ?? numAmount);
+            const feeAmt = gross > 0 ? gross * KLASHA_PAYIN_FEE.bank_transfer : 0;
             setBankTransferInfo({
               bankName:       acc.transfer_bank    ?? '',
               accountNumber:  acc.transfer_account ?? '',
               accountName:    acc.account_name ?? acc.accountName ?? '',
-              amountNet:      amt,
-              fee:            0,
+              amountNet:      gross - feeAmt,
+              fee:            feeAmt,
               vat:            0,
-              amountExpected: amt,
+              amountExpected: gross,
               currency:       fincraCurrency,
             });
           }
@@ -1193,6 +1211,27 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                     amount={numAmountXofLive}
                     currency="XOF"
                   />
+                )}
+
+                {/* Frais Klasha (client) : montant réellement débité = net + frais.
+                    Le net saisi reste crédité tel quel (cf. FincraConversionHint). */}
+                {isKlasha && klashaGrossLive !== null && (
+                  <>
+                    <FincraConversionHint
+                      loading={false}
+                      error={false}
+                      label={t('depositModal.fincraFees')}
+                      amount={klashaFeeLive}
+                      currency={railCurrency}
+                    />
+                    <FincraConversionHint
+                      loading={false}
+                      error={false}
+                      label={t('depositModal.fincraToPay')}
+                      amount={klashaGrossLive}
+                      currency={railCurrency}
+                    />
+                  </>
                 )}
 
                 {isFincraBT && (
