@@ -704,7 +704,10 @@
     "pendingNote": "The bonus starts after your KYC is validated.",
     "condVolume": "Outgoing transaction volume",
     "condFilleuls": "Active referrals (KYC + 1 transaction)",
-    "close": "Close"
+    "close": "Close",
+    "unlockedTitle": "Bonus unlocked!",
+    "unlockedSub": "credited to your balance ✨",
+    "unlockedCta": "Awesome!"
   },
   "layout": {
     "connectionError": "Connection failed",

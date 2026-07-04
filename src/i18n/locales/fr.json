@@ -704,7 +704,10 @@
     "pendingNote": "Le bonus démarre après la validation de votre KYC.",
     "condVolume": "Volume de transactions sortantes",
     "condFilleuls": "Filleuls actifs (KYC + 1 transaction)",
-    "close": "Fermer"
+    "close": "Fermer",
+    "unlockedTitle": "Bonus débloqué !",
+    "unlockedSub": "crédités sur votre solde ✨",
+    "unlockedCta": "Génial !"
   },
   "layout": {
     "connectionError": "Connexion impossible",

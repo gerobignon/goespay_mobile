@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -9,8 +10,12 @@ import { useAuthStore } from '../stores/authStore';
 import { affiliationService } from '../services/affiliationService';
 import { useFormatXof } from '../utils/format';
 import { ResponsiveModal } from './ResponsiveModal';
+import { WelcomeBonusCelebration } from './WelcomeBonusCelebration';
 import { Reveal } from './anim';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { WelcomeBonus } from '../types';
+
+const celebratedKey = (userId: number | string) => `welcome_bonus_celebrated_${userId}`;
 
 const HERO_GRADIENT = ['#FBBF24', '#F59E0B', '#B45309'] as const;
 const CTA_GRADIENT = ['#F59E0B', '#D97706'] as const;
@@ -34,24 +39,46 @@ export function WelcomeBonusCard() {
 
   const [bonus, setBonus] = useState<WelcomeBonus | null>(null);
   const [modal, setModal] = useState(false);
+  const [celebrate, setCelebrate] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
-    if (validate == null) {
-      setBonus(null);
-      return;
+  // Refetch à chaque focus de l'accueil (pas seulement au montage) : le déblocage
+  // peut survenir pendant que l'user navigue (ex. l'écran affiliation déclenche
+  // checkUnlock) → en revenant sur l'accueil, la célébration se joue « en ligne ».
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      if (validate == null) {
+        setBonus(null);
+        return;
+      }
+      affiliationService
+        .getWelcomeBonus()
+        .then(async (b) => {
+          if (!alive) return;
+          setBonus(b);
+          // Bonus fraîchement crédité → célébration UNE fois (persistée par user).
+          // Si l'user était hors-ligne au déblocage, ça se joue à sa 1re connexion.
+          if (b?.state === 'unlocked' && user?.id != null) {
+            const seen = await AsyncStorage.getItem(celebratedKey(user.id));
+            if (!seen && alive) setCelebrate(true);
+          }
+        })
+        .catch(() => {});
+      return () => { alive = false; };
+    }, [validate, user?.id]),
+  );
+
+  const dismissCelebration = async () => {
+    setCelebrate(false);
+    if (user?.id != null) {
+      await AsyncStorage.setItem(celebratedKey(user.id), '1');
     }
-    affiliationService
-      .getWelcomeBonus()
-      .then((b) => { if (alive) setBonus(b); })
-      .catch(() => {});
-    return () => { alive = false; };
-  }, [validate]);
+  };
 
   const notSubmitted = validate === 0;
   const pending = validate === 2;
   const blocked = bonus?.state === 'blocked';
-  if (!notSubmitted && !pending && !blocked) return null;
+  const showCard = notSubmitted || pending || blocked;
 
   const amount = bonus?.amount ?? 5000;
   const amountLabel = fmtXof(amount);
@@ -88,6 +115,8 @@ export function WelcomeBonusCard() {
 
   return (
     <>
+      {showCard && (
+      <>
       <Reveal offset={14}>
         <LinearGradient
           colors={['#F59E0B', '#D97706', '#B45309']}
@@ -179,6 +208,10 @@ export function WelcomeBonusCard() {
           </View>
         </ScrollView>
       </ResponsiveModal>
+      </>
+      )}
+
+      <WelcomeBonusCelebration visible={celebrate} amountLabel={amountLabel} onClose={dismissCelebration} />
     </>
   );
 }
