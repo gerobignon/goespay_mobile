@@ -12,12 +12,17 @@ import { ResponsiveModal } from './ResponsiveModal';
 import { Reveal } from './anim';
 import type { WelcomeBonus } from '../types';
 
+const HERO_GRADIENT = ['#FBBF24', '#F59E0B', '#B45309'] as const;
+const CTA_GRADIENT = ['#F59E0B', '#D97706'] as const;
+const DONE_GRADIENT = ['#10B981', '#34D399'] as const;
+const BAR_GRADIENT = ['#F59E0B', '#FBBF24'] as const;
+
 /**
  * Carte « bonus de bienvenue » affichée au-dessus du solde à l'accueil :
  *   - KYC non soumis (validate=0) → incite à faire le KYC pour recevoir le bonus ;
  *   - KYC soumis (validate=2) → teaser « bonus à venir après validation » ;
  *   - bonus attribué mais bloqué (validate=1, state=blocked) → « en cours ».
- * Un bouton ouvre un modal détaillant les 2 conditions et leur progression.
+ * Le bouton ouvre un modal premium détaillant montant + conditions/progression.
  * Masquée uniquement quand le bonus est déjà débloqué.
  */
 export function WelcomeBonusCard() {
@@ -46,23 +51,36 @@ export function WelcomeBonusCard() {
   const notSubmitted = validate === 0;
   const pending = validate === 2;
   const blocked = bonus?.state === 'blocked';
-  // Masquée seulement quand le bonus est déjà débloqué (ou user absent).
   if (!notSubmitted && !pending && !blocked) return null;
 
   const amount = bonus?.amount ?? 5000;
   const amountLabel = fmtXof(amount);
+  const notValidatedYet = validate !== 1;
 
-  const renderProgress = (label: string, current: number, target: number, valueText: string) => {
+  const volCur = bonus?.volume.current ?? 0;
+  const volTgt = bonus?.volume.target ?? 250000;
+  const filCur = bonus?.filleuls.current ?? 0;
+  const filTgt = bonus?.filleuls.target ?? 5;
+
+  const renderCond = (icon: string, label: string, current: number, target: number, valueText: string) => {
     const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
     const done = current >= target;
     return (
-      <View style={styles.progressBlock}>
-        <View style={styles.progressHead}>
-          <Text style={styles.progressLabel}>{label}</Text>
-          <Text style={[styles.progressValue, done && { color: Colors.success }]}>{valueText}</Text>
+      <View style={styles.condCard}>
+        <View style={styles.condTop}>
+          <View style={[styles.condIcon, done && styles.condIconDone]}>
+            <FontAwesome6 name={(done ? 'check' : icon) as any} size={12} color={done ? '#FFFFFF' : '#B45309'} />
+          </View>
+          <Text style={styles.condLabel} numberOfLines={2}>{label}</Text>
+          <Text style={[styles.condValue, done && styles.condValueDone]}>{valueText}</Text>
         </View>
         <View style={styles.track}>
-          <View style={[styles.fill, { width: `${pct}%`, backgroundColor: done ? Colors.success : Colors.warning }]} />
+          <LinearGradient
+            colors={done ? DONE_GRADIENT : BAR_GRADIENT}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[styles.fill, { width: `${pct}%` }]}
+          />
         </View>
       </View>
     );
@@ -98,48 +116,67 @@ export function WelcomeBonusCard() {
       </Reveal>
 
       <ResponsiveModal visible={modal} onClose={() => setModal(false)}>
-        <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.modalHeader}>
-            <View style={styles.modalIcon}>
-              <FontAwesome6 name="gift" size={22} color={Colors.warning} />
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          {/* ── HERO ── */}
+          <LinearGradient colors={HERO_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+            <Text style={[styles.spark, styles.spark1]}>✨</Text>
+            <Text style={[styles.spark, styles.spark2]}>✦</Text>
+            <Text style={[styles.spark, styles.spark3]}>✨</Text>
+            <Text style={[styles.spark, styles.spark4]}>✦</Text>
+
+            <TouchableOpacity style={styles.heroClose} onPress={() => setModal(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <FontAwesome6 name="xmark" size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <View style={styles.heroGlow}>
+              <View style={styles.heroBadge}>
+                <FontAwesome6 name="gift" size={26} color="#B45309" />
+              </View>
             </View>
-            <Text style={styles.modalTitle}>{t('welcomeBonus.modalTitle', 'Bonus de bienvenue')}</Text>
-            <TouchableOpacity onPress={() => setModal(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <FontAwesome6 name="xmark" size={20} color={Colors.textMuted} />
+
+            <View style={styles.exclusivePill}>
+              <FontAwesome6 name="crown" size={9} color="#FFFFFF" />
+              <Text style={styles.exclusiveText}>{t('welcomeBonus.exclusive', 'Offre exclusive')}</Text>
+            </View>
+
+            <Text style={styles.heroAmount}>{amountLabel}</Text>
+            <Text style={styles.heroTagline}>{t('welcomeBonus.modalTitle', 'Bonus de bienvenue')}</Text>
+          </LinearGradient>
+
+          {/* ── BODY ── */}
+          <View style={styles.body}>
+            <Text style={styles.how}>
+              {t('welcomeBonus.how', { amount: amountLabel, defaultValue: `Dès la validation de votre KYC, ${amountLabel} sont crédités (bloqués) sur votre solde. Ils se débloquent automatiquement quand les 2 conditions ci-dessous sont réunies.` })}
+            </Text>
+
+            {notValidatedYet && (
+              <View style={styles.note}>
+                <FontAwesome6 name="circle-info" size={13} color={Colors.info} />
+                <Text style={styles.noteText}>{t('welcomeBonus.pendingNote', 'Le bonus démarre après la validation de votre KYC.')}</Text>
+              </View>
+            )}
+
+            <Text style={styles.condHead}>{t('welcomeBonus.conditionsHead', 'Conditions de déblocage')}</Text>
+
+            {renderCond(
+              'arrow-trend-up',
+              t('welcomeBonus.condVolume', 'Volume de transactions sortantes'),
+              volCur, volTgt,
+              `${fmtXof(volCur, { withCode: false })} / ${fmtXof(volTgt, { withCode: false })}`,
+            )}
+            {renderCond(
+              'user-group',
+              t('welcomeBonus.condFilleuls', 'Filleuls actifs (KYC + 1 transaction)'),
+              filCur, filTgt,
+              `${filCur} / ${filTgt}`,
+            )}
+
+            <TouchableOpacity activeOpacity={0.9} onPress={() => setModal(false)} style={styles.ctaBtnWrap}>
+              <LinearGradient colors={CTA_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.ctaBtn}>
+                <Text style={styles.ctaBtnText}>{t('welcomeBonus.close', 'Fermer')}</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
-
-          <Text style={styles.modalAmount}>{amountLabel}</Text>
-
-          <Text style={styles.modalText}>
-            {t('welcomeBonus.how', { amount: amountLabel, defaultValue: `Dès la validation de votre KYC, ${amountLabel} sont crédités (bloqués) sur votre solde. Ils se débloquent automatiquement quand les 2 conditions ci-dessous sont réunies.` })}
-          </Text>
-
-          {validate !== 1 && (
-            <View style={styles.note}>
-              <FontAwesome6 name="circle-info" size={13} color={Colors.info} />
-              <Text style={styles.noteText}>{t('welcomeBonus.pendingNote', 'Le bonus démarre après la validation de votre KYC.')}</Text>
-            </View>
-          )}
-
-          <View style={styles.conditions}>
-            {renderProgress(
-              t('welcomeBonus.condVolume', 'Volume de transactions sortantes'),
-              bonus?.volume.current ?? 0,
-              bonus?.volume.target ?? 250000,
-              `${fmtXof(bonus?.volume.current ?? 0, { withCode: false })} / ${fmtXof(bonus?.volume.target ?? 250000, { withCode: false })}`,
-            )}
-            {renderProgress(
-              t('welcomeBonus.condFilleuls', 'Filleuls actifs (KYC + 1 transaction)'),
-              bonus?.filleuls.current ?? 0,
-              bonus?.filleuls.target ?? 5,
-              `${bonus?.filleuls.current ?? 0} / ${bonus?.filleuls.target ?? 5}`,
-            )}
-          </View>
-
-          <TouchableOpacity style={styles.closeBtn} onPress={() => setModal(false)} activeOpacity={0.85}>
-            <Text style={styles.closeBtnText}>{t('welcomeBonus.close', 'Fermer')}</Text>
-          </TouchableOpacity>
         </ScrollView>
       </ResponsiveModal>
     </>
@@ -147,6 +184,7 @@ export function WelcomeBonusCard() {
 }
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
+  // ── Carte accueil ──
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -183,48 +221,106 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     backgroundColor: '#FFFFFF',
     paddingHorizontal: Spacing.md,
     paddingVertical: 7,
-    borderRadius: BorderRadius.pill ?? 999,
+    borderRadius: BorderRadius.pill,
   },
   ctaText: {
     color: '#B45309',
     fontSize: FontSize.xs,
     fontFamily: Fonts.bold,
   },
+
   // ── Modal ──
-  modalContent: {
+  scroll: {
+    paddingBottom: Spacing.xl,
+  },
+  hero: {
+    alignItems: 'center',
+    paddingTop: Spacing.xl + Spacing.md,
+    paddingBottom: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
+    overflow: 'hidden',
+  },
+  spark: {
+    position: 'absolute',
+    color: 'rgba(255,255,255,0.85)',
+  },
+  spark1: { top: 18, left: 26, fontSize: 16 },
+  spark2: { top: 44, right: 40, fontSize: 11 },
+  spark3: { bottom: 30, left: 44, fontSize: 12 },
+  spark4: { top: 90, left: 18, fontSize: 9 },
+  heroClose: {
+    position: 'absolute',
+    top: Spacing.md,
+    right: Spacing.md,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.22)',
+  },
+  heroGlow: {
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    marginBottom: Spacing.md,
+  },
+  heroBadge: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  exclusivePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: BorderRadius.pill,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.4)',
+  },
+  exclusiveText: {
+    color: '#FFFFFF',
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.bold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  heroAmount: {
+    color: '#FFFFFF',
+    fontSize: 44,
+    fontFamily: Fonts.bold,
+    letterSpacing: 0.5,
+    marginTop: Spacing.md,
+    textShadowColor: 'rgba(120,53,15,0.4)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
+  },
+  heroTagline: {
+    color: 'rgba(255,255,255,0.95)',
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+  body: {
     padding: Spacing.lg,
     gap: Spacing.md,
   },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  modalIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.warning + '22',
-  },
-  modalTitle: {
-    flex: 1,
-    color: Colors.text,
-    fontSize: FontSize.lg,
-    fontFamily: Fonts.bold,
-  },
-  modalAmount: {
-    color: Colors.warning,
-    fontSize: FontSize.xxl ?? 30,
-    fontFamily: Fonts.bold,
-    textAlign: 'center',
-  },
-  modalText: {
+  how: {
     color: Colors.textMuted,
     fontSize: FontSize.sm,
     fontFamily: Fonts.medium,
     lineHeight: 20,
+    textAlign: 'center',
   },
   note: {
     flexDirection: 'row',
@@ -240,48 +336,75 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: FontSize.xs,
     fontFamily: Fonts.medium,
   },
-  conditions: {
-    gap: Spacing.md,
+  condHead: {
+    color: Colors.text,
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
     marginTop: Spacing.xs,
   },
-  progressBlock: {},
-  progressHead: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.xs,
+  condCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.surfaceBorder,
   },
-  progressLabel: {
+  condTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  condIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FDE68A',
+  },
+  condIconDone: {
+    backgroundColor: '#10B981',
+  },
+  condLabel: {
     flex: 1,
     color: Colors.text,
     fontSize: FontSize.xs,
-    fontFamily: Fonts.medium,
-  },
-  progressValue: {
-    color: Colors.textMuted,
-    fontSize: FontSize.xs,
     fontFamily: Fonts.semiBold,
   },
+  condValue: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.bold,
+  },
+  condValueDone: {
+    color: '#10B981',
+  },
   track: {
-    height: 8,
-    borderRadius: 4,
+    height: 9,
+    borderRadius: 5,
     backgroundColor: Colors.inputBg,
     overflow: 'hidden',
   },
   fill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 5,
   },
-  closeBtn: {
+  ctaBtnWrap: {
     marginTop: Spacing.sm,
-    backgroundColor: Colors.warning,
+    borderRadius: BorderRadius.pill,
+    overflow: 'hidden',
+  },
+  ctaBtn: {
     paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
     alignItems: 'center',
   },
-  closeBtnText: {
+  ctaBtnText: {
     color: '#FFFFFF',
     fontSize: FontSize.sm,
     fontFamily: Fonts.bold,
+    letterSpacing: 0.5,
   },
 });

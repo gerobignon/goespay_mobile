@@ -697,6 +697,8 @@
     "pendingSub": "Votre bonus de bienvenue arrive après validation de votre KYC.",
     "blockedSub": "Remplissez 2 conditions pour débloquer votre bonus.",
     "seeConditions": "Voir les conditions",
+    "exclusive": "Offre exclusive",
+    "conditionsHead": "Conditions de déblocage",
     "modalTitle": "Bonus de bienvenue",
     "how": "Dès la validation de votre KYC, {{amount}} sont crédités (bloqués) sur votre solde. Ils se débloquent automatiquement quand les 2 conditions ci-dessous sont réunies.",
     "pendingNote": "Le bonus démarre après la validation de votre KYC.",

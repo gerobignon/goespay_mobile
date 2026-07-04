@@ -697,6 +697,8 @@
     "pendingSub": "Your welcome bonus arrives once your KYC is validated.",
     "blockedSub": "Meet 2 conditions to unlock your bonus.",
     "seeConditions": "View conditions",
+    "exclusive": "Exclusive offer",
+    "conditionsHead": "Unlock conditions",
     "modalTitle": "Welcome bonus",
     "how": "As soon as your KYC is validated, {{amount}} is credited (locked) to your balance. It unlocks automatically once the 2 conditions below are met.",
     "pendingNote": "The bonus starts after your KYC is validated.",
