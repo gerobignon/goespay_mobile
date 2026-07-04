@@ -191,7 +191,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     gap: Spacing.md,
     padding: Spacing.md,
     borderRadius: 18,
-    marginTop: Spacing.md,
+    marginBottom: Spacing.md,
   },
   iconCircle: {
     width: 44,
