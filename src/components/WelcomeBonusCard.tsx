@@ -17,6 +17,11 @@ import type { WelcomeBonus } from '../types';
 
 const celebratedKey = (userId: number | string) => `welcome_bonus_celebrated_${userId}`;
 
+// ⚠️ TEST — À RETIRER avant prod : rejoue la célébration à chaque focus de
+// l'accueil pour cet user (ignore l'état du bonus + le flag « déjà vu »).
+// Mettre à null pour désactiver.
+const DEBUG_CELEBRATE_UID: number | null = 1;
+
 const HERO_GRADIENT = ['#FBBF24', '#F59E0B', '#B45309'] as const;
 const CTA_GRADIENT = ['#F59E0B', '#D97706'] as const;
 const DONE_GRADIENT = ['#10B981', '#34D399'] as const;
@@ -51,6 +56,10 @@ export function WelcomeBonusCard() {
         setBonus(null);
         return;
       }
+      // ⚠️ TEST : rejoue la célébration à chaque focus pour l'user de debug.
+      if (DEBUG_CELEBRATE_UID != null && user?.id === DEBUG_CELEBRATE_UID) {
+        setCelebrate(true);
+      }
       affiliationService
         .getWelcomeBonus()
         .then(async (b) => {
@@ -70,6 +79,8 @@ export function WelcomeBonusCard() {
 
   const dismissCelebration = async () => {
     setCelebrate(false);
+    // ⚠️ TEST : ne pas persister le flag pour l'user de debug (rejoue au focus suivant).
+    if (DEBUG_CELEBRATE_UID != null && user?.id === DEBUG_CELEBRATE_UID) return;
     if (user?.id != null) {
       await AsyncStorage.setItem(celebratedKey(user.id), '1');
     }
