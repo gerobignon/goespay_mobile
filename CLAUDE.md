@@ -22,7 +22,7 @@ There is **no test runner and no linter configured** — `tsc` is the only stati
 
 ## Deployment
 
-- **Web (PWA):** the GitHub Action is **disabled** (`.github/workflows/deploy-web.yml.disabled`). Deploys now go through **`deploy.sh`** (DeployByLight) — incremental FTP upload of changed files (diff since `.deploy-last`), respecting `.gitignore`, driven by a git **pre-push hook** (FTP creds live in `.env`, never committed). Build the web bundle with `npx expo export --platform web` → `dist/` before deploying. The web app is served at `goespay.io` (API on the same host; when the front is hosted at `app.goespay.io` it's cross-origin to the `goespay.io` API — see nginx CORS).
+- **Web (PWA):** the GitHub Action is **disabled** (`.github/workflows/deploy-web.yml.disabled`). Deploys now go through **`deploy.sh`** (DeployByLight) — incremental FTP upload of changed files (diff since `.deploy-last`), respecting `.gitignore`, driven by a git **pre-push hook** (FTP creds live in `.env`, never committed). `deploy.sh` **builds the web bundle itself** (runs `expo export` → `dist/`) before uploading — no need to run `expo export` manually before pushing. The web app is served at `goespay.io` (API on the same host; when the front is hosted at `app.goespay.io` it's cross-origin to the `goespay.io` API — see nginx CORS).
 - **Mobile:** EAS Build profiles in `eas.json` (`development`, `preview` → internal APK, `production` → auto-incremented AAB).
 
 ## Architecture
