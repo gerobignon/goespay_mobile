@@ -22,7 +22,9 @@ import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } fro
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { useAuthStore } from '../../stores/authStore';
 import { useWalletStore } from '../../stores/walletStore';
+import { useCatalogStore } from '../../stores/catalogStore';
 import { fetchFincraRate } from '../../stores/fincraRateStore';
+import { walletZone } from '../../constants/config';
 import { showAlert } from '../../stores/alertStore';
 import { useFormatXof } from '../../utils/format';
 import { walletService, type SavedBank } from '../../services/walletService';
@@ -267,22 +269,58 @@ export function QuickConverter() {
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState('1000');
   const [targetCur, setTargetCur] = useState('NGN');
-  const [rate, setRate] = useState<number | null>(null);
+  // sellRate = taux de VENTE (payout, forDeposit=false) — lecture seule, référence.
+  // payinRate = taux d'ENCAISSEMENT (payin, forDeposit=true) — défaut du champ éditable.
+  // buyRate = « VOTRE TAUX D'ACHAT » (éditable, XOF pour 1 targetCur) qui pilote la conversion.
+  const [sellRate, setSellRate] = useState<number | null>(null);
+  const [payinRate, setPayinRate] = useState<number | null>(null);
+  const [buyRate, setBuyRate] = useState('');
   const [loading, setLoading] = useState(false);
+  const user = useAuthStore((s) => s.user);
+  const userCountry = ((user as any)?.country || '').toUpperCase();
+  const catalogOperators = useCatalogStore((s) => s.operators);
+
+  // L'agrégateur dépend du corridor, pas de la devise seule → on le résout depuis
+  // le catalogue serveur : si un corridor payin Klasha existe pour cette devise, on
+  // cote via Klasha, sinon Fincra (fallback statique = Fincra). Le même agrégateur
+  // sert pour l'achat (payin) et la vente (payout).
+  const isKlashaPayin = React.useMemo(() => {
+    const c = targetCur.toUpperCase();
+    return catalogOperators.some(
+      (op: any) => (op.currency || '').toUpperCase() === c && op.payin && op.supportsPayin !== false && op.klasha
+    );
+  }, [catalogOperators, targetCur]);
 
   React.useEffect(() => {
     if (!open) return;
     let cancelled = false;
     setLoading(true);
-    fetchFincraRate(targetCur)
-      .then((r) => { if (!cancelled) { setRate(r); setLoading(false); } })
-      .catch(() => { if (!cancelled) { setRate(null); setLoading(false); } });
+    const zone = walletZone(userCountry);
+    // Achat (payin) = même appel que le form de dépôt (forDeposit=true, zone CFA du
+    // user, agrégateur résolu) → coïncide avec le taux réellement appliqué au dépôt.
+    // Vente (payout) = forDeposit=false (côté buy) — le taux de vente Fincra d'origine.
+    Promise.all([
+      fetchFincraRate(targetCur, isKlashaPayin, true, zone),
+      fetchFincraRate(targetCur, isKlashaPayin, false, zone),
+    ])
+      .then(([pin, sell]) => {
+        if (cancelled) return;
+        setPayinRate(pin);
+        setSellRate(sell);
+        // Pré-remplit « VOTRE TAUX D'ACHAT » avec le taux de payin (défaut éditable).
+        setBuyRate(pin && pin > 0 ? String(Math.round(pin * 100) / 100) : '');
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) { setPayinRate(null); setSellRate(null); setBuyRate(''); setLoading(false); }
+      });
     return () => { cancelled = true; };
-  }, [targetCur, open]);
+  }, [targetCur, open, isKlashaPayin, userCountry]);
 
   const numAmount = parseFloat(amount.replace(',', '.')) || 0;
-  // rate = XOF pour 1 unité de targetCur → XOF → cur : amount / rate
-  const converted = rate && rate > 0 ? numAmount / rate : null;
+  const numBuyRate = parseFloat(buyRate.replace(',', '.')) || 0;
+  // Conversion pilotée par VOTRE TAUX D'ACHAT (éditable) : XOF → targetCur = amount / buyRate.
+  const converted = numBuyRate > 0 ? numAmount / numBuyRate : null;
 
   return (
     <>
@@ -349,7 +387,7 @@ export function QuickConverter() {
               </View>
             </View>
 
-            {/* Destination */}
+            {/* Destination (converti avec VOTRE TAUX D'ACHAT) */}
             <View style={[styles.convField, styles.convFieldHighlight]}>
               <Text style={[styles.convCornerLabel, { color: Colors.secondary }]}>{targetCur}</Text>
               <Text style={styles.convResultBig} numberOfLines={1}>
@@ -357,10 +395,24 @@ export function QuickConverter() {
               </Text>
             </View>
 
-            {/* Taux */}
+            {/* VOTRE TAUX D'ACHAT — éditable, pré-rempli avec le taux de payin */}
+            <Text style={styles.convBuyLabel}>{t('home.convertBuyRate')}</Text>
+            <View style={styles.convField}>
+              <Text style={styles.convCornerLabel}>XOF / 1 {targetCur}</Text>
+              <TextInput
+                value={buyRate}
+                onChangeText={(v) => setBuyRate(v.replace(/[^0-9.,]/g, ''))}
+                keyboardType="decimal-pad"
+                style={styles.convInputBig}
+                placeholder={loading ? '…' : '0'}
+                placeholderTextColor={Colors.textMuted}
+              />
+            </View>
+
+            {/* Taux de vente (référence, lecture seule) */}
             <Text style={styles.convRate}>
-              {rate && rate > 0
-                ? `1 ${targetCur} ≈ ${fmtXof(rate, { withCode: false })} XOF`
+              {sellRate && sellRate > 0
+                ? `${t('home.convertSellRate')} : 1 ${targetCur} ≈ ${fmtXof(sellRate, { withCode: false })} XOF`
                 : (loading ? t('common.loading') : t('common.rateUnavailable'))}
             </Text>
           </View>
@@ -648,6 +700,15 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.textMuted,
     textAlign: 'right',
     marginTop: 4,
+  },
+  convBuyLabel: {
+    fontSize: 10,
+    fontFamily: Fonts.semiBold,
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginTop: Spacing.sm,
+    marginBottom: 4,
   },
 
   // E — Parrainage

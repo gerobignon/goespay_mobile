@@ -175,6 +175,8 @@
     "benefAddBank": "Bank account",
     "benefAddCrypto": "Crypto address",
     "convertTitle": "Converter",
+    "convertBuyRate": "Your buy rate",
+    "convertSellRate": "Sell rate",
     "referralTitle": "Invite your friends",
     "referralDesc": "Share your code and earn bonuses for every signup.",
     "referralShare": "Share",
