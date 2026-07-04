@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
@@ -376,6 +377,7 @@ const REFERRAL_BASE_URL = 'https://goespay.io';
 
 export function ReferralCard() {
   const { t } = useTranslation();
+  const router = useRouter();
   const styles = useThemedStyles(createStyles);
   const user = useAuthStore((s) => s.user);
   const code = (user as any)?.referral_code || (user as any)?.referal_code;
@@ -423,10 +425,16 @@ export function ReferralCard() {
         </View>
       </View>
       <View style={styles.refBottom}>
-        <TouchableOpacity onPress={copy} style={styles.refCodePill} activeOpacity={0.7}>
-          <FontAwesome6 name="copy" size={11} color={Colors.white} />
-          <Text style={styles.refCodeText}>{code}</Text>
-        </TouchableOpacity>
+        <View style={styles.refBottomLeft}>
+          <TouchableOpacity onPress={copy} style={styles.refCodePill} activeOpacity={0.7}>
+            <FontAwesome6 name="copy" size={11} color={Colors.white} />
+            <Text style={styles.refCodeText}>{code}</Text>
+          </TouchableOpacity>
+          <Bounce onPress={() => router.push('/(tabs)/affiliation')} style={styles.refManage}>
+            <FontAwesome6 name="gear" size={11} color={Colors.white} />
+            <Text style={styles.refManageText}>{t('home.referralManage', 'Gérer')}</Text>
+          </Bounce>
+        </View>
         <Bounce onPress={share} style={styles.refShare}>
           <FontAwesome6 name="share-nodes" size={13} color={Colors.secondary} />
           <Text style={styles.refShareText}>{t('home.referralShare')}</Text>
@@ -660,6 +668,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   refTitle: { fontSize: FontSize.md, fontFamily: Fonts.bold, color: Colors.white },
   refDesc: { fontSize: FontSize.xs, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
   refBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm },
+  refBottomLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, flexShrink: 1 },
   refCodePill: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 11, paddingVertical: 6,
@@ -667,6 +676,13 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.18)',
   },
   refCodeText: { fontSize: FontSize.sm, fontFamily: Fonts.bold, color: Colors.white, letterSpacing: 0.5 },
+  refManage: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 11, paddingVertical: 6,
+    borderRadius: BorderRadius.pill,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)',
+  },
+  refManageText: { fontSize: FontSize.sm, fontFamily: Fonts.bold, color: Colors.white },
   refShare: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingVertical: 9, paddingHorizontal: 16,

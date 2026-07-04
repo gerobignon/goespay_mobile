@@ -178,6 +178,7 @@
     "referralTitle": "Invite your friends",
     "referralDesc": "Share your code and earn bonuses for every signup.",
     "referralShare": "Share",
+    "referralManage": "Manage",
     "referralShareMsg": "Join GoesPay using my link {{link}} (code {{code}}) and unlock benefits from signup.",
     "referralCopied": "Message copied to clipboard.",
     "referralLinkCopied": "Link copied.",
