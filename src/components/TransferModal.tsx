@@ -1215,6 +1215,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             {!selectedCountry && !cryptoOpen ? (
               <CountryPickerStep
                 operators={pickerOperators}
+                groupByContinent
                 onSelectCountry={(code) => { setSelectedCountry(code); setOperator(''); }}
                 showCryptoTile={cryptoEnabled}
                 cryptoLabel={t('depositModal.cryptoGroup')}

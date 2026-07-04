@@ -507,6 +507,12 @@
     "kycRequired3": "KYC required",
     "nameLabel": "Name / label"
   },
+  "continents": {
+    "africa": { "name": "Africa", "desc": "Transfer to {{n}} African countries" },
+    "europe": { "name": "Europe", "desc": "Transfer to European countries" },
+    "america": { "name": "America", "desc": "Transfer to North, Central and South America" },
+    "asia": { "name": "Asia", "desc": "Transfer to Asian countries" }
+  },
   "transferModal": {
     "title": "Send",
     "cancelTransfer": "Cancel send?",
@@ -521,6 +527,11 @@
     "kycRequired": "KYC verification required to make transactions.",
     "chooseOperator": "Choose operator",
     "chooseCountry": "Choose a country",
+    "chooseContinent": "Choose a continent",
+    "searchCountry": "Search a country",
+    "popularCountries": "Popular countries",
+    "allCountries": "All countries ({{n}})",
+    "noCountryFound": "No country found.",
     "changeCountry": "Change",
     "fees": "Fees",
     "totalDebited": "Total debited",
@@ -688,6 +699,7 @@
     "codePlaceholder": "E.G. MYCODE2026",
     "codeRules": "4 to 32 characters, letters (A-Z) and digits only.",
     "codeInvalid": "Invalid code: 4 to 32 characters, letters A-Z and digits only.",
+    "codeReserved": "This code is reserved. Please choose another one.",
     "codeUpdated": "Your referral code has been updated.",
     "copyLink": "Copy link",
     "share": "Share",

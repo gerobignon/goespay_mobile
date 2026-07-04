@@ -507,6 +507,12 @@
     "kycRequired3": "KYC requis",
     "nameLabel": "Nom / libellé"
   },
+  "continents": {
+    "africa": { "name": "Afrique", "desc": "Transférez vers {{n}} pays africains" },
+    "europe": { "name": "Europe", "desc": "Transférez vers les pays d'Europe" },
+    "america": { "name": "Amérique", "desc": "Transférez vers l'Amérique du Nord, Centrale et du Sud" },
+    "asia": { "name": "Asie", "desc": "Transférez vers les pays d'Asie" }
+  },
   "transferModal": {
     "title": "Envoyer",
     "cancelTransfer": "Annuler l'envoi ?",
@@ -521,6 +527,11 @@
     "kycRequired": "Vérification KYC requise pour effectuer des transactions.",
     "chooseOperator": "Choisir l'opérateur",
     "chooseCountry": "Choisir un pays",
+    "chooseContinent": "Choisir un continent",
+    "searchCountry": "Rechercher un pays",
+    "popularCountries": "Pays populaires",
+    "allCountries": "Tous les pays ({{n}})",
+    "noCountryFound": "Aucun pays trouvé.",
     "changeCountry": "Changer",
     "fees": "Frais",
     "totalDebited": "Total débité",
@@ -688,6 +699,7 @@
     "codePlaceholder": "EX : MONCODE2026",
     "codeRules": "4 à 32 caractères, lettres (A-Z) et chiffres uniquement.",
     "codeInvalid": "Code invalide : 4 à 32 caractères, lettres A-Z et chiffres uniquement.",
+    "codeReserved": "Ce code est réservé. Choisissez-en un autre.",
     "codeUpdated": "Votre code de parrainage a été mis à jour.",
     "copyLink": "Copier le lien",
     "share": "Partager",
