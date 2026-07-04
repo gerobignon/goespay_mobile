@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { useTheme } from './ThemeProvider';
-import { useTranslation, Trans } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 
 interface KycBannerProps {
   onPress?: () => void;
@@ -64,16 +65,22 @@ export function KycBanner({ onPress, status = 0, expired = false, expiringSoon =
       activeOpacity={interactive ? 0.7 : 1}
     >
       <FontAwesome6 name={icon as any} size={16} color={color} />
-      <Text style={[styles.text, { color }]}>
-        {bonusMsg ? (
-          <Trans
-            i18nKey="kyc.bonusPrompt"
-            components={{ amt: <Text style={styles.bonusHighlight} /> }}
-          />
-        ) : (
-          message
-        )}
-      </Text>
+      {bonusMsg ? (
+        <View style={styles.bonusRow}>
+          <Text style={[styles.bonusText, { color }]}>{t('kyc.bonusPrompt')} </Text>
+          <LinearGradient
+            colors={['#FFFFFF', '#FEF3C7', '#FDE68A']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.amountBadge}
+          >
+            <Text style={styles.amountBadgeText}>{t('kyc.bonusAmount')}</Text>
+          </LinearGradient>
+          <Text style={styles.sparkle}> ✨</Text>
+        </View>
+      ) : (
+        <Text style={[styles.text, { color }]}>{message}</Text>
+      )}
       {interactive && (
         <FontAwesome6 name="chevron-right" size={12} color={color} />
       )}
@@ -97,12 +104,33 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: FontSize.sm,
     fontFamily: Fonts.medium,
   },
-  // Montant du bonus mis en avant — « pétillant » : or vif + gras + légèrement
-  // plus grand pour capter l'œil dans la phrase.
-  bonusHighlight: {
-    color: '#F59E0B',
+  // Bonus : la phrase se termine par un badge clair (dégradé) pour rester lisible
+  // sur le fond ambré de la bannière.
+  bonusRow: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
+  bonusText: {
+    flexShrink: 1,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.medium,
+  },
+  amountBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(180,83,9,0.25)',
+  },
+  amountBadgeText: {
+    color: '#B45309',
     fontFamily: Fonts.bold,
-    fontSize: FontSize.md,
+    fontSize: FontSize.sm,
     letterSpacing: 0.3,
+  },
+  sparkle: {
+    fontSize: FontSize.sm,
   },
 });
