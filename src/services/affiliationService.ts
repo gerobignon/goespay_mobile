@@ -30,4 +30,9 @@ export const affiliationService = {
     const { data } = await api.post('/me/affiliation/claim');
     return data;
   },
+
+  updateCode: async (code: string): Promise<{ message: string; referral_code: string }> => {
+    const { data } = await api.put('/me/affiliation/code', { code });
+    return data;
+  },
 };

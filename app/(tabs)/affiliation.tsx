@@ -9,6 +9,7 @@ import {
   ImageBackground,
   Share,
   RefreshControl,
+  TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -58,6 +59,7 @@ export default function AffiliationScreen() {
   const fmtXof = useFormatXof();
   const currencyCode = useCurrencyCode();
   const user = useAuthStore((s) => s.user);
+  const setUser = useAuthStore((s) => s.setUser);
   const fetchBalance = useWalletStore((s) => s.fetchBalance);
 
   const [stats, setStats] = useState<AffiliationStats | null>(null);
@@ -67,6 +69,9 @@ export default function AffiliationScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [tab, setTab] = useState<'children' | 'history'>('children');
+  const [editing, setEditing] = useState(false);
+  const [codeInput, setCodeInput] = useState('');
+  const [savingCode, setSavingCode] = useState(false);
 
   const referralCode = stats?.referral_code || (user?.id ? String(user.id) : '');
   const referralLink = referralCode
@@ -122,6 +127,44 @@ export default function AffiliationScreen() {
     } catch {}
   };
 
+  const startEdit = () => {
+    // Pré-remplit avec le code court existant, sinon champ vide (repli id numérique).
+    setCodeInput(isShortCode(referralCode) ? referralCode : '');
+    setEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setEditing(false);
+    setCodeInput('');
+  };
+
+  const handleSaveCode = async () => {
+    const code = codeInput.trim().toUpperCase();
+    if (!isShortCode(code)) {
+      showAlert(t('common.error'), t('affiliation.codeInvalid', 'Code invalide : 4 à 32 caractères, lettres A-Z et chiffres uniquement.'));
+      return;
+    }
+    if (code === referralCode) {
+      cancelEdit();
+      return;
+    }
+    setSavingCode(true);
+    try {
+      const res = await affiliationService.updateCode(code);
+      const newCode = res.referral_code || code;
+      setStats((prev) => (prev ? { ...prev, referral_code: newCode } : prev));
+      if (user) setUser({ ...user, referral_code: newCode });
+      setEditing(false);
+      setCodeInput('');
+      showAlert(t('common.success'), res.message || t('affiliation.codeUpdated', 'Votre code de parrainage a été mis à jour.'));
+    } catch (e: any) {
+      const msg = e?.response?.data?.error || e?.response?.data?.message || t('common.error');
+      showAlert(t('common.error'), msg);
+    } finally {
+      setSavingCode(false);
+    }
+  };
+
   const handleClaim = () => {
     if (!stats || stats.unpayed <= 0) return;
     showAlert(
@@ -164,15 +207,56 @@ export default function AffiliationScreen() {
       {/* Code de parrainage */}
       <View style={styles.formCard}>
         <Text style={styles.sectionLabel}>{t('affiliation.yourCode', 'Votre code de parrainage')}</Text>
-        <View style={styles.codeBox}>
-          <Text style={styles.codeText}>{referralCode || '—'}</Text>
-          <Bounce style={styles.inlineIconBtn} onPress={handleCopyCode}>
-            <FontAwesome6 name="copy" size={14} color={Colors.primary} />
-          </Bounce>
-        </View>
-        <Text style={styles.helperText}>{t('affiliation.description', 'Partagez ce code ou ce lien avec vos amis. Lorsqu\'ils s\'inscrivent avec, ils deviennent vos filleuls et vous recevez des commissions sur leurs transactions.')}</Text>
+        {editing ? (
+          <>
+            <View style={styles.codeBox}>
+              <TextInput
+                style={styles.codeInput}
+                value={codeInput}
+                onChangeText={(v) => setCodeInput(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 32))}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                autoFocus
+                maxLength={32}
+                editable={!savingCode}
+                placeholder={t('affiliation.codePlaceholder', 'EX : MONCODE2026')}
+                placeholderTextColor={Colors.textMuted}
+              />
+            </View>
+            <Text style={styles.helperText}>{t('affiliation.codeRules', '4 à 32 caractères, lettres (A-Z) et chiffres uniquement.')}</Text>
+            <View style={styles.actionsRow}>
+              <Button
+                title={t('common.cancel', 'Annuler')}
+                variant="outline"
+                onPress={cancelEdit}
+                disabled={savingCode}
+                style={[styles.smallBtn, { flex: 1 }]}
+                textStyle={styles.smallBtnText}
+              />
+              <Button
+                title={t('common.save', 'Enregistrer')}
+                icon="check"
+                onPress={handleSaveCode}
+                loading={savingCode}
+                style={[styles.smallBtn, { flex: 1 }]}
+                textStyle={styles.smallBtnText}
+              />
+            </View>
+          </>
+        ) : (
+          <>
+            <View style={styles.codeBox}>
+              <Text style={styles.codeText}>{referralCode || '—'}</Text>
+              <Bounce style={styles.inlineIconBtn} onPress={startEdit}>
+                <FontAwesome6 name="pen" size={13} color={Colors.primary} />
+              </Bounce>
+              <Bounce style={styles.inlineIconBtn} onPress={handleCopyCode}>
+                <FontAwesome6 name="copy" size={14} color={Colors.primary} />
+              </Bounce>
+            </View>
+            <Text style={styles.helperText}>{t('affiliation.description', 'Partagez ce code ou ce lien avec vos amis. Lorsqu\'ils s\'inscrivent avec, ils deviennent vos filleuls et vous recevez des commissions sur leurs transactions.')}</Text>
 
-        <View style={styles.actionsRow}>
+            <View style={styles.actionsRow}>
           <Button
             title={t('affiliation.copyLink', 'Copier le lien')}
             icon="link"
@@ -188,7 +272,9 @@ export default function AffiliationScreen() {
             style={[styles.smallBtn, { flex: 1 }]}
             textStyle={styles.smallBtnText}
           />
-        </View>
+            </View>
+          </>
+        )}
       </View>
 
       {/* Stats */}
@@ -397,6 +483,15 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontFamily: Fonts.bold,
     color: Colors.primary,
     letterSpacing: 1,
+  },
+  codeInput: {
+    flex: 1,
+    fontSize: FontSize.lg,
+    fontFamily: Fonts.bold,
+    color: Colors.text,
+    letterSpacing: 1,
+    padding: 0,
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
   },
   helperText: {
     color: Colors.textMuted,
