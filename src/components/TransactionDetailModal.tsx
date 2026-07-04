@@ -19,8 +19,8 @@ import { OperatorLogo } from './OperatorLogo';
 import { CustomAlert } from './CustomAlert';
 import { walletService } from '../services/walletService';
 import { showAlert } from '../stores/alertStore';
-import { useCatalogStore } from '../stores/catalogStore';
-import { TRANSACTION_STATUS, getTransactionStatus, OPERATORS } from '../constants/config';
+import { TRANSACTION_STATUS, getTransactionStatus } from '../constants/config';
+import { resolveOperatorDisplay } from '../utils/operatorDisplay';
 import { formatCurrency, formatDate, useFormatXof, useCurrencyCode } from '../utils/format';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
@@ -48,34 +48,11 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
   const { t } = useTranslation();
   const fmtXof = useFormatXof();
   const currencyCode = useCurrencyCode();
-  const catalogOps = useCatalogStore((s) => s.operators);
-
-  // Résout le moyen (tx.mode) en { nom, drapeau, op } pour un affichage conforme
-  // à la liste dépôt/retrait (logo + drapeau du pays). Fallback propre pour les
-  // codes Fincra basés sur le rail (fincra-bank_transfer → « Virement bancaire »).
-  // Devise destinataire Fincra → drapeau du pays bénéficiaire (le « pays »).
-  const FINCRA_CUR_FLAG: Record<string, string> = {
-    NGN: '🇳🇬', GHS: '🇬🇭', KES: '🇰🇪', UGX: '🇺🇬', ZMW: '🇿🇲', TZS: '🇹🇿',
-    ZAR: '🇿🇦', EGP: '🇪🇬', USD: '🇺🇸', EUR: '🇪🇺', GBP: '🇬🇧',
-  };
-  const resolveOperatorView = (mode?: string | null, currencyDest?: string | null) => {
-    if (!mode) return null;
-    const found =
-      catalogOps.find((o) => o.id === mode) ||
-      (OPERATORS as unknown as any[]).find((o) => o.id === mode);
-    if (found) return { name: String(found.name), flag: String(found.flag || ''), op: found as any };
-    const m = mode.match(/^fincra-(bank_transfer|bank|mobile_money|mm|checkout|card)$/i);
-    if (m) {
-      const r = m[1].toLowerCase();
-      const rail = r === 'bank' ? 'bank_transfer' : r === 'card' ? 'checkout' : r === 'mm' ? 'mobile_money' : r;
-      const name = rail === 'bank_transfer' ? t('transaction.railBank')
-                 : rail === 'checkout'      ? t('transaction.railCard')
-                 :                            t('transaction.railMobileMoney');
-      const flag = currencyDest ? (FINCRA_CUR_FLAG[currencyDest.toUpperCase()] || '') : '';
-      return { name, flag, op: { fincra: true, rail } as any };
-    }
-    return { name: mode, flag: '', op: null as any };
-  };
+  // Résout le moyen (tx.mode) en { nom, drapeau, op } via le résolveur UNIQUE
+  // partagé avec l'historique / le reçu (opérateur précis, rail, catalogue,
+  // Fincra ET Klasha incl. Chine). Jamais de code brut « klasha-… » à l'écran.
+  const resolveOperatorView = (mode?: string | null, currencyDest?: string | null) =>
+    resolveOperatorDisplay(mode, currencyDest);
 
   // Hero résumé (statut + montant) — bloc teinté selon le statut, partagé par
   // les 4 types de transaction pour un rendu homogène.
