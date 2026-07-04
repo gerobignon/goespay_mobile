@@ -35,6 +35,17 @@ const REFERRAL_BASE_URL = 'https://goespay.io';
 // lien court goespay.io/<CODE>. Repli numérique (id) → forme longue ?ref=.
 const isShortCode = (c: string) => /^[A-Z0-9]{4,32}$/.test(c);
 
+// Mots réservés (collision avec une route/page goespay.io via le lien court
+// goespay.io/<CODE>). Doit rester aligné avec isReservedReferalCode() backend.
+const RESERVED_CODES = new Set([
+  'ADMIN', 'BACKEND', 'API', 'REGISTER', 'LOGIN', 'LOGOUT', 'SIGNUP', 'SIGNIN',
+  'CONTACT', 'BLOG', 'PAYS', 'TARIFS', 'ERROR', 'MAINTENANCE', 'ABOUT',
+  'STORAGE', 'THEMES', 'PLUGINS', 'MODULES', 'VENDOR', 'CONFIG', 'BOOTSTRAP',
+  'WWW', 'APP', 'MAIL', 'FTP', 'ROOT', 'NULL', 'TRUE', 'FALSE',
+  'GOESPAY', 'SUPPORT', 'HELP', 'HOME', 'ME', 'USER', 'USERS', 'ACCOUNT',
+  'WALLET', 'CRYPTO', 'KYC', 'DASHBOARD', 'AFFILIATION', 'REFERRAL',
+]);
+
 // Masque un nom complet en gardant la 1ère et dernière lettre de chaque mot.
 // Ex: "Erol Bignon" → "E**l B****n", "Jo" → "J*", "X" → "X"
 function maskName(full?: string | null): string {
@@ -142,6 +153,10 @@ export default function AffiliationScreen() {
     const code = codeInput.trim().toUpperCase();
     if (!isShortCode(code)) {
       showAlert(t('common.error'), t('affiliation.codeInvalid', 'Code invalide : 4 à 32 caractères, lettres A-Z et chiffres uniquement.'));
+      return;
+    }
+    if (RESERVED_CODES.has(code)) {
+      showAlert(t('common.error'), t('affiliation.codeReserved', 'Ce code est réservé. Choisissez-en un autre.'));
       return;
     }
     if (code === referralCode) {
@@ -491,6 +506,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.text,
     letterSpacing: 1,
     padding: 0,
+    textTransform: 'uppercase',
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
   },
   helperText: {
