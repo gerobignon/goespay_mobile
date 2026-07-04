@@ -15,9 +15,11 @@ interface KycBannerProps {
   expiringSoon?: boolean;
   /** Nombre de jours restants (>= 0) si expiringSoon */
   daysLeft?: number | null;
+  /** Incite à finir le KYC pour débloquer le bonus de bienvenue (état non validé). */
+  bonus?: boolean;
 }
 
-export function KycBanner({ onPress, status = 0, expired = false, expiringSoon = false, daysLeft = null }: KycBannerProps) {
+export function KycBanner({ onPress, status = 0, expired = false, expiringSoon = false, daysLeft = null, bonus = false }: KycBannerProps) {
   const styles = useThemedStyles(createStyles);
   const { isDark } = useTheme();
   const { t } = useTranslation();
@@ -42,6 +44,10 @@ export function KycBanner({ onPress, status = 0, expired = false, expiringSoon =
     color = Colors.info ?? '#3b82f6';
     icon = 'clock';
     interactive = false;
+  } else if (bonus) {
+    message = t('kyc.bonusPrompt');
+    color = Colors.warning;
+    icon = 'gift';
   } else {
     message = t('kyc.notValidated');
     color = Colors.warning;

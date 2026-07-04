@@ -117,6 +117,17 @@ export interface AffiliationChild {
   created_at: string | null;
 }
 
+/** Bonus de bienvenue KYC : montant, état et progression des 2 conditions. */
+export interface WelcomeBonus {
+  amount: number;
+  /** 'none' = pas encore attribué (KYC non validé) ; 'blocked' ; 'unlocked'. */
+  state: 'none' | 'blocked' | 'unlocked';
+  /** Condition A : volume de transactions sortantes cumulé (XOF). */
+  volume: { current: number; target: number };
+  /** Condition B : filleuls ayant validé leur KYC + fait ≥1 transaction. */
+  filleuls: { current: number; target: number };
+}
+
 export interface AffiliationHistoryItem {
   id: number;
   type: string;

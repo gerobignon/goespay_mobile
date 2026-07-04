@@ -28,7 +28,7 @@ import { showAlert } from '../../src/stores/alertStore';
 import { CustomAlert } from '../../src/components/CustomAlert';
 import { affiliationService } from '../../src/services/affiliationService';
 import { formatAmount, formatDate, useFormatXof, useCurrencyCode } from '../../src/utils/format';
-import type { AffiliationStats, AffiliationChild, AffiliationHistoryItem } from '../../src/types';
+import type { AffiliationStats, AffiliationChild, AffiliationHistoryItem, WelcomeBonus } from '../../src/types';
 
 const REFERRAL_BASE_URL = 'https://goespay.io';
 // Vrai code parrainage = 4-32 car. [A-Z0-9] (auto 5 car. + codes perso admin) →
@@ -74,6 +74,7 @@ export default function AffiliationScreen() {
   const fetchBalance = useWalletStore((s) => s.fetchBalance);
 
   const [stats, setStats] = useState<AffiliationStats | null>(null);
+  const [bonus, setBonus] = useState<WelcomeBonus | null>(null);
   const [children, setChildren] = useState<AffiliationChild[]>([]);
   const [history, setHistory] = useState<AffiliationHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,14 +94,16 @@ export default function AffiliationScreen() {
 
   const loadAll = useCallback(async () => {
     try {
-      const [s, c, h] = await Promise.all([
+      const [s, c, h, b] = await Promise.all([
         affiliationService.getStats(),
         affiliationService.getChildren(1).catch(() => ({ data: [] as AffiliationChild[], current_page: 1, last_page: 1, per_page: 20, total: 0 })),
         affiliationService.getHistory(1).catch(() => ({ data: [] as AffiliationHistoryItem[], current_page: 1, last_page: 1, per_page: 20, total: 0 })),
+        affiliationService.getWelcomeBonus().catch(() => null),
       ]);
       setStats(s);
       setChildren(c.data);
       setHistory(h.data);
+      setBonus(b);
     } catch {
       showAlert(t('common.error'), t('affiliation.loadError', 'Impossible de charger les données.'));
     }
@@ -204,6 +207,22 @@ export default function AffiliationScreen() {
           },
         },
       ]
+    );
+  };
+
+  const renderBonusProgress = (label: string, current: number, target: number, valueText: string) => {
+    const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+    const done = current >= target;
+    return (
+      <View>
+        <View style={styles.bonusProgressHead}>
+          <Text style={styles.bonusProgressLabel}>{label}</Text>
+          <Text style={[styles.bonusProgressValue, done && { color: Colors.success }]}>{valueText}</Text>
+        </View>
+        <View style={styles.bonusTrack}>
+          <View style={[styles.bonusFill, { width: `${pct}%`, backgroundColor: done ? Colors.success : Colors.warning }]} />
+        </View>
+      </View>
     );
   };
 
@@ -323,6 +342,49 @@ export default function AffiliationScreen() {
           </View>
         </Reveal>
       </View>
+
+      {/* Bonus de bienvenue KYC */}
+      {bonus && bonus.state !== 'none' && (
+        <Reveal delay={0} offset={14}>
+          <View style={styles.bonusCard}>
+            <View style={styles.bonusHeader}>
+              <View style={styles.bonusIcon}>
+                <FontAwesome6 name="gift" size={16} color={Colors.warning} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.bonusTitle}>{t('affiliation.bonusTitle', 'Bonus de bienvenue')}</Text>
+                <Text style={styles.bonusSubtitle}>
+                  {bonus.state === 'unlocked'
+                    ? t('affiliation.bonusUnlocked', { amount: fmtXof(bonus.amount), defaultValue: `${fmtXof(bonus.amount)} crédités sur votre solde` })
+                    : t('affiliation.bonusBlocked', { amount: fmtXof(bonus.amount), defaultValue: `Débloquez ${fmtXof(bonus.amount)} en remplissant les 2 conditions` })}
+                </Text>
+              </View>
+              <FontAwesome6
+                name={bonus.state === 'unlocked' ? 'circle-check' : 'lock'}
+                size={16}
+                color={bonus.state === 'unlocked' ? Colors.success : Colors.textMuted}
+              />
+            </View>
+
+            {bonus.state === 'blocked' && (
+              <View style={styles.bonusProgressList}>
+                {renderBonusProgress(
+                  t('affiliation.bonusVolume', 'Volume de transactions'),
+                  bonus.volume.current,
+                  bonus.volume.target,
+                  `${fmtXof(bonus.volume.current, { withCode: false })} / ${fmtXof(bonus.volume.target, { withCode: false })}`,
+                )}
+                {renderBonusProgress(
+                  t('affiliation.bonusFilleuls', 'Filleuls actifs (KYC + 1 transaction)'),
+                  bonus.filleuls.current,
+                  bonus.filleuls.target,
+                  `${bonus.filleuls.current} / ${bonus.filleuls.target}`,
+                )}
+              </View>
+            )}
+          </View>
+        </Reveal>
+      )}
 
       {/* Claim */}
       {(stats?.unpayed ?? 0) > 0 && (
@@ -473,6 +535,69 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     padding: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.surfaceBorder,
+  },
+  bonusCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.warning + '55',
+    marginBottom: Spacing.md,
+  },
+  bonusHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  bonusIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.warning + '22',
+  },
+  bonusTitle: {
+    fontSize: FontSize.md,
+    fontFamily: Fonts.bold,
+    color: Colors.text,
+  },
+  bonusSubtitle: {
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.medium,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  bonusProgressList: {
+    marginTop: Spacing.md,
+    gap: Spacing.md,
+  },
+  bonusProgressHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+  },
+  bonusProgressLabel: {
+    flex: 1,
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.medium,
+    color: Colors.text,
+  },
+  bonusProgressValue: {
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.semiBold,
+    color: Colors.textMuted,
+  },
+  bonusTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.inputBg,
+    overflow: 'hidden',
+  },
+  bonusFill: {
+    height: '100%',
+    borderRadius: 4,
   },
   sectionLabel: {
     color: Colors.textMuted,

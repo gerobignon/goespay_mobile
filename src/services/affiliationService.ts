@@ -4,6 +4,7 @@ import type {
   AffiliationChild,
   AffiliationHistoryItem,
   PaginatedResponse,
+  WelcomeBonus,
 } from '../types';
 
 export const affiliationService = {
@@ -33,6 +34,11 @@ export const affiliationService = {
 
   updateCode: async (code: string): Promise<{ message: string; referral_code: string }> => {
     const { data } = await api.put('/me/affiliation/code', { code });
+    return data;
+  },
+
+  getWelcomeBonus: async (): Promise<WelcomeBonus> => {
+    const { data } = await api.get<WelcomeBonus>('/me/welcome-bonus');
     return data;
   },
 };

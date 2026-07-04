@@ -256,6 +256,7 @@ export default function DashboardScreen() {
           <KycBanner
             status={user?.validate as 0 | 2}
             expired={user?.validate === 0 && !!user?.idexp_expired}
+            bonus={user?.validate === 0 && !user?.idexp_expired}
             onPress={user?.validate === 0 ? () => router.push('/kyc') : undefined}
           />
         )}
