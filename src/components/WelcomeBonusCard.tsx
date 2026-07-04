@@ -13,11 +13,12 @@ import { Reveal } from './anim';
 import type { WelcomeBonus } from '../types';
 
 /**
- * Carte « bonus de bienvenue » affichée sous le solde à l'accueil :
+ * Carte « bonus de bienvenue » affichée au-dessus du solde à l'accueil :
+ *   - KYC non soumis (validate=0) → incite à faire le KYC pour recevoir le bonus ;
  *   - KYC soumis (validate=2) → teaser « bonus à venir après validation » ;
  *   - bonus attribué mais bloqué (validate=1, state=blocked) → « en cours ».
  * Un bouton ouvre un modal détaillant les 2 conditions et leur progression.
- * Masquée sinon (KYC non soumis → bannière dédiée ; bonus débloqué → rien).
+ * Masquée uniquement quand le bonus est déjà débloqué.
  */
 export function WelcomeBonusCard() {
   const styles = useThemedStyles(createStyles);
@@ -31,7 +32,7 @@ export function WelcomeBonusCard() {
 
   useEffect(() => {
     let alive = true;
-    if (validate !== 1 && validate !== 2) {
+    if (validate == null) {
       setBonus(null);
       return;
     }
@@ -42,9 +43,11 @@ export function WelcomeBonusCard() {
     return () => { alive = false; };
   }, [validate]);
 
+  const notSubmitted = validate === 0;
   const pending = validate === 2;
   const blocked = bonus?.state === 'blocked';
-  if (!pending && !blocked) return null;
+  // Masquée seulement quand le bonus est déjà débloqué (ou user absent).
+  if (!notSubmitted && !pending && !blocked) return null;
 
   const amount = bonus?.amount ?? 5000;
   const amountLabel = fmtXof(amount);
@@ -80,9 +83,11 @@ export function WelcomeBonusCard() {
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>{t('welcomeBonus.teaserTitle', { amount: amountLabel, defaultValue: `${amountLabel} vous attendent ✨` })}</Text>
             <Text style={styles.sub}>
-              {pending
-                ? t('welcomeBonus.pendingSub', 'Votre bonus de bienvenue arrive après validation de votre KYC.')
-                : t('welcomeBonus.blockedSub', 'Remplissez 2 conditions pour débloquer votre bonus.')}
+              {notSubmitted
+                ? t('welcomeBonus.notSubmittedSub', 'Terminez votre KYC pour recevoir votre bonus de bienvenue.')
+                : pending
+                  ? t('welcomeBonus.pendingSub', 'Votre bonus de bienvenue arrive après validation de votre KYC.')
+                  : t('welcomeBonus.blockedSub', 'Remplissez 2 conditions pour débloquer votre bonus.')}
             </Text>
             <TouchableOpacity style={styles.cta} onPress={() => setModal(true)} activeOpacity={0.85}>
               <FontAwesome6 name="list-check" size={12} color="#B45309" />
@@ -110,7 +115,7 @@ export function WelcomeBonusCard() {
             {t('welcomeBonus.how', { amount: amountLabel, defaultValue: `Dès la validation de votre KYC, ${amountLabel} sont crédités (bloqués) sur votre solde. Ils se débloquent automatiquement quand les 2 conditions ci-dessous sont réunies.` })}
           </Text>
 
-          {pending && (
+          {validate !== 1 && (
             <View style={styles.note}>
               <FontAwesome6 name="circle-info" size={13} color={Colors.info} />
               <Text style={styles.noteText}>{t('welcomeBonus.pendingNote', 'Le bonus démarre après la validation de votre KYC.')}</Text>

@@ -693,6 +693,7 @@
   },
   "welcomeBonus": {
     "teaserTitle": "{{amount}} vous attendent ✨",
+    "notSubmittedSub": "Terminez votre KYC pour recevoir votre bonus de bienvenue.",
     "pendingSub": "Votre bonus de bienvenue arrive après validation de votre KYC.",
     "blockedSub": "Remplissez 2 conditions pour débloquer votre bonus.",
     "seeConditions": "Voir les conditions",

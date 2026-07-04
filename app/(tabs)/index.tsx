@@ -278,6 +278,9 @@ export default function DashboardScreen() {
               style={[styles.wideColLeft, stickyStyle(stickyLeft)]}
               onLayout={(e) => setLeftColH(Math.round(e.nativeEvent.layout.height))}
             >
+              {/* Bonus de bienvenue KYC : carte au-dessus du solde (teaser / progression). */}
+              <WelcomeBonusCard />
+
               <ImageBackground
                 source={require('../../assets/bg_page.jpg')}
                 style={styles.balanceCard}
@@ -316,9 +319,6 @@ export default function DashboardScreen() {
                 </View>
               </ImageBackground>
 
-              {/* Bonus de bienvenue KYC : carte sous le solde (teaser / progression). */}
-              <WelcomeBonusCard />
-
               {/* Widgets en dessous : G + A + C + E. */}
               <PromoCarousel slides={promoSlides} />
               {showTransfer && <RecentBeneficiaries onPick={onBenefPick} onPickBank={onBenefPickBank} onAdd={onBenefAdd} allowCrypto={isCryptoUser} />}
@@ -356,6 +356,9 @@ export default function DashboardScreen() {
         ) : (
           <>
             {/* Mobile: single column layout */}
+            {/* Bonus de bienvenue KYC : carte au-dessus du solde (teaser / progression). */}
+            <WelcomeBonusCard />
+
             <ImageBackground
               source={require('../../assets/bg_page.jpg')}
               style={styles.balanceCard}
@@ -393,9 +396,6 @@ export default function DashboardScreen() {
                 <MonthlyInsights />
               </View>
             </ImageBackground>
-
-            {/* Bonus de bienvenue KYC : carte sous le solde (teaser / progression). */}
-            <WelcomeBonusCard />
 
             {/* Widgets en dessous : G + A + C + E. */}
             <PromoCarousel slides={promoSlides} />

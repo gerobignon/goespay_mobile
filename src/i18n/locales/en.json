@@ -693,6 +693,7 @@
   },
   "welcomeBonus": {
     "teaserTitle": "{{amount}} waiting for you ✨",
+    "notSubmittedSub": "Complete your KYC to receive your welcome bonus.",
     "pendingSub": "Your welcome bonus arrives once your KYC is validated.",
     "blockedSub": "Meet 2 conditions to unlock your bonus.",
     "seeConditions": "View conditions",
