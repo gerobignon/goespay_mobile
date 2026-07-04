@@ -22,6 +22,7 @@ import { authService } from '../../src/services/authService';
 import { showAlert } from '../../src/stores/alertStore';
 import { CustomAlert } from '../../src/components/CustomAlert';
 import { KycBanner } from '../../src/components/KycBanner';
+import { WelcomeBonusCard } from '../../src/components/WelcomeBonusCard';
 import { formatAmount } from '../../src/utils/format';
 import { useFormatXof, useCurrencyCode } from '../../src/utils/format';
 import {
@@ -315,6 +316,9 @@ export default function DashboardScreen() {
                 </View>
               </ImageBackground>
 
+              {/* Bonus de bienvenue KYC : carte sous le solde (teaser / progression). */}
+              <WelcomeBonusCard />
+
               {/* Widgets en dessous : G + A + C + E. */}
               <PromoCarousel slides={promoSlides} />
               {showTransfer && <RecentBeneficiaries onPick={onBenefPick} onPickBank={onBenefPickBank} onAdd={onBenefAdd} allowCrypto={isCryptoUser} />}
@@ -389,6 +393,9 @@ export default function DashboardScreen() {
                 <MonthlyInsights />
               </View>
             </ImageBackground>
+
+            {/* Bonus de bienvenue KYC : carte sous le solde (teaser / progression). */}
+            <WelcomeBonusCard />
 
             {/* Widgets en dessous : G + A + C + E. */}
             <PromoCarousel slides={promoSlides} />

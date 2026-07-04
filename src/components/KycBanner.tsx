@@ -4,7 +4,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { useTheme } from './ThemeProvider';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 
 interface KycBannerProps {
   onPress?: () => void;
@@ -29,6 +29,7 @@ export function KycBanner({ onPress, status = 0, expired = false, expiringSoon =
   let color: string;
   let icon: string;
   let interactive = true;
+  let bonusMsg = false;
 
   if (expired) {
     message = t('kyc.expiredMessage');
@@ -48,6 +49,7 @@ export function KycBanner({ onPress, status = 0, expired = false, expiringSoon =
     message = t('kyc.bonusPrompt');
     color = Colors.warning;
     icon = 'gift';
+    bonusMsg = true;
   } else {
     message = t('kyc.notValidated');
     color = Colors.warning;
@@ -62,7 +64,16 @@ export function KycBanner({ onPress, status = 0, expired = false, expiringSoon =
       activeOpacity={interactive ? 0.7 : 1}
     >
       <FontAwesome6 name={icon as any} size={16} color={color} />
-      <Text style={[styles.text, { color }]}>{message}</Text>
+      <Text style={[styles.text, { color }]}>
+        {bonusMsg ? (
+          <Trans
+            i18nKey="kyc.bonusPrompt"
+            components={{ amt: <Text style={styles.bonusHighlight} /> }}
+          />
+        ) : (
+          message
+        )}
+      </Text>
       {interactive && (
         <FontAwesome6 name="chevron-right" size={12} color={color} />
       )}
@@ -85,5 +96,13 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.warning,
     fontSize: FontSize.sm,
     fontFamily: Fonts.medium,
+  },
+  // Montant du bonus mis en avant — « pétillant » : or vif + gras + légèrement
+  // plus grand pour capter l'œil dans la phrase.
+  bonusHighlight: {
+    color: '#F59E0B',
+    fontFamily: Fonts.bold,
+    fontSize: FontSize.md,
+    letterSpacing: 0.3,
   },
 });

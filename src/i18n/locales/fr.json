@@ -683,12 +683,24 @@
     "driverLicense": "Permis de conduire",
     "pendingReview": "Votre dossier est en cours de vérification. Veuillez patienter.",
     "notValidated": "Votre compte n'est pas encore validé. Vérifiez votre identité.",
-    "bonusPrompt": "Terminez votre KYC et débloquez votre bonus de bienvenue de 5 000 XOF.",
+    "bonusPrompt": "Terminez votre KYC et débloquez votre bonus de bienvenue de <amt>5 000 XOF ✨</amt>",
     "expiredMessage": "Votre pièce d'identité a expiré. Renouvelez votre KYC.",
     "expiringSoon": "Votre pièce d'identité expire dans {{days}} jour(s). Renouvelez maintenant.",
     "expiringSoonGeneric": "Votre pièce d'identité expire bientôt. Renouvelez maintenant.",
     "blockedExpired": "Votre pièce d'identité a expiré. Vous devez renouveler votre KYC pour continuer.",
     "blockedRequired": "Votre KYC doit être validé pour effectuer cette opération."
+  },
+  "welcomeBonus": {
+    "teaserTitle": "{{amount}} vous attendent ✨",
+    "pendingSub": "Votre bonus de bienvenue arrive après validation de votre KYC.",
+    "blockedSub": "Remplissez 2 conditions pour débloquer votre bonus.",
+    "seeConditions": "Voir les conditions",
+    "modalTitle": "Bonus de bienvenue",
+    "how": "Dès la validation de votre KYC, {{amount}} sont crédités (bloqués) sur votre solde. Ils se débloquent automatiquement quand les 2 conditions ci-dessous sont réunies.",
+    "pendingNote": "Le bonus démarre après la validation de votre KYC.",
+    "condVolume": "Volume de transactions sortantes",
+    "condFilleuls": "Filleuls actifs (KYC + 1 transaction)",
+    "close": "Fermer"
   },
   "layout": {
     "connectionError": "Connexion impossible",

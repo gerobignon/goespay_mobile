@@ -683,12 +683,24 @@
     "driverLicense": "Driver's license",
     "pendingReview": "Your documents are being reviewed. Please wait.",
     "notValidated": "Your account is not yet verified. Verify your identity.",
-    "bonusPrompt": "Complete your KYC and unlock your 5,000 XOF welcome bonus.",
+    "bonusPrompt": "Complete your KYC and unlock your <amt>5,000 XOF ✨</amt> welcome bonus.",
     "expiredMessage": "Your ID document has expired. Please renew your KYC.",
     "expiringSoon": "Your ID document expires in {{days}} day(s). Renew now.",
     "expiringSoonGeneric": "Your ID document expires soon. Renew now.",
     "blockedExpired": "Your ID document has expired. You must renew your KYC to continue.",
     "blockedRequired": "Your KYC must be validated to perform this operation."
+  },
+  "welcomeBonus": {
+    "teaserTitle": "{{amount}} waiting for you ✨",
+    "pendingSub": "Your welcome bonus arrives once your KYC is validated.",
+    "blockedSub": "Meet 2 conditions to unlock your bonus.",
+    "seeConditions": "View conditions",
+    "modalTitle": "Welcome bonus",
+    "how": "As soon as your KYC is validated, {{amount}} is credited (locked) to your balance. It unlocks automatically once the 2 conditions below are met.",
+    "pendingNote": "The bonus starts after your KYC is validated.",
+    "condVolume": "Outgoing transaction volume",
+    "condFilleuls": "Active referrals (KYC + 1 transaction)",
+    "close": "Close"
   },
   "layout": {
     "connectionError": "Connection failed",
