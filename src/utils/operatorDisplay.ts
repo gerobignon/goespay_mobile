@@ -6,7 +6,7 @@ const FINCRA_CUR_FLAG: Record<string, string> = {
   NGN: '🇳🇬', GHS: '🇬🇭', KES: '🇰🇪', UGX: '🇺🇬', ZMW: '🇿🇲', TZS: '🇹🇿',
   ZAR: '🇿🇦', EGP: '🇪🇬', USD: '🇺🇸', EUR: '🇪🇺', GBP: '🇬🇧',
   // Devises Klasha additionnelles.
-  CDF: '🇨🇩', RWF: '🇷🇼', MWK: '🇲🇼', MZN: '🇲🇿', SLL: '🇸🇱', CNY: '🇨🇳',
+  CDF: '🇨🇩', RWF: '🇷🇼', MWK: '🇲🇼', MZN: '🇲🇿', SLE: '🇸🇱', SLL: '🇸🇱', CNY: '🇨🇳',
 };
 
 // Libellé propre par rail Fincra (jamais la string brute « fincra-… »).
@@ -79,6 +79,20 @@ export function resolveOperatorDisplay(
     const normRail = rail === 'mm' ? 'mobile_money' : rail;
     // logo = même visuel que dépôt/retrait → OperatorLogo affiche l'image (pas l'icône).
     return { name, flag, op: { fincra: true, rail: normRail, logo: FINCRA_RAIL_LOGO[rail] } };
+  }
+
+  // Klasha Chine : klasha-cny + variantes corridor (klasha-cny-bt / -card / -wallet
+  // / -wechat). Libellé propre 🇨🇳 SANS jamais laisser fuiter « klasha » ni « cny »
+  // sur le reçu / l'historique.
+  const cny = mode.match(/^klasha-cny(?:-(bt|bank|card|wallet|wechat))?$/i);
+  if (cny) {
+    const svc = (cny[1] || '').toLowerCase();
+    // Le drapeau 🇨🇳 porte déjà le contexte « Chine » → pas de « Chine » dans le texte.
+    const name = svc === 'card' ? 'UnionPay'
+      : svc === 'wallet' ? 'Alipay'
+      : svc === 'wechat' ? 'WeChat'
+      : 'Virement bancaire';
+    return { name, flag: '🇨🇳', op: { klasha: true, rail: 'cny', logo: FINCRA_RAIL_LOGO['bank_transfer'] } };
   }
 
   // Klasha : mode stocké = klasha-<mobile_money|bank_transfer|card|checkout|wire|cny> (mêmes visuels).
