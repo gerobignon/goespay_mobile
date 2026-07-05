@@ -26,6 +26,7 @@ export function DesktopFooter() {
 
   return (
     <ImageBackground source={bgDark} style={styles.footer} imageStyle={styles.bgImage}>
+      <View style={styles.darken} pointerEvents="none" />
       <View style={styles.inner}>
         <Text style={styles.copyright}>
           ©2024-{year} | GOES INDUSTRIES SARL | Tous droits réservés
@@ -51,6 +52,10 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   bgImage: {
     resizeMode: 'cover',
+  },
+  darken: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(5,12,30,0.82)',
   },
   inner: {
     flexDirection: 'row',

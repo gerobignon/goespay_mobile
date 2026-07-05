@@ -37,6 +37,7 @@ export function DesktopHeader() {
 
   return (
     <ImageBackground source={bgPage} style={[styles.header, { paddingTop: insets.top + Spacing.xl }]} imageStyle={styles.bgImage}>
+      <View style={styles.darken} pointerEvents="none" />
       <View style={styles.inner}>
         {/* Logo */}
         <TouchableOpacity onPress={() => router.push('/(tabs)')} style={styles.logoWrap}>
@@ -87,6 +88,10 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   bgImage: {
     resizeMode: 'cover',
+  },
+  darken: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(5,12,30,0.82)',
   },
   inner: {
     flexDirection: 'row',

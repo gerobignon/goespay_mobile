@@ -578,7 +578,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderRadius: BorderRadius.xl,
   },
   balanceOverlay: {
-    backgroundColor: 'rgba(23,30,43,0)',
+    backgroundColor: 'rgba(5,12,30,0.82)',
     paddingVertical: Spacing.xl,
     paddingHorizontal: Spacing.sm,
     alignItems: 'center',
