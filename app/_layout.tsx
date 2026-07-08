@@ -93,6 +93,18 @@ function RootInner() {
     }
   }, []);
 
+  // Web : suit le thème pour la barre système mobile (chrome navigateur / PWA).
+  // theme-color colore la barre d'outils + la zone de navigation/gestes ; sans ça
+  // le bas restait blanc en mode sombre. On aligne aussi le fond body/html.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const bg = isDark ? '#0b0d1a' : '#f0f2f5';
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', isDark ? '#0b0d1a' : '#3176FE');
+    document.documentElement.style.backgroundColor = bg;
+    document.body.style.backgroundColor = bg;
+  }, [isDark]);
+
   // Vérification du statut API au montage et toutes les 60s sur web
   useEffect(() => {
     let cancelled = false;

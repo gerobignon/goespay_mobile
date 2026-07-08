@@ -20,6 +20,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
+import { useTheme } from '../ThemeProvider';
 import { useAuthStore } from '../../stores/authStore';
 import { useWalletStore } from '../../stores/walletStore';
 import { useCatalogStore } from '../../stores/catalogStore';
@@ -430,6 +431,7 @@ const REFERRAL_BASE_URL = 'https://goespay.io';
 export function ReferralCard() {
   const { t } = useTranslation();
   const router = useRouter();
+  const { isDark } = useTheme();
   const styles = useThemedStyles(createStyles);
   const user = useAuthStore((s) => s.user);
   const code = (user as any)?.referral_code || (user as any)?.referal_code;
@@ -487,9 +489,9 @@ export function ReferralCard() {
             <Text style={styles.refManageText}>{t('home.referralManage', 'Gérer')}</Text>
           </Bounce>
         </View>
-        <Bounce onPress={share} style={styles.refShare}>
-          <FontAwesome6 name="share-nodes" size={13} color={Colors.secondary} />
-          <Text style={styles.refShareText}>{t('home.referralShare')}</Text>
+        <Bounce onPress={share} style={[styles.refShare, isDark && styles.refShareDark]}>
+          <FontAwesome6 name="share-nodes" size={13} color={isDark ? Colors.white : Colors.secondary} />
+          <Text style={[styles.refShareText, isDark && styles.refShareTextDark]}>{t('home.referralShare')}</Text>
         </Bounce>
       </View>
     </LinearGradient>
@@ -751,4 +753,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     backgroundColor: Colors.white,
   },
   refShareText: { fontSize: FontSize.sm, fontFamily: Fonts.bold, color: Colors.secondary },
+  // Sombre : le bouton blanc jurait sur le dégradé → bleu de marque + texte blanc.
+  refShareDark: { backgroundColor: Colors.primary },
+  refShareTextDark: { color: Colors.white },
 });
