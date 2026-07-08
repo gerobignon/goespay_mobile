@@ -89,18 +89,31 @@ function RootInner() {
       }
       // Hauteur plein écran — le traitement diffère selon le mode :
       // • Navigateur : 100dvh (dynamic viewport) pour suivre la barre d'URL mobile.
-      // • PWA installée (standalone iOS) : bug WebKit connu où 100vh/100dvh/100%
-      //   sont TOUS sous-évalués → une bande du fond du body apparaît sous la barre
-      //   d'onglets (espace vide + « coupure »). -webkit-fill-available remplit la
-      //   hauteur réellement visible et supprime la bande.
+      // • PWA installée (standalone iOS) : bug WebKit de longue date où TOUTES les
+      //   unités de hauteur (vh/dvh/%/-webkit-fill-available) sont sous-évaluées →
+      //   une bande du fond du body apparaît sous la barre d'onglets. Seule
+      //   window.innerHeight donne la hauteur réellement visible : on la fixe en
+      //   dur (recalculée à chaque rotation). N'est PAS déclenché par le clavier
+      //   sur iOS (innerHeight = viewport de layout, insensible au clavier).
       const isStandalone =
         window.matchMedia?.('(display-mode: standalone)').matches ||
         (window.navigator as any).standalone === true;
-      const styleEl = document.createElement('style');
-      styleEl.innerHTML = isStandalone
-        ? 'html, body, #root { height: -webkit-fill-available !important; }'
-        : 'html, body, #root { height: 100dvh !important; }';
-      document.head.appendChild(styleEl);
+      if (isStandalone) {
+        const root = document.getElementById('root');
+        const applyHeight = () => {
+          const h = window.innerHeight + 'px';
+          document.documentElement.style.height = h;
+          document.body.style.height = h;
+          if (root) root.style.height = h;
+        };
+        applyHeight();
+        window.addEventListener('resize', applyHeight);
+        window.addEventListener('orientationchange', applyHeight);
+      } else {
+        const styleEl = document.createElement('style');
+        styleEl.innerHTML = 'html, body, #root { height: 100dvh !important; }';
+        document.head.appendChild(styleEl);
+      }
       // Service worker Web Push (public/sw.js) : sert UNIQUEMENT à recevoir les
       // notifications push + gérer le clic. Pas de handler fetch → n'interfère
       // pas avec l'app. La souscription elle-même se fait via l'opt-in Réglages.

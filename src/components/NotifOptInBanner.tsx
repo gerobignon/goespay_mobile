@@ -119,10 +119,14 @@ export const NotifOptInBanner: React.FC = () => {
 
 const createStyles = (C: ColorPalette) => StyleSheet.create({
   wrap: {
+    // En bas (comme le bandeau d'installation PWA) : en haut il passait sous la
+    // barre d'état translucide de la PWA iOS et se retrouvait tronqué. Les deux
+    // bandeaux ne coexistent pas (le push iOS exige une PWA installée, or
+    // l'install ne s'affiche que hors-standalone) → pas de chevauchement.
     position: 'absolute' as any,
     left: 0,
     right: 0,
-    top: 0,
+    bottom: 0,
     padding: Spacing.md,
     zIndex: 9998,
   },
