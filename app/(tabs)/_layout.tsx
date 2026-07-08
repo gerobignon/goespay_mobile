@@ -43,7 +43,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const bottomPad = insets.bottom > 0 ? insets.bottom : 8;
 
   return (
-    <View style={[styles.bar, { paddingBottom: bottomPad, backgroundColor: colors.background, borderTopColor: colors.border }]}>
+    <View style={[styles.bar, { paddingTop: bottomPad, paddingBottom: bottomPad, backgroundColor: colors.background, borderTopColor: colors.border }]}>
       {state.routes.map((route, index) => {
         const { options } = descriptors[route.key];
         const label = (options.title ?? route.name) as string;
