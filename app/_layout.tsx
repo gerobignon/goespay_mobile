@@ -87,29 +87,17 @@ function RootInner() {
           'width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover'
         );
       }
-      // Hauteur plein écran — le traitement diffère selon le mode :
-      // • Navigateur : 100dvh (dynamic viewport) pour suivre la barre d'URL mobile.
-      // • PWA installée (standalone iOS) : bug WebKit de longue date où TOUTES les
-      //   unités de hauteur (vh/dvh/%/-webkit-fill-available) sont sous-évaluées →
-      //   une bande du fond du body apparaît sous la barre d'onglets. Seule
-      //   window.innerHeight donne la hauteur réellement visible : on la fixe en
-      //   dur (recalculée à chaque rotation). N'est PAS déclenché par le clavier
-      //   sur iOS (innerHeight = viewport de layout, insensible au clavier).
+      // Hauteur plein écran (navigateur) : 100dvh suit la barre d'URL mobile.
+      // En PWA standalone iOS on N'écrase PAS la hauteur : la webview mesure déjà
+      // correctement (innerHeight), et l'index.html la remplit via height:100% +
+      // flex. Le vrai souci du bas (bande sous la tabbar) n'est PAS une histoire
+      // de hauteur : la webview standalone ne couvre pas la zone home indicator
+      // (~env(safe-area-inset-bottom)), qu'iOS peint avec le fond html/body — voir
+      // l'effet thème plus bas qui aligne ce fond sur la couleur de la tabbar.
       const isStandalone =
         window.matchMedia?.('(display-mode: standalone)').matches ||
         (window.navigator as any).standalone === true;
-      if (isStandalone) {
-        const root = document.getElementById('root');
-        const applyHeight = () => {
-          const h = window.innerHeight + 'px';
-          document.documentElement.style.height = h;
-          document.body.style.height = h;
-          if (root) root.style.height = h;
-        };
-        applyHeight();
-        window.addEventListener('resize', applyHeight);
-        window.addEventListener('orientationchange', applyHeight);
-      } else {
+      if (!isStandalone) {
         const styleEl = document.createElement('style');
         styleEl.innerHTML = 'html, body, #root { height: 100dvh !important; }';
         document.head.appendChild(styleEl);
@@ -124,11 +112,15 @@ function RootInner() {
   }, []);
 
   // Web : suit le thème pour la barre système mobile (chrome navigateur / PWA).
-  // theme-color colore la barre d'outils + la zone de navigation/gestes ; sans ça
-  // le bas restait blanc en mode sombre. On aligne aussi le fond body/html.
+  // theme-color colore la barre d'outils + la zone de navigation/gestes.
+  // Le fond html/body est aligné sur la couleur de la TABBAR (colors.background :
+  // #171e2b sombre / #f0f2f5 clair), pas sur le fond chrome plus sombre : en PWA
+  // standalone iOS la webview ne couvre pas la zone home indicator, et c'est ce
+  // fond html/body qu'iOS y peint. En le calant sur la tabbar, la bande fusionne
+  // avec elle → plus de liseré sombre sous le menu.
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
-    const bg = isDark ? '#0b0d1a' : '#f0f2f5';
+    const bg = isDark ? '#171e2b' : '#f0f2f5';
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', isDark ? '#0b0d1a' : '#3176FE');
     document.documentElement.style.backgroundColor = bg;
