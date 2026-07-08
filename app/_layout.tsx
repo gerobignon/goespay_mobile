@@ -90,6 +90,12 @@ function RootInner() {
       const styleEl = document.createElement('style');
       styleEl.innerHTML = 'html, body, #root { height: 100dvh !important; }';
       document.head.appendChild(styleEl);
+      // Service worker Web Push (public/sw.js) : sert UNIQUEMENT à recevoir les
+      // notifications push + gérer le clic. Pas de handler fetch → n'interfère
+      // pas avec l'app. La souscription elle-même se fait via l'opt-in Réglages.
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      }
     }
   }, []);
 
@@ -204,11 +210,23 @@ function RootInner() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    registerForPushNotifications()
-      .then((token) => {
-        if (token) sendPushTokenToServer(token);
-      })
-      .catch((e) => {});
+    // Natif (iOS/Android) : enregistrement automatique à la connexion.
+    // Web (PWA) : la souscription exige un geste utilisateur (Safari/iOS) et se
+    // fait donc via l'opt-in dans Réglages, pas ici. On tente toutefois de
+    // rafraîchir une souscription DÉJÀ accordée (sans redemander la permission).
+    if (Platform.OS !== 'web') {
+      registerForPushNotifications()
+        .then((token) => {
+          if (token) sendPushTokenToServer(token);
+        })
+        .catch((e) => {});
+    } else if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      registerForPushNotifications()
+        .then((token) => {
+          if (token) sendPushTokenToServer(token);
+        })
+        .catch(() => {});
+    }
 
     // Listener : notif reçue en foreground (rien de spécial à faire, le handler global s'en charge)
     notifListenerRef.current = addNotificationReceivedListener((_notification) => {

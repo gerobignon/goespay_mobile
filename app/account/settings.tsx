@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   ImageBackground,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,6 +22,13 @@ import { SUPPORTED_LANGUAGES, setLanguage } from '../../src/i18n';
 import { CustomAlert } from '../../src/components/CustomAlert';
 import SettingsRow from '../../src/components/SettingsRow';
 import { useResponsive } from '../../src/hooks/useResponsive';
+import {
+  isWebPushSupported,
+  getWebNotificationPermission,
+  registerForPushNotifications,
+  sendPushTokenToServer,
+} from '../../src/services/notificationService';
+import { showAlert } from '../../src/stores/alertStore';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -27,6 +36,30 @@ export default function SettingsScreen() {
   const styles = useThemedStyles(createStyles);
   const { mode: themeMode, setMode: setThemeMode, isDark } = useTheme();
   const { t } = useTranslation();
+
+  // Notifications Web Push (PWA) — web uniquement.
+  const webPushSupported = isWebPushSupported();
+  const [notifPerm, setNotifPerm] = useState<string>(() => getWebNotificationPermission());
+  const [notifBusy, setNotifBusy] = useState(false);
+
+  const enableWebNotifications = async () => {
+    if (notifBusy) return;
+    setNotifBusy(true);
+    try {
+      const token = await registerForPushNotifications();
+      setNotifPerm(getWebNotificationPermission());
+      if (token) {
+        await sendPushTokenToServer(token);
+        showAlert('🔔', t('account.notifEnabledOk', 'Notifications activées.'));
+      } else if (getWebNotificationPermission() === 'denied') {
+        showAlert('🚫', t('account.notifDenied', 'Notifications bloquées. Autorisez-les dans les réglages de votre navigateur.'));
+      }
+    } catch {
+      showAlert('⚠️', t('account.notifError', "Impossible d'activer les notifications."));
+    } finally {
+      setNotifBusy(false);
+    }
+  };
 
   const changeLanguage = async (code: string) => {
     await setLanguage(code as any);
@@ -49,6 +82,39 @@ export default function SettingsScreen() {
         </View>
       )}
       {isDesktop && <Text style={styles.title}>{t('account.customization')}</Text>}
+
+      {/* Notifications (Web/PWA uniquement) */}
+      {Platform.OS === 'web' && webPushSupported && (
+        <View style={[styles.formCard, { marginBottom: Spacing.lg }]}>
+          <Text style={styles.sectionTitle}>
+            <FontAwesome6 name="bell" size={14} color={Colors.secondary} /> {t('account.notifications', 'Notifications')}
+          </Text>
+          <SettingsRow
+            icon={notifPerm === 'granted' ? 'bell' : 'bell-slash'}
+            iconColor={notifPerm === 'granted' ? Colors.primary : Colors.textMuted}
+            label={
+              notifPerm === 'granted'
+                ? t('account.notifEnabled', 'Notifications activées')
+                : t('account.notifEnable', 'Activer les notifications')
+            }
+            description={
+              notifPerm === 'denied'
+                ? t('account.notifDeniedHint', 'Bloquées — à réautoriser dans votre navigateur')
+                : t('account.notifEnableHint', 'Recevez vos confirmations de transaction')
+            }
+            onPress={notifPerm === 'granted' || notifBusy ? undefined : enableWebNotifications}
+            trailing={
+              notifBusy ? (
+                <ActivityIndicator size="small" color={Colors.primary} />
+              ) : notifPerm === 'granted' ? (
+                <FontAwesome6 name="circle-check" size={16} color={Colors.primary} />
+              ) : (
+                <FontAwesome6 name="chevron-right" size={14} color={Colors.textMuted} />
+              )
+            }
+          />
+        </View>
+      )}
 
       {/* Thème */}
       <View style={styles.formCard}>

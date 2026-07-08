@@ -54,6 +54,8 @@ export interface AppConfig {
   // Rails internationaux disponibles pour CE user (codes corridor), par sens.
   // Calculé serveur (dim 3 si pays listé, dim 2 sinon) → groupe « International ».
   intl_rails: { payin: string[]; payout: string[] };
+  // Clé VAPID publique pour les notifications Web Push (PWA). Vide si non configurée.
+  vapid_public_key: string;
 }
 
 export interface PromoSlideConfig {
@@ -109,6 +111,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   },
   promo_slides: [],
   intl_rails: { payin: [], payout: [] },
+  vapid_public_key: '',
 };
 
 export const useConfigStore = create<ConfigState>((set) => ({
