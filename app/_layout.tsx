@@ -19,6 +19,7 @@ import { useThemedStyles } from '../src/hooks/useThemedStyles';
 import { API_BASE_URL } from '../src/constants/config';
 import { CustomAlert } from '../src/components/CustomAlert';
 import { PwaInstallBanner } from '../src/components/PwaInstallBanner';
+import { NotifOptInBanner } from '../src/components/NotifOptInBanner';
 import { walletService } from '../src/services/walletService';
 import { showAlert } from '../src/stores/alertStore';
 import { useWalletStore } from '../src/stores/walletStore';
@@ -389,6 +390,7 @@ function RootInner() {
       {showOfflineBanner && Platform.OS === 'web' && <OfflineAdminBanner />}
       <Stack screenOptions={{ headerShown: false }} />
       <CustomAlert />
+      <NotifOptInBanner />
       <PwaInstallBanner />
     </>
   );

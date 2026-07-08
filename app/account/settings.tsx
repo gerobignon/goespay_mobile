@@ -50,12 +50,27 @@ export default function SettingsScreen() {
       setNotifPerm(getWebNotificationPermission());
       if (token) {
         await sendPushTokenToServer(token);
-        showAlert('🔔', t('account.notifEnabledOk', 'Notifications activées.'));
+        showAlert(
+          t('account.notifEnabled', 'Notifications activées'),
+          t('account.notifEnabledOk', 'Vous recevrez vos confirmations de transaction.'),
+          undefined,
+          'success',
+        );
       } else if (getWebNotificationPermission() === 'denied') {
-        showAlert('🚫', t('account.notifDenied', 'Notifications bloquées. Autorisez-les dans les réglages de votre navigateur.'));
+        showAlert(
+          t('account.notifDeniedTitle', 'Notifications bloquées'),
+          t('account.notifDenied', 'Autorisez-les dans les réglages de votre navigateur.'),
+          undefined,
+          'warning',
+        );
       }
     } catch {
-      showAlert('⚠️', t('account.notifError', "Impossible d'activer les notifications."));
+      showAlert(
+        t('common.error', 'Erreur'),
+        t('account.notifError', "Impossible d'activer les notifications."),
+        undefined,
+        'error',
+      );
     } finally {
       setNotifBusy(false);
     }
