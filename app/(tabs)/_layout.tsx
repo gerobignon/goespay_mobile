@@ -34,10 +34,10 @@ function TabIcon({ name, color, focused }: { name: string; color: string; focuse
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
-  // Plafonné : en PWA standalone iOS, safe-area-context renvoie parfois un inset
-  // bas gonflé → padding énorme sous la barre. On borne à [8, 20] : assez pour
-  // dégager le home indicator, jamais démesuré.
-  const bottomPad = Math.min(Math.max(insets.bottom, 8), 20);
+  // Le document remplit désormais tout l'écran physique (cf. app/_layout.tsx),
+  // donc la barre touche le bas réel : on garde l'inset bas complet pour dégager
+  // le home indicator.
+  const bottomPad = insets.bottom > 0 ? insets.bottom : 8;
 
   return (
     <View style={[styles.bar, { paddingBottom: bottomPad, backgroundColor: colors.background, borderTopColor: colors.border }]}>

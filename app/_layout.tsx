@@ -87,17 +87,30 @@ function RootInner() {
           'width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover'
         );
       }
-      // Hauteur plein écran (navigateur) : 100dvh suit la barre d'URL mobile.
-      // En PWA standalone iOS on N'écrase PAS la hauteur : la webview mesure déjà
-      // correctement (innerHeight), et l'index.html la remplit via height:100% +
-      // flex. Le vrai souci du bas (bande sous la tabbar) n'est PAS une histoire
-      // de hauteur : la webview standalone ne couvre pas la zone home indicator
-      // (~env(safe-area-inset-bottom)), qu'iOS peint avec le fond html/body — voir
-      // l'effet thème plus bas qui aligne ce fond sur la couleur de la tabbar.
+      // Hauteur plein écran :
+      // • Navigateur : 100dvh suit la barre d'URL mobile.
+      // • PWA standalone iOS : la webview de layout (window.innerHeight) est plus
+      //   COURTE que l'écran physique (window.screen.height) — la zone du home
+      //   indicator en bas n'est pas couverte et iOS la peint avec le fond de
+      //   page, d'où une bande sombre sous la tabbar. En calant la hauteur du
+      //   document sur screen.height, le contenu (dégradé, tabbar…) remplit
+      //   jusqu'au bas physique et la bande disparaît. (Vérifié en live sur le
+      //   simulateur : innerHeight=812 vs screen=874 → 62pt non couverts.)
+      //   Marche avec overflow:hidden (pas d'effet de bord clavier).
       const isStandalone =
         window.matchMedia?.('(display-mode: standalone)').matches ||
         (window.navigator as any).standalone === true;
-      if (!isStandalone) {
+      if (isStandalone) {
+        const root = document.getElementById('root');
+        const applyHeight = () => {
+          const h = window.screen.height + 'px';
+          document.documentElement.style.height = h;
+          document.body.style.height = h;
+          if (root) root.style.height = h;
+        };
+        applyHeight();
+        window.addEventListener('orientationchange', applyHeight);
+      } else {
         const styleEl = document.createElement('style');
         styleEl.innerHTML = 'html, body, #root { height: 100dvh !important; }';
         document.head.appendChild(styleEl);
