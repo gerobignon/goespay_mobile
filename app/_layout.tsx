@@ -100,17 +100,7 @@ function RootInner() {
       const isStandalone =
         window.matchMedia?.('(display-mode: standalone)').matches ||
         (window.navigator as any).standalone === true;
-      if (isStandalone) {
-        const root = document.getElementById('root');
-        const applyHeight = () => {
-          const h = window.screen.height + 'px';
-          document.documentElement.style.height = h;
-          document.body.style.height = h;
-          if (root) root.style.height = h;
-        };
-        applyHeight();
-        window.addEventListener('orientationchange', applyHeight);
-      } else {
+      {
         const styleEl = document.createElement('style');
         styleEl.innerHTML = 'html, body, #root { height: 100dvh !important; }';
         document.head.appendChild(styleEl);

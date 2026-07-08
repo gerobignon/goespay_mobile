@@ -1,7 +1,7 @@
 import React, { ReactNode, useCallback, useRef } from 'react';
 import { Animated, Easing, ImageBackground, StyleSheet, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { useTheme } from './ThemeProvider';
 
@@ -33,6 +33,18 @@ interface ScreenBackgroundProps {
 
 export function ScreenBackground({ children, edges = ['top', 'bottom'], style, animateEntrance = true }: ScreenBackgroundProps) {
   const { isDark, colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  // Padding safe-area manuel : on n'applique QUE les bords demandés. Le
+  // <SafeAreaView edges=…> de react-native-safe-area-context v5 applique l'inset
+  // bas même quand `edges` ne contient que 'top' sur le web (bug), ce qui rognait
+  // le contenu de ~34px en PWA standalone (double comptage avec le padding bas de
+  // la tabbar) → bande de vide sous le contenu. Ici on maîtrise chaque bord.
+  const safePad: ViewStyle = {
+    paddingTop: edges.includes('top') ? insets.top : 0,
+    paddingBottom: edges.includes('bottom') ? insets.bottom : 0,
+    paddingLeft: edges.includes('left') ? insets.left : 0,
+    paddingRight: edges.includes('right') ? insets.right : 0,
+  };
 
   // Entrée : opacité 0→1 + translateY 16→0. useNativeDriver → pas d'impact perf/layout.
   // Rejouée à chaque focus de l'écran (changement d'onglet, retour arrière…) → bien visible.
@@ -62,7 +74,7 @@ export function ScreenBackground({ children, edges = ['top', 'bottom'], style, a
         end={{ x: 0.95, y: 1 }}
         style={styles.overlay}
       >
-        <SafeAreaView style={[styles.overlay, style]} edges={edges}>
+        <Animated.View style={[styles.overlay, safePad, style]}>
           <Animated.View
             style={{
               flex: 1,
@@ -75,7 +87,7 @@ export function ScreenBackground({ children, edges = ['top', 'bottom'], style, a
           >
             {children}
           </Animated.View>
-        </SafeAreaView>
+        </Animated.View>
       </LinearGradient>
     </ImageBackground>
   );
@@ -89,3 +101,4 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+

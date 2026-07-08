@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Tabs } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, Text, Pressable, StyleSheet, Animated, Platform } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
 import { Spacing, FontSize, Fonts } from '../../src/constants/theme';
 import { useColors } from '../../src/components/ThemeProvider';
 import { useResponsive } from '../../src/hooks/useResponsive';
@@ -40,13 +40,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   // contenu. On l'ajoute au padding bas de la barre pour qu'elle garde sa
   // position naturelle (icônes en haut) tout en remplissant, avec son fond,
   // jusqu'au bas physique — pas de bande, pas d'espace au-dessus.
-  const standalone =
-    Platform.OS === 'web' &&
-    typeof window !== 'undefined' &&
-    !!(window.matchMedia?.('(display-mode: standalone)').matches ||
-      (window.navigator as any).standalone === true);
-  const viewportGap = standalone ? Math.max(0, window.screen.height - window.innerHeight) : 0;
-  const bottomPad = (insets.bottom > 0 ? insets.bottom : 8) + viewportGap;
+  const bottomPad = insets.bottom > 0 ? insets.bottom : 8;
 
   return (
     <View style={[styles.bar, { paddingBottom: bottomPad, backgroundColor: colors.background, borderTopColor: colors.border }]}>
