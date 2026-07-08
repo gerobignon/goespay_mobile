@@ -86,10 +86,21 @@ function RootInner() {
           'width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover'
         );
       }
-      // 100dvh (dynamic viewport) pour suivre la barre d'URL mobile
-      const styleEl = document.createElement('style');
-      styleEl.innerHTML = 'html, body, #root { height: 100dvh !important; }';
-      document.head.appendChild(styleEl);
+      // 100dvh (dynamic viewport) pour suivre la barre d'URL mobile — UNIQUEMENT
+      // en mode navigateur. En PWA installée (standalone) il n'y a pas de barre
+      // d'URL et, sur iOS, 100dvh ne coïncide pas avec la zone réellement visible :
+      // le #root devient plus court que l'écran, laissant le fond du body
+      // apparaître sous la barre d'onglets (espace vide + « coupure » au-dessus
+      // du menu). En standalone, le index.html remplit déjà l'écran (height:100% +
+      // flex) — on n'écrase donc pas sa hauteur.
+      const isStandalone =
+        window.matchMedia?.('(display-mode: standalone)').matches ||
+        (window.navigator as any).standalone === true;
+      if (!isStandalone) {
+        const styleEl = document.createElement('style');
+        styleEl.innerHTML = 'html, body, #root { height: 100dvh !important; }';
+        document.head.appendChild(styleEl);
+      }
       // Service worker Web Push (public/sw.js) : sert UNIQUEMENT à recevoir les
       // notifications push + gérer le clic. Pas de handler fetch → n'interfère
       // pas avec l'app. La souscription elle-même se fait via l'opt-in Réglages.
