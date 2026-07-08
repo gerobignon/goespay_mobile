@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Platform, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Colors, Spacing, FontSize, Fonts, BorderRadius, Shadow, type ColorPalette } from '../constants/theme';
@@ -34,6 +35,11 @@ function isSnoozed(): boolean {
 export const NotifOptInBanner: React.FC = () => {
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  // Se pose AU-DESSUS de la tabbar (sans la recouvrir) : hauteur tabbar ≈
+  // contenu (~62) + inset bas (home indicator). Sur un écran sans tabbar, ça
+  // laisse juste un petit décalage — acceptable pour un bandeau transitoire.
+  const tabBarHeight = 62 + insets.bottom;
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -93,7 +99,7 @@ export const NotifOptInBanner: React.FC = () => {
   if (Platform.OS !== 'web' || !visible) return null;
 
   return (
-    <View style={styles.wrap} pointerEvents="box-none">
+    <View style={[styles.wrap, { bottom: tabBarHeight }]} pointerEvents="box-none">
       <View style={styles.banner}>
         <View style={styles.iconBox}>
           <FontAwesome6 name="bell" size={18} color={Colors.primary} />
