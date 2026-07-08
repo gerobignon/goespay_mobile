@@ -87,21 +87,20 @@ function RootInner() {
           'width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover'
         );
       }
-      // 100dvh (dynamic viewport) pour suivre la barre d'URL mobile — UNIQUEMENT
-      // en mode navigateur. En PWA installée (standalone) il n'y a pas de barre
-      // d'URL et, sur iOS, 100dvh ne coïncide pas avec la zone réellement visible :
-      // le #root devient plus court que l'écran, laissant le fond du body
-      // apparaître sous la barre d'onglets (espace vide + « coupure » au-dessus
-      // du menu). En standalone, le index.html remplit déjà l'écran (height:100% +
-      // flex) — on n'écrase donc pas sa hauteur.
+      // Hauteur plein écran — le traitement diffère selon le mode :
+      // • Navigateur : 100dvh (dynamic viewport) pour suivre la barre d'URL mobile.
+      // • PWA installée (standalone iOS) : bug WebKit connu où 100vh/100dvh/100%
+      //   sont TOUS sous-évalués → une bande du fond du body apparaît sous la barre
+      //   d'onglets (espace vide + « coupure »). -webkit-fill-available remplit la
+      //   hauteur réellement visible et supprime la bande.
       const isStandalone =
         window.matchMedia?.('(display-mode: standalone)').matches ||
         (window.navigator as any).standalone === true;
-      if (!isStandalone) {
-        const styleEl = document.createElement('style');
-        styleEl.innerHTML = 'html, body, #root { height: 100dvh !important; }';
-        document.head.appendChild(styleEl);
-      }
+      const styleEl = document.createElement('style');
+      styleEl.innerHTML = isStandalone
+        ? 'html, body, #root { height: -webkit-fill-available !important; }'
+        : 'html, body, #root { height: 100dvh !important; }';
+      document.head.appendChild(styleEl);
       // Service worker Web Push (public/sw.js) : sert UNIQUEMENT à recevoir les
       // notifications push + gérer le clic. Pas de handler fetch → n'interfère
       // pas avec l'app. La souscription elle-même se fait via l'opt-in Réglages.
