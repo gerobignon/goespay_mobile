@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react';
-import { View, StyleSheet, Platform, ViewStyle, StyleProp } from 'react-native';
+import { View, StyleSheet, ViewStyle, StyleProp } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { BorderRadius, Spacing, type ColorPalette } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { useTheme } from './ThemeProvider';
@@ -11,10 +12,10 @@ interface GlassCardProps {
 }
 
 /**
- * Carte « glassmorphism » de marque : fond translucide + flou (web), ombre douce
- * et **contour dégradé bleu→or sur les 4 côtés** (via une LinearGradient qui sert
- * de bordure, contenu inséré de 1,5px). Se pose par-dessus le fond image+dégradé
- * de ScreenBackground pour un rendu premium.
+ * Carte « glassmorphism » de marque : vrai flou dépoli via expo-blur (natif
+ * iOS/Android ET web), fine teinte de marque, ombre douce et **contour dégradé
+ * bleu→or sur les 4 côtés** (LinearGradient servant de bordure, contenu inséré de
+ * 1,5px). Se pose par-dessus le fond image+dégradé de ScreenBackground.
  */
 export function GlassCard({ children, style }: GlassCardProps) {
   const styles = useThemedStyles(createStyles);
@@ -30,7 +31,16 @@ export function GlassCard({ children, style }: GlassCardProps) {
       end={{ x: 1, y: 1 }}
       style={styles.border}
     >
-      <View style={[styles.inner, style]}>{children}</View>
+      <View style={styles.clip}>
+        <BlurView
+          intensity={isDark ? 40 : 55}
+          tint={isDark ? 'dark' : 'light'}
+          style={StyleSheet.absoluteFill}
+        />
+        {/* Teinte de marque légère par-dessus le flou (cohérence + lisibilité). */}
+        <View style={styles.tint} pointerEvents="none" />
+        <View style={[styles.content, style]}>{children}</View>
+      </View>
     </LinearGradient>
   );
 }
@@ -51,14 +61,19 @@ const createStyles = (Colors: ColorPalette) => {
       shadowRadius: 28,
       elevation: 10,
     },
-    inner: {
-      backgroundColor: dark ? 'rgba(22,30,48,0.72)' : 'rgba(255,255,255,0.82)',
+    // Conteneur qui découpe le flou aux coins arrondis (requis Android).
+    clip: {
       borderRadius: BorderRadius.xl - 1.5,
-      padding: Spacing.lg,
       overflow: 'hidden',
-      ...(Platform.OS === 'web'
-        ? ({ backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)' } as any)
-        : {}),
+      // Repli si le flou ne rend pas (vieux Android / web sans support).
+      backgroundColor: dark ? 'rgba(22,30,48,0.55)' : 'rgba(255,255,255,0.55)',
+    },
+    tint: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: dark ? 'rgba(22,30,48,0.30)' : 'rgba(255,255,255,0.35)',
+    },
+    content: {
+      padding: Spacing.lg,
     },
   });
 };
