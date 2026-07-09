@@ -21,6 +21,8 @@ import { useAuthStore } from '../src/stores/authStore';
 import { Input } from '../src/components/Input';
 import { Button } from '../src/components/Button';
 import { Card } from '../src/components/Card';
+import { GlassCard } from '../src/components/GlassCard';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../src/constants/theme';
 import type { ColorPalette } from '../src/constants/theme';
 import { useThemedStyles } from '../src/hooks/useThemedStyles';
@@ -215,17 +217,18 @@ export default function KycScreen() {
             <View style={{ width: 20 }} />
           </View>
 
-          <Card>
-            <View style={styles.pendingContainer}>
-              <View style={styles.pendingIcon}>
-                <FontAwesome6 name="clock" size={48} color={Colors.secondary} />
-              </View>
-              <Text style={styles.pendingTitle}>{t('kyc.documentsReceived')}</Text>
-              <Text style={styles.pendingText}>
-                {t('kyc.pending')}
-              </Text>
-            </View>
-          </Card>
+          <GlassCard style={styles.pendingContainer}>
+            <LinearGradient
+              colors={['#F4B228', '#e0951a']}
+              style={styles.pendingIconGrad}
+            >
+              <FontAwesome6 name="clock" size={44} color={Colors.white} />
+            </LinearGradient>
+            <Text style={styles.pendingTitle}>{t('kyc.documentsReceived')}</Text>
+            <Text style={styles.pendingText}>
+              {t('kyc.pending')}
+            </Text>
+          </GlassCard>
 
           <Button
             title="Retour au tableau de bord"
@@ -253,17 +256,18 @@ export default function KycScreen() {
             <View style={{ width: 20 }} />
           </View>
 
-          <Card>
-            <View style={styles.pendingContainer}>
-              <View style={[styles.pendingIcon, { backgroundColor: Colors.primary + '20' }]}>
-                <FontAwesome6 name="circle-check" size={48} color={Colors.primary} />
-              </View>
-              <Text style={styles.pendingTitle}>{t('kyc.accountVerified')}</Text>
-              <Text style={styles.pendingText}>
-                {t('kyc.approved')}
-              </Text>
-            </View>
-          </Card>
+          <GlassCard style={styles.pendingContainer}>
+            <LinearGradient
+              colors={['#3ecf8e', '#198754']}
+              style={styles.pendingIconGrad}
+            >
+              <FontAwesome6 name="circle-check" size={44} color={Colors.white} />
+            </LinearGradient>
+            <Text style={styles.pendingTitle}>{t('kyc.accountVerified')}</Text>
+            <Text style={styles.pendingText}>
+              {t('kyc.approved')}
+            </Text>
+          </GlassCard>
 
           <Button
             title="Retour"
@@ -900,6 +904,19 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.sm,
+  },
+  pendingIconGrad: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    elevation: 6,
   },
   pendingTitle: {
     fontSize: FontSize.xl,

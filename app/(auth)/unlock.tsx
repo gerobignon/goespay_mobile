@@ -4,14 +4,14 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ImageBackground,
   useWindowDimensions,
   ScrollView,
   Modal,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { ScreenBackground } from '../../src/components/ScreenBackground';
+import { GlassCard } from '../../src/components/GlassCard';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { PinPad } from '../../src/components/PinPad';
 import { Input } from '../../src/components/Input';
@@ -28,7 +28,6 @@ import { Image } from 'react-native';
 import { useAuthStore } from '../../src/stores/authStore';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../../src/constants/theme';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
-import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
 import { showAlert } from '../../src/stores/alertStore';
@@ -38,7 +37,6 @@ export default function UnlockScreen() {
   const { lockMethod, unlock, clearPin } = usePinStore();
   const { logout, user } = useAuthStore();
   const styles = useThemedStyles(createStyles);
-  const { isDark } = useTheme();
   const { height } = useWindowDimensions();
   const isSmallScreen = height <= 720;
   const { t } = useTranslation();
@@ -132,11 +130,7 @@ export default function UnlockScreen() {
   };
 
   return (
-    <ImageBackground
-      source={isDark ? require('../../assets/bg_page.jpg') : require('../../assets/bg_page_light.jpg')}
-      style={styles.bg}
-    >
-      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+    <ScreenBackground edges={['top', 'bottom']}>
       <LanguageSwitcher />
       <ScrollView
         contentContainerStyle={[styles.container, isSmallScreen && styles.containerSmall]}
@@ -149,6 +143,7 @@ export default function UnlockScreen() {
           resizeMode="contain"
         />
 
+        <GlassCard style={{ alignItems: 'center', gap: Spacing.lg }}>
         <Text style={styles.title}>
           {lockMethod === 'biometric' ? t('auth.pin.unlockBiometric', 'Déverrouillez avec Face ID / Touch ID') : t('auth.pin.enterPin', 'Entrez votre PIN')}
         </Text>
@@ -172,6 +167,7 @@ export default function UnlockScreen() {
             </TouchableOpacity>
           </View>
         )}
+        </GlassCard>
 
         <View style={styles.buttonsContainer}>
           <TouchableOpacity onPress={() => setResetModalVisible(true)} style={styles.forgotBtn}>
@@ -183,7 +179,6 @@ export default function UnlockScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-      </SafeAreaView>
 
       {/* Modal de confirmation PIN oublié */}
       <Modal
@@ -232,7 +227,7 @@ export default function UnlockScreen() {
           </View>
         </View>
       </Modal>
-    </ImageBackground>
+    </ScreenBackground>
   );
 }
 

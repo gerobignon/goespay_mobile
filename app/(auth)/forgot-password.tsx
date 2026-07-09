@@ -7,11 +7,11 @@ import {
   Platform,
   ScrollView,
   Image,
-  ImageBackground,
   TextInput,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, useRouter } from 'expo-router';
+import { ScreenBackground } from '../../src/components/ScreenBackground';
+import { GlassCard } from '../../src/components/GlassCard';
 import { Input } from '../../src/components/Input';
 import { OtpInput } from '../../src/components/OtpInput';
 import { Button } from '../../src/components/Button';
@@ -19,14 +19,12 @@ import { authService } from '../../src/services/authService';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../../src/constants/theme';
 import { showAlert } from '../../src/stores/alertStore';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
-import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
-  const { isDark } = useTheme();
   const { t } = useTranslation();
   const passwordRef = useRef<TextInput>(null);
   const [step, setStep] = useState<1 | 2>(1);
@@ -94,8 +92,7 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <ImageBackground source={isDark ? require('../../assets/bg_page.jpg') : require('../../assets/bg_page_light.jpg')} style={styles.background}>
-      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+    <ScreenBackground edges={['top', 'bottom']}>
         <LanguageSwitcher />
         <KeyboardAvoidingView
           style={styles.container}
@@ -106,11 +103,12 @@ export default function ForgotPasswordScreen() {
             keyboardShouldPersistTaps="handled"
           >
             <View style={styles.logoContainer}>
+              <View style={styles.logoGlow} />
               <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
               <Text style={styles.subtitle}>{t('auth.forgotPassword.title')}</Text>
             </View>
 
-            <View style={styles.formCard}>
+            <GlassCard>
               {done ? (
                 <>
                   <Text style={styles.message}>
@@ -195,18 +193,14 @@ export default function ForgotPasswordScreen() {
                   </View>
                 </>
               )}
-            </View>
+            </GlassCard>
           </ScrollView>
         </KeyboardAvoidingView>
-      </SafeAreaView>
-    </ImageBackground>
+    </ScreenBackground>
   );
 }
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
-  background: {
-    flex: 1,
-  },
   container: {
     flex: 1,
   },
@@ -217,27 +211,26 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.md,
+  },
+  logoGlow: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    top: 10,
+    backgroundColor: Colors.secondary + '22',
+    ...(Platform.OS === 'web' ? ({ filter: 'blur(48px)' } as any) : {}),
   },
   logo: {
-    width: 240,
-    height: 240,
+    width: 180,
+    height: 180,
     marginBottom: Spacing.md,
   },
   subtitle: {
     fontSize: FontSize.lg,
     color: Colors.text,
     fontFamily: Fonts.semiBold,
-  },
-  formCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    maxWidth: 460,
-    width: '100%',
-    alignSelf: 'center',
   },
   hint: {
     fontSize: FontSize.sm,

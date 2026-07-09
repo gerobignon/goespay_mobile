@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ImageBackground } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
+import { ScreenBackground } from '../../src/components/ScreenBackground';
+import { GlassCard } from '../../src/components/GlassCard';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../../src/constants/theme';
 import { Input } from '../../src/components/Input';
@@ -10,7 +11,6 @@ import { Button } from '../../src/components/Button';
 import { authService } from '../../src/services/authService';
 import { showAlert } from '../../src/stores/alertStore';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
-import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
 
@@ -18,7 +18,6 @@ export default function ActivationScreen() {
   const { email } = useLocalSearchParams<{ email: string }>();
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
-  const { isDark } = useTheme();
   const { t } = useTranslation();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -84,14 +83,14 @@ export default function ActivationScreen() {
   };
 
   return (
-    <ImageBackground source={isDark ? require('../../assets/bg_page.jpg') : require('../../assets/bg_page_light.jpg')} style={{ flex: 1 }}>
-      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+    <ScreenBackground edges={['top', 'bottom']}>
       <LanguageSwitcher />
       <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-    <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.lg }} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.lg }} keyboardShouldPersistTaps="handled">
+      <GlassCard style={{ alignItems: 'center' }}>
       <FontAwesome6
         name="envelope-circle-check"
         size={64}
@@ -147,10 +146,10 @@ export default function ActivationScreen() {
       <Link href="/(auth)/login" style={styles.link}>
         {t('auth.forgotPassword.backToLogin')}
       </Link>
+      </GlassCard>
     </ScrollView>
     </KeyboardAvoidingView>
-      </SafeAreaView>
-    </ImageBackground>
+    </ScreenBackground>
   );
 }
 

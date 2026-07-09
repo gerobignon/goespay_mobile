@@ -4,11 +4,11 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ImageBackground,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { ScreenBackground } from '../../src/components/ScreenBackground';
+import { GlassCard } from '../../src/components/GlassCard';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { PinPad } from '../../src/components/PinPad';
 import { usePinStore } from '../../src/stores/pinStore';
@@ -21,7 +21,6 @@ import {
 import { Image } from 'react-native';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../../src/constants/theme';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
-import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
 
@@ -31,7 +30,6 @@ export default function SetupPinScreen() {
   const router = useRouter();
   const { setMethod, unlock } = usePinStore();
   const styles = useThemedStyles(createStyles);
-  const { isDark } = useTheme();
   const { t } = useTranslation();
 
   const [step, setStep] = useState<Step>('choose');
@@ -86,11 +84,7 @@ export default function SetupPinScreen() {
   };
 
   return (
-    <ImageBackground
-      source={isDark ? require('../../assets/bg_page.jpg') : require('../../assets/bg_page_light.jpg')}
-      style={styles.bg}
-    >
-      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+    <ScreenBackground edges={['top', 'bottom']}>
       <LanguageSwitcher />
       <ScrollView contentContainerStyle={styles.container}>
         <Image
@@ -100,7 +94,7 @@ export default function SetupPinScreen() {
         />
 
         {step === 'choose' && (
-          <View style={styles.content}>
+          <GlassCard style={styles.content}>
             <Text style={styles.title}>{t('auth.pin.secureAccount', 'Sécurisez votre compte')}</Text>
             <Text style={styles.subtitle}>
               {t('auth.pin.chooseMethod', "Choisissez comment vous souhaitez déverrouiller l'application. Cette étape est obligatoire.")}
@@ -131,11 +125,11 @@ export default function SetupPinScreen() {
             )}
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
-          </View>
+          </GlassCard>
         )}
 
         {step === 'enter-pin' && (
-          <View style={styles.content}>
+          <GlassCard style={styles.content}>
             <Text style={styles.title}>{t('auth.pin.choosePin', 'Choisissez un PIN')}</Text>
             <PinPad
               length={4}
@@ -147,11 +141,11 @@ export default function SetupPinScreen() {
             <TouchableOpacity onPress={() => { setStep('choose'); setError(null); }}>
               <Text style={styles.back}>← {t('common.back')}</Text>
             </TouchableOpacity>
-          </View>
+          </GlassCard>
         )}
 
         {step === 'confirm-pin' && (
-          <View style={styles.content}>
+          <GlassCard style={styles.content}>
             <Text style={styles.title}>{t('auth.pin.confirmTitle')}</Text>
             <PinPad
               length={4}
@@ -163,11 +157,10 @@ export default function SetupPinScreen() {
             <TouchableOpacity onPress={() => { setStep('enter-pin'); setError(null); triggerReset(); }}>
               <Text style={styles.back}>← {t('common.back')}</Text>
             </TouchableOpacity>
-          </View>
+          </GlassCard>
         )}
       </ScrollView>
-      </SafeAreaView>
-    </ImageBackground>
+    </ScreenBackground>
   );
 }
 

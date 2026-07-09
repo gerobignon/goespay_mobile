@@ -7,11 +7,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
-  ImageBackground,
   Switch,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, useRouter } from 'expo-router';
+import { ScreenBackground } from '../../src/components/ScreenBackground';
+import { GlassCard } from '../../src/components/GlassCard';
 import { useAuthStore } from '../../src/stores/authStore';
 import { saveCredentials } from '../../src/services/secureAuthService';
 import { Input } from '../../src/components/Input';
@@ -21,14 +21,12 @@ import { showAlert } from '../../src/stores/alertStore';
 import { authService } from '../../src/services/authService';
 import { OtpInput } from '../../src/components/OtpInput';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
-import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
 
 export default function LoginScreen() {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
-  const { isDark } = useTheme();
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -102,11 +100,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <ImageBackground
-      source={isDark ? require('../../assets/bg_page.jpg') : require('../../assets/bg_page_light.jpg')}
-      style={styles.background}
-    >
-      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+    <ScreenBackground edges={['top', 'bottom']}>
       <LanguageSwitcher />
       <KeyboardAvoidingView
         style={styles.container}
@@ -117,11 +111,12 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.logoContainer}>
+            <View style={styles.logoGlow} />
             <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
             <Text style={styles.subtitle}>{t('auth.login.subtitle')}</Text>
           </View>
 
-          <View style={styles.formCard}>
+          <GlassCard>
             {twoFaRequired ? (
               <>
                 <Text style={{ color: Colors.text, fontFamily: Fonts.semiBold, fontSize: FontSize.lg, marginBottom: Spacing.sm, textAlign: 'center' }}>
@@ -194,48 +189,45 @@ export default function LoginScreen() {
             </View>
             </>
             )}
-          </View>
+          </GlassCard>
         </ScrollView>
       </KeyboardAvoidingView>
-      </SafeAreaView>
-    </ImageBackground>
+    </ScreenBackground>
   );
 }
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
-  background: {
-    flex: 1,
-  },
   container: {
     flex: 1,
-    // backgroundColor: 'rgba(23,30,43,0.9)',
   },
   scroll: {
     flexGrow: 1,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.sm,
-  },  logoContainer: {
+    paddingVertical: Spacing.lg,
+  },
+  logoContainer: {
     alignItems: 'center',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
+  },
+  logoGlow: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    top: 20,
+    backgroundColor: Colors.secondary + '22',
+    ...(Platform.OS === 'web' ? ({ filter: 'blur(50px)' } as any) : {}),
   },
   logo: {
-    width: 240,
-    height: 240,
+    width: 200,
+    height: 200,
   },
   subtitle: {
     fontSize: FontSize.lg,
     color: Colors.text,
     fontFamily: Fonts.semiBold,
-  },
-  formCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    maxWidth: 460,
-    width: '100%',
-    alignSelf: 'center',
+    marginTop: -Spacing.sm,
   },
   links: {
     flexDirection: 'row',

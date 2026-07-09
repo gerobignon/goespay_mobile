@@ -7,18 +7,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
-  ImageBackground,
   TextInput,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, useRouter, useLocalSearchParams } from 'expo-router';
+import { ScreenBackground } from '../../src/components/ScreenBackground';
+import { GlassCard } from '../../src/components/GlassCard';
 import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
 import { authService } from '../../src/services/authService';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../../src/constants/theme';
 import { showAlert } from '../../src/stores/alertStore';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
-import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
 
@@ -26,7 +25,6 @@ export default function RegisterScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ ref?: string }>();
   const styles = useThemedStyles(createStyles);
-  const { isDark } = useTheme();
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [surname, setSurname] = useState('');
@@ -117,11 +115,7 @@ export default function RegisterScreen() {
   };
 
   return (
-    <ImageBackground
-      source={isDark ? require('../../assets/bg_page.jpg') : require('../../assets/bg_page_light.jpg')}
-      style={styles.background}
-    >
-      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+    <ScreenBackground edges={['top', 'bottom']}>
       <LanguageSwitcher />
       <KeyboardAvoidingView
         style={styles.container}
@@ -132,11 +126,12 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.logoContainer}>
+            <View style={styles.logoGlow} />
             <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
             <Text style={styles.subtitle}>{t('auth.register.title')}</Text>
           </View>
 
-          <View style={styles.formCard}>
+          <GlassCard>
             <Input
               ref={surnameRef}
               label={t('auth.register.surname')}
@@ -214,48 +209,44 @@ export default function RegisterScreen() {
                 {t('auth.register.alreadyAccount')}
               </Link>
             </View>
-          </View>
+          </GlassCard>
         </ScrollView>
       </KeyboardAvoidingView>
-      </SafeAreaView>
-    </ImageBackground>
+    </ScreenBackground>
   );
 }
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
-  background: {
-    flex: 1,
-  },
   container: {
     flex: 1,
   },
   scroll: {
     flexGrow: 1,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.sm,
+    paddingVertical: Spacing.lg,
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.md,
+  },
+  logoGlow: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    top: 4,
+    backgroundColor: Colors.secondary + '22',
+    ...(Platform.OS === 'web' ? ({ filter: 'blur(45px)' } as any) : {}),
   },
   logo: {
-    width: 240,
-    height: 240,
+    width: 150,
+    height: 150,
   },
   subtitle: {
     fontSize: FontSize.lg,
     color: Colors.text,
     fontFamily: Fonts.semiBold,
-  },
-  formCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    maxWidth: 460,
-    width: '100%',
-    alignSelf: 'center',
   },
   links: {
     alignItems: 'center',
