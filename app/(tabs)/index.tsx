@@ -87,7 +87,7 @@ export default function DashboardScreen() {
   const stickyStyle = (active: boolean): any => active ? { position: 'sticky', top: 0, alignSelf: 'flex-start' } : undefined;
 
   const { logout } = useAuthStore();
-  const { deposit_enabled, transfer_enabled, crypto_buy_enabled, crypto_sell_enabled, isLoaded: configLoaded, fetchConfig } = useConfigStore();
+  const { deposit_enabled, transfer_enabled, deposit_blocked, transfer_blocked, crypto_buy_enabled, crypto_sell_enabled, isLoaded: configLoaded, fetchConfig } = useConfigStore();
   const promoSlidesConfig = useConfigStore((s) => s.promo_slides);
   const fetchCorridors = useCorridorStore((s) => s.fetchCorridors);
   const fetchCatalog = useCatalogStore((s) => s.fetchCatalog);
@@ -104,8 +104,11 @@ export default function DashboardScreen() {
   // « activé puis masqué » qu'un user rapide pourrait exploiter. L'admin voit tout
   // (un bandeau s'affiche dans le modal concerné). L'enforcement reste backend.
   const configReady = isAdmin || configLoaded;
-  const showDeposit = isAdmin || (configLoaded && deposit_enabled);
-  const showTransfer = isAdmin || (configLoaded && transfer_enabled);
+  // Blocage ciblé de CE user : on GARDE le bouton visible (même si le flag enabled
+  // est retombé à false) pour qu'il puisse ouvrir la modal et lire le motif +
+  // message perso. L'enforcement reste backend.
+  const showDeposit = isAdmin || (configLoaded && (deposit_enabled || deposit_blocked));
+  const showTransfer = isAdmin || (configLoaded && (transfer_enabled || transfer_blocked));
   const showCrypto = isAdmin || (configLoaded && isCryptoUser && (crypto_buy_enabled || crypto_sell_enabled));
   // Ouvre le flux crypto avec l'action forcée, depuis Dépôt (vente) ou Retrait (achat).
   const openCrypto = (tab: 'buy' | 'sell', currency?: string) => {

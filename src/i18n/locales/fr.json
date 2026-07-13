@@ -12,6 +12,11 @@
     "bannerCryptoBoth": "Mode admin — L'achat et la vente crypto sont désactivés pour les utilisateurs.",
     "bannerAfribapay": "Mode admin — AfribaPay est désactivé pour les utilisateurs."
   },
+  "blocked": {
+    "depositDefault": "Vos recharges sont temporairement suspendues.",
+    "transferDefault": "Vos retraits et envois sont temporairement suspendus.",
+    "contactSupport": "Contactez le support pour plus d'informations."
+  },
   "common": {
     "loading": "Chargement...",
     "save": "Enregistrer",

@@ -41,6 +41,7 @@ import { useFincraRate } from '../stores/fincraRateStore';
 import { getApiErrorMessage } from '../utils/apiError';
 import { formatFincraPhone, resolveFincraZone, type FincraCollectionRail } from '../utils/fincraPhone';
 import { AdminDisabledBanner } from './AdminDisabledBanner';
+import { BlockedBanner } from './BlockedBanner';
 import { TransactionAlertBanner } from './TransactionAlertBanner';
 import { GatewayBadge } from './GatewayBadge';
 import { CountryPickerStep } from './CountryPickerStep';
@@ -289,6 +290,9 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const isKycValidated = user?.validate === 1;
   const afribapayEnabled = useConfigStore((s) => s.afribapay_enabled);
   const depositEnabled = useConfigStore((s) => s.deposit_enabled);
+  // Blocage ciblé de CE user (admin → détail user) : bandeau + message perso.
+  const depositBlocked = useConfigStore((s) => s.deposit_blocked);
+  const depositBlockMessage = useConfigStore((s) => s.deposit_block_message);
   // Admin bypass : voit toutes les passerelles, y compris désactivées (bandeau rouge en haut).
   // Fincra USD/EUR/GBP : payout-only (SWIFT/SEPA) — Fincra ne supporte pas le checkout
   // pour ces devises. On les exclut du DepositModal pour éviter un 500 backend.
@@ -967,6 +971,9 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
 
           {pollingState === 'idle' && <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
             <TransactionAlertBanner type="deposit" />
+            {!isAdmin && depositBlocked && (
+              <BlockedBanner message={depositBlockMessage} fallback={t('blocked.depositDefault')} />
+            )}
             {isAdmin && !depositEnabled && (
               <AdminDisabledBanner message={t('admin.bannerDeposit')} />
             )}

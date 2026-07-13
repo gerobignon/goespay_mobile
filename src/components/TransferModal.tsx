@@ -42,6 +42,7 @@ import { useFormatXof } from '../utils/format';
 import { useFincraRate } from '../stores/fincraRateStore';
 import { formatFincraPhone, resolveFincraZone } from '../utils/fincraPhone';
 import { AdminDisabledBanner } from './AdminDisabledBanner';
+import { BlockedBanner } from './BlockedBanner';
 import { TransactionAlertBanner } from './TransactionAlertBanner';
 import { GatewayBadge } from './GatewayBadge';
 import { CountryPickerStep } from './CountryPickerStep';
@@ -180,6 +181,9 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const transferMinNg = useConfigStore((s) => s.transfer_min_ng);
   const afribapayEnabled = useConfigStore((s) => s.afribapay_enabled);
   const transferEnabled = useConfigStore((s) => s.transfer_enabled);
+  // Blocage ciblé de CE user (admin → détail user) : bandeau + message perso.
+  const transferBlocked = useConfigStore((s) => s.transfer_blocked);
+  const transferBlockMessage = useConfigStore((s) => s.transfer_block_message);
   const isAdmin = user?.group === 'admin';
   const fmtXof = useFormatXof();
 
@@ -1200,6 +1204,9 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
 
           {pollingState === 'idle' && <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ paddingBottom: Spacing.xl }}>
             <TransactionAlertBanner type="transfer" />
+            {!isAdmin && transferBlocked && (
+              <BlockedBanner message={transferBlockMessage} fallback={t('blocked.transferDefault')} />
+            )}
             {isAdmin && !transferEnabled && (
               <AdminDisabledBanner message={t('admin.bannerTransfer')} />
             )}

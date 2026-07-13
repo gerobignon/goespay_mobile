@@ -7,6 +7,12 @@ interface FeatureFlags {
   crypto_buy_enabled: boolean;
   crypto_sell_enabled: boolean;
   afribapay_enabled: boolean;
+  // Blocage ciblé de CE user (admin → détail user) : bandeau sur l'écran
+  // concerné. Le booléen distingue « bloqué sans message » de « non bloqué ».
+  deposit_blocked: boolean;
+  transfer_blocked: boolean;
+  deposit_block_message: string;
+  transfer_block_message: string;
 }
 
 export interface FeeConfig {
@@ -74,6 +80,10 @@ const defaultFlags: FeatureFlags = {
   crypto_buy_enabled: true,
   crypto_sell_enabled: true,
   afribapay_enabled: true,
+  deposit_blocked: false,
+  transfer_blocked: false,
+  deposit_block_message: '',
+  transfer_block_message: '',
 };
 
 export const DEFAULT_APP_CONFIG: AppConfig = {

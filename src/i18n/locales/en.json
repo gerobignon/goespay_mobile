@@ -12,6 +12,11 @@
     "bannerCryptoBoth": "Admin mode — Crypto buy and sell are disabled for users.",
     "bannerAfribapay": "Admin mode — AfribaPay is disabled for users."
   },
+  "blocked": {
+    "depositDefault": "Your deposits are temporarily suspended.",
+    "transferDefault": "Your withdrawals and transfers are temporarily suspended.",
+    "contactSupport": "Contact support for more information."
+  },
   "common": {
     "loading": "Loading...",
     "save": "Save",
