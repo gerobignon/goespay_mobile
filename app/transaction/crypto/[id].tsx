@@ -114,7 +114,7 @@ export default function CryptoDetailScreen() {
         {/* Action button */}
         <ActionButtonRow
           actions={[
-            ...((tx.statut === 'success' || tx.statut === 1) ? [{
+            ...(norm === 'success' ? [{
               key: 'invoice', icon: 'file-invoice-dollar', label: t('transaction.viewInvoice'),
               color: Colors.confirmAction, loading: invoiceLoading,
               onPress: async () => {
@@ -123,7 +123,7 @@ export default function CryptoDetailScreen() {
                 finally { setInvoiceLoading(false); }
               },
             }] : []),
-            ...((tx.statut !== 'success' && tx.statut !== 1) ? [{
+            ...(norm !== 'success' ? [{
               key: 'claim', icon: 'triangle-exclamation', label: t('transaction.claim'),
               color: Colors.error, onPress: () => setClaimVisible(true),
             }] : []),
@@ -165,7 +165,7 @@ export default function CryptoDetailScreen() {
             />
           )}
           {tx.cp_hash && <TransactionDetailRow label={t('transaction.txHash')} value={tx.cp_hash} copyable mono />}
-          {tx.statut === 'success' && (
+          {norm === 'success' && (
             <>
               <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '—'} mono />
               <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '—'} mono color={statusInfo.color} />

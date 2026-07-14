@@ -484,10 +484,14 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
       const status = getCryptoStatus(tx.statut, t);
       const isBuy = tx.mode === 'Buy';
       const cryptoCode = tx.currency_src ?? '—';
+      // `state` est une colonne STRING côté backend → statut arrive en "1"/"0"/"3".
+      // On normalise (robuste string/number) au lieu d'un `=== 1` strict qui
+      // masquait le bouton de reçu pour toutes les crypto réussies.
+      const isCryptoSuccess = normalizeStatut(tx.statut, 'crypto') === 'success';
       return (
         <>
           <View style={styles.actionRow}>
-            {(tx.statut === 'success' || tx.statut === 1) && (
+            {isCryptoSuccess && (
               <TouchableOpacity
                 style={[styles.invoiceBtn, invoiceLoading && { opacity: 0.6 }]}
                 onPress={() => handleDownloadInvoice('crypto', tx.id)}
@@ -498,7 +502,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
                 <Text style={styles.invoiceBtnText}>{t('transaction.viewInvoice')}</Text>
               </TouchableOpacity>
             )}
-            {tx.statut !== 'success' && tx.statut !== 1 && (
+            {!isCryptoSuccess && (
               <TouchableOpacity style={styles.claimBtn} onPress={() => setShowClaim(!showClaim)} activeOpacity={0.7}>
                 <FontAwesome6 name="triangle-exclamation" size={12} color={Colors.white} />
                 <Text style={styles.claimBtnText}>{t('transaction.claim')}</Text>
