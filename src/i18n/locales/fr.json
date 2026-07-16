@@ -558,6 +558,8 @@
     "feeUnavailable": "Frais indisponibles pour cette destination. Réessayez ou choisissez un autre moyen.",
     "fincraDebit": "Débité de votre solde",
     "fincraReceives": "Le bénéficiaire reçoit",
+    "exchangeRate": "Taux de change",
+    "chinaDeliveryEstimate": "Délai de réception estimé : 0 à 1 jour ouvrable.",
     "rateLoading": "Calcul du taux…",
     "insufficientBalance": "Solde insuffisant.",
     "bankFieldsRequired": "Renseignez le nom du bénéficiaire, l'IBAN et le code BIC/SWIFT.",

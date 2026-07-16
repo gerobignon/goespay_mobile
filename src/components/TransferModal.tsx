@@ -111,14 +111,14 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const [pendingDetails, setPendingDetails] = useState<{ amount_sent: number; fees: number; phone: string; debit_xof?: number } | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollingTransferIdRef = useRef<number | null>(null);
-  const pollingFincraRefRef = useRef<string | null>(null);
+  const pollingAggRefRef = useRef<string | null>(null);
   const consecutiveErrorsRef = useRef(0);
   // Wire Klasha : réf KLW- comme un payout normal → ce flag route le polling vers
   // /transfer/klasha/wire/status (statut lu par la transactionReference Klasha).
   const pollingIsWireRef = useRef(false);
 
   // Sous-pays Fincra (XOF/XAF) pour le mobile_money payout.
-  const [fincraZoneCountry, setFincraZoneCountry] = useState<string | null>(null);
+  const [aggZoneCountry, setAggZoneCountry] = useState<string | null>(null);
   const [bankAccountHolder, setBankAccountHolder] = useState('');
   const [bankAccountNumber, setBankAccountNumber] = useState('');
   const [bankName, setBankName] = useState('');
@@ -157,7 +157,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const [cnyWalletAccountId, setCnyWalletAccountId] = useState<'MOBILE' | 'EMAIL'>('MOBILE');
 
   // Picker de banques + résolution de compte (Fincra bank_transfer)
-  const [fincraBanks, setFincraBanks] = useState<{ code: string; name: string; swiftCode?: string }[]>([]);
+  const [aggBanks, setAggBanks] = useState<{ code: string; name: string; swiftCode?: string }[]>([]);
   const [bankSwiftCode, setBankSwiftCode] = useState('');
   const [banksLoading, setBanksLoading] = useState(false);
   const [bankPickerVisible, setBankPickerVisible] = useState(false);
@@ -255,7 +255,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     && !isPayoutAvailable(selectedCountry) && operatorsForStep.length === 0;
 
   const selectedOp = OPERATORS_SRC.find((op) => op.id === operator);
-  const isFincraOp = !!(selectedOp as any)?.fincra;
+  const isAggOp = !!(selectedOp as any)?.fincra;
   // Klasha réutilise l'UI Fincra ; ce flag route les appels API vers /payout/klasha.
   const isKlashaOp = !!(selectedOp as any)?.klasha;
   // Service Chine porté par la tuile sélectionnée (klasha-cny-bt/card/wallet/wechat).
@@ -267,27 +267,27 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   useEffect(() => {
     if (cnyServiceCode === 'WECHAT') setCnyWalletAccountId('MOBILE');
   }, [cnyServiceCode]);
-  const fincraCurrency = isFincraOp ? ((selectedOp as any)?.currency as string) || 'XOF' : '';
+  const aggCurrency = isAggOp ? ((selectedOp as any)?.currency as string) || 'XOF' : '';
   // Le rail est porté directement par l'opérateur Fincra (cf. config.ts).
   // Plus de sélecteur dynamique ; chaque opérateur Fincra = 1 rail.
-  const fincraRail: FincraRail | '' = isFincraOp ? (((selectedOp as any)?.rail as FincraRail) || '') : '';
+  const aggRail: FincraRail | '' = isAggOp ? (((selectedOp as any)?.rail as FincraRail) || '') : '';
   // Chine : Klasha exige tout le senderAddress (date de naissance + province/état +
   // code postal) en plus de l'identité. Si l'un manque dans le profil KYC, on bloque
   // tout le formulaire de retrait et on demande de compléter le KYC.
-  const chinaKycGate = isKlashaOp && fincraRail === 'cny'
+  const chinaKycGate = isKlashaOp && aggRail === 'cny'
     && (!(user as any)?.birthdate || !(user as any)?.state || !(user as any)?.postcode);
   // Sous-pays Fincra (XOF/XAF). Si le pays est déjà connu (pays sélectionné, ou
   // pays de l'utilisateur), on le déduit du contexte et on masque la liste.
   // Opérateur MM par pays (catalogue serveur) : pays figé = op.country (pas de picker).
-  const fincraMmCountry = ((selectedOp as any)?.fincraOperator ? ((selectedOp as any)?.country || '') : '').toUpperCase();
-  const fincraZoneList = (isFincraOp && fincraRail === 'mobile_money' && !fincraMmCountry)
-    ? (catalogZones[fincraCurrency] ?? FINCRA_ZONES[fincraCurrency]) : undefined;
+  const aggMmCountry = ((selectedOp as any)?.fincraOperator ? ((selectedOp as any)?.country || '') : '').toUpperCase();
+  const aggZoneList = (isAggOp && aggRail === 'mobile_money' && !aggMmCountry)
+    ? (catalogZones[aggCurrency] ?? FINCRA_ZONES[aggCurrency]) : undefined;
   const contextCountry = ((selectedCountry || user?.country) || '').toUpperCase();
-  const zoneHasContext = !!fincraZoneList?.some((c) => c.code === contextCountry);
-  const fincraDialCode = (isFincraOp && fincraRail === 'mobile_money')
-    ? (fincraMmCountry
-        ? (catalogDial[fincraMmCountry] || resolveFincraZone(fincraCurrency, fincraMmCountry).dialCode)
-        : ((fincraZoneCountry && catalogDial[fincraZoneCountry]) || resolveFincraZone(fincraCurrency, fincraZoneCountry).dialCode))
+  const zoneHasContext = !!aggZoneList?.some((c) => c.code === contextCountry);
+  const aggDialCode = (isAggOp && aggRail === 'mobile_money')
+    ? (aggMmCountry
+        ? (catalogDial[aggMmCountry] || resolveFincraZone(aggCurrency, aggMmCountry).dialCode)
+        : ((aggZoneCountry && catalogDial[aggZoneCountry]) || resolveFincraZone(aggCurrency, aggZoneCountry).dialCode))
     : undefined;
 
   // Multi-devise d'affichage retiré : le solde est en XOF et l'envoi se saisit
@@ -297,7 +297,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // Frais = A→B : source = pays du user, destination = pays de l'opérateur visé
   // (= corridor.country_code côté backend). On affiche le frais résolu par le
   // backend (outgoing_fees, indexé par destination) → identique à l'exécution.
-  const destCountry = (fincraMmCountry || fincraZoneCountry || (selectedOp as any)?.country || '').toUpperCase();
+  const destCountry = (aggMmCountry || aggZoneCountry || (selectedOp as any)?.country || '').toUpperCase();
   // AUCUN fallback : on prend UNIQUEMENT le frais résolu par le backend pour cette
   // destination (outgoing_fees, calculé via PricingResolver). Si la clé manque, on
   // ne devine pas (ce serait un frais ≠ de celui débité) → on bloque l'envoi.
@@ -317,39 +317,39 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       : `${feeConfig.percent}%`;
 
   const fmt = (n: number) => n.toLocaleString('fr-FR', { maximumFractionDigits: 2 }).replace(/\s/g, '.');
-  const fmtFincra = (n: number) =>
-    `${n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${fincraCurrency}`;
+  const fmtAgg = (n: number) =>
+    `${n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${aggCurrency}`;
 
   // wallet est en XOF : on débite exactement le montant XOF saisi. On convertit
   // ce XOF vers la devise Fincra pour le montant réellement envoyé au bénéficiaire
-  // (NGN, GHS…), via les taux Fincra isolés. fincraRate.rate = valeur XOF d'1
+  // (NGN, GHS…), via les taux Fincra isolés. aggRate.rate = valeur XOF d'1
   // unité étrangère → montant reçu = XOF débité ÷ taux.
   // Zone de cotation = zone CFA du user (XAF pour la CEMAC, XOF sinon) : Fincra/
   // Klasha cotent cur↔XAF ≠ cur↔XOF. Dépôt ET envoi passent par ce même hook.
-  const fincraRate = useFincraRate(fincraCurrency, isFincraOp, isKlashaOp, false, walletZone(userCountry));
-  const fincraSendAmount =
-    isFincraOp && numAmountXof > 0
-      ? (fincraCurrency === 'XOF'
+  const aggRate = useFincraRate(aggCurrency, isAggOp, isKlashaOp, false, walletZone(userCountry));
+  const aggSendAmount =
+    isAggOp && numAmountXof > 0
+      ? (aggCurrency === 'XOF'
           ? numAmountXof
-          : (fincraRate.rate && fincraRate.rate > 0
-              ? numAmountXof / fincraRate.rate
+          : (aggRate.rate && aggRate.rate > 0
+              ? numAmountXof / aggRate.rate
               : null))
       : null;
   // Le débit XOF du wallet = exactement le montant XOF saisi.
-  const fincraDebitXof = isFincraOp ? numAmountXof : null;
+  const aggDebitXof = isAggOp ? numAmountXof : null;
   // Montant transmis au backend : Fincra = devise Fincra ; sinon XOF.
-  const numAmount = isFincraOp ? (fincraSendAmount ?? 0) : numAmountXof;
+  const numAmount = isAggOp ? (aggSendAmount ?? 0) : numAmountXof;
   // Bloque l'envoi tant que le taux Fincra (devise étrangère) n'est pas résolu.
-  const fincraRateBlocking =
-    isFincraOp && fincraCurrency !== 'XOF' && numAmountXof > 0
-    && (fincraRate.loading || fincraRate.error || fincraRate.rate === null);
+  const aggRateBlocking =
+    isAggOp && aggCurrency !== 'XOF' && numAmountXof > 0
+    && (aggRate.loading || aggRate.error || aggRate.rate === null);
 
   // Frais indisponibles : un moyen est choisi + un montant saisi mais le backend
   // n'a pas fourni de frais pour cette destination → on bloque (pas de devinette).
   const feeUnavailable = !!operator && numAmountXof > 0 && !feeConfig;
   const showFees = numAmountXof > 0 && operator && !!feeConfig;
   // Débit total XOF d'un retrait Fincra = coût Fincra (XOF) + frais GoesPay.
-  const fincraTotalDebitXof = fincraDebitXof !== null ? fincraDebitXof + fees : null;
+  const aggTotalDebitXof = aggDebitXof !== null ? aggDebitXof + fees : null;
 
   const dialCode = useMemo(() => {
     if (!selectedCountry) return '';
@@ -411,7 +411,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     setSelectedCountry(null);
     setOperator('');
     setCryptoOpen(false);
-    setFincraZoneCountry(null);
+    setAggZoneCountry(null);
     setBankAccountHolder('');
     setBankAccountNumber('');
     setBankName('');
@@ -421,7 +421,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     setIban('');
     setBic('');
     setSwiftCode('');
-    setFincraBanks([]);
+    setAggBanks([]);
     // Klasha bank — champs requis par devise (GHS/KES/ZAR).
     setBankBranchCode('');
     setBankServiceCode('');
@@ -456,80 +456,80 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   }, [visible]);
 
   // Reset le sous-pays Fincra à chaque changement d'opérateur.
-  useEffect(() => { setFincraZoneCountry(null); }, [operator]);
+  useEffect(() => { setAggZoneCountry(null); }, [operator]);
 
   // Auto-sélectionne le sous-pays Fincra depuis le contexte (pays déjà connu).
   useEffect(() => {
-    if (fincraRail === 'mobile_money' && zoneHasContext && fincraZoneCountry !== contextCountry) {
-      setFincraZoneCountry(contextCountry);
+    if (aggRail === 'mobile_money' && zoneHasContext && aggZoneCountry !== contextCountry) {
+      setAggZoneCountry(contextCountry);
     }
-  }, [fincraRail, zoneHasContext, contextCountry, fincraZoneCountry]);
+  }, [aggRail, zoneHasContext, contextCountry, aggZoneCountry]);
 
   // Charge les taux crypto quand on ouvre le groupe « Crypto-monnaies ».
   useEffect(() => { if (cryptoOpen) fetchCryptoRates(cryptoRates.length === 0); }, [cryptoOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Charge la liste des banques Fincra quand on entre en rail bank_transfer.
   // Cache local : on garde la liste tant que la devise ne change pas.
-  const fincraCountry = useMemo(() => {
+  const aggCountry = useMemo(() => {
     // Mapping minimal devise → pays (ISO-2) pour l'endpoint /core/banks.
     const map: Record<string, string> = {
       NGN: 'NG', GHS: 'GH', KES: 'KE', UGX: 'UG', ZMW: 'ZM', TZS: 'TZ',
       XOF: 'SN', XAF: 'CM', ZAR: 'ZA', EGP: 'EG',
     };
-    return map[fincraCurrency] || 'NG';
-  }, [fincraCurrency]);
+    return map[aggCurrency] || 'NG';
+  }, [aggCurrency]);
 
   useEffect(() => {
-    if (!isFincraOp || fincraRail !== 'bank_transfer' || !fincraCurrency) return;
+    if (!isAggOp || aggRail !== 'bank_transfer' || !aggCurrency) return;
     let cancelled = false;
     setBanksLoading(true);
-    (isKlashaOp ? walletService.getKlashaBanks(fincraCurrency) : walletService.getFincraBanks(fincraCurrency, fincraCountry))
-      .then((res) => { if (!cancelled) setFincraBanks(res.banks || []); })
-      .catch(() => { if (!cancelled) setFincraBanks([]); })
+    (isKlashaOp ? walletService.getKlashaBanks(aggCurrency) : walletService.getFincraBanks(aggCurrency, aggCountry))
+      .then((res) => { if (!cancelled) setAggBanks(res.banks || []); })
+      .catch(() => { if (!cancelled) setAggBanks([]); })
       .finally(() => { if (!cancelled) setBanksLoading(false); });
     return () => { cancelled = true; };
-  }, [isFincraOp, isKlashaOp, fincraRail, fincraCurrency, fincraCountry]);
+  }, [isAggOp, isKlashaOp, aggRail, aggCurrency, aggCountry]);
 
   // CNY (Chine) : charge la liste des banques (CNAPS) et la réutilise dans le
-  // même picker que les virements bancaires (fincraBanks → bankCode/bankName).
+  // même picker que les virements bancaires (aggBanks → bankCode/bankName).
   useEffect(() => {
-    if (!isKlashaOp || fincraRail !== 'cny') return;
+    if (!isKlashaOp || aggRail !== 'cny') return;
     let cancelled = false;
     setBanksLoading(true);
     walletService.getKlashaChinaBanks()
-      .then((banks) => { if (!cancelled) setFincraBanks(banks); })
-      .catch(() => { if (!cancelled) setFincraBanks([]); })
+      .then((banks) => { if (!cancelled) setAggBanks(banks); })
+      .catch(() => { if (!cancelled) setAggBanks([]); })
       .finally(() => { if (!cancelled) setBanksLoading(false); });
     return () => { cancelled = true; };
-  }, [isKlashaOp, fincraRail]);
+  }, [isKlashaOp, aggRail]);
 
   // SWIFT / SEPA (Fincra) : charge la liste des banques du PAYS destinataire choisi
   // dans le picker → auto-remplit le BIC. Repli sur la saisie manuelle si la liste
   // revient vide (Fincra ne liste pas toujours les banques d'un pays donné).
   useEffect(() => {
-    if (!isFincraOp || (fincraRail !== 'SWIFT' && fincraRail !== 'SEPA')) return;
+    if (!isAggOp || (aggRail !== 'SWIFT' && aggRail !== 'SEPA')) return;
     const cc = bankCountry.trim().toUpperCase();
-    if (!/^[A-Z]{2}$/.test(cc)) { setFincraBanks([]); return; }
+    if (!/^[A-Z]{2}$/.test(cc)) { setAggBanks([]); return; }
     let cancelled = false;
     setBanksLoading(true);
-    walletService.getFincraBanks(fincraCurrency, cc)
-      .then((res) => { if (!cancelled) setFincraBanks(res.banks || []); })
-      .catch(() => { if (!cancelled) setFincraBanks([]); })
+    walletService.getFincraBanks(aggCurrency, cc)
+      .then((res) => { if (!cancelled) setAggBanks(res.banks || []); })
+      .catch(() => { if (!cancelled) setAggBanks([]); })
       .finally(() => { if (!cancelled) setBanksLoading(false); });
     return () => { cancelled = true; };
-  }, [isFincraOp, fincraRail, fincraCurrency, bankCountry]);
+  }, [isAggOp, aggRail, aggCurrency, bankCountry]);
 
   // Résolution automatique du compte bénéficiaire (debounce 600ms).
   // Sandbox Fincra renvoie data:null → on signale "non vérifié" sans bloquer.
   // Fincra ne supporte la résolution que pour NGN (NUBAN) et GHS (bank_account + bankSwiftCode).
-  const resolveSupported = isFincraOp && fincraRail === 'bank_transfer' && ['NGN', 'GHS'].includes(fincraCurrency);
+  const resolveSupported = isAggOp && aggRail === 'bank_transfer' && ['NGN', 'GHS'].includes(aggCurrency);
   useEffect(() => {
     if (!resolveSupported) {
       setResolvedHolder(null); setResolveError(null); setResolving(false);
       return;
     }
     const num = bankAccountNumber.trim();
-    const hasBankRef = fincraCurrency === 'NGN'
+    const hasBankRef = aggCurrency === 'NGN'
       ? !!bankCode.trim()
       : !!bankSwiftCode.trim();
     if (!num || !hasBankRef || num.length < 8) {
@@ -539,9 +539,9 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     setResolveError(null);
     const handle = setTimeout(async () => {
       try {
-        const payload = fincraCurrency === 'NGN'
+        const payload = aggCurrency === 'NGN'
           ? { accountNumber: num, bankCode: bankCode.trim(), type: 'nuban' as const, currency: 'NGN' }
-          : { accountNumber: num, bankSwiftCode: bankSwiftCode.trim(), type: 'bank_account' as const, currency: fincraCurrency };
+          : { accountNumber: num, bankSwiftCode: bankSwiftCode.trim(), type: 'bank_account' as const, currency: aggCurrency };
         const res = isKlashaOp
           ? await walletService.resolveKlashaAccount({
               accountNumber: (payload as any).accountNumber,
@@ -564,19 +564,19 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       }
     }, 600);
     return () => clearTimeout(handle);
-  }, [resolveSupported, bankAccountNumber, bankCode, bankSwiftCode, fincraCurrency]);
+  }, [resolveSupported, bankAccountNumber, bankCode, bankSwiftCode, aggCurrency]);
 
   const filteredBanks = useMemo(() => {
     const q = bankSearchQuery.trim().toLowerCase();
-    if (!q) return fincraBanks;
-    return fincraBanks.filter((b) =>
+    if (!q) return aggBanks;
+    return aggBanks.filter((b) =>
       b.name.toLowerCase().includes(q) || b.code.toLowerCase().includes(q)
     );
-  }, [fincraBanks, bankSearchQuery]);
+  }, [aggBanks, bankSearchQuery]);
 
   // Pays destinataires du sélecteur SWIFT/SEPA : SEPA = zone SEPA, SWIFT = tous.
   const filteredCountries = useMemo(() => {
-    const base = fincraRail === 'SEPA'
+    const base = aggRail === 'SEPA'
       ? ALL_COUNTRIES.filter((c) => SEPA_COUNTRIES.includes(c.code))
       : ALL_COUNTRIES;
     const q = countrySearchQuery.trim().toLowerCase();
@@ -584,26 +584,26 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     return base.filter((c) =>
       c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q)
     );
-  }, [fincraRail, countrySearchQuery]);
+  }, [aggRail, countrySearchQuery]);
 
   const stopPolling = useCallback(() => {
     if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
     pollingTransferIdRef.current = null;
-    pollingFincraRefRef.current = null;
+    pollingAggRefRef.current = null;
     pollingIsWireRef.current = false;
     consecutiveErrorsRef.current = 0;
   }, []);
 
-  const checkStatus = useCallback(async (opts: { transferId?: number; fincraRef?: string; isWire?: boolean }): Promise<boolean> => {
+  const checkStatus = useCallback(async (opts: { transferId?: number; aggRef?: string; isWire?: boolean }): Promise<boolean> => {
     try {
-      const res = opts.fincraRef
-        ? (opts.fincraRef.startsWith('KLC-')
-            ? await walletService.getKlashaCnyStatus(opts.fincraRef)
+      const res = opts.aggRef
+        ? (opts.aggRef.startsWith('KLC-')
+            ? await walletService.getKlashaCnyStatus(opts.aggRef)
             : opts.isWire
-              ? await walletService.getKlashaWireStatus(opts.fincraRef)
-              : opts.fincraRef.startsWith('KLW-')
-                ? await walletService.getKlashaPayoutStatus(opts.fincraRef)
-                : await walletService.getFincraPayoutStatus(opts.fincraRef))
+              ? await walletService.getKlashaWireStatus(opts.aggRef)
+              : opts.aggRef.startsWith('KLW-')
+                ? await walletService.getKlashaPayoutStatus(opts.aggRef)
+                : await walletService.getFincraPayoutStatus(opts.aggRef))
         : await walletService.getTransferStatus(opts.transferId!);
       consecutiveErrorsRef.current = 0;
       if (res.statut === 'success') {
@@ -628,12 +628,12 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     return false;
   }, [fetchBalance, stopPolling]);
 
-  const startPolling = useCallback((opts: { transferId?: number; fincraRef?: string; isWire?: boolean }) => {
+  const startPolling = useCallback((opts: { transferId?: number; aggRef?: string; isWire?: boolean }) => {
     let attempts = 0;
     const MAX_ATTEMPTS = 60; // 5 min max (toutes les 5s)
     setPollingState('pending');
     pollingTransferIdRef.current = opts.transferId ?? null;
-    pollingFincraRefRef.current = opts.fincraRef ?? null;
+    pollingAggRefRef.current = opts.aggRef ?? null;
     pollingIsWireRef.current = !!opts.isWire;
     consecutiveErrorsRef.current = 0;
 
@@ -655,7 +655,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   useEffect(() => {
     const sub = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active' && pollingState === 'pending') {
-        if (pollingFincraRefRef.current) checkStatus({ fincraRef: pollingFincraRefRef.current, isWire: pollingIsWireRef.current });
+        if (pollingAggRefRef.current) checkStatus({ aggRef: pollingAggRefRef.current, isWire: pollingIsWireRef.current });
         else if (pollingTransferIdRef.current) checkStatus({ transferId: pollingTransferIdRef.current });
       }
     });
@@ -666,7 +666,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     if (Platform.OS !== 'web') return;
     const handleVisibility = () => {
       if (document.visibilityState === 'visible' && pollingState === 'pending') {
-        if (pollingFincraRefRef.current) checkStatus({ fincraRef: pollingFincraRefRef.current, isWire: pollingIsWireRef.current });
+        if (pollingAggRefRef.current) checkStatus({ aggRef: pollingAggRefRef.current, isWire: pollingIsWireRef.current });
         else if (pollingTransferIdRef.current) checkStatus({ transferId: pollingTransferIdRef.current });
       }
     };
@@ -754,11 +754,11 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
         account_number: bankAccountNumber.trim(),
         bank_code: bankCode.trim(),
         bank_name: bankName.trim(),
-        currency: fincraCurrency,
+        currency: aggCurrency,
         country: bankCountry.trim() || undefined,
         swift_code: (bankSwiftCode.trim() || swiftCode.trim() || bic.trim()) || undefined,
         iban: iban.trim() || undefined,
-        rail: fincraRail || undefined,
+        rail: aggRail || undefined,
       });
       setSavedBanks((prev) => [created, ...prev]);
       setSaveBankModalVisible(false);
@@ -785,7 +785,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       phone !== init.phone ||
       !!operator.trim() ||
       selectedCountry !== null ||
-      fincraZoneCountry !== null ||
+      aggZoneCountry !== null ||
       !!bankAccountHolder.trim() ||
       !!bankAccountNumber.trim() ||
       !!bankName.trim() ||
@@ -813,7 +813,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       showAlert(t('depositModal.kycRequired3'), t('depositModal.kycRequired2'));
       return;
     }
-    if (fincraRateBlocking) {
+    if (aggRateBlocking) {
       showAlert(t('common.error'), t('common.rateUnavailable'));
       return;
     }
@@ -822,18 +822,18 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       return;
     }
     // Fincra : le solde est en XOF, on compare au montant XOF saisi (débité).
-    if (isFincraOp) {
-      if (fincraRateBlocking || fincraSendAmount === null || fincraDebitXof === null) {
+    if (isAggOp) {
+      if (aggRateBlocking || aggSendAmount === null || aggDebitXof === null) {
         showAlert(t('common.error'), t('common.rateUnavailable'));
         return;
       }
-      if ((fincraTotalDebitXof ?? fincraDebitXof) > balance) {
+      if ((aggTotalDebitXof ?? aggDebitXof) > balance) {
         showAlert(t('common.error'), t('transferModal.insufficientBalance'));
         return;
       }
       // SEPA : Fincra exige IBAN + nom du bénéficiaire + BIC. On bloque avant
       // l'envoi pour éviter le 422 « beneficiary.bankCode is not allowed to be empty ».
-      if (fincraRail === 'SEPA') {
+      if (aggRail === 'SEPA') {
         const code = bic.trim() || bankSwiftCode.trim();
         if (!iban.trim() || !bankAccountHolder.trim() || !code) {
           showAlert(t('common.error'), t('transferModal.bankFieldsRequired'));
@@ -843,7 +843,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       // SWIFT : pas d'IBAN hors Europe (Chine, USA… = n° de compte local) → on
       // accepte compte OU IBAN. Le PAYS de la banque (ISO-2) est OBLIGATOIRE :
       // Fincra l'exige et il n'est pas dérivable sans IBAN → sinon 422 Fincra.
-      if (fincraRail === 'SWIFT') {
+      if (aggRail === 'SWIFT') {
         const code = swiftCode.trim() || bankSwiftCode.trim();
         const account = bankAccountNumber.trim() || iban.trim();
         if (!account || !bankAccountHolder.trim() || !code) {
@@ -857,7 +857,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       }
       // CNY (Chine, C2C) : champs bénéficiaire requis selon la méthode
       // (l'expéditeur vient du profil KYC, côté backend).
-      if (fincraRail === 'cny') {
+      if (aggRail === 'cny') {
         // Bénéficiaire requis (noms) commun ; le reste dépend du service.
         const namesOk = !!cnyFirstName.trim() && !!cnyLastName.trim();
         let ok = namesOk;
@@ -886,19 +886,19 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     setConfirmVisible(false);
     setLoading(true);
     try {
-      if (isFincraOp) {
+      if (isAggOp) {
         // ── Wire international Klasha (USD/EUR/GBP) : process Klasha distinct
         // (bénéficiaire → quote → initiate côté backend). Bénéficiaire avec le jeu
         // de champs Klasha (≠ payout MM/bank). Réf KLW-, polling wire dédié. ──
-        if (isKlashaOp && fincraRail === 'wire') {
+        if (isKlashaOp && aggRail === 'wire') {
           const isoCountry = bankCountry.trim().toUpperCase();
           // Klasha Wire attend `country` = nom complet (« China ») et `countryCode`
           // = ISO-2 (« CN »). On résout le nom via ALL_COUNTRIES (repli = code).
           const countryName = ALL_COUNTRIES.find((c) => c.code === isoCountry)?.name || isoCountry;
           const result = await walletService.klashaWire({
             amount: numAmount,
-            currency: fincraCurrency,
-            amount_xof: fincraDebitXof ?? numAmountXof,
+            currency: aggCurrency,
+            amount_xof: aggDebitXof ?? numAmountXof,
             beneficiary: {
               beneficiaryName: bankAccountHolder.trim(),
               accountNumber: bankAccountNumber.trim() || iban.trim(),
@@ -920,9 +920,9 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             amount_sent: numAmount,
             fees: Number(result.fees) || 0,
             phone: bankAccountNumber || iban,
-            debit_xof: fincraTotalDebitXof ?? fincraDebitXof ?? 0,
+            debit_xof: aggTotalDebitXof ?? aggDebitXof ?? 0,
           });
-          startPolling({ fincraRef: result.reference, isWire: true });
+          startPolling({ aggRef: result.reference, isWire: true });
           return;
         }
 
@@ -930,7 +930,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
         // 3 services : virement (BANK_ACCOUNT), UnionPay (BANK_CARD), Alipay (WALLET).
         // L'expéditeur (le user) est auto-rempli côté backend depuis le profil KYC.
         // Réf KLC-, polling CNY dédié. ──
-        if (isKlashaOp && fincraRail === 'cny') {
+        if (isKlashaOp && aggRail === 'cny') {
           const ben: any = {
             receiverFirstName: cnyFirstName.trim(),
             receiverLastName: cnyLastName.trim(),
@@ -955,7 +955,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           }
           const result = await walletService.klashaCny({
             amount: numAmount,
-            amount_xof: fincraDebitXof ?? numAmountXof,
+            amount_xof: aggDebitXof ?? numAmountXof,
             service: cnyService,
             // Wallet : ALIPAY | WECHAT (ignoré par le backend hors WALLET).
             serviceCode: cnyService === 'WALLET' ? cnyServiceCode : undefined,
@@ -971,13 +971,13 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             amount_sent: numAmount,
             fees: Number(result.fees) || 0,
             phone: bankAccountNumber || cnyCardNumber || cnyWalletAccount,
-            debit_xof: fincraTotalDebitXof ?? fincraDebitXof ?? 0,
+            debit_xof: aggTotalDebitXof ?? aggDebitXof ?? 0,
           });
-          startPolling({ fincraRef: result.reference });
+          startPolling({ aggRef: result.reference });
           return;
         }
 
-        const beneficiary = fincraRail !== 'mobile_money' ? {
+        const beneficiary = aggRail !== 'mobile_money' ? {
           accountHolderName: bankAccountHolder.trim(),
           firstName: bankAccountHolder.trim().split(' ').slice(0, -1).join(' ') || bankAccountHolder.trim(),
           lastName: bankAccountHolder.trim().split(' ').slice(-1).join(' ') || '',
@@ -987,8 +987,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           // banque du sélecteur. SEPA : le BIC. SWIFT : le code SWIFT. Sans ça,
           // Fincra renvoie 422 « beneficiary.bankCode is not allowed to be empty ».
           bankCode: bankCode.trim()
-            || (fincraRail === 'SEPA' ? (bic.trim() || bankSwiftCode.trim()) : '')
-            || (fincraRail === 'SWIFT' ? (swiftCode.trim() || bankSwiftCode.trim()) : ''),
+            || (aggRail === 'SEPA' ? (bic.trim() || bankSwiftCode.trim()) : '')
+            || (aggRail === 'SWIFT' ? (swiftCode.trim() || bankSwiftCode.trim()) : ''),
           // bankSwiftCode : sélectionné via le picker pour GHS/KES/etc., ou saisi
           // manuellement pour SWIFT/SEPA via le champ dédié.
           bankSwiftCode: (bankSwiftCode.trim() || swiftCode.trim() || bic.trim()) || undefined,
@@ -996,8 +996,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           // l'envoie systématiquement pour les rails bancaires (= pays de la
           // devise Fincra), sauf SWIFT/SEPA où l'utilisateur peut le surcharger
           // via bankCountry.
-          country: fincraRail === 'bank_transfer'
-            ? fincraCountry
+          country: aggRail === 'bank_transfer'
+            ? aggCountry
             : (bankCountry.trim() || undefined),
           bankCountry: bankCountry.trim() || undefined,
           iban: iban.trim() || undefined,
@@ -1007,7 +1007,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           // Klasha bank payout : champs requis par devise (GHS branchCode, KES
           // serviceCode, ZAR mobileNumber/recipientAddress/recipientEmail).
           // NON envoyés pour Fincra (schéma strict → « not allowed »).
-          ...(isKlashaOp && fincraRail === 'bank_transfer' ? {
+          ...(isKlashaOp && aggRail === 'bank_transfer' ? {
             branchCode: bankBranchCode.trim() || undefined,
             serviceCode: bankServiceCode.trim() || undefined,
             mobileNumber: bankMobileNumber.trim() || undefined,
@@ -1018,18 +1018,18 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
 
         // Fincra payout MM exige le phone SANS `+` (ex: 256770000000) et le
         // pays du BÉNÉFICIAIRE (ISO-2 dérivé de la devise ou du sous-pays).
-        const rz = resolveFincraZone(fincraCurrency, fincraZoneCountry || fincraMmCountry);
+        const rz = resolveFincraZone(aggCurrency, aggZoneCountry || aggMmCountry);
         // Indicatif & pays bénéficiaire : opérateur par pays (catalogue) > sous-pays > zone.
-        const dialCode = fincraDialCode || rz.dialCode;
-        const countryIso2 = fincraMmCountry || fincraZoneCountry || rz.countryIso2;
+        const dialCode = aggDialCode || rz.dialCode;
+        const countryIso2 = aggMmCountry || aggZoneCountry || rz.countryIso2;
         // Opérateur Fincra (ORANGE…) porté par la tuile ; fallback offline (config.ts).
         const mmOperator = (selectedOp as any)?.fincraOperator
-          || (fincraCurrency === 'GHS' ? 'MTN'
-            : fincraCurrency === 'KES' ? 'SAFARICOM'
-            : fincraCurrency === 'TZS' ? 'AIRTEL'
-            : fincraCurrency === 'ZMW' ? 'MTN'
+          || (aggCurrency === 'GHS' ? 'MTN'
+            : aggCurrency === 'KES' ? 'SAFARICOM'
+            : aggCurrency === 'TZS' ? 'AIRTEL'
+            : aggCurrency === 'ZMW' ? 'MTN'
             : 'ORANGE');
-        const phoneForFincra = fincraRail === 'mobile_money'
+        const phoneForFincra = aggRail === 'mobile_money'
           ? formatFincraPhone(normalizedPhone, dialCode, false)
           : undefined;
 
@@ -1037,13 +1037,13 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           amount: numAmount,
           // XOF saisi par l'utilisateur = base du débit wallet (le backend débite
           // amount_xof + frais, sans round-trip via le taux → débit = devis montré).
-          amount_xof: fincraDebitXof ?? numAmountXof,
-          currency: fincraCurrency,
-          rail: fincraRail as FincraRail,
+          amount_xof: aggDebitXof ?? numAmountXof,
+          currency: aggCurrency,
+          rail: aggRail as FincraRail,
           phone: phoneForFincra,
-          operator: fincraRail === 'mobile_money' ? mmOperator : undefined,
-          country: fincraRail === 'mobile_money' ? countryIso2 : undefined,
-          accountHolderName: fincraRail === 'mobile_money'
+          operator: aggRail === 'mobile_money' ? mmOperator : undefined,
+          country: aggRail === 'mobile_money' ? countryIso2 : undefined,
+          accountHolderName: aggRail === 'mobile_money'
             ? `${user?.name ?? ''} ${user?.surname ?? ''}`.trim() || undefined
             : undefined,
           beneficiary,
@@ -1061,10 +1061,10 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           // sinon le succès montrerait le XOF formaté en NGN/GHS (contradiction).
           amount_sent: numAmount,
           fees: Number(result.fees) || 0,
-          phone: fincraRail === 'mobile_money' ? normalizedPhone : (bankAccountNumber || iban),
-          debit_xof: fincraTotalDebitXof ?? fincraDebitXof ?? 0,
+          phone: aggRail === 'mobile_money' ? normalizedPhone : (bankAccountNumber || iban),
+          debit_xof: aggTotalDebitXof ?? aggDebitXof ?? 0,
         });
-        startPolling({ fincraRef: result.reference });
+        startPolling({ aggRef: result.reference });
         return;
       }
 
@@ -1161,10 +1161,10 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                   <View style={styles.feesRow}>
                     <Text style={styles.feesLabel}>{t('transferModal.amountSentDetail')}</Text>
                     <Text style={styles.feesValue}>
-                      {isFincraOp ? fmtFincra(pendingDetails.amount_sent) : fmtXof(pendingDetails.amount_sent)}
+                      {isAggOp ? fmtAgg(pendingDetails.amount_sent) : fmtXof(pendingDetails.amount_sent)}
                     </Text>
                   </View>
-                  {!isFincraOp && (
+                  {!isAggOp && (
                     <View style={styles.feesRow}>
                       <Text style={styles.feesLabel}>{t('transferModal.feesDetail')}</Text>
                       <Text style={styles.feesValue}>{fmtXof(pendingDetails.fees)}</Text>
@@ -1173,7 +1173,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                   <View style={[styles.feesRow, styles.feesTotalRow]}>
                     <Text style={styles.feesTotalLabel}>{t('transferModal.totalDebited')}</Text>
                     <Text style={styles.feesTotalValue}>
-                      {isFincraOp
+                      {isAggOp
                         ? fmtXof(pendingDetails.debit_xof ?? 0)
                         : fmtXof(pendingDetails.amount_sent + pendingDetails.fees)}
                     </Text>
@@ -1367,7 +1367,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             <>
             {/* Montant + suite. Pour Fincra, le rail est porté par l'opérateur lui-même
                 (cf. config.ts), plus de sélecteur intermédiaire. */}
-            {(!isFincraOp || !!fincraRail) && (
+            {(!isAggOp || !!aggRail) && (
             <>
             <Input
               label={t('transferModal.amountLabel', { currency: 'XOF' })}
@@ -1382,13 +1382,13 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             />
 
             {/* Montant reçu par le bénéficiaire (devise Fincra) pour le XOF débité. */}
-            {isFincraOp && fincraCurrency !== 'XOF' && numAmountXof > 0 && (
+            {isAggOp && aggCurrency !== 'XOF' && numAmountXof > 0 && (
               <FincraConversionHint
-                loading={fincraRate.loading}
-                error={fincraRate.error || fincraSendAmount === null}
+                loading={aggRate.loading}
+                error={aggRate.error || aggSendAmount === null}
                 label={t('transferModal.fincraReceives')}
-                amount={fincraSendAmount}
-                currency={fincraCurrency}
+                amount={aggSendAmount}
+                currency={aggCurrency}
               />
             )}
 
@@ -1413,7 +1413,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             ) : null}
 
             {/* Sélecteur de sous-pays Fincra XOF/XAF — masqué si le pays est déjà connu. */}
-            {fincraZoneList && !zoneHasContext && (
+            {aggZoneList && !zoneHasContext && (
               <View style={{ gap: Spacing.xs }}>
                 <Text style={styles.zoneLabel}>{t('transferModal.chooseCountry')}</Text>
                 <ScrollView
@@ -1421,14 +1421,14 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={{ gap: Spacing.xs, paddingVertical: 2 }}
                 >
-                  {fincraZoneList.map((c) => (
+                  {aggZoneList.map((c) => (
                     <TouchableOpacity
                       key={c.code}
-                      onPress={() => setFincraZoneCountry(c.code)}
-                      style={[styles.zoneChip, fincraZoneCountry === c.code && styles.zoneChipSelected]}
+                      onPress={() => setAggZoneCountry(c.code)}
+                      style={[styles.zoneChip, aggZoneCountry === c.code && styles.zoneChipSelected]}
                     >
                       <Text style={styles.zoneChipFlag}>{c.flag}</Text>
-                      <Text style={[styles.zoneChipText, fincraZoneCountry === c.code && styles.zoneChipTextSelected]}>
+                      <Text style={[styles.zoneChipText, aggZoneCountry === c.code && styles.zoneChipTextSelected]}>
                         {c.name} +{c.phone}
                       </Text>
                     </TouchableOpacity>
@@ -1438,18 +1438,18 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             )}
 
             {/* Champ téléphone — visible pour les flux PayDunya/AfribaPay et pour Fincra mobile_money */}
-            {(!isFincraOp || fincraRail === 'mobile_money') && (
+            {(!isAggOp || aggRail === 'mobile_money') && (
               <>
                 <Input
                   label={t('transferModal.phoneLabel')}
-                  placeholder={isFincraOp && fincraRail === 'mobile_money'
+                  placeholder={isAggOp && aggRail === 'mobile_money'
                     ? '770000000'
                     : t('transferModal.phonePlaceholder')}
                   value={phone}
                   onChangeText={setPhone}
                   keyboardType="phone-pad"
-                  prefix={isFincraOp && fincraRail === 'mobile_money'
-                    ? (fincraDialCode ? `+${fincraDialCode}` : undefined)
+                  prefix={isAggOp && aggRail === 'mobile_money'
+                    ? (aggDialCode ? `+${aggDialCode}` : undefined)
                     : (dialCode || undefined)}
                 />
                 {dialCode ? (
@@ -1459,9 +1459,9 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             )}
 
             {/* Champs bénéficiaire bancaire (Fincra bank_transfer / SWIFT / SEPA) */}
-            {isFincraOp && fincraRail && fincraRail !== 'mobile_money' && (
+            {isAggOp && aggRail && aggRail !== 'mobile_money' && (
               <View style={{ gap: Spacing.xs }}>
-                {fincraRail !== 'bank_transfer' && fincraRail !== 'cny' && (
+                {aggRail !== 'bank_transfer' && aggRail !== 'cny' && (
                   <Input
                     label="Nom du bénéficiaire"
                     placeholder="Prénom NOM"
@@ -1469,7 +1469,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                     onChangeText={setBankAccountHolder}
                   />
                 )}
-                {(fincraRail === 'bank_transfer') && (
+                {(aggRail === 'bank_transfer') && (
                   <>
                     <Text style={styles.fieldLabel}>Banque</Text>
                     <TouchableOpacity
@@ -1492,7 +1492,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       keyboardType="numeric"
                     />
                     {/* Champs requis par devise (Klasha) : GHS / KES / ZAR */}
-                    {isKlashaOp && fincraCurrency === 'GHS' && (
+                    {isKlashaOp && aggCurrency === 'GHS' && (
                       <Input
                         label="Code agence (branch code) *"
                         placeholder="Code agence de la banque"
@@ -1500,7 +1500,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                         onChangeText={setBankBranchCode}
                       />
                     )}
-                    {isKlashaOp && fincraCurrency === 'KES' && (
+                    {isKlashaOp && aggCurrency === 'KES' && (
                       <Input
                         label="Code court banque (serviceCode) *"
                         placeholder="Short code du compte bénéficiaire"
@@ -1508,7 +1508,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                         onChangeText={setBankServiceCode}
                       />
                     )}
-                    {isKlashaOp && fincraCurrency === 'ZAR' && (
+                    {isKlashaOp && aggCurrency === 'ZAR' && (
                       <>
                         <Input
                           label="Téléphone du bénéficiaire *"
@@ -1579,7 +1579,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                     )}
                   </>
                 )}
-                {fincraRail === 'SWIFT' && (
+                {aggRail === 'SWIFT' && (
                   <>
                     {/* Pays de la banque (destinataire) — pilote la liste de banques. */}
                     <Text style={styles.fieldLabel}>Pays de la banque *</Text>
@@ -1593,7 +1593,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       <FontAwesome6 name="chevron-down" size={12} color={Colors.textMuted} />
                     </TouchableOpacity>
                     {/* Banque : picker si Fincra liste des banques pour ce pays. */}
-                    {fincraBanks.length > 0 && (
+                    {aggBanks.length > 0 && (
                       <>
                         <Text style={styles.fieldLabel}>Banque</Text>
                         <TouchableOpacity style={styles.bankPickerBtn} onPress={() => setBankPickerVisible(true)}>
@@ -1620,7 +1620,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       autoCapitalize="characters"
                     />
                     {/* Repli : saisie manuelle du nom de banque si aucune liste. */}
-                    {fincraBanks.length === 0 && (
+                    {aggBanks.length === 0 && (
                       <Input
                         label="Banque"
                         placeholder="ex: Deutsche Bank"
@@ -1630,7 +1630,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                     )}
                   </>
                 )}
-                {fincraRail === 'SEPA' && (
+                {aggRail === 'SEPA' && (
                   <>
                     {/* Pays de la banque (destinataire) — pilote la liste de banques SEPA. */}
                     <Text style={styles.fieldLabel}>Pays de la banque</Text>
@@ -1644,7 +1644,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       <FontAwesome6 name="chevron-down" size={12} color={Colors.textMuted} />
                     </TouchableOpacity>
                     {/* Banque : picker si Fincra liste des banques pour ce pays. */}
-                    {fincraBanks.length > 0 && (
+                    {aggBanks.length > 0 && (
                       <>
                         <Text style={styles.fieldLabel}>Banque</Text>
                         <TouchableOpacity style={styles.bankPickerBtn} onPress={() => setBankPickerVisible(true)}>
@@ -1671,7 +1671,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       autoCapitalize="characters"
                     />
                     {/* Repli : saisie manuelle du nom de banque si aucune liste. */}
-                    {fincraBanks.length === 0 && (
+                    {aggBanks.length === 0 && (
                       <Input
                         label="Banque (optionnel)"
                         placeholder="ex: BNP Paribas"
@@ -1681,7 +1681,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                     )}
                   </>
                 )}
-                {fincraRail === 'wire' && (
+                {aggRail === 'wire' && (
                   <>
                     <Input
                       label="Numéro de compte"
@@ -1738,7 +1738,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                     />
                   </>
                 )}
-                {fincraRail === 'cny' && (
+                {aggRail === 'cny' && (
                   <>
                     {/* La méthode (virement / UnionPay / Alipay) est portée par la tuile
                         choisie en haut → pas de sélecteur ici. */}
@@ -1814,7 +1814,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             )}
 
             <View style={styles.savedActionsRow}>
-              {(!isFincraOp || fincraRail === 'mobile_money') && !!normalizedPhone && !savedPhones.some((item) => item.tel.replace(/\s+/g, '') === normalizedPhone) && (
+              {(!isAggOp || aggRail === 'mobile_money') && !!normalizedPhone && !savedPhones.some((item) => item.tel.replace(/\s+/g, '') === normalizedPhone) && (
                 <Button
                   variant="secondary"
                   icon="bookmark"
@@ -1830,7 +1830,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                   <Text style={[styles.savedActionText, { color: Colors.error }]}>{t('common.delete')}</Text>
                 </TouchableOpacity>
               )}
-              {isFincraOp && fincraRail && fincraRail !== 'mobile_money' && !!(bankAccountNumber.trim() || iban.trim()) && (
+              {isAggOp && aggRail && aggRail !== 'mobile_money' && !!(bankAccountNumber.trim() || iban.trim()) && (
                 <Button
                   variant="secondary"
                   icon="bookmark"
@@ -1842,7 +1842,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               )}
             </View>
 
-            {(!isFincraOp || fincraRail === 'mobile_money') && savedPhones.length > 0 && (
+            {(!isAggOp || aggRail === 'mobile_money') && savedPhones.length > 0 && (
               <View style={styles.savedBlock}>
                 <Text style={styles.savedLabel}>{t('transferModal.savedNumbers')}</Text>
                 <View style={styles.savedList}>
@@ -1865,15 +1865,15 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               </View>
             )}
 
-            {(!isFincraOp || fincraRail === 'mobile_money') && savedPhonesLoadError && savedPhones.length === 0 && (
+            {(!isAggOp || aggRail === 'mobile_money') && savedPhonesLoadError && savedPhones.length === 0 && (
               <Text style={styles.savedErrorText}>{savedPhonesLoadError}</Text>
             )}
 
-            {isFincraOp && fincraRail && fincraRail !== 'mobile_money' && savedBanks.filter((b) => (b.currency || '').toUpperCase() === fincraCurrency).length > 0 && (
+            {isAggOp && aggRail && aggRail !== 'mobile_money' && savedBanks.filter((b) => (b.currency || '').toUpperCase() === aggCurrency).length > 0 && (
               <View style={styles.savedBlock}>
                 <Text style={styles.savedLabel}>{t('transferModal.savedBanks')}</Text>
                 <View style={styles.savedList}>
-                  {savedBanks.filter((b) => (b.currency || '').toUpperCase() === fincraCurrency).map((b) => {
+                  {savedBanks.filter((b) => (b.currency || '').toUpperCase() === aggCurrency).map((b) => {
                     const selected = !!(bankAccountNumber || iban) && (b.account_number || b.iban || '') === (bankAccountNumber || iban);
                     const label = (b.name?.trim() || b.account_holder?.trim() || b.bank_name?.trim() || '—');
                     const sub = [b.bank_name, b.account_number || b.iban].filter(Boolean).join(' · ');
@@ -1900,21 +1900,21 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               loading={loading}
               disabled={
                 !amount || !operator
-                || fincraRateBlocking || feeUnavailable
-                || (isFincraOp
-                    ? !fincraRail
-                      || (fincraRail === 'mobile_money' && !phone)
-                      || (fincraRail === 'bank_transfer' && (!bankAccountHolder || !bankAccountNumber || !bankCode))
-                      || (isKlashaOp && fincraRail === 'bank_transfer' && fincraCurrency === 'GHS' && !bankBranchCode)
-                      || (isKlashaOp && fincraRail === 'bank_transfer' && fincraCurrency === 'KES' && !bankServiceCode)
-                      || (isKlashaOp && fincraRail === 'bank_transfer' && fincraCurrency === 'ZAR' && (!bankMobileNumber || !bankRecipientAddress || !bankRecipientEmail))
-                      || (fincraRail === 'SWIFT' && (!bankAccountHolder || !iban || !swiftCode || !bankCountry))
-                      || (fincraRail === 'SEPA' && (!bankAccountHolder || !iban))
-                      || (fincraRail === 'wire' && (!bankAccountHolder || (!bankAccountNumber && !iban) || !bankName || !swiftCode || !bankCountry))
-                      || (fincraRail === 'cny' && (!cnyFirstName || !cnyLastName))
-                      || (fincraRail === 'cny' && cnyService === 'BANK_ACCOUNT' && (!cnyIdNumber || !cnyMobile || !bankCode || !bankName || !bankAccountNumber || !bankAccountHolder))
-                      || (fincraRail === 'cny' && cnyService === 'BANK_CARD' && (!bankCode || !bankName || !cnyCardNumber || !cnyCardHolder))
-                      || (fincraRail === 'cny' && cnyService === 'WALLET' && !cnyWalletAccount)
+                || aggRateBlocking || feeUnavailable
+                || (isAggOp
+                    ? !aggRail
+                      || (aggRail === 'mobile_money' && !phone)
+                      || (aggRail === 'bank_transfer' && (!bankAccountHolder || !bankAccountNumber || !bankCode))
+                      || (isKlashaOp && aggRail === 'bank_transfer' && aggCurrency === 'GHS' && !bankBranchCode)
+                      || (isKlashaOp && aggRail === 'bank_transfer' && aggCurrency === 'KES' && !bankServiceCode)
+                      || (isKlashaOp && aggRail === 'bank_transfer' && aggCurrency === 'ZAR' && (!bankMobileNumber || !bankRecipientAddress || !bankRecipientEmail))
+                      || (aggRail === 'SWIFT' && (!bankAccountHolder || !iban || !swiftCode || !bankCountry))
+                      || (aggRail === 'SEPA' && (!bankAccountHolder || !iban))
+                      || (aggRail === 'wire' && (!bankAccountHolder || (!bankAccountNumber && !iban) || !bankName || !swiftCode || !bankCountry))
+                      || (aggRail === 'cny' && (!cnyFirstName || !cnyLastName))
+                      || (aggRail === 'cny' && cnyService === 'BANK_ACCOUNT' && (!cnyIdNumber || !cnyMobile || !bankCode || !bankName || !bankAccountNumber || !bankAccountHolder))
+                      || (aggRail === 'cny' && cnyService === 'BANK_CARD' && (!bankCode || !bankName || !cnyCardNumber || !cnyCardHolder))
+                      || (aggRail === 'cny' && cnyService === 'WALLET' && !cnyWalletAccount)
                     : !phone)
               }
               style={{ marginTop: Spacing.lg }}
@@ -1953,7 +1953,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               <Text style={styles.confirmCardLabel}>{t('transferModal.recipient')}</Text>
               {(() => {
                 // Décomposition propre des champs destinataire selon le rail.
-                const isMM = !isFincraOp || fincraRail === 'mobile_money';
+                const isMM = !isAggOp || aggRail === 'mobile_money';
                 const primary = isMM
                   ? (phone || '—')
                   : (bankAccountHolder || bankAccountNumber || iban || '—');
@@ -1980,8 +1980,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                   <Image source={selectedOp.logo} style={styles.confirmMethodLogo} resizeMode="contain" />
                   <Text style={styles.confirmMethodText} numberOfLines={1}>
                     {selectedOp.flag} {selectedOp.name}
-                    {isFincraOp && fincraRail
-                      ? ` · ${fincraRail === 'mobile_money' ? 'Mobile Money' : fincraRail === 'bank_transfer' ? 'Virement bancaire' : fincraRail === 'wire' ? 'Virement international' : fincraRail}`
+                    {isAggOp && aggRail
+                      ? ` · ${aggRail === 'mobile_money' ? 'Mobile Money' : aggRail === 'bank_transfer' ? 'Virement bancaire' : aggRail === 'wire' ? 'Virement international' : aggRail}`
                       : ''}
                   </Text>
                 </View>
@@ -1990,10 +1990,19 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
 
             {/* Card breakdown */}
             <View style={styles.confirmCard}>
-              {isFincraOp && fincraCurrency !== 'XOF' && (
+              {isAggOp && aggCurrency !== 'XOF' && (
                 <View style={styles.confirmBreakdownRow}>
                   <Text style={styles.confirmBreakdownLabel}>{t('transferModal.fincraReceives')}</Text>
-                  <Text style={styles.confirmBreakdownValue}>{fmtFincra(numAmount)}</Text>
+                  <Text style={styles.confirmBreakdownValue}>{fmtAgg(numAmount)}</Text>
+                </View>
+              )}
+              {/* Chine : taux appliqué (1 CNY = N XOF, cf. aggRate) */}
+              {aggRail === 'cny' && aggRate.rate !== null && aggRate.rate > 0 && (
+                <View style={styles.confirmBreakdownRow}>
+                  <Text style={styles.confirmBreakdownLabel}>{t('transferModal.exchangeRate')}</Text>
+                  <Text style={styles.confirmBreakdownValue}>
+                    1 {aggCurrency} = {aggRate.rate.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} XOF
+                  </Text>
                 </View>
               )}
               {fees > 0 && (
@@ -2006,12 +2015,17 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               <View style={styles.confirmBreakdownRow}>
                 <Text style={styles.confirmBreakdownTotalLabel}>{t('transferModal.totalDebited')}</Text>
                 <Text style={styles.confirmBreakdownTotalValue}>
-                  {isFincraOp
-                    ? (fincraTotalDebitXof !== null ? fmtXof(fincraTotalDebitXof) : fmtFincra(numAmount))
+                  {isAggOp
+                    ? (aggTotalDebitXof !== null ? fmtXof(aggTotalDebitXof) : fmtAgg(numAmount))
                     : fmtXof(total)}
                 </Text>
               </View>
             </View>
+
+            {/* Chine : délai de réception estimé */}
+            {aggRail === 'cny' && (
+              <Text style={styles.confirmDeliveryNote}>{t('transferModal.chinaDeliveryEstimate')}</Text>
+            )}
 
             {/* Checkbox confirmation */}
             <TouchableOpacity style={styles.checkRow} onPress={() => setConfirmed((v) => !v)} activeOpacity={0.7}>
@@ -2097,7 +2111,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               containerStyle={{ alignSelf: 'stretch' }}
             />
             <Text style={styles.beneficiarySubLine}>
-              {[bankName, bankAccountNumber || iban, fincraCurrency].filter(Boolean).join(' · ')}
+              {[bankName, bankAccountNumber || iban, aggCurrency].filter(Boolean).join(' · ')}
             </Text>
             <View style={styles.confirmBtns}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setSaveBankModalVisible(false)}>
@@ -2152,11 +2166,11 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       // On pose le BIC dans swiftCode/bic (que le payload mappe vers
                       // bankCode) et on LAISSE bankCode vide — le `code` Fincra local
                       // n'est PAS un BIC. bank_transfer : code banque + swift.
-                      if (fincraRail === 'SWIFT') {
+                      if (aggRail === 'SWIFT') {
                         setSwiftCode(item.swiftCode ?? '');
                         setBankCode('');
                         setBankSwiftCode('');
-                      } else if (fincraRail === 'SEPA') {
+                      } else if (aggRail === 'SEPA') {
                         setBic(item.swiftCode ?? '');
                         setBankCode('');
                         setBankSwiftCode('');
@@ -2221,8 +2235,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                     setBankName('');
                     setBankCode('');
                     setBankSwiftCode('');
-                    if (fincraRail === 'SWIFT') setSwiftCode('');
-                    if (fincraRail === 'SEPA') setBic('');
+                    if (aggRail === 'SWIFT') setSwiftCode('');
+                    if (aggRail === 'SEPA') setBic('');
                     setCountryPickerVisible(false);
                     setCountrySearchQuery('');
                   }}
@@ -2741,6 +2755,14 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.secondary,
     fontSize: FontSize.md,
     fontFamily: Fonts.bold,
+  },
+  confirmDeliveryNote: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.medium,
+    alignSelf: 'stretch',
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
   },
   checkRow: {
     flexDirection: 'row',
