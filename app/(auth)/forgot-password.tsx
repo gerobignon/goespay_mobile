@@ -36,10 +36,10 @@ export default function ForgotPasswordScreen() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    if (step === 2 && code.length === 6 && password && passwordConfirmation && password === passwordConfirmation && !loading) {
+    if (step === 2 && !done && code.length === 6 && password && passwordConfirmation && password === passwordConfirmation && !loading) {
       handleResetPassword();
     }
-  }, [step, code, password, passwordConfirmation, loading]);
+  }, [step, code, password, passwordConfirmation, loading, done]);
 
   const handleSendCode = async () => {
     if (!email.trim()) {
@@ -65,6 +65,7 @@ export default function ForgotPasswordScreen() {
   };
 
   const handleResetPassword = async () => {
+    if (loading || done) return;
     if (!code.trim() || !password || !passwordConfirmation) {
       showAlert(t('common.error'), t('auth.forgotPassword.fillAllFields', 'Veuillez remplir tous les champs.'));
       return;
@@ -83,8 +84,9 @@ export default function ForgotPasswordScreen() {
       });
       setDone(true);
     } catch (error: any) {
+      const data = error?.response?.data;
       const message =
-        error?.response?.data?.message || t('auth.forgotPassword.invalidCode');
+        data?.error || data?.message || t('auth.forgotPassword.invalidCode');
       showAlert(t('common.error'), message);
     } finally {
       setLoading(false);
