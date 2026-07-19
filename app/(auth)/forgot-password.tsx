@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -34,12 +34,6 @@ export default function ForgotPasswordScreen() {
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
-
-  useEffect(() => {
-    if (step === 2 && !done && code.length === 6 && password && passwordConfirmation && password === passwordConfirmation && !loading) {
-      handleResetPassword();
-    }
-  }, [step, code, password, passwordConfirmation, loading, done]);
 
   const handleSendCode = async () => {
     if (!email.trim()) {
