@@ -121,7 +121,9 @@ export interface SavedBank {
   country?: string | null;
   swift_code?: string | null;
   iban?: string | null;
-  rail?: string | null; // bank_transfer | SWIFT | SEPA
+  rail?: string | null; // bank_transfer | SWIFT | SEPA | cny
+  // Chine (Klasha C2C) : champs spécifiques portés hors colonnes standard.
+  meta?: Record<string, any> | null;
   created_at?: string;
   updated_at?: string;
 }

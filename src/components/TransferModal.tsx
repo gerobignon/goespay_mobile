@@ -107,6 +107,10 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const [saveBankModalVisible, setSaveBankModalVisible] = useState(false);
   const [saveBankName, setSaveBankName] = useState('');
   const [saveBankLoading, setSaveBankLoading] = useState(false);
+  // Enregistrement d'un bénéficiaire Chine (Klasha C2C).
+  const [saveCnyModalVisible, setSaveCnyModalVisible] = useState(false);
+  const [saveCnyName, setSaveCnyName] = useState('');
+  const [saveCnyLoading, setSaveCnyLoading] = useState(false);
   const [pollingState, setPollingState] = useState<'idle' | 'pending' | 'success' | 'failed' | 'timeout'>('idle');
   const [pendingDetails, setPendingDetails] = useState<{ amount_sent: number; fees: number; phone: string; debit_xof?: number } | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -407,6 +411,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     loadSavedBanks();
     setBankPickerSavedVisible(false);
     setSaveBankModalVisible(false);
+    setSaveCnyModalVisible(false);
+    setSaveCnyName('');
     setSaveBankName('');
     setSelectedCountry(null);
     setOperator('');
@@ -768,6 +774,85 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       showAlert(t('common.error'), error?.response?.data?.error || error?.response?.data?.message || t('transferModal.bankSaveError'));
     } finally {
       setSaveBankLoading(false);
+    }
+  };
+
+  // ── Bénéficiaire Chine (Klasha C2C) ────────────────────────────────────────
+  // Le « compte » varie selon le service (virement / carte UnionPay / wallet).
+  // On réutilise la table bank-accounts avec un meta JSON portant les champs CNY.
+  const cnyBeneficiaryComplete = aggRail === 'cny' && !!cnyFirstName.trim() && !!cnyLastName.trim() && (
+    cnyService === 'BANK_ACCOUNT'
+      ? !!(bankAccountNumber.trim() && bankAccountHolder.trim() && bankCode.trim() && bankName.trim() && cnyIdNumber.trim() && cnyMobile.trim())
+      : cnyService === 'BANK_CARD'
+        ? !!(bankCode.trim() && bankName.trim() && cnyCardNumber.trim() && cnyCardHolder.trim())
+        : !!cnyWalletAccount.trim()
+  );
+
+  const confirmSaveCurrentCny = async () => {
+    if (!cnyBeneficiaryComplete) return;
+    const fullName = `${cnyFirstName.trim()} ${cnyLastName.trim()}`.trim();
+    const holder = cnyService === 'BANK_ACCOUNT' ? bankAccountHolder.trim()
+      : cnyService === 'BANK_CARD' ? cnyCardHolder.trim()
+      : fullName;
+    const acct = cnyService === 'BANK_ACCOUNT' ? bankAccountNumber.trim()
+      : cnyService === 'BANK_CARD' ? cnyCardNumber.trim()
+      : cnyWalletAccount.trim();
+    setSaveCnyLoading(true);
+    try {
+      const created = await walletService.createSavedBank({
+        name: saveCnyName.trim() || fullName || holder,
+        account_holder: holder,
+        account_number: acct,
+        bank_code: bankCode.trim() || undefined,
+        bank_name: bankName.trim() || undefined,
+        currency: 'CNY',
+        country: 'CN',
+        rail: 'cny',
+        meta: {
+          cny: true,
+          service: cnyService,
+          service_code: cnyService === 'WALLET' ? cnyServiceCode : undefined,
+          first_name: cnyFirstName.trim(),
+          last_name: cnyLastName.trim(),
+          id_number: cnyIdNumber.trim() || undefined,
+          mobile: cnyMobile.trim() || undefined,
+          card_number: cnyCardNumber.trim() || undefined,
+          card_holder: cnyCardHolder.trim() || undefined,
+          wallet_account: cnyWalletAccount.trim() || undefined,
+          wallet_account_id: cnyService === 'WALLET' ? cnyWalletAccountId : undefined,
+        },
+      });
+      setSavedBanks((prev) => [created, ...prev]);
+      setSaveCnyModalVisible(false);
+      setSaveCnyName('');
+      showAlert(t('common.success'), t('transferModal.bankSaved'));
+    } catch (error: any) {
+      showAlert(t('common.error'), error?.response?.data?.error || error?.response?.data?.message || t('transferModal.bankSaveError'));
+    } finally {
+      setSaveCnyLoading(false);
+    }
+  };
+
+  // Réhydrate les champs Chine depuis un bénéficiaire enregistré (selon le service).
+  const applyCnyBeneficiary = (b: SavedBank) => {
+    const m: any = b.meta || {};
+    setCnyFirstName(m.first_name || '');
+    setCnyLastName(m.last_name || '');
+    if (m.service === 'BANK_ACCOUNT') {
+      setBankName(b.bank_name || '');
+      setBankCode(b.bank_code || '');
+      setBankAccountNumber(b.account_number || '');
+      setBankAccountHolder(b.account_holder || '');
+      setCnyIdNumber(m.id_number || '');
+      setCnyMobile(m.mobile || '');
+    } else if (m.service === 'BANK_CARD') {
+      setBankName(b.bank_name || '');
+      setBankCode(b.bank_code || '');
+      setCnyCardNumber(m.card_number || '');
+      setCnyCardHolder(m.card_holder || '');
+    } else {
+      setCnyWalletAccount(m.wallet_account || b.account_number || '');
+      if (m.wallet_account_id) setCnyWalletAccountId(m.wallet_account_id);
     }
   };
 
@@ -1830,12 +1915,22 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                   <Text style={[styles.savedActionText, { color: Colors.error }]}>{t('common.delete')}</Text>
                 </TouchableOpacity>
               )}
-              {isAggOp && aggRail && aggRail !== 'mobile_money' && !!(bankAccountNumber.trim() || iban.trim()) && (
+              {isAggOp && aggRail && aggRail !== 'mobile_money' && aggRail !== 'cny' && !!(bankAccountNumber.trim() || iban.trim()) && (
                 <Button
                   variant="secondary"
                   icon="bookmark"
                   title={t('transferModal.saveThisBank')}
                   onPress={() => { setSaveBankName(bankAccountHolder.trim() || bankName.trim()); setSaveBankModalVisible(true); }}
+                  style={styles.saveBtnSmall}
+                  textStyle={styles.saveBtnText}
+                />
+              )}
+              {aggRail === 'cny' && cnyBeneficiaryComplete && (
+                <Button
+                  variant="secondary"
+                  icon="bookmark"
+                  title={t('transferModal.saveThisBank')}
+                  onPress={() => { setSaveCnyName(`${cnyFirstName.trim()} ${cnyLastName.trim()}`.trim()); setSaveCnyModalVisible(true); }}
                   style={styles.saveBtnSmall}
                   textStyle={styles.saveBtnText}
                 />
@@ -1869,7 +1964,34 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               <Text style={styles.savedErrorText}>{savedPhonesLoadError}</Text>
             )}
 
-            {isAggOp && aggRail && aggRail !== 'mobile_money' && savedBanks.filter((b) => (b.currency || '').toUpperCase() === aggCurrency).length > 0 && (
+            {aggRail === 'cny' && savedBanks.filter((b) => (b.rail || '') === 'cny' && (b.meta as any)?.service === cnyService && (cnyService !== 'WALLET' || (b.meta as any)?.service_code === cnyServiceCode)).length > 0 && (
+              <View style={styles.savedBlock}>
+                <Text style={styles.savedLabel}>{t('transferModal.savedBanks')}</Text>
+                <View style={styles.savedList}>
+                  {savedBanks.filter((b) => (b.rail || '') === 'cny' && (b.meta as any)?.service === cnyService && (cnyService !== 'WALLET' || (b.meta as any)?.service_code === cnyServiceCode)).map((b) => {
+                    const m: any = b.meta || {};
+                    const acct = cnyService === 'BANK_ACCOUNT' ? (b.account_number || '') : cnyService === 'BANK_CARD' ? (m.card_number || '') : (m.wallet_account || b.account_number || '');
+                    const selectedAcct = cnyService === 'BANK_ACCOUNT' ? bankAccountNumber : cnyService === 'BANK_CARD' ? cnyCardNumber : cnyWalletAccount;
+                    const selected = !!selectedAcct && selectedAcct === acct;
+                    const label = (b.name?.trim() || [m.first_name, m.last_name].filter(Boolean).join(' ') || '—');
+                    const sub = [b.bank_name, acct].filter(Boolean).join(' · ');
+                    return (
+                      <TouchableOpacity
+                        key={b.id}
+                        style={[styles.savedChip, selected && styles.savedChipSelected]}
+                        onPress={() => applyCnyBeneficiary(b)}
+                      >
+                        <Text style={[styles.savedChipText, selected && styles.savedChipTextSelected]} numberOfLines={1}>
+                          {sub ? `${label} · ${sub}` : label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {isAggOp && aggRail && aggRail !== 'mobile_money' && aggRail !== 'cny' && savedBanks.filter((b) => (b.currency || '').toUpperCase() === aggCurrency).length > 0 && (
               <View style={styles.savedBlock}>
                 <Text style={styles.savedLabel}>{t('transferModal.savedBanks')}</Text>
                 <View style={styles.savedList}>
@@ -1939,6 +2061,16 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               <Text style={styles.confirmSubtitle}>{t('transferModal.confirmHint')}</Text>
             </View>
 
+            {/* Chine : taux de change mis en avant en haut du modal */}
+            {aggRail === 'cny' && aggRate.rate !== null && aggRate.rate > 0 && (
+              <View style={styles.confirmRateBanner}>
+                <Text style={styles.confirmRateBannerLabel}>{t('transferModal.exchangeRate')}</Text>
+                <Text style={styles.confirmRateBannerValue}>
+                  1 {aggCurrency} = {aggRate.rate.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} XOF
+                </Text>
+              </View>
+            )}
+
             {/* Card montant */}
             <View style={styles.confirmCard}>
               <Text style={styles.confirmCardLabel}>{t('transferModal.amountSent')}</Text>
@@ -1996,15 +2128,6 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                   <Text style={styles.confirmBreakdownValue}>{fmtAgg(numAmount)}</Text>
                 </View>
               )}
-              {/* Chine : taux appliqué (1 CNY = N XOF, cf. aggRate) */}
-              {aggRail === 'cny' && aggRate.rate !== null && aggRate.rate > 0 && (
-                <View style={styles.confirmBreakdownRow}>
-                  <Text style={styles.confirmBreakdownLabel}>{t('transferModal.exchangeRate')}</Text>
-                  <Text style={styles.confirmBreakdownValue}>
-                    1 {aggCurrency} = {aggRate.rate.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} XOF
-                  </Text>
-                </View>
-              )}
               {fees > 0 && (
                 <View style={styles.confirmBreakdownRow}>
                   <Text style={styles.confirmBreakdownLabel}>{t('transferModal.fees')} ({feeLabel})</Text>
@@ -2024,7 +2147,10 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
 
             {/* Chine : délai de réception estimé */}
             {aggRail === 'cny' && (
-              <Text style={styles.confirmDeliveryNote}>{t('transferModal.chinaDeliveryEstimate')}</Text>
+              <View style={styles.confirmDeliveryBox}>
+                <FontAwesome6 name="clock" size={14} color={Colors.primary} solid />
+                <Text style={styles.confirmDeliveryNote}>{t('transferModal.chinaDeliveryEstimate')}</Text>
+              </View>
             )}
 
             {/* Checkbox confirmation */}
@@ -2120,6 +2246,35 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               <TouchableOpacity style={styles.confirmBtn} onPress={confirmSaveCurrentBank} disabled={saveBankLoading}>
                 <FontAwesome6 name="floppy-disk" size={14} color={Colors.white} style={{ marginRight: 6 }} />
                 <Text style={styles.confirmBtnText}>{saveBankLoading ? t('common.saving') : t('common.save')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal enregistrement bénéficiaire Chine (Klasha C2C) */}
+      <Modal visible={saveCnyModalVisible} transparent animationType="fade" onRequestClose={() => setSaveCnyModalVisible(false)}>
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmSheet}>
+            <Text style={styles.confirmTitle}>{t('transferModal.saveThisBank')}</Text>
+            <Text style={styles.confirmSubtitle}>{t('transferModal.saveBankHint')}</Text>
+            <Input
+              label={t('transferModal.nameLabel')}
+              placeholder={t('transferModal.labelPlaceholder')}
+              value={saveCnyName}
+              onChangeText={setSaveCnyName}
+              containerStyle={{ alignSelf: 'stretch' }}
+            />
+            <Text style={styles.beneficiarySubLine}>
+              {[`${cnyFirstName} ${cnyLastName}`.trim(), cnyService === 'BANK_ACCOUNT' ? bankAccountNumber : cnyService === 'BANK_CARD' ? cnyCardNumber : cnyWalletAccount].filter(Boolean).join(' · ')}
+            </Text>
+            <View style={styles.confirmBtns}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setSaveCnyModalVisible(false)}>
+                <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmBtn} onPress={confirmSaveCurrentCny} disabled={saveCnyLoading}>
+                <FontAwesome6 name="floppy-disk" size={14} color={Colors.white} style={{ marginRight: 6 }} />
+                <Text style={styles.confirmBtnText}>{saveCnyLoading ? t('common.saving') : t('common.save')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -2756,13 +2911,48 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: FontSize.md,
     fontFamily: Fonts.bold,
   },
-  confirmDeliveryNote: {
-    color: Colors.textSecondary,
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.medium,
+  confirmRateBanner: {
+    alignItems: 'center',
     alignSelf: 'stretch',
+    backgroundColor: Colors.primary + '1A',
+    borderWidth: 1,
+    borderColor: Colors.primary + '40',
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    gap: 2,
+  },
+  confirmRateBannerLabel: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.medium,
+  },
+  confirmRateBannerValue: {
+    color: Colors.primary,
+    fontSize: FontSize.lg,
+    fontFamily: Fonts.bold,
     textAlign: 'center',
-    marginBottom: Spacing.sm,
+  },
+  confirmDeliveryBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    alignSelf: 'stretch',
+    backgroundColor: Colors.primary + '1A',
+    borderWidth: 1,
+    borderColor: Colors.primary + '40',
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.sm + 2,
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  confirmDeliveryNote: {
+    color: Colors.primary,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.bold,
+    textAlign: 'center',
   },
   checkRow: {
     flexDirection: 'row',
