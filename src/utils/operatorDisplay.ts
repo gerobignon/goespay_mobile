@@ -30,6 +30,14 @@ const FINCRA_RAIL_LOGO: Record<string, any> = {
   card: require('../../assets/operators/pay_card.jpg'),
 };
 
+// Logo par moyen de paiement chinois (Klasha CNY).
+const CNY_LOGO: Record<string, any> = {
+  card: require('../../assets/operators/pay_unionpay.png'),   // UnionPay
+  wallet: require('../../assets/operators/pay_alipay.png'),   // Alipay
+  wechat: require('../../assets/operators/pay_wechat.png'),   // WeChat
+  bank: require('../../assets/operators/pay_bank.png'),       // Virement bancaire
+};
+
 // Libellé propre par opérateur Mobile Money (repli quand le corridor précis
 // fincra-mm-<pays>-<op> / klasha-mm-<pays>-<op> n'est pas résolu par le catalogue).
 const MM_OP_LABEL: Record<string, string> = {
@@ -92,7 +100,8 @@ export function resolveOperatorDisplay(
       : svc === 'wallet' ? 'Alipay'
       : svc === 'wechat' ? 'WeChat'
       : 'Virement bancaire';
-    return { name, flag: '🇨🇳', op: { klasha: true, rail: 'cny', logo: FINCRA_RAIL_LOGO['bank_transfer'] } };
+    const logo = CNY_LOGO[svc] || CNY_LOGO.bank;
+    return { name, flag: '🇨🇳', op: { klasha: true, rail: 'cny', logo } };
   }
 
   // Klasha : mode stocké = klasha-<mobile_money|bank_transfer|card|checkout|wire|cny> (mêmes visuels).

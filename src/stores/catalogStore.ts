@@ -48,6 +48,10 @@ const LOGO_BY_KEY: Record<string, any> = {
   pay_airtel_tigo: require('../../assets/operators/pay_airtel_tigo.png'),
   pay_expresso:   require('../../assets/operators/pay_expresso.png'),
   pay_wizall:     require('../../assets/operators/pay_wizall.jpg'),
+  // Moyens de paiement chinois (Klasha CNY).
+  pay_alipay:     require('../../assets/operators/pay_alipay.png'),
+  pay_wechat:     require('../../assets/operators/pay_wechat.png'),
+  pay_unionpay:   require('../../assets/operators/pay_unionpay.png'),
 };
 const DEFAULT_LOGO = LOGO_BY_KEY.pay_card;
 
@@ -144,6 +148,15 @@ function klashaCnyServiceCode(code: string): 'ALIPAY' | 'WECHAT' | undefined {
   if (code === 'klasha-cny-wechat') return 'WECHAT';
   return undefined;
 }
+// Logo par corridor CNY (marque du moyen chinois), indépendant du logo_key serveur.
+function klashaCnyLogo(code: string): any | undefined {
+  if (code === 'klasha-cny-card')   return LOGO_BY_KEY.pay_unionpay;
+  if (code === 'klasha-cny-wallet') return LOGO_BY_KEY.pay_alipay;
+  if (code === 'klasha-cny-wechat') return LOGO_BY_KEY.pay_wechat;
+  if (code === 'klasha-cny-bt')     return LOGO_BY_KEY.pay_bank;
+  return undefined;
+}
+
 function klashaCnyName(code: string): string {
   // Cohérent avec les autres corridors (« Virement bancaire (CUR) ») ; le drapeau 🇨🇳
   // indique déjà la Chine. UnionPay/Alipay/WeChat = noms de marque.
@@ -262,7 +275,7 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
           fincraOperator: (r.code.startsWith('fincra-mm-') || r.code.startsWith('klasha-mm-')) ? r.network.toUpperCase() : undefined,
           klashaOperator: r.code.startsWith('klasha-mm-') ? r.network.toUpperCase() : undefined,
           aggregator: r.aggregator,
-          logo: (net && LOGO_BY_KEY[net.logo_key]) || DEFAULT_LOGO,
+          logo: (isKlashaAgg && klashaCnyLogo(r.code)) || (net && LOGO_BY_KEY[net.logo_key]) || DEFAULT_LOGO,
         };
       });
 
