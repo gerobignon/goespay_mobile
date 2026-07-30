@@ -259,9 +259,15 @@ function RootInner() {
         .catch(() => {});
     }
 
-    // Listener : notif reçue en foreground (rien de spécial à faire, le handler global s'en charge)
-    notifListenerRef.current = addNotificationReceivedListener((_notification) => {
-      // Les notifications sont affichées automatiquement via setNotificationHandler
+    // Listener : notif reçue en foreground (affichage auto via setNotificationHandler).
+    // Notif du board Dev → on rafraîchit le board pour mettre à jour le badge de l'onglet.
+    notifListenerRef.current = addNotificationReceivedListener((notification) => {
+      const data = notification.request.content.data as Record<string, string> | undefined;
+      if (data?.screen === 'admin_dev') {
+        import('../src/stores/devBoardStore')
+          .then((m) => m.useDevBoardStore.getState().fetchBoard(true))
+          .catch(() => {});
+      }
     });
 
     // Listener : tap sur une notification → navigation
@@ -276,6 +282,9 @@ function RootInner() {
           pathname: `/transaction/${data.type}/[id]` as any,
           params: { id: data.transactionId },
         });
+      } else if (data.screen === 'admin_dev') {
+        // Board Kanban Dev (admin) → écran de gestion
+        router.push('/admin/kanban');
       } else if (data.screen === 'home') {
         // KYC validée/rejetée → accueil
         router.push('/(tabs)');

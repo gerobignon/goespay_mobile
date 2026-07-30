@@ -194,7 +194,7 @@ export default function DashboardScreen() {
     }
   };
 
-  const menuItems = getAccountMenuItems(t, { isCryptoUser });
+  const menuItems = getAccountMenuItems(t, { isCryptoUser, isSuperAdmin: user?.id === 1 });
 
   useFocusEffect(
     useCallback(() => {

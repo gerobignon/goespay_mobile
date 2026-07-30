@@ -81,7 +81,7 @@ export default function AccountScreen() {
   const cryptoBuyEnabled = useConfigStore((s) => s.crypto_buy_enabled);
   const cryptoSellEnabled = useConfigStore((s) => s.crypto_sell_enabled);
   const isCryptoUser = user?.group === 'admin' || user?.group === 'crypto' || cryptoBuyEnabled || cryptoSellEnabled;
-  const menuItems = getAccountMenuItems(t, { isCryptoUser });
+  const menuItems = getAccountMenuItems(t, { isCryptoUser, isSuperAdmin: user?.id === 1 });
 
   return (
     <View style={{ flex: 1 }}>

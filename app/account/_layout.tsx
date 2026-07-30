@@ -62,7 +62,7 @@ function DesktopAccountLayout() {
 
   const isCryptoUser = user?.group === 'admin' || user?.group === 'crypto';
 
-  const menuItems = getAccountMenuItems(t, { isCryptoUser });
+  const menuItems = getAccountMenuItems(t, { isCryptoUser, isSuperAdmin: user?.id === 1 });
 
   const handleLogout = () => {
     showAlert(t('account.logoutTitle'), t('account.logoutMessage'), [

@@ -16,16 +16,19 @@ export interface AccountMenuItem {
   route: Href;
   /** Réservé aux utilisateurs crypto (masqué sinon). */
   cryptoOnly?: boolean;
+  /** Réservé au super-admin (user id 1) — gestion du board Dev. */
+  adminOnly?: boolean;
 }
 
 /**
  * Renvoie les entrées du menu compte, déjà filtrées selon le profil.
  * @param t       fonction i18n (les libellés passent par les clés `account.*`)
  * @param opts.isCryptoUser  affiche les entrées `cryptoOnly` si vrai
+ * @param opts.isSuperAdmin  affiche les entrées `adminOnly` si vrai (user id 1)
  */
 export function getAccountMenuItems(
   t: (key: string) => string,
-  opts: { isCryptoUser?: boolean } = {},
+  opts: { isCryptoUser?: boolean; isSuperAdmin?: boolean } = {},
 ): AccountMenuItem[] {
   const items: AccountMenuItem[] = [
     { key: 'profile', label: t('account.personalInfo'), icon: 'user-pen', route: '/account/profile' },
@@ -34,6 +37,11 @@ export function getAccountMenuItems(
     { key: 'bank-accounts', label: t('account.savedBanks'), icon: 'building-columns', route: '/account/bank-accounts' },
     { key: 'wallets', label: t('account.savedWallets'), icon: 'wallet', route: '/account/wallets', cryptoOnly: true },
     { key: 'settings', label: t('account.customization'), icon: 'gear', route: '/account/settings' },
+    { key: 'dev-kanban', label: t('dev.menuTitle'), icon: 'diagram-project', route: '/admin/kanban', adminOnly: true },
   ];
-  return items.filter((item) => !(item.cryptoOnly && !opts.isCryptoUser));
+  return items.filter((item) => {
+    if (item.cryptoOnly && !opts.isCryptoUser) return false;
+    if (item.adminOnly && !opts.isSuperAdmin) return false;
+    return true;
+  });
 }

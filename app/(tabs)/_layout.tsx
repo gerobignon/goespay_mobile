@@ -10,12 +10,15 @@ import { DesktopHeader } from '../../src/components/DesktopHeader';
 import { DesktopFooter } from '../../src/components/DesktopFooter';
 import { useTranslation } from 'react-i18next';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { useAuthStore } from '../../src/stores/authStore';
+import { useDevBoardStore, selectDevUnread } from '../../src/stores/devBoardStore';
 
 const ICON_FOR_ROUTE: Record<string, string> = {
   index: 'house',
   history: 'clock-rotate-left',
   affiliation: 'users',
   support: 'headset',
+  dev: 'diagram-project',
 };
 
 /** Icône d'onglet qui fait un petit pop quand elle devient active. */
@@ -34,6 +37,11 @@ function TabIcon({ name, color, focused }: { name: string; color: string; focuse
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
+  const isSuperAdmin = useAuthStore((s) => s.user?.id === 1);
+  const devUnread = useDevBoardStore(selectDevUnread);
+  // L'onglet Dev n'apparaît que pour le user id 1.
+  const routes = state.routes.filter((r) => r.name !== 'dev' || isSuperAdmin);
+  const focusedKey = state.routes[state.index]?.key;
   // Le document est calé sur l'écran physique (cf. app/_layout.tsx). En PWA
   // standalone iOS, la webview de layout (innerHeight) est plus courte que
   // l'écran (screen.height) : cet écart est de l'espace « en trop » sous le
@@ -44,12 +52,13 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
   return (
     <View style={[styles.bar, { paddingTop: bottomPad, paddingBottom: bottomPad, backgroundColor: colors.background, borderTopColor: colors.border }]}>
-      {state.routes.map((route, index) => {
+      {routes.map((route) => {
         const { options } = descriptors[route.key];
         const label = (options.title ?? route.name) as string;
-        const isFocused = state.index === index;
+        const isFocused = route.key === focusedKey;
         const color = isFocused ? colors.secondary : colors.textMuted;
         const iconName = ICON_FOR_ROUTE[route.name] ?? 'circle';
+        const badge = route.name === 'dev' && devUnread > 0 ? devUnread : 0;
 
         const onPress = () => {
           const event = navigation.emit({
@@ -70,7 +79,14 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             accessibilityState={isFocused ? { selected: true } : {}}
             style={styles.item}
           >
-            <TabIcon name={iconName} color={color} focused={isFocused} />
+            <View>
+              <TabIcon name={iconName} color={color} focused={isFocused} />
+              {badge > 0 && (
+                <View style={[styles.badge, { backgroundColor: colors.error, borderColor: colors.background }]}>
+                  <Text style={styles.badgeTxt}>{badge > 99 ? '99+' : badge}</Text>
+                </View>
+              )}
+            </View>
             <Text style={[styles.label, { color }]} numberOfLines={1}>
               {label}
             </Text>
@@ -85,6 +101,13 @@ export default function TabsLayout() {
   const { isDesktop } = useResponsive();
   const colors = useColors();
   const { t } = useTranslation();
+  const isSuperAdmin = useAuthStore((s) => s.user?.id === 1);
+  const fetchBoard = useDevBoardStore((s) => s.fetchBoard);
+
+  // User id 1 : précharge le board pour alimenter le badge de non-lus de l'onglet Dev.
+  useEffect(() => {
+    if (isSuperAdmin) fetchBoard(true);
+  }, [isSuperAdmin]);
 
   const tabs = (
     <Tabs
@@ -98,6 +121,9 @@ export default function TabsLayout() {
       <Tabs.Screen name="history" options={{ title: t('tabs.history') }} />
       <Tabs.Screen name="affiliation" options={{ title: t('account.referral', 'Parrainage') }} />
       <Tabs.Screen name="support" options={{ title: t('tabs.support') }} />
+      {/* Onglet Dev : présent pour tous en tant que route, masqué de la barre pour
+          les non-admins (href:null) et filtré dans la CustomTabBar. */}
+      <Tabs.Screen name="dev" options={{ title: t('dev.menuTitle'), href: isSuperAdmin ? undefined : null }} />
     </Tabs>
   );
 
@@ -130,5 +156,23 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontFamily: Fonts.semiBold,
     lineHeight: 14,
+  },
+  badge: {
+    position: 'absolute',
+    top: -6,
+    right: -10,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeTxt: {
+    color: '#fff',
+    fontSize: 9,
+    fontFamily: Fonts.bold,
+    lineHeight: 11,
   },
 });

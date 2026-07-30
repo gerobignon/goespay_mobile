@@ -158,3 +158,99 @@ export interface PaginatedResponse<T> {
   per_page: number;
   total: number;
 }
+
+// ─── Board Kanban Dev (admin) ────────────────────────────────────────────────
+
+export type DevStatus = 'todo' | 'in_progress' | 'review' | 'done' | 'later';
+export type DevPriority = 'urgent' | 'high' | 'medium' | 'low' | 'frozen';
+
+export interface DevSubtask {
+  label: string;
+  done: boolean;
+}
+
+export interface DevAssignee {
+  id: number;
+  label: string;
+}
+
+export interface DevTask {
+  id: number;
+  title: string;
+  description: string | null;
+  status: DevStatus;
+  priority: DevPriority;
+  category: string | null;
+  platform: string | null;
+  assigned_to: number | null;
+  assignee: DevAssignee | null;
+  due_date: string | null; // AAAA-MM-JJ
+  sort: number;
+  completed_at: string | null;
+  image_url: string | null;
+  subtasks: DevSubtask[];
+  subtask_stats: { total: number; done: number };
+  comments_count: number;
+  unread_count: number;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface DevCommentQuote {
+  text: string;
+  target_id: number | null;
+}
+
+export interface DevComment {
+  id: number;
+  task_id: number;
+  user_id: number | null;
+  author_name: string;
+  is_mine: boolean;
+  body: string;
+  quote: DevCommentQuote | null;
+  editable: boolean;
+  created_at: string | null;
+}
+
+export interface DevRefItem {
+  label: string;
+  color?: string;
+  icon?: string;
+}
+
+export interface DevColumn {
+  key: DevStatus;
+  label: string;
+  icon: string;
+}
+
+export interface DevBoard {
+  columns: DevColumn[];
+  priorities: Record<string, DevRefItem>;
+  categories: Record<string, DevRefItem>;
+  platforms: Record<string, DevRefItem>;
+  assignees: DevAssignee[];
+  tasks_by_status: Record<string, DevTask[]>;
+  backlog: DevTask[];
+  counts: { total: number; backlog: number; archived: number; new_tasks: number };
+  me: { id: number };
+}
+
+/** Payload d'enregistrement d'une tâche (création/édition). */
+export interface DevTaskInput {
+  id?: number;
+  title: string;
+  description?: string | null;
+  status: DevStatus;
+  priority: DevPriority;
+  category?: string | null;
+  platform?: string | null;
+  assigned_to?: number | null;
+  due_date?: string | null;
+  subtasks?: DevSubtask[];
+  /** URI locale d'une image à joindre (RN) ; null/absent = inchangée. */
+  imageUri?: string | null;
+  /** Retirer la pièce jointe existante. */
+  removeImage?: boolean;
+}

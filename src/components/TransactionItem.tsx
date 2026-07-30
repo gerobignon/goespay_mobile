@@ -46,6 +46,7 @@ const PAYMENT_MODE_LOGOS: Record<string, ImageSourcePropType> = {
   // Retraits mobiles (codes longs tels que stockés dans le mode)
   'mtn-benin': require('../../assets/operators/pay_mtn.png'),
   'moov-benin': require('../../assets/operators/pay_moov.png'),
+  'celtiis-cash': require('../../assets/operators/pay_celtiis.png'),
   'moov-burkina-faso': require('../../assets/operators/pay_moov.png'),
   'moov-burkina': require('../../assets/operators/pay_moov.png'),
   'orange-money-burkina': require('../../assets/operators/pay_orange.jpg'),
@@ -117,7 +118,7 @@ const MODE_LABELS: Record<string, string> = {
   paydunya: 'PayDunya', 'pdy-mode': 'PayDunya',
   kkiabj: 'KkiaPay', kkiaci: 'KkiaPay', kkiang: 'KkiaPay', kkiapay: 'KkiaPay', 'kia-mode': 'KkiaPay',
   payci: 'PayCI',
-  'mtn-benin': 'MTN Momo', 'moov-benin': 'Moov Money',
+  'mtn-benin': 'MTN Momo', 'moov-benin': 'Moov Money', 'celtiis-cash': 'Celtiis Cash',
   'moov-burkina-faso': 'Moov Money', 'moov-burkina': 'Moov Money',
   'orange-money-burkina': 'Orange Money',
   'moov-ci': 'Moov Money', 'mtn-ci': 'MTN Momo',

@@ -20,6 +20,7 @@ export const OPERATORS = [
   // Bénin
   { id: 'mtn-benin', name: 'MTN Momo', flag: '🇧🇯', country: 'BJ', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
   { id: 'moov-benin', name: 'Moov Money', flag: '🇧🇯', country: 'BJ', withdraw: true, logo: require('../../assets/operators/pay_moov.png') },
+  { id: 'celtiis-cash', name: 'Celtiis Cash', flag: '🇧🇯', country: 'BJ', withdraw: true, logo: require('../../assets/operators/pay_celtiis.png') },
   // Burkina Faso
   { id: 'moov-burkina-faso', name: 'Moov Money', flag: '🇧🇫', country: 'BF', withdraw: true, logo: require('../../assets/operators/pay_moov.png') },
   { id: 'orange-money-burkina', name: 'Orange Money', flag: '🇧🇫', country: 'BF', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
@@ -176,6 +177,7 @@ export function getOperatorNetwork(op: { name: string; id: string }): string {
   if (n.includes('t-money') || n.includes('tmoney')) return 'tmoney';
   if (n.includes('m-pesa') || n.includes('mpesa')) return 'mpesa';
   if (n.includes('africell') || n.includes('afrimoney')) return 'africell';
+  if (n.includes('celtiis')) return 'celtiis';
   return op.id;
 }
 
