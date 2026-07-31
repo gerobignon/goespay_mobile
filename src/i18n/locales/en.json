@@ -594,6 +594,7 @@
     "feeUnavailable": "Fees unavailable for this destination. Please retry or pick another method.",
     "fincraDebit": "Debited from your balance",
     "fincraReceives": "Recipient receives",
+    "cnyAmountStep": "To China, amounts go by steps of {{step}}.",
     "exchangeRate": "Exchange rate",
     "chinaDeliveryEstimate": "Estimated delivery time: 0 to 1 business day.",
     "rateLoading": "Calculating rate…",

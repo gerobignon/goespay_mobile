@@ -60,6 +60,11 @@ const SEPA_COUNTRIES = [
 ];
 
 // Drapeau emoji depuis un code pays ISO-2 (indicateurs régionaux). '' si invalide.
+// Chine (Klasha) : la cotation payout ne se pilote que par le montant CNY à
+// livrer, et Klasha rend le XOF correspondant arrondi au millier. On cale donc
+// la saisie sur ce palier pour que le montant affiché soit celui qui part.
+const CNY_AMOUNT_STEP = 1000;
+
 const isoToFlag = (cc: string): string => {
   const c = (cc || '').toUpperCase();
   if (!/^[A-Z]{2}$/.test(c)) return '';
@@ -1502,8 +1507,25 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               )}`}
               value={amount}
               onChangeText={(t) => setAmount(t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
+              // Chine : Klasha ne cote que des multiples de 1 000 XOF. On cale la
+              // saisie sur le millier INFÉRIEUR à la sortie du champ → le montant
+              // affiché est celui qui part vraiment (pas de reliquat surprise).
+              onBlur={() => {
+                if (aggRail !== 'cny') return;
+                const n = parseFloat(amount) || 0;
+                if (n < CNY_AMOUNT_STEP) return;
+                const rounded = Math.floor(n / CNY_AMOUNT_STEP) * CNY_AMOUNT_STEP;
+                if (rounded !== n) setAmount(String(rounded));
+              }}
               keyboardType="decimal-pad"
             />
+
+            {/* Chine : palier de cotation Klasha — une ligne, pas un bandeau. */}
+            {aggRail === 'cny' && (
+              <Text style={styles.phoneHint}>
+                {t('transferModal.cnyAmountStep', { step: fmtXof(CNY_AMOUNT_STEP, { approx: false }) })}
+              </Text>
+            )}
 
             {/* Montant reçu par le bénéficiaire (devise Fincra) pour le XOF débité. */}
             {isAggOp && aggCurrency !== 'XOF' && numAmountXof > 0 && (
