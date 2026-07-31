@@ -363,7 +363,12 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const numAmount = isAggOp ? (aggSendAmount ?? 0) : numAmountXof;
   // Frais : ceux du devis quand il y en a un (source unique), sinon calcul local.
   const fees = quotable ? (quote ? quote.fee_xof : 0) : localFees;
-  const total = numAmountXof + fees;
+  // Total débité : celui du devis. Le montant réellement envoyé peut différer
+  // de la saisie — Klasha cote le corridor Chine par tranches (730 234 saisis →
+  // 730 000 cotés) → on affiche ce qui sera débité, pas la saisie brute.
+  const total = quotable ? (quote ? quote.total_xof : 0) : numAmountXof + fees;
+  // XOF réellement envoyé (base des frais), issu du devis quand il existe.
+  const sentXof = quotable ? (quote ? quote.amount_xof : 0) : numAmountXof;
   // Bloque l'envoi tant que le devis (ou le taux, pour le wire) n'est pas résolu.
   const aggRateBlocking =
     isAggOp && numAmountXof > 0
@@ -1522,6 +1527,14 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             {/* Frais en live (jamais affichés pour Fincra : pas de frais côté GoesPay) */}
             {showFees ? (
               <View style={styles.feesBox}>
+                {/* Montant coté ≠ saisi (corridors cotés par tranches) → on montre
+                    ce qui part réellement, base des frais. */}
+                {Math.abs(sentXof - numAmountXof) >= 1 && (
+                  <View style={styles.feesRow}>
+                    <Text style={styles.feesLabel}>{t('transferModal.amountSent')}</Text>
+                    <Text style={styles.feesValue}>{fmtXof(sentXof)}</Text>
+                  </View>
+                )}
                 <View style={styles.feesRow}>
                   <Text style={styles.feesLabel}>{t('transferModal.fees')} ({feeLabel})</Text>
                   <Text style={[styles.feesValue, { color: Colors.error }]}>+ {fmtXof(fees)}</Text>
@@ -2112,7 +2125,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             <View style={styles.confirmCard}>
               <Text style={styles.confirmCardLabel}>{t('transferModal.amountSent')}</Text>
               <View style={styles.confirmAmountRow}>
-                <Text style={styles.confirmAmount}>{fmtXof(numAmountXof, { withCode: false })}</Text>
+                {/* Montant coté (= débité hors frais), pas la saisie brute. */}
+                <Text style={styles.confirmAmount}>{fmtXof(sentXof, { withCode: false })}</Text>
                 <Text style={styles.confirmAmountCurrency}>XOF</Text>
               </View>
             </View>
