@@ -27,6 +27,7 @@ export interface FincraBeneficiary {
 export interface FincraPayoutRequest {
   amount: number;        // montant LIVRÉ au bénéficiaire (devise Fincra : NGN/GHS/…)
   amount_xof: number;    // montant XOF saisi par l'utilisateur (base du débit wallet)
+  quote_id?: string;     // devis serveur affiché → rejoué à l'identique par le backend
   currency: string;
   rail: FincraRail;
   sourceCurrency?: string;
@@ -102,12 +103,48 @@ export interface KlashaCnyBeneficiary {
 export interface KlashaCnyRequest {
   amount: number;            // montant DESTINATION (CNY)
   amount_xof: number;        // XOF débité du wallet
+  quote_id?: string;         // devis serveur (porte le quotationId Klasha coté)
   service: KlashaCnyService;
   // Wallet chinois (service WALLET) : Alipay (défaut) ou WeChat → serviceCode Klasha.
   serviceCode?: 'ALIPAY' | 'WECHAT';
   beneficiary: KlashaCnyBeneficiary;
   // L'expéditeur (identité + date de naissance + adresse) vient du profil KYC,
   // côté backend → non transmis ici.
+}
+
+// ── Devis d'envoi (backend) ────────────────────────────────────────────────
+// Le backend est la SEULE source des montants affichés : l'app ne convertit
+// plus rien elle-même. On affiche le devis, puis on l'exécute via `quote_id`
+// → ce qui est montré est exactement ce qui est débité.
+export interface TransferQuoteRequest {
+  aggregator: 'fincra' | 'klasha';
+  rail: 'mobile_money' | 'bank_transfer' | 'SWIFT' | 'SEPA' | 'cny';
+  currency: string;
+  amount_xof: number;
+  country?: string;      // pays destination (frais A→B) ; dérivé de la devise sinon
+  operator?: string;
+  service?: KlashaCnyService;          // Chine
+  serviceCode?: 'ALIPAY' | 'WECHAT';   // Chine (wallet)
+}
+
+export interface TransferQuote {
+  quote_id: string;
+  currency: string;
+  send_amount: number;   // reçu par le bénéficiaire (devise destination)
+  rate: number | null;   // XOF pour 1 unité de devise
+  amount_xof: number;    // XOF envoyé (hors frais)
+  fee_xof: number;
+  total_xof: number;     // débit wallet total
+  expires_at: number;    // timestamp UNIX (secondes)
+}
+
+export interface DepositQuote {
+  quote_id: string;
+  currency: string;
+  amount: number;        // encaissé dans la devise du moyen
+  credit_xof: number;    // crédité au wallet
+  rate: number;          // XOF pour 1 unité de devise
+  expires_at: number;
 }
 
 export interface SavedBank {
@@ -327,6 +364,24 @@ export const walletService = {
   // Statut d'un wire (par notre réf KLW-) : le backend poll Klasha par sa transactionReference.
   getKlashaWireStatus: async (reference: string): Promise<{ transfer_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; amount_sent: number; mode: string }> => {
     const response = await api.get(`/transfer/klasha/wire/status/${encodeURIComponent(reference)}`);
+    return response.data;
+  },
+
+  // Devis d'envoi : montants calculés par le backend (taux + frais), à afficher
+  // tels quels puis à exécuter via `quote_id`.
+  createTransferQuote: async (payload: TransferQuoteRequest): Promise<TransferQuote> => {
+    const response = await api.post('/transfer/quote', payload, { timeout: 45000 });
+    return response.data;
+  },
+
+  // Devis de dépôt : crédit XOF figé par le backend pour un encaissement en devise.
+  createDepositQuote: async (payload: {
+    aggregator: 'fincra' | 'klasha';
+    currency: string;
+    amount: number;
+    method?: string;
+  }): Promise<DepositQuote> => {
+    const response = await api.post('/deposit/quote', payload, { timeout: 45000 });
     return response.data;
   },
 

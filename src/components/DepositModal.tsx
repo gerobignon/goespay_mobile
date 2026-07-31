@@ -37,7 +37,7 @@ import { useTranslation } from 'react-i18next';
 import { useConfigStore } from '../stores/configStore';
 import { useCryptoStore } from '../stores/cryptoStore';
 import { useFormatXof } from '../utils/format';
-import { useFincraRate } from '../stores/fincraRateStore';
+import { useDepositQuote } from '../stores/transferQuoteStore';
 import { getApiErrorMessage } from '../utils/apiError';
 import { formatFincraPhone, resolveFincraZone, type FincraCollectionRail } from '../utils/fincraPhone';
 import { AdminDisabledBanner } from './AdminDisabledBanner';
@@ -510,18 +510,29 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const railCurrency = isFincra ? (fincraCurrency || 'XOF') : 'XOF';
   const isForeignRail = isFincra && railCurrency !== 'XOF';
   const numInputLive = parseFloat(amount) || 0;   // dans railCurrency
-  // forDeposit=true : Klasha cote le dépôt en taux direct (≠ payout triangulé) →
-  // le taux affiché ici correspond à celui réellement appliqué à la charge.
-  // fincraRate.rate = valeur XOF d'1 unité de la devise étrangère.
-  // Zone de cotation = zone CFA du user (XAF pour la CEMAC, XOF sinon) : Fincra/
-  // Klasha cotent cur↔XAF ≠ cur↔XOF. Dépôt ET envoi passent par ce même hook.
-  const fincraRate = useFincraRate(fincraCurrency, isFincra, isKlasha, true, walletZone(userCountry));
   // Montant à encaisser côté provider (devise du rail) = montant saisi tel quel.
   const fincraChargeAmount = isFincra && numInputLive > 0 ? numInputLive : null;
+
+  // ── Devis de dépôt : le backend fige le crédit XOF, l'app l'affiche ───────
+  // Le taux dépôt est coté en live à chaque appel : sans devis, le crédit réel
+  // (calculé à la création du dépôt) pouvait différer de l'aperçu.
+  const depQuotable = isForeignRail && numInputLive > 0;
+  const { quote: depQuote, loading: depQuoteLoading, error: depQuoteError } = useDepositQuote(
+    depQuotable
+      ? {
+          aggregator: (isKlasha ? 'klasha' : 'fincra') as 'klasha' | 'fincra',
+          currency: railCurrency,
+          amount: numInputLive,
+          method: fincraMethod ?? undefined,
+        }
+      : null,
+    depQuotable,
+  );
+
   // Équivalent crédité en XOF (canonique) : sert à l'aperçu, aux contrôles
-  // min/max et au calcul de frais. Rails étrangers : montant saisi × taux.
+  // min/max et au calcul de frais. Rails étrangers : crédit figé par le devis.
   const numAmountXofLive: number | null = isForeignRail
-    ? (fincraRate.rate && fincraRate.rate > 0 ? numInputLive * fincraRate.rate : null)
+    ? (depQuote ? depQuote.credit_xof : null)
     : numInputLive;
   // Frais Klasha (feeBearer = client) : le client paie le BRUT (net + frais), Klasha
   // prélève son frais sur le montant envoyé → total à payer = net / (1 - taux). Le
@@ -532,16 +543,15 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const klashaFeeLive = klashaGrossLive !== null ? klashaGrossLive - numInputLive : null;
   const fincraRateBlocking =
     isForeignRail && numInputLive > 0
-    && (fincraRate.loading || fincraRate.error || fincraRate.rate === null);
+    && (depQuoteLoading || !!depQuoteError || depQuote === null);
 
-  // Trace le taux LIVE Klasha affiché dans le form de dépôt. NB : console.log est
-  // retiré en prod (babel) → le log serveur « [Klasha] deposit form live rate »
-  // fait foi ; celui-ci sert au debug en dev/web.
+  // Trace le taux du DEVIS (celui qui sera appliqué au crédit). NB : console.log
+  // est retiré en prod (babel) ; sert au debug en dev/web.
   useEffect(() => {
-    if (isKlasha && isForeignRail && fincraRate.rate) {
-      console.log(`[Klasha] taux dépôt live affiché : 1 ${fincraCurrency} = ${fincraRate.rate} XOF`);
+    if (isKlasha && isForeignRail && depQuote?.rate) {
+      console.log(`[Klasha] taux dépôt du devis : 1 ${fincraCurrency} = ${depQuote.rate} XOF`);
     }
-  }, [isKlasha, isForeignRail, fincraRate.rate, fincraCurrency]);
+  }, [isKlasha, isForeignRail, depQuote?.rate, fincraCurrency]);
 
   // Combinaison USSD à composer pour générer le code OTP, par opérateur Orange
   // (source : AfribaPay /v1/countries → ussd_code). « montant » = montant local
@@ -706,6 +716,8 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
           amount: numAmount,
           currency: fincraCurrency,
           method: fincraMethod,
+          // Devis serveur : le backend crédite le montant XOF annoncé à l'écran.
+          quote_id: depQuote?.quote_id,
           // Code corridor (id opérateur) → gating serveur exact (distingue notamment
           // Fincra Checkout `fincra-checkout-<cc>` de la carte `fincra-<cur>-card`).
           code: (selectedOp as any)?.id,
@@ -1212,8 +1224,8 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                     marché → on annonce l'équivalent crédité en XOF sur le compte. */}
                 {isForeignRail && numInputLive > 0 && (
                   <FincraConversionHint
-                    loading={fincraRate.loading}
-                    error={fincraRate.error || numAmountXofLive === null}
+                    loading={depQuoteLoading}
+                    error={!!depQuoteError && !depQuoteLoading}
                     label={t('depositModal.fincraCredit')}
                     amount={numAmountXofLive}
                     currency="XOF"

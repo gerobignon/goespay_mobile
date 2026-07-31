@@ -40,6 +40,7 @@ import { useConfigStore } from '../stores/configStore';
 import { useCryptoStore } from '../stores/cryptoStore';
 import { useFormatXof } from '../utils/format';
 import { useFincraRate } from '../stores/fincraRateStore';
+import { useTransferQuote } from '../stores/transferQuoteStore';
 import { formatFincraPhone, resolveFincraZone } from '../utils/fincraPhone';
 import { AdminDisabledBanner } from './AdminDisabledBanner';
 import { BlockedBanner } from './BlockedBanner';
@@ -310,11 +311,10 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // retraits classiques). Base = valeur XOF envoyée.
   // Pas d'arrondi : le backend calcule fixed + montant×percent/100 sans arrondir
   // (PricingResolver::feeAmount). Arrondir ici ferait diverger l'annoncé du débité.
-  const fees = useMemo(
+  const localFees = useMemo(
     () => feeConfig ? feeConfig.fixed + numAmountXof * feeConfig.percent / 100 : 0,
     [numAmountXof, feeConfig]
   );
-  const total = numAmountXof + fees;
   const feeLabel = !feeConfig ? ''
     : feeConfig.fixed > 0
       ? `${fmtXof(feeConfig.fixed, { approx: false })} + ${feeConfig.percent}%`
@@ -324,36 +324,62 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const fmtAgg = (n: number) =>
     `${n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${aggCurrency}`;
 
-  // wallet est en XOF : on débite exactement le montant XOF saisi. On convertit
-  // ce XOF vers la devise Fincra pour le montant réellement envoyé au bénéficiaire
-  // (NGN, GHS…), via les taux Fincra isolés. aggRate.rate = valeur XOF d'1
-  // unité étrangère → montant reçu = XOF débité ÷ taux.
-  // Zone de cotation = zone CFA du user (XAF pour la CEMAC, XOF sinon) : Fincra/
-  // Klasha cotent cur↔XAF ≠ cur↔XOF. Dépôt ET envoi passent par ce même hook.
-  const aggRate = useFincraRate(aggCurrency, isAggOp, isKlashaOp, false, walletZone(userCountry));
+  // ── Devis serveur : le backend calcule, l'app affiche ─────────────────────
+  // Couvre tous les rails agrégateur SAUF le wire Klasha (sa cotation exige un
+  // bénéficiaire déjà créé chez Klasha → impossible pendant la saisie). Le devis
+  // fixe le montant reçu, les frais et le total débité : ce qui est affiché est
+  // exactement ce qui sera débité (l'exécution rejoue le devis via quote_id).
+  const quotable = isAggOp && aggRail !== 'wire' && !!destCountry && numAmountXof > 0;
+  const quoteParams = quotable
+    ? {
+        aggregator: (isKlashaOp ? 'klasha' : 'fincra') as 'klasha' | 'fincra',
+        rail: aggRail as 'mobile_money' | 'bank_transfer' | 'SWIFT' | 'SEPA' | 'cny',
+        currency: aggCurrency,
+        amount_xof: numAmountXof,
+        country: destCountry,
+        operator: (selectedOp as any)?.fincraOperator || undefined,
+        service: aggRail === 'cny' ? cnyService : undefined,
+        serviceCode: aggRail === 'cny' && cnyService === 'WALLET' ? cnyServiceCode : undefined,
+      }
+    : null;
+  const { quote, loading: quoteLoading, error: quoteError, refresh: refreshQuote } = useTransferQuote(quoteParams, quotable);
+
+  // Taux local : seulement là où il n'y a pas de devis (wire Klasha).
+  // Zone de cotation = zone CFA du user (XAF pour la CEMAC, XOF sinon).
+  const aggRate = useFincraRate(aggCurrency, isAggOp && !quotable, isKlashaOp, false, walletZone(userCountry));
+
+  // Montant reçu par le bénéficiaire = celui du devis (donc celui qui partira).
   const aggSendAmount =
     isAggOp && numAmountXof > 0
-      ? (aggCurrency === 'XOF'
-          ? numAmountXof
-          : (aggRate.rate && aggRate.rate > 0
-              ? numAmountXof / aggRate.rate
-              : null))
+      ? (quotable
+          ? (quote ? quote.send_amount : null)
+          : (aggCurrency === 'XOF'
+              ? numAmountXof
+              : (aggRate.rate && aggRate.rate > 0 ? numAmountXof / aggRate.rate : null)))
       : null;
   // Le débit XOF du wallet = exactement le montant XOF saisi.
   const aggDebitXof = isAggOp ? numAmountXof : null;
-  // Montant transmis au backend : Fincra = devise Fincra ; sinon XOF.
+  // Montant transmis au backend : agrégateur = devise destination ; sinon XOF.
   const numAmount = isAggOp ? (aggSendAmount ?? 0) : numAmountXof;
-  // Bloque l'envoi tant que le taux Fincra (devise étrangère) n'est pas résolu.
+  // Frais : ceux du devis quand il y en a un (source unique), sinon calcul local.
+  const fees = quotable ? (quote ? quote.fee_xof : 0) : localFees;
+  const total = numAmountXof + fees;
+  // Bloque l'envoi tant que le devis (ou le taux, pour le wire) n'est pas résolu.
   const aggRateBlocking =
-    isAggOp && aggCurrency !== 'XOF' && numAmountXof > 0
-    && (aggRate.loading || aggRate.error || aggRate.rate === null);
+    isAggOp && numAmountXof > 0
+    && (quotable
+        ? (quoteLoading || !!quoteError || quote === null)
+        : (aggCurrency !== 'XOF' && (aggRate.loading || aggRate.error || aggRate.rate === null)));
 
   // Frais indisponibles : un moyen est choisi + un montant saisi mais le backend
   // n'a pas fourni de frais pour cette destination → on bloque (pas de devinette).
-  const feeUnavailable = !!operator && numAmountXof > 0 && !feeConfig;
-  const showFees = numAmountXof > 0 && operator && !!feeConfig;
-  // Débit total XOF d'un retrait Fincra = coût Fincra (XOF) + frais GoesPay.
-  const aggTotalDebitXof = aggDebitXof !== null ? aggDebitXof + fees : null;
+  // Avec devis, les frais viennent du devis → seul le cas non-coté est concerné.
+  const feeUnavailable = !quotable && !!operator && numAmountXof > 0 && !feeConfig;
+  const showFees = numAmountXof > 0 && operator && (quotable ? !!quote : !!feeConfig);
+  // Débit total XOF = XOF envoyé + frais GoesPay (devis serveur si disponible).
+  const aggTotalDebitXof = quotable
+    ? (quote ? quote.total_xof : null)
+    : (aggDebitXof !== null ? aggDebitXof + fees : null);
 
   const dialCode = useMemo(() => {
     if (!selectedCountry) return '';
@@ -1040,6 +1066,9 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           }
           const result = await walletService.klashaCny({
             amount: numAmount,
+            // Le devis porte la cotation Klasha déjà obtenue pour ce montant et
+            // ce service → débit = total affiché, CNY livré = CNY annoncé.
+            quote_id: quote?.quote_id,
             amount_xof: aggDebitXof ?? numAmountXof,
             service: cnyService,
             // Wallet : ALIPAY | WECHAT (ignoré par le backend hors WALLET).
@@ -1120,8 +1149,10 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
 
         const result = await (isKlashaOp ? walletService.klashaPayout : walletService.fincraPayout)({
           amount: numAmount,
-          // XOF saisi par l'utilisateur = base du débit wallet (le backend débite
-          // amount_xof + frais, sans round-trip via le taux → débit = devis montré).
+          // Devis serveur : le backend rejoue CE devis (montant reçu, frais,
+          // total) → le débit est exactement celui affiché. amount_xof reste
+          // envoyé pour les corridors non cotés (wire) et la compatibilité.
+          quote_id: quote?.quote_id,
           amount_xof: aggDebitXof ?? numAmountXof,
           currency: aggCurrency,
           rail: aggRail as FincraRail,
@@ -1188,6 +1219,9 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       // pour refléter l'état réel et on invite l'utilisateur à vérifier l'historique.
       try { await fetchBalance(); } catch {}
       const data = error?.response?.data;
+      // Taux modifié depuis l'affichage : on recote immédiatement pour que
+      // l'écran montre le nouveau montant avant la seconde tentative.
+      if (data?.quote_expired) refreshQuote();
       const serverMsg = data?.error || data?.message
         || (data?.errors && typeof data.errors === 'object'
             ? Object.values(data.errors).flat().filter(Boolean).join('\n')
@@ -1469,8 +1503,10 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             {/* Montant reçu par le bénéficiaire (devise Fincra) pour le XOF débité. */}
             {isAggOp && aggCurrency !== 'XOF' && numAmountXof > 0 && (
               <FincraConversionHint
-                loading={aggRate.loading}
-                error={aggRate.error || aggSendAmount === null}
+                loading={quotable ? quoteLoading : aggRate.loading}
+                error={quotable
+                  ? (!!quoteError && !quoteLoading)
+                  : (aggRate.error || aggSendAmount === null)}
                 label={t('transferModal.fincraReceives')}
                 amount={aggSendAmount}
                 currency={aggCurrency}
@@ -2061,15 +2097,16 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               <Text style={styles.confirmSubtitle}>{t('transferModal.confirmHint')}</Text>
             </View>
 
-            {/* Chine : taux de change mis en avant en haut du modal */}
-            {aggRail === 'cny' && aggRate.rate !== null && aggRate.rate > 0 && (
+            {/* Chine : taux de change mis en avant en haut du modal. Taux du
+                DEVIS (celui qui sera exécuté), pas une cotation indicative. */}
+            {aggRail === 'cny' && (quote?.rate ?? aggRate.rate) ? (
               <View style={styles.confirmRateBanner}>
                 <Text style={styles.confirmRateBannerLabel}>{t('transferModal.exchangeRate')}</Text>
                 <Text style={styles.confirmRateBannerValue}>
-                  1 {aggCurrency} = {aggRate.rate.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} XOF
+                  1 {aggCurrency} = {(quote?.rate ?? aggRate.rate ?? 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} XOF
                 </Text>
               </View>
-            )}
+            ) : null}
 
             {/* Card montant */}
             <View style={styles.confirmCard}>
