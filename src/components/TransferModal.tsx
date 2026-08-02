@@ -297,7 +297,12 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
 
   // Multi-devise d'affichage retiré : le solde est en XOF et l'envoi se saisit
   // en XOF débité. Cette valeur sert aux frais, validations et contrôle de solde.
-  const numAmountXof = parseFloat(amount) || 0;
+  // Saisie brute. Elle est en XOF partout SAUF pour la Chine, où le client saisit
+  // directement le nombre de yuans à envoyer (c'est ce qu'il achète — et c'est
+  // aussi le seul paramètre que la cotation Klasha accepte).
+  const numAmountInput = parseFloat(amount) || 0;
+  const isCny = aggRail === 'cny';
+  const numAmountCny = isCny ? numAmountInput : 0;
   const userCountry = user?.country?.toUpperCase();
   // Frais = A→B : source = pays du user, destination = pays de l'opérateur visé
   // (= corridor.country_code côté backend). On affiche le frais résolu par le
@@ -311,14 +316,20 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // retraits classiques). Base = valeur XOF envoyée.
   // Pas d'arrondi : le backend calcule fixed + montant×percent/100 sans arrondir
   // (PricingResolver::feeAmount). Arrondir ici ferait diverger l'annoncé du débité.
+  // Uniquement pour les envois SANS devis serveur (wire) — donc jamais la Chine :
+  // la saisie y est déjà en XOF.
   const localFees = useMemo(
-    () => feeConfig ? feeConfig.fixed + numAmountXof * feeConfig.percent / 100 : 0,
-    [numAmountXof, feeConfig]
+    () => feeConfig ? feeConfig.fixed + numAmountInput * feeConfig.percent / 100 : 0,
+    [numAmountInput, feeConfig]
   );
+  // Corridors dont la marge est intégrée au taux : le backend renvoie percent = 0
+  // → le libellé n'affiche que le frais fixe (pas de « + 0 % » parasite).
   const feeLabel = !feeConfig ? ''
-    : feeConfig.fixed > 0
-      ? `${fmtXof(feeConfig.fixed, { approx: false })} + ${feeConfig.percent}%`
-      : `${feeConfig.percent}%`;
+    : feeConfig.percent <= 0
+      ? fmtXof(feeConfig.fixed, { approx: false })
+      : feeConfig.fixed > 0
+        ? `${fmtXof(feeConfig.fixed, { approx: false })} + ${feeConfig.percent}%`
+        : `${feeConfig.percent}%`;
 
   const fmt = (n: number) => n.toLocaleString('fr-FR', { maximumFractionDigits: 2 }).replace(/\s/g, '.');
   const fmtAgg = (n: number) =>
@@ -329,13 +340,15 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // bénéficiaire déjà créé chez Klasha → impossible pendant la saisie). Le devis
   // fixe le montant reçu, les frais et le total débité : ce qui est affiché est
   // exactement ce qui sera débité (l'exécution rejoue le devis via quote_id).
-  const quotable = isAggOp && aggRail !== 'wire' && !!destCountry && numAmountXof > 0;
+  const quotable = isAggOp && aggRail !== 'wire' && !!destCountry && numAmountInput > 0;
   const quoteParams = quotable
     ? {
         aggregator: (isKlashaOp ? 'klasha' : 'fincra') as 'klasha' | 'fincra',
         rail: aggRail as 'mobile_money' | 'bank_transfer' | 'SWIFT' | 'SEPA' | 'cny',
         currency: aggCurrency,
-        amount_xof: numAmountXof,
+        // Chine : on cote le montant EN CNY demandé ; ailleurs, le XOF à envoyer.
+        amount_xof: isCny ? undefined : numAmountInput,
+        amount_dest: isCny ? numAmountCny : undefined,
         country: destCountry,
         operator: (selectedOp as any)?.fincraOperator || undefined,
         service: aggRail === 'cny' ? cnyService : undefined,
@@ -344,19 +357,33 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     : null;
   const { quote, loading: quoteLoading, error: quoteError, refresh: refreshQuote } = useTransferQuote(quoteParams, quotable);
 
+  // Valeur XOF de l'envoi. Chine : elle vient du devis (le client a saisi des
+  // yuans, le serveur dit ce qu'ils coûtent, marge comprise dans le taux).
+  // Partout ailleurs : c'est la saisie elle-même.
+  const numAmountXof = isCny ? (quote?.amount_xof ?? 0) : numAmountInput;
+
   // Taux local : seulement là où il n'y a pas de devis (wire Klasha).
   // Zone de cotation = zone CFA du user (XAF pour la CEMAC, XOF sinon).
   const aggRate = useFincraRate(aggCurrency, isAggOp && !quotable, isKlashaOp, false, walletZone(userCountry));
 
   // Montant reçu par le bénéficiaire = celui du devis (donc celui qui partira).
+  // Chine : c'est exactement le nombre de yuans saisi (le devis le confirme).
   const aggSendAmount =
-    isAggOp && numAmountXof > 0
+    isAggOp && numAmountInput > 0
       ? (quotable
           ? (quote ? quote.send_amount : null)
           : (aggCurrency === 'XOF'
-              ? numAmountXof
-              : (aggRate.rate && aggRate.rate > 0 ? numAmountXof / aggRate.rate : null)))
+              ? numAmountInput
+              : (aggRate.rate && aggRate.rate > 0 ? numAmountInput / aggRate.rate : null)))
       : null;
+  // Montant MINIMUM du moyen, dans la devise destination (ex. 100 EUR en SEPA,
+  // 100 USD/GBP en SWIFT) — piloté par l'admin Marchés (catalogue), fallback config.ts.
+  // On compare au montant REÇU (celui du devis), pas au XOF saisi.
+  const aggMinAmount: number | null = isAggOp
+    ? (Number((selectedOp as any)?.minAmount) > 0 ? Number((selectedOp as any).minAmount) : null)
+    : null;
+  const belowAggMin =
+    aggMinAmount !== null && aggSendAmount !== null && aggSendAmount < aggMinAmount;
   // Le débit XOF du wallet = exactement le montant XOF saisi.
   const aggDebitXof = isAggOp ? numAmountXof : null;
   // Montant transmis au backend : agrégateur = devise destination ; sinon XOF.
@@ -371,7 +398,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const sentXof = quotable ? (quote ? quote.amount_xof : 0) : numAmountXof;
   // Bloque l'envoi tant que le devis (ou le taux, pour le wire) n'est pas résolu.
   const aggRateBlocking =
-    isAggOp && numAmountXof > 0
+    isAggOp && numAmountInput > 0
     && (quotable
         ? (quoteLoading || !!quoteError || quote === null)
         : (aggCurrency !== 'XOF' && (aggRate.loading || aggRate.error || aggRate.rate === null)));
@@ -379,8 +406,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // Frais indisponibles : un moyen est choisi + un montant saisi mais le backend
   // n'a pas fourni de frais pour cette destination → on bloque (pas de devinette).
   // Avec devis, les frais viennent du devis → seul le cas non-coté est concerné.
-  const feeUnavailable = !quotable && !!operator && numAmountXof > 0 && !feeConfig;
-  const showFees = numAmountXof > 0 && operator && (quotable ? !!quote : !!feeConfig);
+  const feeUnavailable = !quotable && !!operator && numAmountInput > 0 && !feeConfig;
+  const showFees = numAmountInput > 0 && operator && (quotable ? !!quote : !!feeConfig);
   // Débit total XOF = XOF envoyé + frais GoesPay (devis serveur si disponible).
   const aggTotalDebitXof = quotable
     ? (quote ? quote.total_xof : null)
@@ -947,6 +974,18 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
         showAlert(t('common.error'), t('transferModal.insufficientBalance'));
         return;
       }
+      // Minimum du moyen (ex. 100 EUR en SEPA) : on bloque avant l'appel, le
+      // backend le revérifie sur le montant du devis.
+      if (belowAggMin && aggMinAmount !== null) {
+        showAlert(
+          t('common.error'),
+          t('transferModal.minRailAmount', {
+            amount: aggMinAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 }),
+            currency: aggCurrency,
+          }),
+        );
+        return;
+      }
       // SEPA : Fincra exige IBAN + nom du bénéficiaire + BIC. On bloque avant
       // l'envoi pour éviter le 422 « beneficiary.bankCode is not allowed to be empty ».
       if (aggRail === 'SEPA') {
@@ -1493,30 +1532,61 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 (cf. config.ts), plus de sélecteur intermédiaire. */}
             {(!isAggOp || !!aggRail) && (
             <>
+            {/* Chine : la saisie est en CNY (ce que le bénéficiaire reçoit) ;
+                partout ailleurs en XOF (ce qui est débité). */}
             <Input
-              label={t('transferModal.amountLabel', { currency: 'XOF' })}
-              placeholder={`Min. ${fmtXof(
-                (user?.country ?? '').toUpperCase() === 'NG'
-                  ? transferMinNg
-                  : (userCountry && countryFees[userCountry] ? transferMin : transferMinWorld)
-              )}`}
+              label={t('transferModal.amountLabel', { currency: isCny ? aggCurrency : 'XOF' })}
+              placeholder={isCny
+                ? t('transferModal.amountPlaceholderDest', { currency: aggCurrency })
+                : `Min. ${fmtXof(
+                    (user?.country ?? '').toUpperCase() === 'NG'
+                      ? transferMinNg
+                      : (userCountry && countryFees[userCountry] ? transferMin : transferMinWorld)
+                  )}`}
               value={amount}
               onChangeText={(t) => setAmount(t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
               keyboardType="decimal-pad"
             />
 
-            {/* Montant reçu par le bénéficiaire (devise Fincra) pour le XOF débité. */}
-            {isAggOp && aggCurrency !== 'XOF' && numAmountXof > 0 && (
+            {/* Chine : équivalent XOF débité pour les yuans demandés (taux tout
+                compris). Ailleurs : montant reçu par le bénéficiaire. */}
+            {isAggOp && aggCurrency !== 'XOF' && numAmountInput > 0 && (
               <FincraConversionHint
                 loading={quotable ? quoteLoading : aggRate.loading}
                 error={quotable
                   ? (!!quoteError && !quoteLoading)
                   : (aggRate.error || aggSendAmount === null)}
-                label={t('transferModal.fincraReceives')}
-                amount={aggSendAmount}
-                currency={aggCurrency}
+                label={isCny ? t('transferModal.amountDebited') : t('transferModal.fincraReceives')}
+                amount={isCny ? (quote ? quote.amount_xof : null) : aggSendAmount}
+                currency={isCny ? 'XOF' : aggCurrency}
               />
             )}
+
+            {/* Minimum imposé par le moyen (devise destination) — affiché dès le choix
+                du moyen, en rouge dès que le montant reçu passe dessous. */}
+            {isAggOp && aggMinAmount !== null && (
+              <View style={{ marginTop: -Spacing.xs, marginBottom: Spacing.sm }}>
+                <Text style={[styles.phoneHint, belowAggMin ? { color: Colors.error } : null]}>
+                  {t('transferModal.minRailAmount', {
+                    amount: aggMinAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 }),
+                    currency: aggCurrency,
+                  })}
+                </Text>
+              </View>
+            )}
+
+            {/* Taux tout compris : notre marge y est déjà intégrée, il n'y a pas
+                de pourcentage de frais en plus. */}
+            {isCny && quote?.rate ? (
+              <View style={styles.feesBox}>
+                <View style={styles.feesRow}>
+                  <Text style={styles.feesLabel}>{t('transferModal.exchangeRate')}</Text>
+                  <Text style={styles.feesValue}>
+                    1 {aggCurrency} = {quote.rate.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} XOF
+                  </Text>
+                </View>
+              </View>
+            ) : null}
 
             {feeUnavailable && (
               <View style={{ marginTop: -Spacing.xs, marginBottom: Spacing.sm }}>
@@ -2063,7 +2133,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               loading={loading}
               disabled={
                 !amount || !operator
-                || aggRateBlocking || feeUnavailable
+                || aggRateBlocking || feeUnavailable || belowAggMin
                 || (isAggOp
                     ? !aggRail
                       || (aggRail === 'mobile_money' && !phone)
@@ -2113,14 +2183,24 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               </View>
             ) : null}
 
-            {/* Card montant */}
+            {/* Card montant. Chine : le montant demandé EST en yuans — on le met
+                en avant, la contre-valeur XOF suit. */}
             <View style={styles.confirmCard}>
               <Text style={styles.confirmCardLabel}>{t('transferModal.amountSent')}</Text>
               <View style={styles.confirmAmountRow}>
                 {/* Montant coté (= débité hors frais), pas la saisie brute. */}
-                <Text style={styles.confirmAmount}>{fmtXof(sentXof, { withCode: false })}</Text>
-                <Text style={styles.confirmAmountCurrency}>XOF</Text>
+                <Text style={styles.confirmAmount}>
+                  {isCny
+                    ? (aggSendAmount ?? 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })
+                    : fmtXof(sentXof, { withCode: false })}
+                </Text>
+                <Text style={styles.confirmAmountCurrency}>{isCny ? aggCurrency : 'XOF'}</Text>
               </View>
+              {isCny && (
+                <Text style={styles.confirmCardLabel}>
+                  {t('transferModal.amountDebited')} {fmtXof(sentXof)}
+                </Text>
+              )}
             </View>
 
             {/* Card destinataire */}

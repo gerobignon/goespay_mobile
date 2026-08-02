@@ -115,9 +115,10 @@ export function getTransactionLogo(transaction: Transaction): ImageSourcePropTyp
 }
 
 const MODE_LABELS: Record<string, string> = {
-  paydunya: 'PayDunya', 'pdy-mode': 'PayDunya',
-  kkiabj: 'KkiaPay', kkiaci: 'KkiaPay', kkiang: 'KkiaPay', kkiapay: 'KkiaPay', 'kia-mode': 'KkiaPay',
-  payci: 'PayCI',
+  // Jamais le nom d'un agrégateur côté utilisateur : on affiche le moyen réel.
+  paydunya: 'Mobile Money', 'pdy-mode': 'Carte bancaire',
+  kkiabj: 'Mobile Money', kkiaci: 'Mobile Money', kkiang: 'Mobile Money', kkiapay: 'Mobile Money', 'kia-mode': 'Mobile Money',
+  payci: 'Mobile Money',
   'mtn-benin': 'MTN Momo', 'moov-benin': 'Moov Money', 'celtiis-cash': 'Celtiis Cash',
   'moov-burkina-faso': 'Moov Money', 'moov-burkina': 'Moov Money',
   'orange-money-burkina': 'Orange Money',
@@ -154,8 +155,8 @@ export function getModeName(transaction: Transaction, t?: (key: string) => strin
   // Corridor précis non catalogué (offline, ex. fincra-mm-cm-orange) : opérateur via
   // le résolveur commun plutôt que le code brut.
   const disp = resolveOperatorDisplay(transaction.mode);
-  if (disp && disp.name && disp.name !== transaction.mode) return disp.name;
-  return transaction.mode;
+  // resolveOperatorDisplay renvoie toujours un libellé propre (jamais le code brut).
+  return disp?.name || '';
 }
 
 const TYPE_ICONS: Record<string, string> = {

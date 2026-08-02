@@ -53,6 +53,28 @@ function isoFlag(cc: string): string {
   return String.fromCodePoint(...[...c].map((ch) => 0x1f1e6 + ch.charCodeAt(0) - 65));
 }
 
+// Marques d'agrégateur : ne doivent JAMAIS apparaître côté utilisateur.
+const AGGREGATOR_BRANDS = /fincra|klasha|afribapay|paydunya|kkiapay|kkia|payci|pdy|fedapay|cybersource/i;
+
+/**
+ * Repli quand aucun corridor ne correspond : libellé de rail générique déduit du
+ * code, sans jamais laisser fuiter la marque de l'agrégateur ni le code brut.
+ */
+function genericModeLabel(mode: string): string {
+  const n = mode.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+  if (/mobile_money|(^|_)mm(_|$)|momo/.test(n)) return 'Mobile Money';
+  if (/checkout/.test(n)) return 'Open Banking';
+  if (/swift/.test(n)) return 'Virement SWIFT';
+  if (/sepa/.test(n)) return 'Virement SEPA';
+  if (/wire/.test(n)) return 'Virement international';
+  if (/bank|(^|_)bt(_|$)/.test(n)) return 'Virement bancaire';
+  if (/card|visa|mastercard/.test(n)) return 'Carte bancaire';
+  if (/crypto|usdt|trc|erc/.test(n)) return 'Crypto';
+  const clean = n.replace(AGGREGATOR_BRANDS, '').replace(/_+/g, ' ').trim();
+  if (!clean) return 'Transfert';
+  return clean.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export interface OperatorDisplay {
   name: string;
   flag: string;
@@ -78,7 +100,7 @@ export function resolveOperatorDisplay(
   const m = mode.match(/^fincra-(bank_transfer|bank|mobile_money|mm|checkout|card)$/i);
   if (m) {
     const rail = m[1].toLowerCase();
-    const baseLabel = FINCRA_RAIL_LABEL[rail] || 'Fincra';
+    const baseLabel = FINCRA_RAIL_LABEL[rail] || 'Transfert';
     const cur = currencyDest ? currencyDest.toUpperCase() : '';
     // Comme l'admin : suffixe la devise sur les cartes et virements (pas le MM).
     const isCardOrBank = ['bank_transfer', 'bank', 'checkout', 'card'].includes(rail);
@@ -110,7 +132,7 @@ export function resolveOperatorDisplay(
     const rail = k[1].toLowerCase();
     const baseLabel = rail === 'wire' ? 'Virement international'
       : rail === 'cny' ? 'Virement Chine'
-      : (FINCRA_RAIL_LABEL[rail] || 'Klasha');
+      : (FINCRA_RAIL_LABEL[rail] || 'Transfert');
     const cur = currencyDest ? currencyDest.toUpperCase() : '';
     const isCardOrBank = ['bank_transfer', 'card', 'checkout', 'wire', 'cny'].includes(rail);
     const name = (isCardOrBank && cur && !baseLabel.includes(cur)) ? `${baseLabel} (${cur})` : baseLabel;
@@ -133,5 +155,6 @@ export function resolveOperatorDisplay(
     };
   }
 
-  return { name: mode, flag: '', op: null };
+  // Dernier repli : jamais le code brut ni un nom d'agrégateur côté client.
+  return { name: genericModeLabel(mode), flag: '', op: null };
 }

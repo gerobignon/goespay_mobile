@@ -153,9 +153,9 @@ export const OPERATORS = [
   // pay-in (Fincra n'expose pas de virtual accounts dans ces devises) ni de carte
   // Fincra dédiée (supprimée) : le pay-in intl passe par l'Open Banking hébergé
   // (fincra-checkout-<cc>, catalogue serveur).
-  { id: 'fincra-usd-bt',   name: 'Virement (SWIFT) USD',      flag: '🇺🇸', country: 'US', withdraw: true,  fincra: true, currency: 'USD', rail: 'SWIFT', logo: require('../../assets/operators/pay_bank.png') },
-  { id: 'fincra-eur-bt',   name: 'Virement (SEPA) EUR',       flag: '🇪🇺', country: 'EU', withdraw: true,  fincra: true, currency: 'EUR', rail: 'SEPA', logo: require('../../assets/operators/pay_bank.png') },
-  { id: 'fincra-gbp-bt',   name: 'Virement (SWIFT) GBP',      flag: '🇬🇧', country: 'GB', withdraw: true,  fincra: true, currency: 'GBP', rail: 'SWIFT', logo: require('../../assets/operators/pay_bank.png') },
+  { id: 'fincra-usd-bt',   name: 'Virement (SWIFT) USD',      flag: '🇺🇸', country: 'US', withdraw: true,  fincra: true, currency: 'USD', rail: 'SWIFT', minAmount: 100, logo: require('../../assets/operators/pay_bank.png') },
+  { id: 'fincra-eur-bt',   name: 'Virement (SEPA) EUR',       flag: '🇪🇺', country: 'EU', withdraw: true,  fincra: true, currency: 'EUR', rail: 'SEPA', minAmount: 100, logo: require('../../assets/operators/pay_bank.png') },
+  { id: 'fincra-gbp-bt',   name: 'Virement (SWIFT) GBP',      flag: '🇬🇧', country: 'GB', withdraw: true,  fincra: true, currency: 'GBP', rail: 'SWIFT', minAmount: 100, logo: require('../../assets/operators/pay_bank.png') },
 ] as const;
 
 // Helper : un opérateur sert-il `selectedCountry` ?

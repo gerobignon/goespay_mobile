@@ -18,7 +18,7 @@ import { ResponsiveModal } from './ResponsiveModal';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Input } from './Input';
 import { Button } from './Button';
-import { walletService } from '../services/walletService';
+import { walletService, type VirtualAccount, type VirtualAccountsResponse } from '../services/walletService';
 import api from '../services/api';
 import { useWalletStore } from '../stores/walletStore';
 import { useAuthStore } from '../stores/authStore';
@@ -142,6 +142,15 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const [fincraOtpInput, setFincraOtpInput] = useState('');
   const [savePhoneOperator, setSavePhoneOperator] = useState('');
   const [savePhoneLoading, setSavePhoneLoading] = useState(false);
+  // Compte bancaire PERMANENT du client (NGN/GHS/TZS) : réutilisable pour
+  // n'importe quel montant, par opposition au compte temporaire à usage unique.
+  const [vaData, setVaData] = useState<VirtualAccountsResponse | null>(null);
+  const [vaLoading, setVaLoading] = useState(false);
+  const [vaCreating, setVaCreating] = useState(false);
+  const [vaBvn, setVaBvn] = useState('');
+  // 'permanent' = compte du client · 'oneshot' = compte temporaire (flux existant)
+  const [vaMode, setVaMode] = useState<'permanent' | 'oneshot'>('permanent');
+  const vaFetchedRef = useRef(false);
 
   // Snapshot des valeurs initiales (post-prefill / post-reset) pour détecter
   // si l'utilisateur a réellement modifié le formulaire avant fermeture.
@@ -172,6 +181,8 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
     setSavePhoneModalVisible(false);
     setSavePhoneName('');
     setSavePhoneOperator('');
+    setVaBvn('');
+    setVaMode('permanent');
     phoneUserEditedRef.current = false;
     setPhone(defaultPhone);
     initialFormRef.current = { amount: initAmount, phone: defaultPhone, operator: initOperator };
@@ -453,6 +464,17 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const isFincraBT = fincraMethod === 'bank_transfer';
   const isFincraMM = fincraMethod === 'mobile_money';
   const isFincraCH = fincraMethod === 'checkout';
+  // Devises où le client peut obtenir un compte bancaire à son nom (Fincra).
+  // La liste autoritaire vient du serveur (`available`) ; ce garde-fou évite
+  // juste un appel réseau sur les rails qui n'en proposent pas.
+  const vaCurrency = isFincraBT && !isKlasha ? fincraCurrency : '';
+  const vaEligible = ['NGN', 'GHS', 'TZS'].includes(vaCurrency);
+  const vaOffer = vaData?.available.find((a) => a.currency === vaCurrency);
+  const vaAccount = vaData?.accounts.find((a) => a.currency === vaCurrency) ?? null;
+  // Panneau « compte permanent » : proposé dès que le corridor l'autorise, ou
+  // quand le client en a déjà un (même si le corridor a été fermé depuis).
+  const vaSupported = vaEligible && (!!vaOffer || !!vaAccount);
+  const showVaPanel = vaSupported && vaMode === 'permanent';
   // Pour Fincra MM en zone XOF/XAF, le sous-pays est nécessaire pour l'indicatif.
   // Mais si le pays est DÉJÀ connu (étape pays admin, ou pays de l'utilisateur),
   // on le déduit du contexte et on n'affiche plus la liste de sous-pays.
@@ -487,6 +509,75 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
       setFincraZoneCountry(contextCountry);
     }
   }, [isFincraMM, zoneHasContext, contextCountry, fincraZoneCountry]);
+
+  // Comptes bancaires permanents du client : chargés une fois par ouverture de
+  // la modal, dès qu'un rail virement d'une devise concernée est sélectionné.
+  // Le « déjà chargé » vit dans une ref, PAS dans les dépendances : y mettre
+  // vaData/vaLoading relancerait l'effet au premier setState, et son nettoyage
+  // annulerait la requête en vol (réponse jetée, onglets jamais affichés).
+  useEffect(() => {
+    if (!visible || !vaEligible || vaFetchedRef.current) return;
+    vaFetchedRef.current = true;
+    let cancelled = false;
+    setVaLoading(true);
+    walletService.getVirtualAccounts()
+      .then((res) => { if (!cancelled) setVaData(res); })
+      // Backend pas encore à jour / offline : on retombe silencieusement sur le
+      // compte temporaire, qui reste pleinement fonctionnel.
+      .catch(() => { if (!cancelled) setVaData({ accounts: [], available: [], kyc_ok: true }); })
+      .finally(() => { if (!cancelled) setVaLoading(false); });
+    return () => { cancelled = true; };
+  }, [visible, vaEligible]);
+
+  // Purge le cache à la fermeture : le compte peut avoir été créé entre-temps.
+  useEffect(() => {
+    if (!visible) {
+      vaFetchedRef.current = false;
+      setVaData(null);
+      setVaLoading(false);
+    }
+  }, [visible]);
+
+  // Copie web (presse-papiers) + coche de confirmation pendant 1,5 s.
+  const copyValue = (key: string, value: string) => {
+    try {
+      (navigator as any)?.clipboard?.writeText(value);
+      setCopiedField(key);
+      setTimeout(() => setCopiedField((c) => (c === key ? null : c)), 1500);
+    } catch (_) {}
+  };
+
+  const requestVirtualAccount = async () => {
+    if (!vaCurrency) return;
+    setVaCreating(true);
+    try {
+      const account = await walletService.createVirtualAccount({
+        currency: vaCurrency,
+        bvn: vaBvn.trim() || undefined,
+      });
+      setVaData((prev) => prev
+        ? { ...prev, accounts: [...prev.accounts.filter((a) => a.currency !== vaCurrency), account] }
+        : prev);
+      setVaBvn('');
+    } catch (error: any) {
+      showAlert(t('common.error'), getApiErrorMessage(error, t, t('depositModal.depositError')));
+    } finally {
+      setVaCreating(false);
+    }
+  };
+
+  const refreshVirtualAccount = async (account: VirtualAccount) => {
+    setVaCreating(true);
+    try {
+      const fresh = await walletService.syncVirtualAccount(account.id);
+      setVaData((prev) => prev
+        ? { ...prev, accounts: prev.accounts.map((a) => (a.id === fresh.id ? fresh : a)) }
+        : prev);
+    } catch (_) {
+    } finally {
+      setVaCreating(false);
+    }
+  };
   // isCard : flows hosted (vraie carte PayDunya + Fincra forex checkout).
   // Fincra MM utilise le champ téléphone, Fincra BT n'a besoin de rien.
   // Reconnaît 'card' (INTL) ET 'card-<cc>' (carte PayDunya par pays).
@@ -1212,6 +1303,94 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
 
             {!!operator && (
               <>
+                {vaSupported && (
+                  <View style={styles.vaTabs}>
+                    {([
+                      { key: 'permanent' as const, label: t('depositModal.vaMyAccount') },
+                      { key: 'oneshot' as const,   label: t('depositModal.vaOneShot') },
+                    ]).map((tab) => (
+                      <TouchableOpacity
+                        key={tab.key}
+                        style={[styles.vaTab, vaMode === tab.key && styles.vaTabActive]}
+                        onPress={() => setVaMode(tab.key)}
+                      >
+                        <Text style={[styles.vaTabText, vaMode === tab.key && styles.vaTabTextActive]}>
+                          {tab.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
+                {showVaPanel && (
+                  <View style={styles.btBox}>
+                    {vaLoading ? (
+                      <ActivityIndicator color={Colors.primary} />
+                    ) : vaAccount?.usable ? (
+                      <>
+                        <Text style={styles.btTitle}>{t('depositModal.vaTitle')}</Text>
+                        {[
+                          { key: 'va-bank',    label: t('depositModal.bankName'),      value: vaAccount.bank_name },
+                          { key: 'va-account', label: t('depositModal.accountNumber'), value: vaAccount.account_number, copy: true, strong: true },
+                          { key: 'va-name',    label: t('depositModal.beneficiary'),   value: vaAccount.account_name },
+                        ].filter((row) => !!row.value).map((row) => (
+                          <View key={row.key} style={styles.btRow}>
+                            <Text style={styles.btLabel}>{row.label}</Text>
+                            <View style={styles.btValueWrap}>
+                              <Text style={[styles.btValue, row.strong && styles.btValueStrong]} selectable>{row.value}</Text>
+                              {row.copy && Platform.OS === 'web' && (
+                                <TouchableOpacity onPress={() => copyValue(row.key, String(row.value))} style={styles.btCopyBtn}>
+                                  <FontAwesome6 name={copiedField === row.key ? 'check' : 'copy'} size={12} color={Colors.primary} />
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          </View>
+                        ))}
+                        <Text style={styles.btHelp}>{t('depositModal.vaHelp', { currency: vaCurrency })}</Text>
+                      </>
+                    ) : vaAccount ? (
+                      <>
+                        <Text style={styles.btTitle}>
+                          {vaAccount.status === 'declined' ? t('depositModal.vaDeclined') : t('depositModal.vaPending')}
+                        </Text>
+                        {!!vaAccount.reason && <Text style={styles.btHelp}>{vaAccount.reason}</Text>}
+                        <Button
+                          variant="secondary"
+                          title={t('common.retry')}
+                          onPress={() => refreshVirtualAccount(vaAccount)}
+                          loading={vaCreating}
+                          style={{ marginTop: Spacing.sm }}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <Text style={styles.btTitle}>{t('depositModal.vaCreateTitle', { currency: vaCurrency })}</Text>
+                        {vaOffer?.requires_bvn && (
+                          <Input
+                            label={t('depositModal.vaBvnLabel')}
+                            placeholder="12345678901"
+                            value={vaBvn}
+                            onChangeText={(v) => setVaBvn(v.replace(/\D/g, '').slice(0, 11))}
+                            keyboardType="number-pad"
+                          />
+                        )}
+                        <Button
+                          title={t('depositModal.vaCreate')}
+                          icon="building-columns"
+                          onPress={user?.validate !== 1
+                            ? () => showAlert(t('depositModal.kycRequired3'), t('depositModal.kycRequired2'))
+                            : requestVirtualAccount}
+                          loading={vaCreating}
+                          disabled={!!vaOffer?.requires_bvn && vaBvn.length !== 11}
+                          style={{ marginTop: Spacing.sm }}
+                        />
+                      </>
+                    )}
+                  </View>
+                )}
+
+                {!showVaPanel && (
+                <>
                 <Input
                   label={t('depositModal.amountLabel', { currency: railCurrency })}
                   placeholder={isForeignRail ? '' : `${t('depositModal.minDeposit')} ${fmtXof(depositMin)}`}
@@ -1378,6 +1557,8 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                   disabled={!amount || fincraRateBlocking || (showPhoneField && !phone) || (showPhoneField && needsOtp && !otp.trim()) || (!!fincraZoneList && !fincraZoneCountry)}
                   style={{ marginTop: Spacing.lg }}
                 />
+                </>
+                )}
               </>
             )}
           </ScrollView>}
@@ -1508,6 +1689,35 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.textMuted,
     textAlign: 'center',
     lineHeight: 22,
+  },
+  // Sélecteur « mon compte » / « virement ponctuel » (rails NGN/GHS/TZS).
+  vaTabs: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    backgroundColor: Colors.inputBg,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 4,
+    marginBottom: Spacing.sm,
+  },
+  vaTab: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+  },
+  vaTabActive: {
+    backgroundColor: Colors.primary,
+  },
+  vaTabText: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.medium,
+    color: Colors.textMuted,
+  },
+  vaTabTextActive: {
+    color: '#fff',
+    fontFamily: Fonts.semiBold,
   },
   btBox: {
     width: '100%',

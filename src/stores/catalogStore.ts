@@ -79,6 +79,8 @@ export interface CatalogOperator {
   cnyServiceCode?: 'ALIPAY' | 'WECHAT';
   aggregator: string;
   logo: any;
+  // Montant minimum d'envoi (devise du corridor), piloté par l'admin Marchés.
+  minAmount?: number;
 }
 export interface CatalogCountryEntry { code: string; name: string; prefix: string; flag: string; }
 
@@ -241,9 +243,10 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
         const fincraRail = (r.aggregator === 'fincra_checkout' || r.aggregator === 'klasha_checkout') ? 'checkout'
                          : isFincraAgg ? fincraRailFor(r.code, r.currency)
                          : isKlashaAgg ? klashaRailFor(r.code) : undefined;
-        // Le label réseau Fincra MM est suffixé « (Fincra) » côté admin (distinction
-        // corridor) — inutile et parasite pour l'utilisateur. On le retire à l'affichage.
-        const baseName = (net?.label ?? r.network).replace(/\s*\((?:fincra|klasha)\)\s*$/i, '');
+        // Le label réseau est suffixé de l'agrégateur côté admin (distinction
+        // corridor) — le client ne doit jamais voir ces marques. On les retire.
+        const baseName = (net?.label ?? r.network)
+          .replace(/\s*\((?:fincra|klasha|afribapay|paydunya|kkiapay|payci)\)\s*$/i, '');
         return {
           id: r.code,
           name: (isKlashaAgg && r.code.startsWith('klasha-cny-'))
@@ -275,6 +278,9 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
           fincraOperator: (r.code.startsWith('fincra-mm-') || r.code.startsWith('klasha-mm-')) ? r.network.toUpperCase() : undefined,
           klashaOperator: r.code.startsWith('klasha-mm-') ? r.network.toUpperCase() : undefined,
           aggregator: r.aggregator,
+          // Minimum d'envoi du corridor (devise destination) — affiché et bloqué
+          // côté app, revérifié par le backend à l'exécution.
+          minAmount: (r.min_payout_amount ?? undefined) || undefined,
           logo: (isKlashaAgg && klashaCnyLogo(r.code)) || (net && LOGO_BY_KEY[net.logo_key]) || DEFAULT_LOGO,
         };
       });

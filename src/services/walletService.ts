@@ -8,6 +8,55 @@ import type {
 
 export type FincraRail = 'mobile_money' | 'bank_transfer' | 'SWIFT' | 'SEPA' | 'wire' | 'cny';
 
+/** Compte bancaire permanent attribué au client (réutilisable, tous montants). */
+export interface VirtualAccount {
+  id: number;
+  currency: string;
+  account_number: string;
+  account_name: string;
+  bank_name: string;
+  bank_code: string;
+  status: 'pending' | 'approved' | 'declined' | 'closed';
+  is_active: boolean;
+  usable: boolean;
+  reason?: string;
+  created_at?: string | null;
+}
+
+/** Un versement encaissé sur un compte de réception. */
+export interface VirtualAccountEntry {
+  id: number;
+  date: string | null;
+  sender: string;
+  /** Montant viré dans la devise du compte (null sur les crédits d'avant la colonne). */
+  amount: number | null;
+  currency: string;
+  credited_xof: number;
+  status: 'success' | 'wait' | 'fail' | string;
+  reference: string;
+}
+
+export interface VirtualAccountStatement {
+  account: VirtualAccount;
+  /** Cumul encaissé — un compte virtuel ne retient aucun fonds. */
+  total_received: number | null;
+  total_xof: number;
+  count: number;
+  /** Reçu mais pas encore crédité (devise du compte) — 0 si tout est à jour. */
+  pending_amount: number;
+  pending_count: number;
+  entries: VirtualAccountEntry[];
+  /** Versements vus chez l'agrégateur mais non crédités (webhook perdu). */
+  unreconciled?: { reference: string; amount: number; currency: string; date: string }[];
+}
+
+export interface VirtualAccountsResponse {
+  accounts: VirtualAccount[];
+  /** Devises ouvertes à la demande, avec l'exigence KYC du corridor. */
+  available: { currency: string; requires_bvn: boolean }[];
+  kyc_ok: boolean;
+}
+
 export interface FincraBeneficiary {
   firstName?: string;
   lastName?: string;
@@ -120,7 +169,8 @@ export interface TransferQuoteRequest {
   aggregator: 'fincra' | 'klasha';
   rail: 'mobile_money' | 'bank_transfer' | 'SWIFT' | 'SEPA' | 'cny';
   currency: string;
-  amount_xof: number;
+  amount_xof?: number;   // saisie en XOF (rails classiques)
+  amount_dest?: number;  // saisie dans la devise destination (Chine : le client achète des CNY)
   country?: string;      // pays destination (frais A→B) ; dérivé de la devise sinon
   operator?: string;
   service?: KlashaCnyService;          // Chine
@@ -291,6 +341,38 @@ export const walletService = {
     iban?: string;
   }): Promise<{ resolved: boolean; accountName: string | null; raw: any }> => {
     const response = await api.post('/fincra/resolve-account', payload);
+    return response.data;
+  },
+
+  // ── Comptes bancaires permanents (un par client et par devise) ──
+  // Contrairement au compte temporaire régénéré à chaque recharge, celui-ci
+  // appartient au client : il le réutilise pour n'importe quel montant.
+  getVirtualAccounts: async (): Promise<VirtualAccountsResponse> => {
+    const response = await api.get('/fincra/virtual-accounts');
+    return {
+      accounts: response.data?.accounts ?? [],
+      available: response.data?.available ?? [],
+      kyc_ok: !!response.data?.kyc_ok,
+    };
+  },
+
+  createVirtualAccount: async (payload: { currency: string; bvn?: string }): Promise<VirtualAccount> => {
+    const response = await api.post('/fincra/virtual-accounts', payload, { timeout: 70000 });
+    return response.data?.account;
+  },
+
+  syncVirtualAccount: async (id: number): Promise<VirtualAccount> => {
+    const response = await api.post(`/fincra/virtual-accounts/${id}/sync`, {}, { timeout: 40000 });
+    return response.data?.account;
+  },
+
+  // Relevé d'un compte de réception. `reconcile` interroge en plus l'agrégateur
+  // pour révéler d'éventuels versements non crédités (webhook perdu).
+  getVirtualAccountStatement: async (id: number, reconcile = false): Promise<VirtualAccountStatement> => {
+    const response = await api.get(`/fincra/virtual-accounts/${id}/statement`, {
+      params: reconcile ? { reconcile: 1 } : undefined,
+      timeout: reconcile ? 40000 : 20000,
+    });
     return response.data;
   },
 

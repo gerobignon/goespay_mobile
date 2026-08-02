@@ -35,6 +35,7 @@ export function getAccountMenuItems(
     { key: 'security', label: t('account.security'), icon: 'shield-halved', route: '/account/security' },
     { key: 'phones', label: t('account.savedPhones'), icon: 'address-book', route: '/account/phones' },
     { key: 'bank-accounts', label: t('account.savedBanks'), icon: 'building-columns', route: '/account/bank-accounts' },
+    { key: 'virtual-accounts', label: t('account.virtualAccounts'), icon: 'landmark', route: '/account/virtual-accounts' },
     { key: 'wallets', label: t('account.savedWallets'), icon: 'wallet', route: '/account/wallets', cryptoOnly: true },
     { key: 'settings', label: t('account.customization'), icon: 'gear', route: '/account/settings' },
     { key: 'dev-kanban', label: t('dev.menuTitle'), icon: 'diagram-project', route: '/admin/kanban', adminOnly: true },

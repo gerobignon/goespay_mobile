@@ -49,16 +49,14 @@ function buildRows(tx: Transaction, type: 'deposit' | 'withdraw' | 'transfer' | 
     rows.push({ label: 'Montant', value: formatXof(tx.amount) });
   }
 
-  // Libellé propre (jamais la string brute « fincra-… » / « klasha-mm-… ») :
-  // résolveur commun partagé avec l'historique/détail (opérateur précis, rail,
-  // catalogue). Repli sur le code brut seulement si non résolu.
+  // Libellé propre (jamais la string brute « fincra-… » / « klasha-mm-… », jamais
+  // le nom d'un agrégateur) : résolveur commun partagé avec l'historique/détail
+  // (opérateur précis, rail, catalogue).
   const cleanMode = (mode?: string) => {
     if (!mode) return '';
     const disp = resolveOperatorDisplay(mode);
-    if (disp && disp.name && disp.name !== mode) {
-      return `${disp.flag ? disp.flag + ' ' : ''}${disp.name}`.trim();
-    }
-    return mode;
+    if (!disp?.name) return '';
+    return `${disp.flag ? disp.flag + ' ' : ''}${disp.name}`.trim();
   };
 
   if (type !== 'crypto') {

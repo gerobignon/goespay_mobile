@@ -37,7 +37,7 @@ export function useTransferQuote(params: TransferQuoteRequest | null, enabled: b
 
   // Clé stable : évite de relancer un devis quand seule l'identité de l'objet change.
   const key = params && enabled
-    ? [params.aggregator, params.rail, params.currency, params.amount_xof,
+    ? [params.aggregator, params.rail, params.currency, params.amount_xof ?? '', params.amount_dest ?? '',
        params.country || '', params.operator || '', params.service || '', params.serviceCode || ''].join('|')
     : '';
 
