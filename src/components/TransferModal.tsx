@@ -1527,14 +1527,6 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             {/* Frais en live (jamais affichés pour Fincra : pas de frais côté GoesPay) */}
             {showFees ? (
               <View style={styles.feesBox}>
-                {/* Montant coté ≠ saisi (corridors cotés par tranches) → on montre
-                    ce qui part réellement, base des frais. */}
-                {Math.abs(sentXof - numAmountXof) >= 1 && (
-                  <View style={styles.feesRow}>
-                    <Text style={styles.feesLabel}>{t('transferModal.amountSent')}</Text>
-                    <Text style={styles.feesValue}>{fmtXof(sentXof)}</Text>
-                  </View>
-                )}
                 <View style={styles.feesRow}>
                   <Text style={styles.feesLabel}>{t('transferModal.fees')} ({feeLabel})</Text>
                   <Text style={[styles.feesValue, { color: Colors.error }]}>+ {fmtXof(fees)}</Text>
