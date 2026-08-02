@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../stores/authStore';
+import { useDevBoardStore, selectDevUnread } from '../stores/devBoardStore';
 import { Colors, DarkColors, type ColorPalette, Spacing, FontSize, Fonts, BorderRadius } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { API_BASE_URL } from '../constants/config';
@@ -18,6 +19,9 @@ const NAV_ITEMS = [
   { path: '/(tabs)/support', labelKey: 'tabs.support', icon: 'headset' },
 ];
 
+// Entrée réservée au user id 1 (board Dev).
+const DEV_ITEM = { path: '/(tabs)/dev', labelKey: 'dev.menuTitle', icon: 'diagram-project' };
+
 export function DesktopHeader() {
   const router = useRouter();
   const pathname = usePathname();
@@ -25,6 +29,8 @@ export function DesktopHeader() {
   const user = useAuthStore((s) => s.user);
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();
+  const devUnread = useDevBoardStore(selectDevUnread);
+  const navItems = user?.id === 1 ? [...NAV_ITEMS, DEV_ITEM] : NAV_ITEMS;
 
   const avatarSource = user?.avatar
     ? { uri: user.avatar.startsWith('http') ? user.avatar : `${API_BASE_URL.replace('/api/mobile/v1', '')}${user.avatar}` }
@@ -47,8 +53,9 @@ export function DesktopHeader() {
 
         {/* Navigation */}
         <View style={styles.nav}>
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const active = isActive(item.path);
+            const badge = item.path === DEV_ITEM.path ? devUnread : 0;
             return (
               <TouchableOpacity
                 key={item.path}
@@ -56,11 +63,18 @@ export function DesktopHeader() {
                 onPress={() => router.push(item.path as any)}
                 activeOpacity={0.7}
               >
-                <FontAwesome6
-                  name={item.icon}
-                  size={16}
-                  color={active ? Colors.secondary : 'rgba(255,255,255,0.55)'}
-                />
+                <View>
+                  <FontAwesome6
+                    name={item.icon}
+                    size={16}
+                    color={active ? Colors.secondary : 'rgba(255,255,255,0.55)'}
+                  />
+                  {badge > 0 && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeTxt}>{badge > 99 ? '99+' : badge}</Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={[styles.navLabel, active && styles.navLabelActive]}>
                   {t(item.labelKey)}
                 </Text>
@@ -142,6 +156,24 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   navLabelActive: {
     color: Colors.secondary,
+  },
+  badge: {
+    position: 'absolute',
+    top: -6,
+    right: -10,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: Colors.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeTxt: {
+    color: '#fff',
+    fontSize: 9,
+    fontFamily: Fonts.bold,
+    lineHeight: 11,
   },
   avatarWrap: {
     flexDirection: 'row',
