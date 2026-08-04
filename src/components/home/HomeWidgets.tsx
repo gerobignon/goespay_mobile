@@ -182,10 +182,10 @@ export function MonthlyInsights() {
 // ═══════════════════════════════════════════════════════════════════
 const PALETTE = ['#3176FE', '#F4900C', '#10B981', '#A855F7', '#EC4899', '#0EA5E9'];
 
-export function RecentBeneficiaries({ onPick, onPickBank, onAdd, allowCrypto = false }: { onPick: (tel: string) => void; onPickBank: (bank: SavedBank) => void; onAdd: (type: 'phone' | 'bank' | 'crypto') => void; allowCrypto?: boolean }) {
+export function RecentBeneficiaries({ onPick, onPickBank, onAdd, allowCrypto = false }: { onPick: (tel: string, operator?: string) => void; onPickBank: (bank: SavedBank) => void; onAdd: (type: 'phone' | 'bank' | 'crypto') => void; allowCrypto?: boolean }) {
   const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
-  const [phones, setPhones] = useState<{ id: number; tel: string; name?: string }[]>([]);
+  const [phones, setPhones] = useState<{ id: number; tel: string; name?: string; operator?: string }[]>([]);
   const [banks, setBanks] = useState<SavedBank[]>([]);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const pick = (type: 'phone' | 'bank' | 'crypto') => { setAddMenuOpen(false); onAdd(type); };
@@ -213,7 +213,7 @@ export function RecentBeneficiaries({ onPick, onPickBank, onAdd, allowCrypto = f
           const tint = PALETTE[idx % PALETTE.length];
           const initials = (p.name || p.tel).replace(/\s+/g, '').slice(0, 2).toUpperCase();
           return (
-            <Bounce key={`p${p.id}`} style={styles.benefTile} onPress={() => onPick(p.tel)}>
+            <Bounce key={`p${p.id}`} style={styles.benefTile} onPress={() => onPick(p.tel, p.operator)}>
               <View style={[styles.benefAvatar, { backgroundColor: tint }]}>
                 <Text style={styles.benefInitials}>{initials}</Text>
               </View>

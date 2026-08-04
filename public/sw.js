@@ -31,8 +31,41 @@ self.addEventListener('push', function (event) {
     tag: (payload.data && payload.data.transactionId) || undefined,
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    self.registration
+      .showNotification(title, options)
+      .then(function () {
+        return syncBadge(payload.data && payload.data.badge);
+      })
+      .then(function () {
+        // Prévient les onglets ouverts (l'app rafraîchit ses données / badges).
+        return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
+          list.forEach(function (client) {
+            client.postMessage({ type: 'push', data: payload.data || {} });
+          });
+        });
+      })
+  );
 });
+
+// Pastille de décompte sur l'icône de la PWA installée (Badging API).
+// Le compte vient du payload s'il est fourni, sinon du nombre de notifs affichées.
+function syncBadge(explicit) {
+  if (!self.navigator || !self.navigator.setAppBadge) {
+    return Promise.resolve();
+  }
+  var count = parseInt(explicit, 10);
+  if (count > 0) {
+    return self.navigator.setAppBadge(count).catch(function () {});
+  }
+  return self.registration
+    .getNotifications()
+    .then(function (list) {
+      if (list.length > 0) return self.navigator.setAppBadge(list.length);
+      return self.navigator.clearAppBadge ? self.navigator.clearAppBadge() : undefined;
+    })
+    .catch(function () {});
+}
 
 // Construit l'URL de destination à partir des données de la notif.
 // Miroir de la navigation native dans app/_layout.tsx.
@@ -40,6 +73,9 @@ function targetUrl(data) {
   data = data || {};
   if (data.transactionId && data.type) {
     return '/transaction/' + data.type + '/' + data.transactionId;
+  }
+  if (data.screen === 'admin_dev') {
+    return '/admin/kanban';
   }
   if (data.screen === 'history') {
     return '/history';
@@ -54,6 +90,14 @@ self.addEventListener('notificationclick', function (event) {
   var url = targetUrl(event.notification.data);
 
   event.waitUntil(
+    syncBadge(0).then(function () {
+      return openTarget(url);
+    })
+  );
+});
+
+function openTarget(url) {
+  return (
     self.clients
       .matchAll({ type: 'window', includeUncontrolled: true })
       .then(function (clientList) {
@@ -71,4 +115,4 @@ self.addEventListener('notificationclick', function (event) {
         }
       })
   );
-});
+}

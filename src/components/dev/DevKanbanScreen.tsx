@@ -19,7 +19,6 @@ import { Spacing, FontSize, BorderRadius, Fonts, withAlpha } from '../../constan
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { DevTaskCard } from './DevTaskCard';
 import { DevTaskModal } from './DevTaskModal';
-import { DevCommentsModal } from './DevCommentsModal';
 import { DevBacklogModal } from './DevBacklogModal';
 import type { DevStatus, DevTask } from '../../types';
 
@@ -36,8 +35,7 @@ export function DevKanbanScreen({ showBack = false }: { showBack?: boolean }) {
   const [taskModal, setTaskModal] = useState(false);
   const [editingTask, setEditingTask] = useState<DevTask | null>(null);
   const [newStatus, setNewStatus] = useState<DevStatus>('todo');
-  const [commentsTask, setCommentsTask] = useState<DevTask | null>(null);
-  const [commentsVisible, setCommentsVisible] = useState(false);
+  const [taskTab, setTaskTab] = useState<'details' | 'comments' | undefined>(undefined);
   const [backlogVisible, setBacklogVisible] = useState(false);
   const [boardH, setBoardH] = useState(0);
 
@@ -61,18 +59,24 @@ export function DevKanbanScreen({ showBack = false }: { showBack?: boolean }) {
   const openNew = (status: DevStatus) => {
     setEditingTask(null);
     setNewStatus(status);
+    setTaskTab('details');
     setTaskModal(true);
   };
-  const openEdit = (task: DevTask) => {
+  const openEdit = (task: DevTask, tab?: 'details' | 'comments') => {
     setEditingTask(task);
+    setTaskTab(tab);
     setTaskModal(true);
-  };
-  const openComments = (task: DevTask) => {
-    setCommentsTask(task);
-    setCommentsVisible(true);
   };
 
   const columnWidth = width >= 768 ? 320 : Math.min(width * 0.82, 340);
+
+  // La tâche ouverte est relue depuis le board pour refléter les rafraîchissements
+  // (compteur de commentaires, non-lus) sans rouvrir la modale.
+  const openTask = editingTask
+    ? [...Object.values(board?.tasks_by_status || {}).flat(), ...(board?.backlog || [])].find(
+        (t) => t.id === editingTask.id,
+      ) || editingTask
+    : null;
 
   return (
     <View style={styles.root}>
@@ -139,7 +143,7 @@ export function DevKanbanScreen({ showBack = false }: { showBack?: boolean }) {
                     style={[styles.column, { width: columnWidth, height: boardH ? boardH - Spacing.md : undefined }]}
                   >
                     <View style={styles.colHeader}>
-                      <FontAwesome6 name={col.icon.replace('fa-', '')} size={13} color={styles.colLabel.color} />
+                      <FontAwesome6 name={col.icon.replace('fa-', '') as any} size={13} color={styles.colLabel.color} />
                       <Text style={styles.colLabel}>{col.label}</Text>
                       <View style={styles.colCount}>
                         <Text style={styles.colCountTxt}>{tasks.length}</Text>
@@ -154,6 +158,7 @@ export function DevKanbanScreen({ showBack = false }: { showBack?: boolean }) {
                           categories={board.categories}
                           platforms={board.platforms}
                           onPress={() => openEdit(task)}
+                          onPressComments={() => openEdit(task, 'comments')}
                         />
                       ))}
                       <TouchableOpacity style={styles.addCard} onPress={() => openNew(col.key)}>
@@ -173,16 +178,11 @@ export function DevKanbanScreen({ showBack = false }: { showBack?: boolean }) {
         <>
           <DevTaskModal
             visible={taskModal}
-            task={editingTask}
+            task={openTask}
             initialStatus={newStatus}
+            initialTab={taskTab}
             board={board}
             onClose={() => setTaskModal(false)}
-            onOpenComments={openComments}
-          />
-          <DevCommentsModal
-            visible={commentsVisible}
-            task={commentsTask}
-            onClose={() => setCommentsVisible(false)}
           />
           <DevBacklogModal
             visible={backlogVisible}
@@ -255,31 +255,31 @@ const createStyles = (Colors: ColorPalette) =>
     retryTxt: { color: '#fff', fontFamily: Fonts.semiBold },
     boardScroll: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.md, gap: Spacing.md },
     column: {
-      backgroundColor: withAlpha(Colors.text, 0.03),
-      borderRadius: BorderRadius.md,
+      backgroundColor: withAlpha(Colors.text, 0.04),
+      borderRadius: BorderRadius.xl,
       borderWidth: 1,
       borderColor: Colors.surfaceBorder,
+      overflow: 'hidden',
     },
     colHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: Spacing.sm,
-      padding: Spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: Colors.border,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.md - 2,
     },
     colLabel: { flex: 1, color: Colors.text, fontSize: FontSize.md, fontFamily: Fonts.bold },
     colCount: {
-      minWidth: 22,
+      minWidth: 24,
       height: 22,
       borderRadius: 11,
-      paddingHorizontal: 6,
+      paddingHorizontal: 7,
       backgroundColor: Colors.surface,
       alignItems: 'center',
       justifyContent: 'center',
     },
     colCountTxt: { color: Colors.textMuted, fontSize: FontSize.xs, fontFamily: Fonts.bold },
-    colBody: { padding: Spacing.sm, paddingBottom: Spacing.lg },
+    colBody: { paddingHorizontal: Spacing.sm, paddingBottom: Spacing.lg },
     muted: { color: Colors.textMuted },
     addCard: {
       flexDirection: 'row',
@@ -287,7 +287,7 @@ const createStyles = (Colors: ColorPalette) =>
       justifyContent: 'center',
       gap: Spacing.sm,
       paddingVertical: Spacing.md,
-      borderRadius: BorderRadius.md,
+      borderRadius: BorderRadius.lg,
       borderWidth: 1,
       borderStyle: 'dashed',
       borderColor: Colors.border,

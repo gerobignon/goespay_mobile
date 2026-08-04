@@ -38,6 +38,7 @@ import { API_BASE_URL } from '../../src/constants/config';
 import { getAccountMenuItems } from '../../src/constants/accountMenu';
 import { DepositModal } from '../../src/components/DepositModal';
 import { TransferModal } from '../../src/components/TransferModal';
+import { P2PTransferModal } from '../../src/components/P2PTransferModal';
 import type { SavedBank } from '../../src/services/walletService';
 import { CryptoModal } from '../../src/components/CryptoModal';
 import { TransactionItem } from '../../src/components/TransactionItem';
@@ -49,6 +50,7 @@ import {
   ReferralCard,
   type PromoSlide,
 } from '../../src/components/home/HomeWidgets';
+import { RateSimulator } from '../../src/components/home/RateSimulator';
 import { useCryptoStore } from '../../src/stores/cryptoStore';
 import { useConfigStore } from '../../src/stores/configStore';
 import { useCorridorStore } from '../../src/stores/corridorStore';
@@ -69,6 +71,7 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [depositVisible, setDepositVisible] = useState(false);
   const [transferVisible, setTransferVisible] = useState(false);
+  const [p2pVisible, setP2pVisible] = useState(false);
   const [cryptoVisible, setCryptoVisible] = useState(false);
   // Crypto lancé depuis Dépôt (vente) ou Retrait (achat) : onglet forcé + crypto pré-sélectionnée.
   const [cryptoTab, setCryptoTab] = useState<'buy' | 'sell'>('sell');
@@ -78,6 +81,7 @@ export default function DashboardScreen() {
   const [modalTxType, setModalTxType] = useState<TxType | null>(null);
   const [transferPrefillPhone, setTransferPrefillPhone] = useState<string | undefined>(undefined);
   const [transferPrefillBank, setTransferPrefillBank] = useState<SavedBank | null>(null);
+  const [transferPrefillOperator, setTransferPrefillOperator] = useState<string | undefined>(undefined);
   // Hauteurs des 2 colonnes pour activer le sticky-top dynamique sur la
   // colonne la plus courte (web/desktop uniquement, en wide layout).
   const [leftColH, setLeftColH] = useState(0);
@@ -87,7 +91,7 @@ export default function DashboardScreen() {
   const stickyStyle = (active: boolean): any => active ? { position: 'sticky', top: 0, alignSelf: 'flex-start' } : undefined;
 
   const { logout } = useAuthStore();
-  const { deposit_enabled, transfer_enabled, deposit_blocked, transfer_blocked, crypto_buy_enabled, crypto_sell_enabled, isLoaded: configLoaded, fetchConfig } = useConfigStore();
+  const { deposit_enabled, transfer_enabled, deposit_blocked, transfer_blocked, crypto_buy_enabled, crypto_sell_enabled, p2p_enabled, p2p_blocked, isLoaded: configLoaded, fetchConfig } = useConfigStore();
   const promoSlidesConfig = useConfigStore((s) => s.promo_slides);
   const fetchCorridors = useCorridorStore((s) => s.fetchCorridors);
   const fetchCatalog = useCatalogStore((s) => s.fetchCatalog);
@@ -110,6 +114,9 @@ export default function DashboardScreen() {
   const showDeposit = isAdmin || (configLoaded && (deposit_enabled || deposit_blocked));
   const showTransfer = isAdmin || (configLoaded && (transfer_enabled || transfer_blocked));
   const showCrypto = isAdmin || (configLoaded && isCryptoUser && (crypto_buy_enabled || crypto_sell_enabled));
+  // Transfert compte à compte : interne au wallet, il ne dépend d'aucun corridor
+  // ni d'un blocage payout — seul son propre kill-switch le masque.
+  const showP2P = isAdmin || (configLoaded && (p2p_enabled || p2p_blocked));
   // Ouvre le flux crypto avec l'action forcée, depuis Dépôt (vente) ou Retrait (achat).
   const openCrypto = (tab: 'buy' | 'sell', currency?: string) => {
     setCryptoTab(tab);
@@ -137,13 +144,15 @@ export default function DashboardScreen() {
     [promoSlidesConfig]
   );
 
-  const onBenefPick = useCallback((tel: string) => {
+  const onBenefPick = useCallback((tel: string, operator?: string) => {
     setTransferPrefillBank(null);
     setTransferPrefillPhone(tel);
+    setTransferPrefillOperator(operator);
     setTransferVisible(true);
   }, [isValidated]);
   const onBenefPickBank = useCallback((bank: SavedBank) => {
     setTransferPrefillPhone(undefined);
+    setTransferPrefillOperator(undefined);
     setTransferPrefillBank(bank);
     setTransferVisible(true);
   }, [isValidated]);
@@ -303,7 +312,7 @@ export default function DashboardScreen() {
                         onPress={() => setDepositVisible(true)}
                       >
                         <FontAwesome6 name="plus" size={16} color={Colors.white} />
-                        <Text style={styles.actionLabel}>{ t('home.deposit') }</Text>
+                        <Text style={styles.actionLabel} numberOfLines={1}>{ t('home.deposit') }</Text>
                       </Bounce>
                       )}
                       {showTransfer && (
@@ -312,7 +321,25 @@ export default function DashboardScreen() {
                         onPress={() => setTransferVisible(true)}
                       >
                         <FontAwesome6 name="paper-plane" size={16} color={Colors.white} />
-                        <Text style={styles.actionLabel}>{ t('home.transfer') }</Text>
+                        <Text style={styles.actionLabel} numberOfLines={1}>{ t('home.transfer') }</Text>
+                      </Bounce>
+                      )}
+                      {showDeposit && (
+                      <Bounce
+                        style={[styles.actionBtn, styles.actionBtnPaylink]}
+                        onPress={() => router.push('/account/payment-links')}
+                      >
+                        <FontAwesome6 name="link" size={16} color={Colors.white} />
+                        <Text style={styles.actionLabel} numberOfLines={1}>{ t('home.paylink') }</Text>
+                      </Bounce>
+                      )}
+                      {showP2P && (
+                      <Bounce
+                        style={[styles.actionBtn, styles.actionBtnP2P]}
+                        onPress={() => setP2pVisible(true)}
+                      >
+                        <FontAwesome6 name="right-left" size={16} color={Colors.white} />
+                        <Text style={styles.actionLabel} numberOfLines={1}>{ t('home.p2p') }</Text>
                       </Bounce>
                       )}
                     </View>
@@ -326,6 +353,7 @@ export default function DashboardScreen() {
               <PromoCarousel slides={promoSlides} />
               {showTransfer && <RecentBeneficiaries onPick={onBenefPick} onPickBank={onBenefPickBank} onAdd={onBenefAdd} allowCrypto={isCryptoUser} />}
               <ReferralCard />
+              <RateSimulator allowCrypto={showCrypto} />
             </View>
 
             {/* Right column: recent transactions */}
@@ -381,7 +409,7 @@ export default function DashboardScreen() {
                       onPress={() => setDepositVisible(true)}
                     >
                       <FontAwesome6 name="plus" size={16} color={Colors.white} />
-                      <Text style={styles.actionLabel}>{ t('home.deposit') }</Text>
+                      <Text style={styles.actionLabel} numberOfLines={1}>{ t('home.deposit') }</Text>
                     </Bounce>
                     )}
                     {showTransfer && (
@@ -390,7 +418,25 @@ export default function DashboardScreen() {
                       onPress={() => setTransferVisible(true)}
                     >
                       <FontAwesome6 name="paper-plane" size={16} color={Colors.white} />
-                      <Text style={styles.actionLabel}>{ t('home.transfer') }</Text>
+                      <Text style={styles.actionLabel} numberOfLines={1}>{ t('home.transfer') }</Text>
+                    </Bounce>
+                    )}
+                    {showDeposit && (
+                    <Bounce
+                      style={[styles.actionBtn, styles.actionBtnPaylink]}
+                      onPress={() => router.push('/account/payment-links')}
+                    >
+                      <FontAwesome6 name="link" size={16} color={Colors.white} />
+                      <Text style={styles.actionLabel} numberOfLines={1}>{ t('home.paylink') }</Text>
+                    </Bounce>
+                    )}
+                    {showP2P && (
+                    <Bounce
+                      style={[styles.actionBtn, styles.actionBtnP2P]}
+                      onPress={() => setP2pVisible(true)}
+                    >
+                      <FontAwesome6 name="right-left" size={16} color={Colors.white} />
+                      <Text style={styles.actionLabel} numberOfLines={1}>{ t('home.p2p') }</Text>
                     </Bounce>
                     )}
                   </View>
@@ -404,6 +450,7 @@ export default function DashboardScreen() {
             <PromoCarousel slides={promoSlides} />
             {showTransfer && <RecentBeneficiaries onPick={onBenefPick} onPickBank={onBenefPickBank} onAdd={onBenefAdd} allowCrypto={isCryptoUser} />}
             <ReferralCard />
+            <RateSimulator allowCrypto={showCrypto} />
 
             <View style={[styles.recentHeader, { marginTop: Spacing.lg }]}>
               <Text style={styles.sectionTitle}>{ t('home.recentTransactions') }</Text>
@@ -441,11 +488,18 @@ export default function DashboardScreen() {
       {showTransfer && (
       <TransferModal
         visible={transferVisible}
-        onClose={() => { setTransferVisible(false); setTransferPrefillPhone(undefined); setTransferPrefillBank(null); }}
+        onClose={() => { setTransferVisible(false); setTransferPrefillPhone(undefined); setTransferPrefillBank(null); setTransferPrefillOperator(undefined); }}
         cryptoEnabled={showCrypto && (crypto_buy_enabled || isAdmin)}
         onBuyCrypto={(currency?: string) => openCrypto('buy', currency)}
         prefillPhone={transferPrefillPhone}
+        prefillOperator={transferPrefillOperator}
         prefillBank={transferPrefillBank}
+      />
+      )}
+      {showP2P && (
+      <P2PTransferModal
+        visible={p2pVisible}
+        onClose={() => setP2pVisible(false)}
       />
       )}
       {showCrypto && (
@@ -615,21 +669,43 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   balanceActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
     marginTop: Spacing.lg,
     gap: Spacing.md,
   },
+  // Grille régulière : chaque action occupe EXACTEMENT la même largeur (2 par
+  // ligne). flexGrow reste à 0 — sinon l'espace restant est réparti au prorata
+  // du libellé et « Transférer » finit plus large que « Paylink ».
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
+    justifyContent: 'center',
+    flexGrow: 0,
+    flexShrink: 1,
+    flexBasis: '46%',
+    maxWidth: 220,
+    minHeight: 48,
+    // Padding resserré : « Transfert P2P » est le libellé le plus long et doit
+    // tenir sur une ligne dans une demi-largeur d'écran étroit.
+    paddingHorizontal: Spacing.sm + 2,
     paddingVertical: Spacing.sm + 4,
     borderRadius: BorderRadius.lg,
     gap: Spacing.sm,
   },
+  // Paylink et Transfert P2P : boutons pleins au même gabarit que Recharger /
+  // Envoyer, différenciés par la teinte (prune / corail) et non par un fond
+  // translucide — sur l'image de fond, le verre lisait comme un bouton désactivé.
+  actionBtnPaylink: {
+    backgroundColor: '#363457',
+  },
+  actionBtnP2P: {
+    backgroundColor: '#DB504A',
+  },
   // Placeholder neutre affiché tant que /config n'a pas confirmé l'état des actions.
   actionBtnSkeleton: {
-    width: 120,
-    height: 44,
+    // La largeur vient de la grille (flexBasis) — seule la hauteur est calée.
+    height: 48,
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
   actionLabel: {

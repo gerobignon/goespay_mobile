@@ -76,6 +76,7 @@ const PAYMENT_MODE_LOGOS: Record<string, ImageSourcePropType> = {
   'commission': require('../../assets/picto.png'),
   'reward': require('../../assets/picto.png'),
   'manual': require('../../assets/picto.png'),
+  'transferp2p': require('../../assets/picto.png'),
 };
 
 export function getTransactionLogo(transaction: Transaction): ImageSourcePropType | null {
@@ -133,6 +134,8 @@ const MODE_LABELS: Record<string, string> = {
   'fincra-bank_transfer': 'Virement bancaire', 'fincra-mobile_money': 'Mobile Money', 'fincra-checkout': 'Open Banking',
   'klasha-mobile_money': 'Mobile Money', 'klasha-bank_transfer': 'Virement bancaire', 'klasha-card': 'Carte bancaire', 'klasha-checkout': 'Open Banking', 'klasha-wire': 'Virement international',
   'referal': 'Parrainage', 'commission': 'Commission', 'reward': 'Récompense', 'manual': 'Manuel',
+  // Crédit reçu d'un autre compte GoesPay (transfert interne).
+  'transferp2p': 'Transfert P2P reçu',
 };
 
 const PROVIDER_I18N_KEYS: Record<string, string> = {
@@ -141,6 +144,7 @@ const PROVIDER_I18N_KEYS: Record<string, string> = {
   'commission': 'transaction.commission',
   'reward': 'transaction.reward',
   'manual': 'transaction.manual',
+  'transferp2p': 'p2p.received',
 };
 
 export function getModeName(transaction: Transaction, t?: (key: string) => string): string {
@@ -210,6 +214,17 @@ export function TransactionItem({ transaction, onPress, padded = false, index = 
           </Text>
         </View>
         <Text style={styles.date}>{formatDate(transaction.created_at)}</Text>
+        {/* Encaissement par lien : sans ça, indiscernable d'une recharge. */}
+        {!!transaction.paylink && (
+          <View style={styles.paylinkRow}>
+            <FontAwesome6 name="link" size={9} color={Colors.primary} />
+            <Text style={styles.paylinkText} numberOfLines={1}>
+              {transaction.paylink.payer
+                ? `${transaction.paylink.title} · ${transaction.paylink.payer}`
+                : transaction.paylink.title}
+            </Text>
+          </View>
+        )}
       </View>
       <View style={styles.amountContainer}>
         <Text
@@ -273,6 +288,17 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.textMuted,
     fontSize: FontSize.xs,
     marginTop: 2,
+  },
+  paylinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 3,
+  },
+  paylinkText: {
+    flex: 1,
+    color: Colors.primary,
+    fontSize: FontSize.xs,
   },
   amountContainer: {
     alignItems: 'flex-end',

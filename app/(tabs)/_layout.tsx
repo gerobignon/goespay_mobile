@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react';
 import { Tabs } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Animated, AppState } from 'react-native';
+import { setAppBadgeCount, clearWebNotifications } from '../../src/services/appBadge';
 import { Spacing, FontSize, Fonts } from '../../src/constants/theme';
 import { useColors } from '../../src/components/ThemeProvider';
 import { useResponsive } from '../../src/hooks/useResponsive';
@@ -103,11 +104,31 @@ export default function TabsLayout() {
   const { t } = useTranslation();
   const isSuperAdmin = useAuthStore((s) => s.user?.id === 1);
   const fetchBoard = useDevBoardStore((s) => s.fetchBoard);
+  const devUnread = useDevBoardStore(selectDevUnread);
 
-  // User id 1 : précharge le board pour alimenter le badge de non-lus de l'onglet Dev.
+  // User id 1 : précharge le board pour alimenter le badge de non-lus de l'onglet Dev,
+  // puis rafraîchit régulièrement (app au premier plan) pour garder la pastille à jour.
   useEffect(() => {
-    if (isSuperAdmin) fetchBoard(true);
+    if (!isSuperAdmin) return;
+    fetchBoard(true);
+    const tick = () => {
+      if (AppState.currentState === 'active') fetchBoard(true);
+    };
+    const timer = setInterval(tick, 90000);
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') fetchBoard(true);
+    });
+    return () => {
+      clearInterval(timer);
+      sub.remove();
+    };
   }, [isSuperAdmin]);
+
+  // Pastille de décompte sur l'icône (PWA installée / natif).
+  useEffect(() => {
+    setAppBadgeCount(devUnread);
+    if (devUnread === 0) clearWebNotifications();
+  }, [devUnread]);
 
   const tabs = (
     <Tabs

@@ -58,6 +58,14 @@ export interface Transaction {
   tx_id?: string;
   avant?: number;
   apres?: number;
+  /** Dépôt encaissé via un lien de paiement (absent pour une recharge ordinaire). */
+  paylink?: {
+    code: string;
+    title: string;
+    payer: string;
+    email?: string;
+    fee?: number;
+  } | null;
   created_at: string;
   updated_at?: string;
 }

@@ -1,5 +1,6 @@
 import { OPERATORS } from '../constants/config';
 import { useCatalogStore } from '../stores/catalogStore';
+import i18n from '../i18n';
 
 // Drapeau du pays bénéficiaire dérivé de la devise Fincra (le « pays »).
 const FINCRA_CUR_FLAG: Record<string, string> = {
@@ -92,6 +93,12 @@ export function resolveOperatorDisplay(
   currencyDest?: string | null,
 ): OperatorDisplay | null {
   if (!mode) return null;
+
+  // Transfert compte à compte : aucun opérateur derrière, c'est un mouvement interne.
+  if (mode.toLowerCase() === 'transferp2p') {
+    return { name: i18n.t('p2p.internal'), flag: '', op: { logo: require('../../assets/picto.png') } };
+  }
+
   const found =
     useCatalogStore.getState().operators.find((o) => o.id === mode) ||
     (OPERATORS as unknown as any[]).find((o) => o.id === mode);

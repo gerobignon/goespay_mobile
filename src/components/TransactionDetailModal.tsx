@@ -294,8 +294,21 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
               amountColor={Colors.secondary}
             />
             <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
-            <TransactionDetailRow label={t('transaction.type')} value={t('transaction.deposit')} badge badgeColor={Colors.positive} badgeIcon="arrow-down" />
+            <TransactionDetailRow
+              label={t('transaction.type')}
+              value={tx.paylink ? t('transaction.depositPaylink') : t('transaction.deposit')}
+              badge
+              badgeColor={Colors.positive}
+              badgeIcon={tx.paylink ? 'link' : 'arrow-down'}
+            />
             <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={getStatusIcon(normalizeStatut(tx.statut))} />
+            {/* Origine du paiement : quel lien, et qui a payé. */}
+            {!!tx.paylink && (
+              <>
+                <TransactionDetailRow label={t('transaction.paylinkTitle')} value={tx.paylink.title || '—'} />
+                <TransactionDetailRow label={t('transaction.payer')} value={tx.paylink.payer || tx.de || '—'} />
+              </>
+            )}
             <TransactionDetailRow label={t('transaction.operator')} value={resolveOperatorView(tx.mode)?.name ?? '—'} valueNode={<OperatorValue mode={tx.mode} />} />
             <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />
             <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '—'} mono />

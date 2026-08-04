@@ -62,13 +62,20 @@ function RootInner() {
     'FontAwesome6Free-Solid': require('../assets/fonts/FontAwesome6_Solid.ttf'),
   });
 
-  // Android ne propage pas fontFamily comme CSS → on force Quicksand globalement
-  // defaultProps.style doit être un tableau pour être mergé avec les styles locaux
+  // RN ne propage pas fontFamily comme CSS → on force Quicksand globalement sur
+  // <Text>. On patche `render` (Text est un forwardRef) et NON `defaultProps` :
+  // React 19 ignore defaultProps sur les composants fonction, l'ancien patch
+  // était donc sans effet et tout Text sans fontFamily explicite retombait sur
+  // la police système.
+  // Le style injecté passe EN PREMIER : un style local (icônes @expo/vector-icons,
+  // Fonts.bold…) le surcharge toujours.
   if (fontsLoaded) {
     const RNText = Text as any;
-    if (!RNText.__quicksandPatched) {
-      RNText.defaultProps = RNText.defaultProps ?? {};
-      RNText.defaultProps.style = [{ fontFamily: 'Quicksand_400Regular' }];
+    if (!RNText.__quicksandPatched && typeof RNText.render === 'function') {
+      const original = RNText.render;
+      RNText.render = function (props: any, ref: any) {
+        return original.call(this, { ...props, style: [{ fontFamily: 'Quicksand_400Regular' }, props?.style] }, ref);
+      };
       RNText.__quicksandPatched = true;
     }
   }
@@ -122,6 +129,17 @@ function RootInner() {
       // pas avec l'app. La souscription elle-même se fait via l'opt-in Réglages.
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
+        // Push reçu pendant que l'onglet est ouvert : le SW prévient la page →
+        // on rafraîchit le board Dev (badge d'onglet + pastille d'icône).
+        navigator.serviceWorker.addEventListener('message', (event: MessageEvent) => {
+          const payload = event.data as { type?: string; data?: Record<string, string> } | undefined;
+          if (payload?.type !== 'push') return;
+          if (payload.data?.screen === 'admin_dev') {
+            import('../src/stores/devBoardStore')
+              .then((m) => m.useDevBoardStore.getState().fetchBoard(true))
+              .catch(() => {});
+          }
+        });
       }
     }
   }, []);

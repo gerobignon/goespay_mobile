@@ -118,6 +118,10 @@ export default function HistoryScreen() {
           <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.title}>{t('history.title')}</Text>
+        <TouchableOpacity style={styles.statementBtn} onPress={() => router.push('/account/statement')}>
+          <FontAwesome6 name="file-invoice-dollar" size={14} color={Colors.secondary} iconStyle="solid" />
+          <Text style={styles.statementBtnText}>{t('statement.title')}</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Filters */}
@@ -310,6 +314,24 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   title: {
     fontSize: FontSize.xl,
     fontFamily: Fonts.bold,
+    color: Colors.text,
+  },
+  // Accès au relevé depuis l'historique : calé à droite de l'en-tête.
+  statementBtn: {
+    marginLeft: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  statementBtnText: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
     color: Colors.text,
   },
   filters: {

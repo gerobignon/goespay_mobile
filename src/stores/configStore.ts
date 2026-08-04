@@ -7,6 +7,11 @@ interface FeatureFlags {
   crypto_buy_enabled: boolean;
   crypto_sell_enabled: boolean;
   afribapay_enabled: boolean;
+  /** Transfert compte à compte (interne au wallet, même zone monétaire). */
+  p2p_enabled: boolean;
+  /** Barrage ciblé du transfert compte à compte : suit celui de l'envoi. */
+  p2p_blocked: boolean;
+  p2p_block_message: string;
   // Blocage ciblé de CE user (admin → détail user) : bandeau sur l'écran
   // concerné. Le booléen distingue « bloqué sans message » de « non bloqué ».
   deposit_blocked: boolean;
@@ -80,6 +85,9 @@ const defaultFlags: FeatureFlags = {
   crypto_buy_enabled: true,
   crypto_sell_enabled: true,
   afribapay_enabled: true,
+  p2p_enabled: true,
+  p2p_blocked: false,
+  p2p_block_message: '',
   deposit_blocked: false,
   transfer_blocked: false,
   deposit_block_message: '',

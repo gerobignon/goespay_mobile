@@ -75,11 +75,13 @@ interface TransferModalProps {
   onBuyCrypto?: (currency?: string) => void;
   /** Téléphone bénéficiaire pré-rempli (depuis la home : tap sur un avatar). */
   prefillPhone?: string;
+  /** Opérateur enregistré avec ce numéro : saute les étapes pays / opérateur. */
+  prefillOperator?: string;
   /** Bénéficiaire bancaire pré-rempli (virement) — depuis la home / le menu compte. */
   prefillBank?: SavedBank | null;
 }
 
-export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCrypto, prefillPhone, prefillBank }: TransferModalProps) {
+export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCrypto, prefillPhone, prefillOperator, prefillBank }: TransferModalProps) {
   const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -518,6 +520,28 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     // on capture leur valeur initiale comme baseline pour le dirty-check.
     initialFormRef.current = { amount, phone: prefillPhone ?? phone };
   }, [visible]);
+
+  // Bénéficiaire tapé depuis la home : on saute les étapes continent/pays/opérateur
+  // en resélectionnant directement le moyen enregistré avec le numéro. Le catalogue
+  // pouvant arriver après l'ouverture, l'effet retente quand il change.
+  const prefillOpAppliedRef = useRef(false);
+  useEffect(() => {
+    if (!visible) { prefillOpAppliedRef.current = false; return; }
+    if (!prefillOperator || prefillOpAppliedRef.current) return;
+    const key = String(prefillOperator).toLowerCase();
+    const op = OPERATORS_SRC.find((o: any) => String(o.id).toLowerCase() === key)
+      || OPERATORS_SRC.find((o: any) => String(o.name || '').toLowerCase() === key);
+    if (!op || !canPayout(op) || !audienceOk(op.id)) return;
+    // Même condition que operatorsForStep : sinon on sélectionnerait un opérateur
+    // que la liste n'affiche pas. L'effet retente une fois les corridors chargés.
+    if (!isAdmin && !isCodeEnabled(op.id, 'payout')) return;
+    const country = String(op.country || (op.countries || [])[0] || '').toUpperCase();
+    if (!country) return;
+    prefillOpAppliedRef.current = true;
+    setCryptoOpen(false);
+    setSelectedCountry(country);
+    setOperator(op.id);
+  }, [visible, prefillOperator, catalogOperators.length, corridorsLoaded]);
 
   // Reset le sous-pays Fincra à chaque changement d'opérateur.
   useEffect(() => { setAggZoneCountry(null); }, [operator]);

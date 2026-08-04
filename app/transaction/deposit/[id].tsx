@@ -178,7 +178,20 @@ export default function DepositDetailScreen() {
           />
 
           <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
-          <TransactionDetailRow label={t('transaction.type')} value={t('transaction.deposit')} badge badgeColor={Colors.positive} badgeIcon="arrow-down" />
+          <TransactionDetailRow
+            label={t('transaction.type')}
+            value={tx.paylink ? t('transaction.depositPaylink') : t('transaction.deposit')}
+            badge
+            badgeColor={Colors.positive}
+            badgeIcon={tx.paylink ? 'link' : 'arrow-down'}
+          />
+          {/* Origine du paiement : quel lien, et qui a payé. */}
+          {!!tx.paylink && (
+            <>
+              <TransactionDetailRow label={t('transaction.paylinkTitle')} value={tx.paylink.title || '—'} />
+              <TransactionDetailRow label={t('transaction.payer')} value={tx.paylink.payer || tx.de || '—'} />
+            </>
+          )}
           <TransactionDetailRow
             label={t('transaction.status')}
             value={status.label}

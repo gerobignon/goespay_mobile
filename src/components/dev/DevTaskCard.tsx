@@ -12,71 +12,90 @@ interface Props {
   categories: Record<string, DevRefItem>;
   platforms: Record<string, DevRefItem>;
   onPress: () => void;
+  onPressComments?: () => void;
 }
 
-export function DevTaskCard({ task, priorities, categories, platforms, onPress }: Props) {
+export function DevTaskCard({ task, priorities, categories, platforms, onPress, onPressComments }: Props) {
   const styles = useThemedStyles(createStyles);
   const prio = priorities[task.priority];
   const cat = task.category ? categories[task.category] : null;
   const plat = task.platform ? platforms[task.platform] : null;
   const frozen = task.priority === 'frozen';
   const sub = task.subtask_stats;
+  const progress = sub.total > 0 ? sub.done / sub.total : 0;
 
   return (
     <TouchableOpacity
       style={[styles.card, frozen && styles.frozen, task.unread_count > 0 && styles.unread]}
-      activeOpacity={0.8}
+      activeOpacity={0.85}
       onPress={onPress}
     >
-      <View style={styles.topRow}>
-        {prio && <View style={[styles.dot, { backgroundColor: prio.color || '#888' }]} />}
-        {cat && (
-          <View style={[styles.chip, { backgroundColor: withAlpha(cat.color || '#888', 0.18) }]}>
-            <Text style={[styles.chipTxt, { color: cat.color || undefined }]} numberOfLines={1}>
-              {cat.label}
-            </Text>
-          </View>
-        )}
-        <View style={{ flex: 1 }} />
-        {plat?.icon && <FontAwesome6 name={plat.icon.replace('fa-', '')} size={11} color={styles.meta.color} />}
-        {task.unread_count > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeTxt}>{task.unread_count}</Text>
-          </View>
-        )}
-      </View>
+      {/* Accent latéral = priorité */}
+      <View style={[styles.accent, { backgroundColor: prio?.color || 'transparent' }]} />
 
-      <Text style={styles.title} numberOfLines={3}>
-        {task.title}
-      </Text>
+      <View style={styles.inner}>
+        <View style={styles.topRow}>
+          {cat && (
+            <View style={[styles.chip, { backgroundColor: withAlpha(cat.color || '#888', 0.18) }]}>
+              <Text style={[styles.chipTxt, { color: cat.color || undefined }]} numberOfLines={1}>
+                {cat.label}
+              </Text>
+            </View>
+          )}
+          <View style={{ flex: 1 }} />
+          {plat?.icon && <FontAwesome6 name={plat.icon.replace('fa-', '') as any} size={11} color={styles.meta.color} />}
+          {task.unread_count > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeTxt}>{task.unread_count}</Text>
+            </View>
+          )}
+        </View>
 
-      <View style={styles.footer}>
+        <Text style={styles.title} numberOfLines={3}>
+          {task.title}
+        </Text>
+
         {sub.total > 0 && (
-          <View style={styles.metaItem}>
-            <FontAwesome6 name="list-check" size={10} color={styles.meta.color} />
-            <Text style={styles.meta}>
-              {sub.done}/{sub.total}
-            </Text>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
           </View>
         )}
-        {task.comments_count > 0 && (
-          <View style={styles.metaItem}>
-            <FontAwesome6 name="comment" size={10} color={styles.meta.color} />
-            <Text style={styles.meta}>{task.comments_count}</Text>
-          </View>
-        )}
-        {task.due_date && (
-          <View style={styles.metaItem}>
-            <FontAwesome6 name="calendar" size={10} color={styles.meta.color} />
-            <Text style={styles.meta}>{task.due_date.slice(5)}</Text>
-          </View>
-        )}
-        <View style={{ flex: 1 }} />
-        {task.assignee && (
-          <View style={styles.avatar}>
-            <Text style={styles.avatarTxt}>{initials(task.assignee.label)}</Text>
-          </View>
-        )}
+
+        <View style={styles.footer}>
+          {sub.total > 0 && (
+            <View style={styles.metaItem}>
+              <FontAwesome6 name="list-check" size={10} color={styles.meta.color} />
+              <Text style={styles.meta}>
+                {sub.done}/{sub.total}
+              </Text>
+            </View>
+          )}
+          <TouchableOpacity
+            style={styles.metaItem}
+            onPress={onPressComments}
+            disabled={!onPressComments}
+            hitSlop={8}
+          >
+            <FontAwesome6
+              name="comment"
+              size={10}
+              color={task.comments_count > 0 ? styles.metaOn.color : styles.meta.color}
+            />
+            <Text style={[styles.meta, task.comments_count > 0 && styles.metaOn]}>{task.comments_count}</Text>
+          </TouchableOpacity>
+          {task.due_date && (
+            <View style={styles.metaItem}>
+              <FontAwesome6 name="calendar" size={10} color={styles.meta.color} />
+              <Text style={styles.meta}>{task.due_date.slice(5)}</Text>
+            </View>
+          )}
+          <View style={{ flex: 1 }} />
+          {task.assignee && (
+            <View style={styles.avatar}>
+              <Text style={styles.avatarTxt}>{initials(task.assignee.label)}</Text>
+            </View>
+          )}
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -92,19 +111,20 @@ function initials(label: string): string {
 const createStyles = (Colors: ColorPalette) =>
   StyleSheet.create({
     card: {
+      flexDirection: 'row',
       backgroundColor: Colors.cardSolid,
-      borderRadius: BorderRadius.md,
+      borderRadius: BorderRadius.lg,
       borderWidth: 1,
       borderColor: Colors.surfaceBorder,
-      padding: Spacing.md,
       marginBottom: Spacing.sm,
-      gap: Spacing.sm,
+      overflow: 'hidden',
     },
-    frozen: { opacity: 0.6 },
-    unread: { borderColor: Colors.primary, backgroundColor: withAlpha(Colors.primary, 0.08) },
-    topRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    dot: { width: 10, height: 10, borderRadius: 5 },
-    chip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: BorderRadius.sm, maxWidth: 120 },
+    accent: { width: 4 },
+    inner: { flex: 1, padding: Spacing.md, gap: Spacing.sm },
+    frozen: { opacity: 0.55 },
+    unread: { borderColor: withAlpha(Colors.primary, 0.6) },
+    topRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 18 },
+    chip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: BorderRadius.sm, maxWidth: 130 },
     chipTxt: { fontSize: FontSize.xs, fontFamily: Fonts.semiBold },
     badge: {
       minWidth: 18,
@@ -116,14 +136,22 @@ const createStyles = (Colors: ColorPalette) =>
       paddingHorizontal: 4,
     },
     badgeTxt: { color: Colors.white, fontSize: FontSize.xs, fontFamily: Fonts.bold },
-    title: { color: Colors.text, fontSize: FontSize.md, fontFamily: Fonts.semiBold, lineHeight: FontSize.md + 6 },
+    title: { color: Colors.text, fontSize: FontSize.md, fontFamily: Fonts.semiBold, lineHeight: FontSize.md + 7 },
+    progressTrack: {
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: withAlpha(Colors.text, 0.1),
+      overflow: 'hidden',
+    },
+    progressFill: { height: 4, borderRadius: 2, backgroundColor: Colors.positive },
     footer: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
     metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     meta: { color: Colors.textMuted, fontSize: FontSize.xs, fontFamily: Fonts.medium },
+    metaOn: { color: Colors.primary, fontFamily: Fonts.bold },
     avatar: {
-      width: 22,
-      height: 22,
-      borderRadius: 11,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
       backgroundColor: withAlpha(Colors.secondary, 0.25),
       alignItems: 'center',
       justifyContent: 'center',

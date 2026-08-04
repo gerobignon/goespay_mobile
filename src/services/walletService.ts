@@ -50,6 +50,33 @@ export interface VirtualAccountStatement {
   unreconciled?: { reference: string; amount: number; currency: string; date: string }[];
 }
 
+/** Une écriture du relevé de compte (uniquement les mouvements qui ont bougé le solde). */
+export interface StatementRow {
+  id: number;
+  date: string;
+  type: 'deposit' | 'withdraw' | 'transfer' | 'crypto' | 'adjustment';
+  /** Libellé prêt à afficher, localisé côté serveur. */
+  label: string;
+  /** Moyen de paiement (jamais un nom d'agrégateur) — null pour les transferts. */
+  mode: string | null;
+  reference: string;
+  direction: 'in' | 'out';
+  amount: number;
+  fee: number;
+  /** Solde après l'opération (XOF). */
+  balance: number;
+}
+
+export interface AccountStatement {
+  from: string;
+  to: string;
+  currency: string;
+  opening_balance: number;
+  closing_balance: number;
+  totals: { in: number; out: number; fees: number; net: number; count: number };
+  rows: StatementRow[];
+}
+
 export interface VirtualAccountsResponse {
   accounts: VirtualAccount[];
   /** Devises ouvertes à la demande, avec l'exigence KYC du corridor. */
@@ -177,6 +204,47 @@ export interface TransferQuoteRequest {
   serviceCode?: 'ALIPAY' | 'WECHAT';   // Chine (wallet)
 }
 
+// ── Simulation (calculatrice) ──────────────────────────────────────────────
+// Le serveur renvoie le TAUX et la FORMULE de frais d'un corridor, pas un
+// montant : l'app peut alors convertir instantanément dans les deux sens
+// (« je paie » ↔ « il reçoit ») sans devis, avec les chiffres exacts du devis.
+export interface SimulationRequest {
+  mode: 'send' | 'deposit';
+  currency: string;
+  aggregator?: 'fincra' | 'klasha';
+  rail?: 'mobile_money' | 'bank_transfer' | 'checkout' | 'SWIFT' | 'SEPA';
+  country?: string;
+}
+export interface SimulationParams {
+  mode: 'send' | 'deposit';
+  currency: string;
+  country?: string;
+  rate: number;                 // XOF pour 1 unité de devise
+  fee_fixed?: number;           // envoi : frais fixes (XOF)
+  fee_percent?: number;         // envoi : frais proportionnels (%)
+  payin_fee_percent?: number;   // recharge : frais d'encaissement (gross-up)
+  min_xof: number | null;
+  max_xof: number | null;
+}
+
+// ── Transfert compte à compte (P2P) ────────────────────────────────────────
+/** Destinataire résolu par le serveur (email, téléphone, identifiant ou code de parrainage). */
+export interface P2PRecipient {
+  id: number;
+  name: string;
+  country: string;
+  currency: string;
+}
+
+export interface P2PTransferResult {
+  message: string;
+  transfer_id: number;
+  reference: string;
+  amount: number;
+  balance_after: number;
+  recipient: P2PRecipient;
+}
+
 export interface TransferQuote {
   quote_id: string;
   currency: string;
@@ -256,6 +324,13 @@ export const walletService = {
     return response.data;
   },
 
+  // Relevé de compte sur une période : mouvements comptabilisés, soldes
+  // d'ouverture / clôture et totaux (mêmes données que le PDF officiel).
+  getStatement: async (from: string, to: string): Promise<AccountStatement> => {
+    const response = await api.get('/wallet/statement', { params: { from, to } });
+    return response.data?.data ?? response.data;
+  },
+
   getTransaction: async (id: number, type?: string): Promise<Transaction> => {
     const params: Record<string, string> = {};
     if (type) params.type = type;
@@ -293,6 +368,18 @@ export const walletService = {
     data: TransferRequest
   ): Promise<any> => {
     const response = await api.post('/transfer', data, { timeout: 70000 });
+    return response.data;
+  },
+
+  // ── Transfert compte à compte (P2P) ───────────────────────────────────────
+  // Interne au wallet : instantané, sans frais, même zone monétaire uniquement.
+  lookupP2PRecipient: async (identifier: string): Promise<P2PRecipient> => {
+    const response = await api.get('/transfer/p2p/lookup', { params: { identifier } });
+    return response.data.recipient;
+  },
+
+  sendP2P: async (payload: { recipient_id: number; amount: number }): Promise<P2PTransferResult> => {
+    const response = await api.post('/transfer/p2p', payload, { timeout: 60000 });
     return response.data;
   },
 
@@ -464,6 +551,14 @@ export const walletService = {
     method?: string;
   }): Promise<DepositQuote> => {
     const response = await api.post('/deposit/quote', payload, { timeout: 45000 });
+    return response.data;
+  },
+
+  // Paramètres de simulation d'un corridor (taux + formule de frais). Ne crée
+  // aucun devis : la calculatrice convertit dans les deux sens sans rappeler le
+  // serveur à chaque frappe, avec les chiffres qui serviront au devis réel.
+  simulate: async (payload: SimulationRequest): Promise<SimulationParams> => {
+    const response = await api.post('/simulate', payload, { timeout: 20000 });
     return response.data;
   },
 

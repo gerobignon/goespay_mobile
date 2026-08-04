@@ -10,6 +10,7 @@ import { showAlert } from '../../stores/alertStore';
 import { CustomAlert } from '../CustomAlert';
 import { useDevBoardStore } from '../../stores/devBoardStore';
 import type { DevBoard, DevTask } from '../../types';
+import { useSheetViewport } from './devSheet';
 
 interface Props {
   visible: boolean;
@@ -23,6 +24,7 @@ export function DevBacklogModal({ visible, board, onClose, onEditTask, onNew }: 
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();
   const { sendToTodo, deleteTask } = useDevBoardStore();
+  const viewportH = useSheetViewport();
 
   const confirmDelete = (task: DevTask) => {
     showAlert(t('dev.deleteTitle'), t('dev.deleteConfirm'), [
@@ -33,8 +35,9 @@ export function DevBacklogModal({ visible, board, onClose, onEditTask, onNew }: 
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, viewportH ? { height: viewportH } : null]}>
         <SafeAreaView style={styles.sheet} edges={['bottom']}>
+          <View style={styles.grabber} />
           <View style={styles.header}>
             <Text style={styles.headerTitle}>
               {t('dev.backlog')} ({board.backlog.length})
@@ -85,17 +88,25 @@ const createStyles = (Colors: ColorPalette) =>
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
     sheet: {
       backgroundColor: Colors.background,
-      borderTopLeftRadius: BorderRadius.lg,
-      borderTopRightRadius: BorderRadius.lg,
+      borderTopLeftRadius: BorderRadius.xl,
+      borderTopRightRadius: BorderRadius.xl,
       maxHeight: '82%',
+    },
+    grabber: {
+      alignSelf: 'center',
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: Colors.border,
+      marginTop: Spacing.sm,
     },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: Spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: Colors.border,
+      paddingHorizontal: Spacing.md,
+      paddingTop: Spacing.md,
+      paddingBottom: Spacing.sm,
     },
     headerTitle: { color: Colors.text, fontSize: FontSize.lg, fontFamily: Fonts.bold },
     list: { padding: Spacing.md, gap: Spacing.sm },
@@ -105,7 +116,7 @@ const createStyles = (Colors: ColorPalette) =>
       alignItems: 'center',
       gap: Spacing.md,
       backgroundColor: Colors.cardSolid,
-      borderRadius: BorderRadius.md,
+      borderRadius: BorderRadius.lg,
       borderWidth: 1,
       borderColor: Colors.surfaceBorder,
       padding: Spacing.md,
