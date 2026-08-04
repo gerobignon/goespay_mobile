@@ -635,10 +635,22 @@
     "nameLabel": "Name / label"
   },
   "continents": {
-    "africa": { "name": "Africa", "desc": "Transfer to {{n}} African countries" },
-    "europe": { "name": "Europe", "desc": "Transfer to European countries" },
-    "america": { "name": "America", "desc": "Transfer to North, Central and South America" },
-    "asia": { "name": "Asia", "desc": "Transfer to Asian countries" }
+    "africa": {
+      "name": "Africa",
+      "desc": "Transfer to {{n}} African countries"
+    },
+    "europe": {
+      "name": "Europe",
+      "desc": "Transfer to European countries"
+    },
+    "america": {
+      "name": "America",
+      "desc": "Transfer to North, Central and South America"
+    },
+    "asia": {
+      "name": "Asia",
+      "desc": "Transfer to Asian countries"
+    }
   },
   "p2p": {
     "title": "P2P transfer",
@@ -1011,10 +1023,9 @@
     "feesOwner": "Me",
     "received": "Received",
     "payments": "Payments",
-    "posterTitle": "Pay with GoesPay",
-    "posterScan": "Scan me",
-    "posterDirectLink": "Direct link",
-    "posterPrint": "Print the poster",
+    "posterDownload": "Download the poster",
+    "posterDownloadError": "Download failed for now.",
+    "posterUnavailable": "Poster unavailable offline.",
     "qr": "QR code",
     "share": "Share",
     "enable": "Enable",

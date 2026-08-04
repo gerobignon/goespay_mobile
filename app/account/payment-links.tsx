@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Share,
   Image,
-  Linking,
   ImageBackground,
   ActivityIndicator,
   Switch,
@@ -16,7 +15,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import QRCode from 'react-native-qrcode-svg';
+import { posterImageUrl, downloadPoster } from '../../src/utils/posterImage';
 import {
   paylinkService,
   type PayLink,
@@ -54,8 +53,10 @@ export default function PaymentLinksScreen() {
   // Paiements chargés à la demande, par lien.
   const [payments, setPayments] = useState<Record<number, PayLinkPayment[]>>({});
   const [openId, setOpenId] = useState<number | null>(null);
-  // Lien dont le QR est affiché (un seul à la fois).
+  // Lien dont l'affiche est montrée (une seule à la fois).
   const [qrId, setQrId] = useState<number | null>(null);
+  // Chargement de l'affiche (image servie par le backend), par lien.
+  const [posterState, setPosterState] = useState<Record<number, 'ready' | 'failed'>>({});
 
   // Formulaire de création.
   const [formOpen, setFormOpen] = useState(false);
@@ -200,60 +201,26 @@ export default function PaymentLinksScreen() {
           </View>
         </View>
 
-        {/* Affiche : ce que le client colle sur son comptoir. Mêmes éléments que
-            la version imprimable (/pay/<code>/affiche) pour qu'il reconnaisse
-            l'aperçu qu'il vient de voir. */}
+        {/* Affiche : l'image RENDUE PAR LE SERVEUR (/pay/<code>/affiche.png),
+            pas une recomposition locale. L'aperçu est alors exactement le fichier
+            que le client va télécharger, partager, et que verra quiconque reçoit
+            le lien — une seule maquette à maintenir, côté backend. */}
         {qrId === link.id && (
           <View style={styles.poster}>
-            {/* Halos de marque : les mêmes que le fond de la version web. */}
-            <View style={[styles.posterGlow, { top: -180, left: -150, backgroundColor: '#4285F4' }]} pointerEvents="none" />
-            <View style={[styles.posterGlow, { bottom: -190, right: -140, backgroundColor: '#F5A623' }]} pointerEvents="none" />
-
-            <View style={styles.posterHead}>
-              <Image
-                source={require('../../assets/logo.png')}
-                style={styles.posterLogo}
-                resizeMode="contain"
-              />
-              <Text style={styles.posterTitle}>{t('paylinks.posterTitle')}</Text>
-              <Text style={styles.posterBeneficiary} numberOfLines={1}>
-                {user ? `${user.name} ${(user.surname || '').charAt(0)}.` : ''}
-              </Text>
-            </View>
-
-            <View style={styles.posterAmountBlock}>
-              {link.amount !== null && (
-                <Text style={styles.posterAmount}>{fmtXof(link.amount)}</Text>
-              )}
-              <Text style={styles.posterReason} numberOfLines={1}>{link.title}</Text>
-            </View>
-
-            <View style={styles.posterQr}>
-              <QRCode
-                value={link.url}
-                size={186}
-                backgroundColor="#ffffff"
-                color="#0a1020"
-                logo={require('../../assets/picto.png')}
-                logoSize={46}
-                logoBackgroundColor="#ffffff"
-                logoBorderRadius={8}
-                logoMargin={3}
-                quietZone={10}
-                // Correction d'erreur élevée : le picto masque une partie des
-                // modules, sans ça le QR devient illisible.
-                ecl="H"
-              />
-            </View>
-
-            <View style={styles.posterScan}>
-              <Text style={styles.posterScanText}>{t('paylinks.posterScan')}</Text>
-            </View>
-
-            <View style={styles.posterFoot}>
-              <Text style={styles.posterUrlLabel}>{t('paylinks.posterDirectLink')}</Text>
-              <Text style={styles.posterUrl} numberOfLines={1} selectable>{link.url}</Text>
-            </View>
+            <Image
+              source={{ uri: posterImageUrl(link.url, i18n.language?.slice(0, 2) || 'fr') }}
+              style={styles.posterImage}
+              resizeMode="contain"
+              onLoad={() => setPosterState((s) => ({ ...s, [link.id]: 'ready' }))}
+              onError={() => setPosterState((s) => ({ ...s, [link.id]: 'failed' }))}
+            />
+            {posterState[link.id] !== 'ready' && (
+              <View style={styles.posterLoader}>
+                {posterState[link.id] === 'failed'
+                  ? <Text style={styles.posterError}>{t('paylinks.posterUnavailable')}</Text>
+                  : <ActivityIndicator color={Colors.primary} />}
+              </View>
+            )}
           </View>
         )}
 
@@ -261,11 +228,16 @@ export default function PaymentLinksScreen() {
           <View style={styles.posterActions}>
             <TouchableOpacity
               style={styles.posterBtn}
-              onPress={() => Linking.openURL(`${link.url}/affiche?lang=${i18n.language?.slice(0, 2) || 'fr'}`)}
+              onPress={() => downloadPoster(
+                link.url,
+                link.code,
+                i18n.language?.slice(0, 2) || 'fr',
+                t('paylinks.posterDownload'),
+              ).catch(() => showAlert(t('common.error'), t('paylinks.posterDownloadError'), undefined, 'error'))}
               activeOpacity={0.85}
             >
-              <FontAwesome6 name="print" size={13} color="#0a1020" />
-              <Text style={styles.posterBtnText}>{t('paylinks.posterPrint')}</Text>
+              <FontAwesome6 name="download" size={13} color="#0a1020" />
+              <Text style={styles.posterBtnText}>{t('paylinks.posterDownload')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -590,73 +562,24 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   totalLabel: { fontSize: FontSize.xs, fontFamily: Fonts.medium, color: Colors.textSecondary },
   totalValue: { fontSize: FontSize.lg, fontFamily: Fonts.bold, color: Colors.text, marginTop: 3 },
 
-  // Affiche : fond blanc volontaire (identique à la version imprimée), donc
-  // couleurs figées plutôt que celles du thème.
-  // Affiche : couleurs de marque figées (identiques à la version web
-  // /pay/<code>/affiche), volontairement indépendantes du thème clair/sombre —
-  // c'est une image destinée à être partagée telle quelle.
+  // Affiche : l'image du backend, affichée telle quelle. Rien n'est recomposé
+  // ici — le fond sombre ne sert qu'au temps de chargement et aux bords.
   poster: {
     aspectRatio: 1,
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     backgroundColor: '#0b1120',
     borderRadius: 22,
-    paddingVertical: Spacing.xl,
-    paddingHorizontal: Spacing.xl,
     marginBottom: Spacing.md,
     overflow: 'hidden',
   },
-  posterGlow: {
-    position: 'absolute',
-    width: 340,
-    height: 340,
-    borderRadius: 170,
-    opacity: 0.1,
-  },
-  posterHead: { alignItems: 'center' },
-  posterLogo: { height: 46, width: 210 },
-  posterTitle: { fontSize: FontSize.lg, fontFamily: Fonts.bold, color: '#ffffff', marginTop: Spacing.sm },
-  posterBeneficiary: { fontSize: FontSize.sm, fontFamily: Fonts.medium, color: 'rgba(255,255,255,0.6)', marginTop: 2 },
-  posterAmountBlock: { alignItems: 'center' },
-  posterAmount: { fontSize: FontSize.xxl, fontFamily: Fonts.bold, color: '#F5A623' },
-  posterReason: { fontSize: FontSize.md, fontFamily: Fonts.medium, color: 'rgba(255,255,255,0.65)', marginTop: 2, textAlign: 'center' },
-  // Le QR garde son fond blanc : les lecteurs lisent mal l'inverse vidéo.
-  posterQr: {
-    alignItems: 'center',
-    padding: Spacing.sm + 2,
-    borderRadius: BorderRadius.lg,
-    backgroundColor: '#ffffff',
-  },
-  posterScan: {
-    backgroundColor: '#F5A623',
-    borderRadius: BorderRadius.pill,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.sm,
-  },
-  posterScanText: { fontSize: FontSize.lg, fontFamily: Fonts.bold, color: '#0a0a12' },
-  posterFoot: {
-    width: '100%',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    borderRadius: BorderRadius.md,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-  },
-  posterUrlLabel: {
+  posterImage: { width: '100%', height: '100%' },
+  posterLoader: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  posterError: {
     fontSize: FontSize.sm,
-    fontFamily: Fonts.semiBold,
-    color: 'rgba(255,255,255,0.45)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  posterUrl: {
-    fontSize: FontSize.md,
-    fontFamily: Fonts.semiBold,
-    color: '#ffffff',
+    fontFamily: Fonts.medium,
+    color: 'rgba(255,255,255,0.7)',
     textAlign: 'center',
-    marginTop: 1,
+    paddingHorizontal: Spacing.lg,
   },
   posterActions: { alignItems: 'center', marginBottom: Spacing.md },
   posterBtn: {
