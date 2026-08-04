@@ -125,7 +125,7 @@ export function DevCommentsPanel({ task }: { task: DevTask }) {
         >
           {ordered.length === 0 && <Text style={styles.empty}>{t('dev.noComments')}</Text>}
           {ordered.map((c) => (
-            <SwipeToQuote key={c.id} styles={styles} onQuote={() => startQuote(c)}>
+            <SwipeToQuote key={c.id} onQuote={() => startQuote(c)}>
               <View style={[styles.bubbleRow, c.is_mine && styles.bubbleRowMine]}>
                 <View style={[styles.bubble, c.is_mine && styles.bubbleMine]}>
                   {!c.is_mine && <Text style={styles.author}>{c.author_name}</Text>}
@@ -226,50 +226,30 @@ function FormatBtn({ styles, icon, onPress }: { styles: any; icon: string; onPre
 }
 
 /** Glisser la bulle (gauche ou droite) au-delà du seuil → cite le commentaire. */
-function SwipeToQuote({
-  children,
-  onQuote,
-  styles,
-}: {
-  children: React.ReactNode;
-  onQuote: () => void;
-  styles: any;
-}) {
+function SwipeToQuote({ children, onQuote }: { children: React.ReactNode; onQuote: () => void }) {
   const tx = useRef(new Animated.Value(0)).current;
-  const [active, setActive] = useState(false);
 
   const pan = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
       onPanResponderMove: (_, g) => {
-        const capped = Math.max(-96, Math.min(96, g.dx));
-        tx.setValue(capped);
-        setActive(Math.abs(capped) >= SWIPE_TRIGGER);
+        tx.setValue(Math.max(-96, Math.min(96, g.dx)));
       },
       onPanResponderRelease: (_, g) => {
         const trigger = Math.abs(g.dx) >= SWIPE_TRIGGER;
-        setActive(false);
         Animated.spring(tx, { toValue: 0, useNativeDriver: true, friction: 7 }).start();
         if (trigger) onQuote();
       },
       onPanResponderTerminate: () => {
-        setActive(false);
         Animated.spring(tx, { toValue: 0, useNativeDriver: true, friction: 7 }).start();
       },
     }),
   ).current;
 
   return (
-    <View>
-      <View style={styles.swipeHint} pointerEvents="none">
-        <FontAwesome6 name="reply" size={13} color={active ? styles.action.color : styles.time.color} />
-        <View style={{ flex: 1 }} />
-        <FontAwesome6 name="reply" size={13} color={active ? styles.action.color : styles.time.color} />
-      </View>
-      <Animated.View style={{ transform: [{ translateX: tx }] }} {...pan.panHandlers}>
-        {children}
-      </Animated.View>
-    </View>
+    <Animated.View style={{ transform: [{ translateX: tx }] }} {...pan.panHandlers}>
+      {children}
+    </Animated.View>
   );
 }
 
@@ -278,12 +258,6 @@ const createStyles = (Colors: ColorPalette) =>
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.xl },
     list: { padding: Spacing.md, paddingBottom: Spacing.lg },
     empty: { color: Colors.textMuted, textAlign: 'center', marginTop: Spacing.lg, fontFamily: Fonts.regular },
-    swipeHint: {
-      ...StyleSheet.absoluteFillObject,
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: Spacing.sm,
-    },
     bubbleRow: { flexDirection: 'row', marginBottom: Spacing.sm },
     bubbleRowMine: { justifyContent: 'flex-end' },
     bubble: {
