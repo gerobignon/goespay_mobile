@@ -48,6 +48,7 @@ import {
   MonthlyInsights,
   RecentBeneficiaries,
   ReferralCard,
+  VirtualAccountsBar,
   type PromoSlide,
 } from '../../src/components/home/HomeWidgets';
 import { RateSimulator } from '../../src/components/home/RateSimulator';
@@ -349,7 +350,8 @@ export default function DashboardScreen() {
                 </View>
               </ImageBackground>
 
-              {/* Widgets en dessous : G + A + C + E. */}
+              {/* Widgets en dessous : V + G + A + C + E. */}
+              {showDeposit && <VirtualAccountsBar />}
               <PromoCarousel slides={promoSlides} />
               {showTransfer && <RecentBeneficiaries onPick={onBenefPick} onPickBank={onBenefPickBank} onAdd={onBenefAdd} allowCrypto={isCryptoUser} />}
               <ReferralCard />
@@ -446,7 +448,8 @@ export default function DashboardScreen() {
               </View>
             </ImageBackground>
 
-            {/* Widgets en dessous : G + A + C + E. */}
+            {/* Widgets en dessous : V + G + A + C + E. */}
+            {showDeposit && <VirtualAccountsBar />}
             <PromoCarousel slides={promoSlides} />
             {showTransfer && <RecentBeneficiaries onPick={onBenefPick} onPickBank={onBenefPickBank} onAdd={onBenefAdd} allowCrypto={isCryptoUser} />}
             <ReferralCard />

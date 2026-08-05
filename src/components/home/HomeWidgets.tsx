@@ -15,10 +15,11 @@ import {
   Modal,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../constants/theme';
+import { Colors, DarkColors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { useTheme } from '../ThemeProvider';
 import { useAuthStore } from '../../stores/authStore';
@@ -28,7 +29,7 @@ import { fetchFincraRate } from '../../stores/fincraRateStore';
 import { walletZone } from '../../constants/config';
 import { showAlert } from '../../stores/alertStore';
 import { useFormatXof } from '../../utils/format';
-import { walletService, type SavedBank } from '../../services/walletService';
+import { walletService, type SavedBank, type VirtualAccount } from '../../services/walletService';
 import { affiliationService } from '../../services/affiliationService';
 import * as Clipboard from 'expo-clipboard';
 import { Bounce } from '../anim';
@@ -424,6 +425,113 @@ export function QuickConverter() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+//  V — Comptes virtuels : barre compacte, une pastille par devise.
+//  Une seule ligne d'en-tête + la rangée de devises : l'accueil ne
+//  gagne qu'un bloc court, le détail reste sur /account/virtual-accounts.
+// ═══════════════════════════════════════════════════════════════════
+const VA_FLAG: Record<string, string> = { NGN: '🇳🇬', GHS: '🇬🇭', TZS: '🇹🇿' };
+// Ordre d'affichage stable (les devises hors liste suivent, alphabétiques).
+const VA_ORDER = ['NGN', 'GHS', 'TZS'];
+const VA_CACHE_KEY = 'home_va_chips_v1';
+
+type VaChipState = 'ready' | 'pending' | 'blocked' | 'open';
+interface VaChip {
+  currency: string;
+  state: VaChipState;
+  /** 4 derniers chiffres du numéro attribué (état `ready` uniquement). */
+  last4?: string;
+}
+
+/** Réponse serveur → pastilles affichables (comptes attribués ∪ devises ouvrables). */
+const toChips = (data: { accounts: VirtualAccount[]; available: { currency: string }[] }): VaChip[] => {
+  const chips: VaChip[] = data.accounts.map((a) => ({
+    currency: a.currency,
+    state: a.usable ? 'ready' : a.status === 'pending' ? 'pending' : 'blocked',
+    last4: a.usable ? a.account_number.slice(-4) : undefined,
+  }));
+  data.available.forEach((offer) => {
+    if (!chips.some((c) => c.currency === offer.currency)) {
+      chips.push({ currency: offer.currency, state: 'open' });
+    }
+  });
+  const rank = (c: string) => (VA_ORDER.indexOf(c) === -1 ? VA_ORDER.length : VA_ORDER.indexOf(c));
+  return chips.sort((a, b) => rank(a.currency) - rank(b.currency) || a.currency.localeCompare(b.currency));
+};
+
+export function VirtualAccountsBar() {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const styles = useThemedStyles(createStyles);
+  const [chips, setChips] = useState<VaChip[] | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    // Cache d'abord (évite le saut de mise en page sous la carte solde), puis serveur.
+    AsyncStorage.getItem(VA_CACHE_KEY)
+      .then((raw) => { if (!cancelled && raw) setChips(JSON.parse(raw)); })
+      .catch(() => {});
+    walletService.getVirtualAccounts()
+      .then((data) => {
+        if (cancelled) return;
+        const next = toChips(data);
+        setChips(next);
+        AsyncStorage.setItem(VA_CACHE_KEY, JSON.stringify(next)).catch(() => {});
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  // Aucun compte attribué ni devise ouvrable (corridors fermés) : rien à montrer.
+  if (!chips || chips.length === 0) return null;
+
+  const open = () => router.push('/account/virtual-accounts');
+
+  const chipValue = (c: VaChip) =>
+    c.state === 'ready' ? `••${c.last4}`
+      : c.state === 'pending' ? t('home.vaWaiting')
+      : c.state === 'blocked' ? t('home.vaBlocked')
+      : t('home.vaOpen');
+
+  return (
+    <Bounce style={styles.vaWrap} onPress={open}>
+      {/* Surface pleine + pastilles translucides : le langage des cards mises en
+          avant sur l'accueil (parrainage, bonus, hero solde). Bleu nuit GoesPay,
+          l'or de la marque réservé aux informations clés (les numéros). */}
+      <LinearGradient
+        colors={['#1D3A8A', '#0B1226']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.vaCard}
+      >
+        <View style={styles.vaHead}>
+          <View style={styles.vaIcon}>
+            <FontAwesome6 name="landmark" size={15} color={DarkColors.secondary} iconStyle="solid" />
+          </View>
+          <Text style={styles.vaTitle} numberOfLines={1}>{t('account.virtualAccounts')}</Text>
+          <FontAwesome6 name="chevron-right" size={13} color="rgba(255,255,255,0.6)" />
+        </View>
+        <View style={styles.vaCols}>
+          {chips.map((c) => (
+            <View key={c.currency} style={styles.vaPill}>
+              <View style={styles.vaColTop}>
+                <Text style={styles.vaColFlag}>{VA_FLAG[c.currency] ?? '🏦'}</Text>
+                <Text style={styles.vaColCode} numberOfLines={1}>{c.currency}</Text>
+              </View>
+              <Text
+                style={[styles.vaColValue, c.state !== 'ready' && styles[`vaColValue_${c.state}`]]}
+                numberOfLines={1}
+              >
+                {chipValue(c)}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </LinearGradient>
+    </Bounce>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
 //  E — Parrainage (card gradient + code + share).
 // ═══════════════════════════════════════════════════════════════════
 const REFERRAL_BASE_URL = 'https://goespay.io';
@@ -548,6 +656,58 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontFamily: Fonts.bold,
     color: '#FFFFFF',
   },
+
+  // V — Comptes virtuels. Surface pleine + pastilles translucides, comme les
+  // cards mises en avant sur l'accueil (parrainage, bonus, hero solde) :
+  // texte blanc, icône ronde `rgba(255,255,255,.22)`, aucune boîte bordée.
+  vaWrap: {
+    marginTop: Spacing.lg,
+    borderRadius: BorderRadius.xl,
+    overflow: 'hidden',
+  },
+  vaCard: { padding: Spacing.md, gap: Spacing.md },
+  vaHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  vaIcon: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: DarkColors.secondary + '26',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  vaTitle: {
+    flex: 1,
+    fontSize: FontSize.md,
+    fontFamily: Fonts.bold,
+    color: Colors.white,
+  },
+  vaCols: { flexDirection: 'row', gap: Spacing.sm },
+  vaPill: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+    paddingVertical: 9,
+    paddingHorizontal: 4,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  vaColTop: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  vaColFlag: { fontSize: 15 },
+  vaColCode: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+    color: 'rgba(255,255,255,0.72)',
+    letterSpacing: 0.5,
+  },
+  // Numéro du compte attribué : l'information clé → l'or de la marque.
+  // `DarkColors` en dur : la carte reste bleu nuit dans les deux thèmes.
+  vaColValue: {
+    fontSize: FontSize.md,
+    fontFamily: Fonts.bold,
+    color: DarkColors.secondary,
+    letterSpacing: 0.3,
+  },
+  // États sans numéro : même gabarit, texte plus discret (pas de badge coloré).
+  vaColValue_open: { fontSize: FontSize.sm, fontFamily: Fonts.semiBold, letterSpacing: 0, color: DarkColors.secondary },
+  vaColValue_pending: { fontSize: FontSize.sm, fontFamily: Fonts.semiBold, letterSpacing: 0, color: 'rgba(255,255,255,0.7)' },
+  vaColValue_blocked: { fontSize: FontSize.sm, fontFamily: Fonts.semiBold, letterSpacing: 0, color: 'rgba(255,255,255,0.55)' },
 
   // A — Bénéficiaires
   benefList: { gap: Spacing.sm, paddingVertical: 2, paddingRight: Spacing.lg },

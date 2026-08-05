@@ -29,6 +29,7 @@ export const OPERATORS = [
   { id: 'mtn-ci', name: 'MTN Momo', flag: '🇨🇮', country: 'CI', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
   { id: 'orange-money-ci', name: 'Orange Money', flag: '🇨🇮', country: 'CI', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
   { id: 'wave-ci', name: 'Wave', flag: '🇨🇮', country: 'CI', withdraw: true, logo: require('../../assets/operators/pay_wave.jpg') },
+  { id: 'djamo-ci', name: 'Djamo', flag: '🇨🇮', country: 'CI', withdraw: true, logo: require('../../assets/operators/pay_djamo.png') },
   // Togo
   { id: 't-money-togo', name: 'T-Money', flag: '🇹🇬', country: 'TG', withdraw: true, logo: require('../../assets/operators/pay_tmoney.jpg') },
   { id: 'moov-togo', name: 'Moov Money', flag: '🇹🇬', country: 'TG', withdraw: true, logo: require('../../assets/operators/pay_moov.png') },
@@ -38,6 +39,7 @@ export const OPERATORS = [
   { id: 'expresso-senegal', name: 'Expresso', flag: '🇸🇳', country: 'SN', withdraw: true, logo: require('../../assets/operators/pay_expresso.png') },
   { id: 'wave-senegal', name: 'Wave', flag: '🇸🇳', country: 'SN', withdraw: true, logo: require('../../assets/operators/pay_wave.jpg') },
   { id: 'wizall-senegal', name: 'Wizall', flag: '🇸🇳', country: 'SN', withdraw: true, logo: require('../../assets/operators/pay_wizall.jpg') },
+  { id: 'djamo-sn', name: 'Djamo', flag: '🇸🇳', country: 'SN', withdraw: true, logo: require('../../assets/operators/pay_djamo.png') },
   // Mali
   { id: 'orange-money-mali', name: 'Orange Money', flag: '🇲🇱', country: 'ML', withdraw: true, logo: require('../../assets/operators/pay_orange.jpg') },
   { id: 'moov-mali', name: 'Moov Money', flag: '🇲🇱', country: 'ML', withdraw: true, logo: require('../../assets/operators/pay_moov.png') },
@@ -178,6 +180,7 @@ export function getOperatorNetwork(op: { name: string; id: string }): string {
   if (n.includes('m-pesa') || n.includes('mpesa')) return 'mpesa';
   if (n.includes('africell') || n.includes('afrimoney')) return 'africell';
   if (n.includes('celtiis')) return 'celtiis';
+  if (n.includes('djamo')) return 'djamo';
   return op.id;
 }
 

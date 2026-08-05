@@ -48,6 +48,8 @@ export interface VirtualAccountStatement {
   entries: VirtualAccountEntry[];
   /** Versements vus chez l'agrégateur mais non crédités (webhook perdu). */
   unreconciled?: { reference: string; amount: number; currency: string; date: string }[];
+  /** Versements crédités à l'instant par le rapprochement → le solde a changé. */
+  reconciled?: number;
 }
 
 /** Une écriture du relevé de compte (uniquement les mouvements qui ont bougé le solde). */

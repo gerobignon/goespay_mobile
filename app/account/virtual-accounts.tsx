@@ -28,6 +28,7 @@ import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { useAuthStore } from '../../src/stores/authStore';
+import { useWalletStore } from '../../src/stores/walletStore';
 import { useFormatXof } from '../../src/utils/format';
 import { getApiErrorMessage } from '../../src/utils/apiError';
 
@@ -44,6 +45,7 @@ export default function VirtualAccountsScreen() {
   const { isDark } = useTheme();
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
+  const fetchBalance = useWalletStore((s) => s.fetchBalance);
   const fmtXof = useFormatXof();
 
   const [data, setData] = useState<VirtualAccountsResponse | null>(null);
@@ -96,8 +98,15 @@ export default function VirtualAccountsScreen() {
     setOpenId(account.id);
     if (statements[account.id]) return;
     try {
-      const st = await walletService.getVirtualAccountStatement(account.id);
+      // `reconcile` interroge l'agrégateur et crédite les virements dont la
+      // notification s'est perdue : le client voit son solde à jour en ouvrant
+      // son relevé, sans attendre le passage horaire du rattrapage serveur.
+      const st = await walletService.getVirtualAccountStatement(account.id, true);
       setStatements((prev) => ({ ...prev, [account.id]: st }));
+      // Le rapprochement vient de créditer : le solde en cache est périmé.
+      if (st.reconciled) {
+        fetchBalance().catch(() => {});
+      }
     } catch (_) {}
   };
 

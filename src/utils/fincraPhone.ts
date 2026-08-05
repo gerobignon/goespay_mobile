@@ -18,13 +18,13 @@ export function fincraCollectionRails(currency: string): FincraCollectionRail[] 
 // sélectionné — XOF/XAF en particulier qui couvrent plusieurs pays).
 const DEFAULT_DIAL: Record<string, string> = {
   NGN: '234', GHS: '233', KES: '254', UGX: '256', ZMW: '260', TZS: '255',
-  EGP: '20',  ZAR: '27',  XOF: '221', XAF: '237', SLE: '232',
+  RWF: '250', EGP: '20',  ZAR: '27',  XOF: '221', XAF: '237', SLE: '232',
 };
 
 // Devise → pays ISO-2 par défaut (utilisé pour le payout.beneficiary.country).
 const DEFAULT_ISO2: Record<string, string> = {
   NGN: 'NG', GHS: 'GH', KES: 'KE', UGX: 'UG', ZMW: 'ZM', TZS: 'TZ',
-  EGP: 'EG', ZAR: 'ZA', XOF: 'SN', XAF: 'CM', SLE: 'SL',
+  RWF: 'RW', EGP: 'EG', ZAR: 'ZA', XOF: 'SN', XAF: 'CM', SLE: 'SL',
 };
 
 /**

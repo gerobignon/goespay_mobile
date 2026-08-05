@@ -34,6 +34,7 @@ const LOGO_BY_KEY: Record<string, any> = {
   pay_zamani:     require('../../assets/operators/pay_zamani.png'),
   pay_wligdicash: require('../../assets/operators/pay_wligdicash.png'),
   pay_celtiis:    require('../../assets/operators/pay_celtiis.png'),
+  pay_djamo:      require('../../assets/operators/pay_djamo.png'),
   pay_coris:      require('../../assets/operators/pay_coris.webp'),
   pay_emoney:     require('../../assets/operators/pay_emoney.jpg'),
   pay_mobicash:   require('../../assets/operators/pay_mobicash.webp'),

@@ -562,7 +562,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     // Mapping minimal devise → pays (ISO-2) pour l'endpoint /core/banks.
     const map: Record<string, string> = {
       NGN: 'NG', GHS: 'GH', KES: 'KE', UGX: 'UG', ZMW: 'ZM', TZS: 'TZ',
-      XOF: 'SN', XAF: 'CM', ZAR: 'ZA', EGP: 'EG',
+      RWF: 'RW', XOF: 'SN', XAF: 'CM', ZAR: 'ZA', EGP: 'EG',
     };
     return map[aggCurrency] || 'NG';
   }, [aggCurrency]);
