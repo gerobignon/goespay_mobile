@@ -138,6 +138,10 @@ function RootInner() {
             import('../src/stores/devBoardStore')
               .then((m) => m.useDevBoardStore.getState().fetchBoard(true))
               .catch(() => {});
+          } else if (payload.data?.screen === 'messages') {
+            import('../src/stores/messagingStore')
+              .then((m) => m.useMessagingStore.getState().fetchConversations(true))
+              .catch(() => {});
           }
         });
       }
@@ -285,6 +289,12 @@ function RootInner() {
         import('../src/stores/devBoardStore')
           .then((m) => m.useDevBoardStore.getState().fetchBoard(true))
           .catch(() => {});
+      } else if (data?.screen === 'messages') {
+        // Nouveau message reçu app ouverte : liste et badge se remettent à jour
+        // sans attendre le prochain battement du sondage.
+        import('../src/stores/messagingStore')
+          .then((m) => m.useMessagingStore.getState().fetchConversations(true))
+          .catch(() => {});
       }
     });
 
@@ -303,6 +313,13 @@ function RootInner() {
       } else if (data.screen === 'admin_dev') {
         // Board Kanban Dev (admin) → écran de gestion
         router.push('/admin/kanban');
+      } else if (data.screen === 'messages') {
+        // Message reçu → le fil concerné, à défaut la liste
+        if (data.conversationId) {
+          router.push(`/messages/${data.conversationId}`);
+        } else {
+          router.push('/(tabs)/support');
+        }
       } else if (data.screen === 'home') {
         // KYC validée/rejetée → accueil
         router.push('/(tabs)');

@@ -262,3 +262,85 @@ export interface DevTaskInput {
   /** Retirer la pièce jointe existante. */
   removeImage?: boolean;
 }
+
+// ─── Messagerie in-app ───────────────────────────────────────────────────────
+
+export type ConversationType = 'support' | 'direct';
+export type ConversationStatus = 'open' | 'pending' | 'closed';
+export type ContactSource = 'transfer' | 'referral' | 'sponsor';
+export type ReportReason = 'scam' | 'spam' | 'harassment' | 'other';
+
+/** Fiche publique d'un autre client (jamais d'email ni de téléphone). */
+export interface PeerCard {
+  id: number;
+  name: string;
+  avatar: string | null;
+  country: string;
+  verified: boolean;
+  member_since: string | null;
+  online: boolean;
+  last_seen_at: string | null;
+  /** null quand le serveur ne l'a pas calculé (listes, pour rester léger). */
+  is_contact: boolean | null;
+  source?: ContactSource;
+}
+
+export interface PublicProfile extends PeerCard {
+  blocked_by_me: boolean;
+  conversation_id: number | null;
+}
+
+export interface Conversation {
+  id: number;
+  type: ConversationType;
+  status: ConversationStatus;
+  title: string;
+  avatar: string | null;
+  peer: PeerCard | null;
+  preview: string;
+  last_message_at: string | null;
+  unread_count: number;
+  muted: boolean;
+  /** Dernier message lu par l'interlocuteur → accusé de lecture sur mes bulles. */
+  peer_read_id: number;
+  peer_typing: boolean;
+}
+
+export interface ChatAuthor {
+  id: number;
+  name: string;
+  avatar: string | null;
+  is_agent: boolean;
+  agent_name?: string;
+}
+
+export interface ChatAttachment {
+  url: string | null;
+  thumb: string | null;
+}
+
+export interface ChatMessage {
+  id: number;
+  mine: boolean;
+  is_system: boolean;
+  body: string;
+  attachment: ChatAttachment | null;
+  author: ChatAuthor | null;
+  created_at: string | null;
+  /** Champs locaux de l'envoi optimiste (jamais renvoyés par le serveur). */
+  pending?: boolean;
+  failed?: boolean;
+  localImage?: string;
+}
+
+export interface ChatPrefs {
+  discoverable: boolean;
+  allow_unknown: boolean;
+  show_presence: boolean;
+}
+
+export interface BlockedUser {
+  id: number;
+  name: string;
+  avatar: string | null;
+}

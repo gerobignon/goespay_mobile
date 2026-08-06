@@ -13,12 +13,13 @@ import { useTranslation } from 'react-i18next';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useDevBoardStore, selectDevUnread } from '../../src/stores/devBoardStore';
+import { useMessagingStore } from '../../src/stores/messagingStore';
 
 const ICON_FOR_ROUTE: Record<string, string> = {
   index: 'house',
   history: 'clock-rotate-left',
   affiliation: 'users',
-  support: 'headset',
+  support: 'comments',
   dev: 'diagram-project',
 };
 
@@ -40,6 +41,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const colors = useColors();
   const isSuperAdmin = useAuthStore((s) => s.user?.id === 1);
   const devUnread = useDevBoardStore(selectDevUnread);
+  const msgUnread = useMessagingStore((s) => s.unreadTotal);
   // L'onglet Dev n'apparaît que pour le user id 1.
   const routes = state.routes.filter((r) => r.name !== 'dev' || isSuperAdmin);
   const focusedKey = state.routes[state.index]?.key;
@@ -59,7 +61,8 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         const isFocused = route.key === focusedKey;
         const color = isFocused ? colors.secondary : colors.textMuted;
         const iconName = ICON_FOR_ROUTE[route.name] ?? 'circle';
-        const badge = route.name === 'dev' && devUnread > 0 ? devUnread : 0;
+        const badge =
+          route.name === 'dev' ? devUnread : route.name === 'support' ? msgUnread : 0;
 
         const onPress = () => {
           const event = navigation.emit({
@@ -105,6 +108,10 @@ export default function TabsLayout() {
   const isSuperAdmin = useAuthStore((s) => s.user?.id === 1);
   const fetchBoard = useDevBoardStore((s) => s.fetchBoard);
   const devUnread = useDevBoardStore(selectDevUnread);
+  const msgUnread = useMessagingStore((s) => s.unreadTotal);
+  const fetchUnread = useMessagingStore((s) => s.fetchUnread);
+  const startInboxPolling = useMessagingStore((s) => s.startInboxPolling);
+  const stopInboxPolling = useMessagingStore((s) => s.stopInboxPolling);
 
   // User id 1 : précharge le board pour alimenter le badge de non-lus de l'onglet Dev,
   // puis rafraîchit régulièrement (app au premier plan) pour garder la pastille à jour.
@@ -124,11 +131,26 @@ export default function TabsLayout() {
     };
   }, [isSuperAdmin]);
 
-  // Pastille de décompte sur l'icône (PWA installée / natif).
+  // Badge de messages : un compteur léger en fond, plus un rattrapage au retour
+  // au premier plan (l'app peut avoir manqué des push en veille).
   useEffect(() => {
-    setAppBadgeCount(devUnread);
-    if (devUnread === 0) clearWebNotifications();
-  }, [devUnread]);
+    fetchUnread();
+    startInboxPolling();
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') fetchUnread();
+    });
+    return () => {
+      stopInboxPolling();
+      sub.remove();
+    };
+  }, []);
+
+  // Pastille de décompte sur l'icône (PWA installée / natif).
+  const totalUnread = devUnread + msgUnread;
+  useEffect(() => {
+    setAppBadgeCount(totalUnread);
+    if (totalUnread === 0) clearWebNotifications();
+  }, [totalUnread]);
 
   const tabs = (
     <Tabs
@@ -141,7 +163,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" options={{ title: t('tabs.home') }} />
       <Tabs.Screen name="history" options={{ title: t('tabs.history') }} />
       <Tabs.Screen name="affiliation" options={{ title: t('account.referral', 'Parrainage') }} />
-      <Tabs.Screen name="support" options={{ title: t('tabs.support') }} />
+      <Tabs.Screen name="support" options={{ title: t('tabs.messages', 'Messages') }} />
       {/* Onglet Dev : présent pour tous en tant que route, masqué de la barre pour
           les non-admins (href:null) et filtré dans la CustomTabBar. */}
       <Tabs.Screen name="dev" options={{ title: t('dev.menuTitle'), href: isSuperAdmin ? undefined : null }} />

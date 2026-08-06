@@ -1,0 +1,223 @@
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
+import { FontAwesome6 } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
+
+import { ScreenBackground } from '../../src/components/ScreenBackground';
+import { CustomAlert } from '../../src/components/CustomAlert';
+import { useThemedStyles } from '../../src/hooks/useThemedStyles';
+import { useColors } from '../../src/components/ThemeProvider';
+import { useResponsive } from '../../src/hooks/useResponsive';
+import { BorderRadius, FontSize, Fonts, Spacing, type ColorPalette } from '../../src/constants/theme';
+import { useMessagingStore } from '../../src/stores/messagingStore';
+import { messagingService } from '../../src/services/messagingService';
+import { ChatAvatar } from '../../src/components/chat/ChatAvatar';
+import type { BlockedUser, ChatPrefs } from '../../src/types';
+
+/** Réglages de la messagerie : visibilité, premiers contacts, comptes bloqués. */
+export default function MessagingSettingsScreen() {
+  const router = useRouter();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
+  const { isWide } = useResponsive();
+  const { t } = useTranslation();
+
+  const prefs = useMessagingStore((s) => s.prefs);
+  const savePrefs = useMessagingStore((s) => s.savePrefs);
+
+  const [blocked, setBlocked] = useState<BlockedUser[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    messagingService
+      .getBlocked()
+      .then(setBlocked)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const unblock = async (userId: number) => {
+    try {
+      setBlocked(await messagingService.unblock(userId));
+    } catch {
+      // La liste reste inchangée : réessayable.
+    }
+  };
+
+  const toggles: { key: keyof ChatPrefs; label: string; hint: string }[] = [
+    {
+      key: 'discoverable',
+      label: t('messages.prefDiscoverable', 'Apparaître dans la recherche'),
+      hint: t('messages.prefDiscoverableHint', 'Les autres peuvent vous trouver par votre nom.'),
+    },
+    {
+      key: 'allow_unknown',
+      label: t('messages.prefUnknown', 'Messages d’inconnus'),
+      hint: t('messages.prefUnknownHint', 'Recevoir un premier message hors de vos contacts.'),
+    },
+    {
+      key: 'show_presence',
+      label: t('messages.prefPresence', 'Statut en ligne'),
+      hint: t('messages.prefPresenceHint', 'Montrer quand vous êtes connecté.'),
+    },
+  ];
+
+  return (
+    <ScreenBackground edges={['top']}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scroll,
+          isWide && { alignSelf: 'center', width: '100%', maxWidth: 620 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
+            <FontAwesome6 name="arrow-left" size={19} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.title}>{t('messages.settingsTitle', 'Réglages des messages')}</Text>
+        </View>
+
+        <View style={styles.card}>
+          {toggles.map((item, i) => (
+            <View key={item.key} style={[styles.row, i > 0 && styles.rowDivider]}>
+              <View style={styles.rowBody}>
+                <Text style={styles.rowLabel}>{item.label}</Text>
+                <Text style={styles.rowHint}>{item.hint}</Text>
+              </View>
+              <Switch
+                value={prefs[item.key]}
+                onValueChange={(v) => savePrefs({ [item.key]: v })}
+                trackColor={{ true: colors.primary, false: colors.border }}
+                thumbColor={colors.white}
+              />
+            </View>
+          ))}
+        </View>
+
+        <Text style={styles.sectionTitle}>{t('messages.blockedTitle', 'Comptes bloqués')}</Text>
+
+        {loading ? (
+          <ActivityIndicator style={{ marginTop: Spacing.md }} color={colors.text} />
+        ) : blocked.length === 0 ? (
+          <Text style={styles.emptyText}>{t('messages.noBlocked', 'Aucun compte bloqué.')}</Text>
+        ) : (
+          <View style={styles.list}>
+            {blocked.map((b) => (
+              <View key={b.id} style={styles.blockedRow}>
+                <ChatAvatar name={b.name} uri={b.avatar} size={40} />
+                <Text style={styles.blockedName} numberOfLines={1}>{b.name}</Text>
+                <TouchableOpacity
+                  style={[styles.unblockBtn, { borderColor: colors.border }]}
+                  onPress={() => unblock(b.id)}
+                >
+                  <Text style={styles.unblockText}>{t('messages.unblockShort', 'Débloquer')}</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+      <CustomAlert />
+    </ScreenBackground>
+  );
+}
+
+const createStyles = (Colors: ColorPalette) =>
+  StyleSheet.create({
+    scroll: {
+      padding: Spacing.lg,
+      paddingBottom: Spacing.xl,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.md,
+      marginBottom: Spacing.lg,
+    },
+    title: {
+      fontFamily: Fonts.bold,
+      fontSize: FontSize.xl,
+      color: Colors.text,
+      flexShrink: 1,
+    },
+    card: {
+      backgroundColor: Colors.surface,
+      borderWidth: 1,
+      borderColor: Colors.border,
+      borderRadius: BorderRadius.xl,
+      paddingHorizontal: Spacing.md,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.md,
+      paddingVertical: Spacing.md,
+    },
+    rowDivider: {
+      borderTopWidth: 1,
+      borderTopColor: Colors.border,
+    },
+    rowBody: {
+      flex: 1,
+    },
+    rowLabel: {
+      fontFamily: Fonts.semiBold,
+      fontSize: FontSize.md,
+      color: Colors.text,
+    },
+    rowHint: {
+      fontFamily: Fonts.regular,
+      fontSize: FontSize.xs,
+      color: Colors.textMuted,
+      marginTop: 2,
+    },
+    sectionTitle: {
+      fontFamily: Fonts.bold,
+      fontSize: FontSize.sm,
+      color: Colors.textMuted,
+      letterSpacing: 0.8,
+      textTransform: 'uppercase',
+      marginTop: Spacing.xl,
+      marginBottom: Spacing.sm,
+    },
+    list: {
+      gap: Spacing.sm,
+    },
+    blockedRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.md,
+      backgroundColor: Colors.surface,
+      borderWidth: 1,
+      borderColor: Colors.border,
+      borderRadius: BorderRadius.xl,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.sm + 2,
+    },
+    blockedName: {
+      flex: 1,
+      fontFamily: Fonts.medium,
+      fontSize: FontSize.md,
+      color: Colors.text,
+    },
+    unblockBtn: {
+      borderWidth: 1,
+      borderRadius: BorderRadius.pill,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: 6,
+    },
+    unblockText: {
+      fontFamily: Fonts.semiBold,
+      fontSize: FontSize.sm,
+      color: Colors.text,
+    },
+    emptyText: {
+      fontFamily: Fonts.regular,
+      fontSize: FontSize.sm,
+      color: Colors.textMuted,
+      textAlign: 'center',
+      marginTop: Spacing.md,
+    },
+  });
