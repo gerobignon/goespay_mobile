@@ -26,7 +26,7 @@ import { useMessagingStore } from '../../src/stores/messagingStore';
 import { ChatAvatar } from '../../src/components/chat/ChatAvatar';
 import { ChatComposer, type ComposerQuote } from '../../src/components/chat/ChatComposer';
 import { MessageBubble } from '../../src/components/chat/MessageBubble';
-import { DevImageViewer } from '../../src/components/dev/DevImageViewer';
+import { ImageLightbox } from '../../src/components/chat/ImageLightbox';
 import { dayLabel, isNewDay, presenceLabel } from '../../src/components/chat/chatFormat';
 import type { ChatMessage } from '../../src/types';
 
@@ -332,7 +332,7 @@ export default function ConversationScreen() {
         actions={menuActions}
         onClose={() => setMenuOpen(false)}
       />
-      <DevImageViewer uri={viewerUri} onClose={() => setViewerUri(null)} />
+      <ImageLightbox uri={viewerUri} onClose={() => setViewerUri(null)} />
       <CustomAlert />
     </ScreenBackground>
   );

@@ -24,7 +24,7 @@ import { useTheme } from '../ThemeProvider';
 import { useMessagingStore } from '../../stores/messagingStore';
 import { ConversationRow } from './ConversationRow';
 import { ChatAvatar } from './ChatAvatar';
-import { DevImageViewer } from '../dev/DevImageViewer';
+import { ImageLightbox } from './ImageLightbox';
 import { ActionSheet, type SheetAction } from '../ActionSheet';
 import type { Conversation } from '../../types';
 
@@ -260,7 +260,7 @@ export function MessagesInbox() {
         actions={sheetActions}
         onClose={() => setSheetFor(null)}
       />
-      <DevImageViewer uri={viewerUri} onClose={() => setViewerUri(null)} />
+      <ImageLightbox uri={viewerUri} onClose={() => setViewerUri(null)} />
       <CustomAlert />
     </ScreenBackground>
   );
