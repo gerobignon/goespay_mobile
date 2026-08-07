@@ -77,21 +77,19 @@ export default function ConversationScreen() {
   const lastKeyboardRef = useRef(0);
   if (keyboardInset > 180) lastKeyboardRef.current = keyboardInset;
 
-  // Web : hauteur imposée par le viewport visuel, en position fixe pour ne plus
-  // dépendre du défilement du document. `position: 'fixed'` n'existe pas dans
-  // les types React Native mais est bien pris en charge par react-native-web.
+  // Web : on impose au conteneur la hauteur RÉELLEMENT visible, moins la barre
+  // d'état déjà réservée par ScreenBackground. Avec le défilement du document
+  // verrouillé, la saisie reste en bas de l'écran quoi qu'il arrive.
   //
-  // Le décalage de la barre d'état est repris ici : en position fixe l'écran
-  // sort du flux, donc le padding de sécurité posé par ScreenBackground ne
-  // s'applique plus et l'en-tête passerait sous l'heure et la batterie.
+  // Surtout pas `position: fixed` : il se cale sur le premier ancêtre porteur
+  // d'une transform — et ScreenBackground en a une — au lieu du viewport, ce
+  // qui décalait tout l'écran vers le bas et poussait la saisie hors champ.
   const webViewportStyle =
     Platform.OS === 'web' && viewportHeight
       ? ({
-          position: 'fixed',
-          top: insets.top,
-          left: 0,
-          right: 0,
           height: Math.max(240, viewportHeight - insets.top),
+          flexGrow: 0,
+          flexShrink: 0,
         } as any)
       : null;
 
