@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Clipboard from 'expo-clipboard';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import {
@@ -23,7 +24,8 @@ import { Button } from '../src/components/Button';
 import { CustomAlert } from '../src/components/CustomAlert';
 import { CardSecretsModal } from '../src/components/CardSecretsModal';
 import { CardFundModal } from '../src/components/CardFundModal';
-import { VirtualCardVisual } from '../src/components/VirtualCardVisual';
+import { VirtualCardVisual, type CardCopyField } from '../src/components/VirtualCardVisual';
+import { CardBrandLogo } from '../src/components/CardBrandLogo';
 import { DesktopHeader } from '../src/components/DesktopHeader';
 import { DesktopFooter } from '../src/components/DesktopFooter';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../src/constants/theme';
@@ -52,9 +54,14 @@ export default function CardsScreen() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [ordering, setOrdering] = useState(false);
+  /** Réseau de la carte à commander — gravé à l'émission, définitif. */
+  const [brand, setBrand] = useState<'VISA' | 'MASTERCARD'>('VISA');
   const [openId, setOpenId] = useState<number | null>(null);
   const [transactions, setTransactions] = useState<Record<number, CardTransaction[]>>({});
   const [secretsFor, setSecretsFor] = useState<VirtualCard | null>(null);
+  /** Champ demandé en copie directe : le secret ne s'affiche jamais. */
+  const [copyField, setCopyField] = useState<'pan' | 'cvv' | null>(null);
+  const [copiedOn, setCopiedOn] = useState<{ id: number; field: CardCopyField } | null>(null);
   const [fundFor, setFundFor] = useState<{ card: VirtualCard; direction: 'fund' | 'withdraw' } | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
 
@@ -126,7 +133,7 @@ export default function CardsScreen() {
   const order = async () => {
     setOrdering(true);
     try {
-      const card = await cardService.issue({});
+      const card = await cardService.issue({ brand });
       setData((prev) => (prev ? { ...prev, cards: [card, ...prev.cards] } : prev));
       pollCard(card.id);
     } catch (e: any) {
@@ -216,13 +223,43 @@ export default function CardsScreen() {
 
   const holderName = `${user?.name ?? ''} ${user?.surname ?? ''}`.trim();
 
+  /** Coche brève sur le champ copié, puis retour à l'icône. */
+  const flagCopied = (id: number, field: CardCopyField) => {
+    setCopiedOn({ id, field });
+    setTimeout(() => setCopiedOn((c) => (c?.id === id && c.field === field ? null : c)), 1500);
+  };
+
+  /**
+   * Copie depuis la carte. L'expiration n'est pas un secret : elle part
+   * directement. Le numéro et le cryptogramme passent par la ré-authentification
+   * serveur, mais ne s'affichent pas pour autant.
+   */
+  const copyFromCard = async (card: VirtualCard, field: CardCopyField) => {
+    if (field === 'expiry') {
+      const value = card.expiry_month
+        ? `${card.expiry_month}/${String(card.expiry_year).slice(-2)}`
+        : '';
+      if (!value) return;
+      await Clipboard.setStringAsync(value);
+      flagCopied(card.id, 'expiry');
+      return;
+    }
+    setCopyField(field);
+    setSecretsFor(card);
+  };
+
   const renderCard = (card: VirtualCard) => {
     const open = openId === card.id;
     const rows = transactions[card.id] ?? [];
 
     return (
       <View key={card.id} style={styles.cardBlock}>
-        <VirtualCardVisual card={card} holder={holderName} />
+        <VirtualCardVisual
+          card={card}
+          holder={holderName}
+          onCopy={(field) => copyFromCard(card, field)}
+          copiedField={copiedOn?.id === card.id ? copiedOn.field : null}
+        />
 
         <View style={styles.cardMeta}>
           <View>
@@ -255,7 +292,7 @@ export default function CardsScreen() {
               <View style={styles.actionIcon}><FontAwesome6 name="arrow-down" size={15} color={Colors.primary} /></View>
               <Text style={styles.actionText}>{t('cards.withdraw')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.action} onPress={() => setSecretsFor(card)}>
+            <TouchableOpacity style={styles.action} onPress={() => { setCopyField(null); setSecretsFor(card); }}>
               <View style={styles.actionIcon}><FontAwesome6 name="eye" size={15} color={Colors.primary} /></View>
               <Text style={styles.actionText}>{t('cards.reveal')}</Text>
             </TouchableOpacity>
@@ -414,14 +451,39 @@ export default function CardsScreen() {
           {eligibility?.reason === 'profile' && renderKycUpdate()}
 
           {eligibility?.can_order && (
-            <Button
-              title={cards.length > 0 ? t('cards.orderAnother') : t('cards.order')}
-              onPress={order}
-              loading={ordering}
-              disabled={ordering}
-              icon="credit-card"
-              style={{ marginTop: Spacing.md }}
-            />
+            <>
+              {/* Le réseau se choisit AVANT la commande : il est gravé à
+                  l'émission et ne se change plus ensuite. */}
+              <View style={styles.brandRow}>
+                {(['VISA', 'MASTERCARD'] as const).map((b) => (
+                  <TouchableOpacity
+                    key={b}
+                    style={[styles.brandChoice, brand === b && styles.brandChoiceOn]}
+                    onPress={() => setBrand(b)}
+                    disabled={ordering}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.brandChoiceLogo}>
+                      <CardBrandLogo brand={b} height={20} />
+                    </View>
+                    <FontAwesome6
+                      name={brand === b ? 'circle-dot' : 'circle'}
+                      size={14}
+                      color={brand === b ? Colors.primary : Colors.textMuted}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Button
+                title={cards.length > 0 ? t('cards.orderAnother') : t('cards.order')}
+                onPress={order}
+                loading={ordering}
+                disabled={ordering}
+                icon="credit-card"
+                style={{ marginTop: Spacing.md }}
+              />
+            </>
           )}
         </>
       )}
@@ -430,7 +492,13 @@ export default function CardsScreen() {
 
   const modals = (
     <>
-      <CardSecretsModal visible={!!secretsFor} card={secretsFor} onClose={() => setSecretsFor(null)} />
+      <CardSecretsModal
+        visible={!!secretsFor}
+        card={secretsFor}
+        copyField={copyField}
+        onCopied={(field) => { if (secretsFor) flagCopied(secretsFor.id, field); }}
+        onClose={() => { setSecretsFor(null); setCopyField(null); }}
+      />
       <CardFundModal
         visible={!!fundFor}
         card={fundFor?.card ?? null}
@@ -513,6 +581,29 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   metaLabel: { fontSize: FontSize.sm, color: Colors.textMuted },
   metaBalance: { fontSize: FontSize.lg, color: Colors.text, fontFamily: Fonts.bold },
   statusPill: { borderRadius: BorderRadius.pill, paddingHorizontal: 12, paddingVertical: 5 },
+  brandRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
+  brandChoice: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.card,
+  },
+  brandChoiceOn: { borderColor: Colors.primary, backgroundColor: Colors.primary + '14' },
+  // Le logotype Visa est blanc : il lui faut un fond sombre pour rester lisible
+  // hors de la carte, en thème clair comme en thème sombre.
+  brandChoiceLogo: {
+    backgroundColor: '#0b1f5c',
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
   statusText: { fontSize: FontSize.sm, fontFamily: Fonts.medium },
 
   pendingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },

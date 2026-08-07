@@ -1,34 +1,50 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, Platform } from 'react-native';
+import { View, Text, Image, StyleSheet, Platform, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import type { VirtualCard } from '../services/cardService';
+import { CardBrandLogo } from './CardBrandLogo';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 
 /** Proportions réelles d'une carte bancaire (85,6 × 54 mm). */
 const CARD_RATIO = 1.586;
 
+/** Champ copiable depuis la carte. L'expiration n'est pas un secret. */
+export type CardCopyField = 'pan' | 'cvv' | 'expiry';
+
 interface Props {
   /** Carte réelle. Absente = aperçu commercial (aucune donnée personnelle). */
   card?: VirtualCard | null;
   /** Nom à graver sur la carte. */
   holder?: string;
+  /**
+   * Copie d'un champ depuis la carte. Fournie, elle rend le numéro, le
+   * cryptogramme et l'expiration tapables. Absente (accueil), la carte reste une
+   * simple vignette.
+   */
+  onCopy?: (field: CardCopyField) => void;
+  /** Champ dont la copie vient d'aboutir : coche brève à la place de l'icône. */
+  copiedField?: CardCopyField | null;
 }
 
 /**
  * Représentation visuelle d'une carte.
  *
  * N'affiche JAMAIS de donnée sensible : le numéro montré est celui, déjà masqué,
- * que renvoie le serveur. Le numéro complet et le cryptogramme vivent uniquement
- * dans la fenêtre de révélation, après ré-authentification.
+ * que renvoie le serveur, et le cryptogramme n'est qu'un gabarit de points. Les
+ * valeurs réelles ne transitent que par la fenêtre de révélation ou la copie
+ * directe, toutes deux derrière une ré-authentification serveur.
  */
-export function VirtualCardVisual({ card, holder }: Props) {
+export function VirtualCardVisual({ card, holder, onCopy, copiedField }: Props) {
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();
 
   const brand = (card?.brand || 'VISA').toUpperCase();
-  const isMastercard = brand === 'MASTERCARD';
+
+  // La copie n'a de sens que sur une carte réelle et utilisable.
+  const copyable = !!onCopy && !!card && card.status === 'active';
 
   // Un PAN masqué arrive sous la forme « 465189******2455 » : on le regroupe par
   // quatre pour retrouver la lecture d'une vraie carte.
@@ -68,7 +84,25 @@ export function VirtualCardVisual({ card, holder }: Props) {
           />
         </View>
 
-        <Text style={styles.pan}>{digits}</Text>
+        {/* Le numéro complet n'est jamais affiché ici : le toucher le copie, la
+            ré-authentification se jouant dans la fenêtre appelante. */}
+        <TouchableOpacity
+          style={styles.panRow}
+          onPress={() => onCopy?.('pan')}
+          disabled={!copyable}
+          activeOpacity={0.7}
+          accessibilityRole={copyable ? 'button' : undefined}
+          accessibilityLabel={copyable ? t('cards.copyNumber') : undefined}
+        >
+          <Text style={styles.pan}>{digits}</Text>
+          {copyable && (
+            <FontAwesome6
+              name={copiedField === 'pan' ? 'check' : 'copy'}
+              size={14}
+              color={copiedField === 'pan' ? '#7ee2a8' : 'rgba(255,255,255,0.75)'}
+            />
+          )}
+        </TouchableOpacity>
 
         <View style={styles.bottom}>
           <View style={styles.bottomLeft}>
@@ -78,19 +112,39 @@ export function VirtualCardVisual({ card, holder }: Props) {
             </Text>
           </View>
 
-          <View>
+          <TouchableOpacity
+            onPress={() => onCopy?.('expiry')}
+            disabled={!copyable}
+            activeOpacity={0.7}
+          >
             <Text style={styles.smallLabel}>{t('cards.expiry')}</Text>
             <Text style={styles.expiry}>{expiry}</Text>
-          </View>
+          </TouchableOpacity>
 
-          {isMastercard ? (
-            <View style={styles.mcWrap}>
-              <View style={[styles.mcCircle, { backgroundColor: '#EB001B' }]} />
-              <View style={[styles.mcCircle, styles.mcCircleRight, { backgroundColor: '#F79E1B' }]} />
+          {/* Cryptogramme : un gabarit de points, jamais la valeur. Il figure sur
+              la carte parce que le porteur le cherche là — le toucher le copie. */}
+          <TouchableOpacity
+            style={styles.cvvBlock}
+            onPress={() => onCopy?.('cvv')}
+            disabled={!copyable}
+            activeOpacity={0.7}
+            accessibilityRole={copyable ? 'button' : undefined}
+            accessibilityLabel={copyable ? t('cards.copyCvv') : undefined}
+          >
+            <Text style={styles.smallLabel}>{t('cards.cvv')}</Text>
+            <View style={styles.cvvRow}>
+              <Text style={styles.expiry}>•••</Text>
+              {copyable && (
+                <FontAwesome6
+                  name={copiedField === 'cvv' ? 'check' : 'copy'}
+                  size={11}
+                  color={copiedField === 'cvv' ? '#7ee2a8' : 'rgba(255,255,255,0.75)'}
+                />
+              )}
             </View>
-          ) : (
-            <Text style={styles.visa}>VISA</Text>
-          )}
+          </TouchableOpacity>
+
+          <CardBrandLogo brand={brand} height={26} />
         </View>
       </LinearGradient>
     </View>
@@ -148,9 +202,10 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   chipLine: { height: 1.5, backgroundColor: 'rgba(0,0,0,0.28)', borderRadius: 1 },
   // Ratio du logo ≈ 3,73 : la largeur suit la hauteur pour éviter toute déformation.
   logo: {
-    height: 22,
-    width: 82,
+    height: 30,
+    width: 112,
   },
+  panRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   pan: {
     color: '#ffffff',
     fontSize: 22,
@@ -167,14 +222,6 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   holder: { color: '#ffffff', fontSize: FontSize.sm, fontFamily: Fonts.medium, letterSpacing: 1 },
   expiry: { color: '#ffffff', fontSize: FontSize.sm, fontFamily: Fonts.medium, letterSpacing: 1 },
-  visa: {
-    color: '#ffffff',
-    fontSize: 26,
-    fontFamily: Fonts.bold,
-    fontStyle: 'italic',
-    letterSpacing: -0.5,
-  },
-  mcWrap: { flexDirection: 'row', alignItems: 'center', width: 46, height: 28 },
-  mcCircle: { width: 28, height: 28, borderRadius: 14, opacity: 0.9 },
-  mcCircleRight: { marginLeft: -14 },
+  cvvBlock: { alignItems: 'flex-start' },
+  cvvRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
 });

@@ -51,9 +51,11 @@ export function WalletStack({ children }: Props) {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
 
-  // Hauteur du panneau wallet : elle fait référence pour toute la pile, sinon le
-  // bloc sauterait en hauteur à chaque changement de carte.
+  // Hauteur de chaque panneau. La pile prend la PLUS GRANDE des deux : imposer
+  // celle du wallet au panneau carte rognait son contenu (titre coupé en haut,
+  // le panneau étant centré verticalement sous un overflow: hidden).
   const [height, setHeight] = useState(0);
+  const [cardHeight, setCardHeight] = useState(0);
   const [active, setActive] = useState(0);
   const [cards, setCards] = useState<VirtualCard[] | null>(null);
   const [cardsReady, setCardsReady] = useState(false);
@@ -155,6 +157,11 @@ export function WalletStack({ children }: Props) {
     if (h > 0) setHeight((prev) => (Math.abs(prev - h) > 1 ? h : prev));
   }, []);
 
+  const measureCardHeight = useCallback((e: any) => {
+    const h = Math.round(e.nativeEvent.layout.height);
+    if (h > 0) setCardHeight((prev) => (Math.abs(prev - h) > 1 ? h : prev));
+  }, []);
+
   // Pas de carte à empiler, ou hauteur pas encore connue : le wallet seul.
   if (!hasStack || height === 0) {
     return <View onLayout={measureHeight}>{children}</View>;
@@ -171,21 +178,25 @@ export function WalletStack({ children }: Props) {
   // et on le voit glisser sous l'autre en revenant de son écart.
   const order = [...panels.keys()].sort((a, b) => (a === active ? 1 : 0) - (b === active ? 1 : 0));
 
+  // Aucun panneau n'est tronqué : la pile se cale sur le plus haut des deux.
+  const stackHeight = Math.max(height, cardHeight);
+
   return (
     <View>
-      <View style={{ height: height + PEEK }} {...pan.panHandlers}>
+      <View style={{ height: stackHeight + PEEK }} {...pan.panHandlers}>
         {order.map((i) => {
           const d = depth[i];
           const isActive = i === active;
           return (
             <Animated.View
               key={i}
-              onLayout={i === 0 ? measureHeight : undefined}
+              onLayout={i === 0 ? measureHeight : measureCardHeight}
               style={[
                 styles.panel,
-                // Le wallet garde sa hauteur naturelle et la dicte à la pile ;
-                // la figer tronquerait son contenu s'il s'étoffe après la mesure.
-                i === 0 ? null : { height },
+                // Les deux panneaux gardent leur hauteur naturelle : leur imposer
+                // celle de l'autre rognerait le contenu du plus haut. Le plus court
+                // s'étire seulement jusqu'à la hauteur commune.
+                i === 0 ? null : { minHeight: height },
                 {
                   transform: [
                     // Seule la carte du dessus suit le doigt.
@@ -193,7 +204,7 @@ export function WalletStack({ children }: Props) {
                     {
                       translateY: d.interpolate({
                         inputRange: [0, 1],
-                        outputRange: [0, PEEK + (height * (1 - BACK_SCALE)) / 2],
+                        outputRange: [0, PEEK + (stackHeight * (1 - BACK_SCALE)) / 2],
                       }),
                     },
                     { scale: d.interpolate({ inputRange: [0, 1], outputRange: [1, BACK_SCALE] }) },

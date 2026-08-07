@@ -20,6 +20,15 @@ interface Props {
   visible: boolean;
   card: VirtualCard | null;
   onClose: () => void;
+  /**
+   * Copie directe, sans jamais montrer la valeur : la ré-authentification reste
+   * exigée — c'est le serveur qui délivre le secret — mais celui-ci va droit au
+   * presse-papier. Le porteur qui colle un numéro chez un marchand n'a aucune
+   * raison de l'afficher à l'écran, sous les yeux de qui passe.
+   */
+  copyField?: 'pan' | 'cvv' | null;
+  /** Copie effectuée : permet à l'appelant d'afficher sa propre confirmation. */
+  onCopied?: (field: 'pan' | 'cvv') => void;
 }
 
 /**
@@ -34,7 +43,7 @@ interface Props {
  * à la fermeture, au passage en arrière-plan et après une minute. Aucun stockage,
  * aucun cache — sur le web, le stockage de l'app n'est pas chiffré.
  */
-export function CardSecretsModal({ visible, card, onClose }: Props) {
+export function CardSecretsModal({ visible, card, onClose, copyField = null, onCopied }: Props) {
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();
 
@@ -116,8 +125,19 @@ export function CardSecretsModal({ visible, card, onClose }: Props) {
     setLoading(true);
     try {
       const res = await cardService.secrets(card.id, { password: password.trim() });
-      setSecrets(res);
       setPassword('');
+
+      // Mode copie : la valeur part au presse-papier et l'état est aussitôt
+      // oublié — elle ne touche jamais le rendu.
+      if (copyField) {
+        await Clipboard.setStringAsync(copyField === 'pan' ? res.pan : res.cvv);
+        onCopied?.(copyField);
+        forget();
+        onClose();
+        return;
+      }
+
+      setSecrets(res);
       setCountdown(AUTO_HIDE_SECONDS);
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('cards.revealError')));
@@ -140,7 +160,13 @@ export function CardSecretsModal({ visible, card, onClose }: Props) {
     <ResponsiveModal visible={visible} onClose={onClose} disableBackdropClose={loading}>
       <View style={styles.container}>
         <View style={styles.head}>
-          <Text style={styles.title}>{t('cards.cardDetails')}</Text>
+          <Text style={styles.title}>
+            {copyField === 'pan'
+              ? t('cards.copyNumber')
+              : copyField === 'cvv'
+                ? t('cards.copyCvv')
+                : t('cards.cardDetails')}
+          </Text>
           <TouchableOpacity onPress={onClose} hitSlop={10}>
             <FontAwesome6 name="xmark" size={20} color={Colors.textMuted} />
           </TouchableOpacity>
@@ -159,11 +185,11 @@ export function CardSecretsModal({ visible, card, onClose }: Props) {
             {Platform.OS === 'web' && <Text style={styles.webNote}>{t('cards.webSecurityNote')}</Text>}
             {!!error && <Text style={styles.error}>{error}</Text>}
             <Button
-              title={t('cards.reveal')}
+              title={copyField ? t('cards.copy') : t('cards.reveal')}
               onPress={reveal}
               loading={loading}
               disabled={loading}
-              icon="eye"
+              icon={copyField ? 'copy' : 'eye'}
             />
           </>
         ) : (
