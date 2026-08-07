@@ -16,8 +16,11 @@ const NAV_ITEMS = [
   { path: '/(tabs)', labelKey: 'tabs.home', icon: 'house' },
   { path: '/(tabs)/history', labelKey: 'tabs.history', icon: 'clock-rotate-left' },
   { path: '/(tabs)/affiliation', labelKey: 'account.referral', icon: 'users' },
-  { path: '/(tabs)/support', labelKey: 'tabs.support', icon: 'headset' },
+  { path: '/(tabs)/support', labelKey: 'tabs.messages', icon: 'comments' },
 ];
+
+// Cartes virtuelles : ouvertes en interne, réservées au groupe admin.
+const CARDS_ITEM = { path: '/cards', labelKey: 'cards.title', icon: 'credit-card' };
 
 // Entrée réservée au user id 1 (board Dev).
 const DEV_ITEM = { path: '/(tabs)/dev', labelKey: 'dev.menuTitle', icon: 'diagram-project' };
@@ -30,7 +33,12 @@ export function DesktopHeader() {
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();
   const devUnread = useDevBoardStore(selectDevUnread);
-  const navItems = user?.id === 1 ? [...NAV_ITEMS, DEV_ITEM] : NAV_ITEMS;
+  const isAdmin = user?.group === 'admin';
+  const navItems = [
+    ...NAV_ITEMS,
+    ...(isAdmin ? [CARDS_ITEM] : []),
+    ...(user?.id === 1 ? [DEV_ITEM] : []),
+  ];
 
   const avatarSource = user?.avatar
     ? { uri: user.avatar.startsWith('http') ? user.avatar : `${API_BASE_URL.replace('/api/mobile/v1', '')}${user.avatar}` }

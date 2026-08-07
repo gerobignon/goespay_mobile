@@ -7,7 +7,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   ScrollView,
   KeyboardAvoidingView,
   Linking,
@@ -47,11 +46,16 @@ import { GatewayBadge } from './GatewayBadge';
 import { CountryPickerStep } from './CountryPickerStep';
 import FincraConversionHint from './FincraConversionHint';
 import { OperatorLogo } from './OperatorLogo';
-import { pickCryptoSource } from '../utils/cryptoLogos';
+import { CryptoLogo } from './CryptoLogo';
+import { CryptoSearchField } from './CryptoSearchField';
+import { useCryptoSearch } from '../hooks/useCryptoSearch';
 
 // Combinaison USSD Orange Money pour générer le code OTP de paiement, par
 // opérateur (Softpay orange-money-* ET AfribaPay orange-*-afp). Codes officiels
 // AfribaPay (/v1/countries → ussd_code). « montant » = montant saisi.
+/** Au-delà, les cryptos passent sous un groupe « Crypto » au lieu d'être listées. */
+const FLATTEN_CRYPTO_MAX = 8;
+
 const ORANGE_OTP_USSD: Record<string, string> = {
   'orange-money-ci':      '#144*82#',
   'orange-ci-afp':        '#144*82#',
@@ -127,6 +131,13 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const depositMin = useConfigStore((s) => s.deposit_min);
   const depositMax = useConfigStore((s) => s.deposit_max);
   const cryptoRates = useCryptoStore((s) => s.rates);
+  const {
+    query: cryptoQuery,
+    setQuery: setCryptoQuery,
+    cryptos: visibleCryptos,
+    showSearch: showCryptoSearch,
+    empty: noCryptoMatch,
+  } = useCryptoSearch(cryptoRates);
   const fetchCryptoRates = useCryptoStore((s) => s.fetchRates);
   const fmtXof = useFormatXof();
   // Garde une trace si l'utilisateur a vidé/modifié le champ téléphone manuellement
@@ -437,7 +448,10 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const clientFlattenOthers = !isAdmin && primaryOps.length === 0 && otherOps.length > 0;
   // Côté client : on liste les cryptos actives DIRECTEMENT (pas de groupe
   // « Crypto-monnaies »). L'admin garde le groupe pour ses tests.
-  const flattenCrypto = !isAdmin && cryptoEnabled;
+  // Au-delà d'une poignée de devises (le catalogue NOWPayments en rend des
+  // dizaines activables), les aplatir noierait les opérateurs Mobile Money :
+  // on repasse au groupe « Crypto », qui ouvre l'écran de sélection avec recherche.
+  const flattenCrypto = !isAdmin && cryptoEnabled && cryptoRates.length <= FLATTEN_CRYPTO_MAX;
   const operatorsForStep = othersOpen ? otherOps : (clientFlattenOthers ? otherOps : primaryOps);
   // Entrée « International » : visible dès qu'il y a des rails internationaux pour
   // ce user (y compris pays listés — dim 3), au niveau du picker, hors flatten.
@@ -1114,28 +1128,26 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                 {cryptoRates.length === 0 ? (
                   <Text style={styles.hintText}>{t('common.loading')}</Text>
                 ) : (
-                  <View style={styles.operatorChipGrid}>
-                    {cryptoRates.map((c) => {
-                      // Source unifiée : utilise pickCryptoSource() (même logique
-                      // que CryptoModal) avec mapping local par variante (BNB.BSC,
-                      // USDT.TRC20…) en fallback.
-                      const source = pickCryptoSource(c);
-                      return (
-                        <TouchableOpacity
-                          key={c.code}
-                          style={styles.operatorChip}
-                          onPress={() => onSellCrypto?.(c.code)}
-                        >
-                          {source ? (
-                            <Image source={source as any} style={styles.operatorChipLogo} resizeMode="contain" />
-                          ) : (
-                            <FontAwesome6 name="bitcoin-sign" size={16} color={Colors.text} />
-                          )}
-                          <Text style={styles.operatorChipText} numberOfLines={1}>{c.name || c.code}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                  <>
+                    {showCryptoSearch && <CryptoSearchField value={cryptoQuery} onChange={setCryptoQuery} />}
+                    {noCryptoMatch && (
+                      <Text style={styles.hintText}>{t('cryptoModal.noSearchResult')}</Text>
+                    )}
+                    {visibleCryptos.length > 0 && (
+                      <View style={styles.operatorChipGrid}>
+                        {visibleCryptos.map((c) => (
+                          <TouchableOpacity
+                            key={c.code}
+                            style={styles.operatorChip}
+                            onPress={() => onSellCrypto?.(c.code)}
+                          >
+                            <CryptoLogo rate={c} size={22} fallbackBackground={Colors.inputBg} fallbackColor={Colors.text} />
+                            <Text style={styles.operatorChipText} numberOfLines={1}>{c.name || c.code}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </>
                 )}
               </>
             ) : (
@@ -1206,19 +1218,12 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                   </TouchableOpacity>
                 )}
                 {cryptoEnabled && (flattenCrypto
-                  ? cryptoRates.map((c) => {
-                      const source = pickCryptoSource(c);
-                      return (
-                        <TouchableOpacity key={`crypto-${c.code}`} style={styles.operatorChip} onPress={() => onSellCrypto?.(c.code)}>
-                          {source ? (
-                            <Image source={source as any} style={styles.operatorChipLogo} resizeMode="contain" />
-                          ) : (
-                            <FontAwesome6 name="bitcoin-sign" size={16} color={Colors.text} />
-                          )}
-                          <Text style={styles.operatorChipText} numberOfLines={1}>{c.name || c.code}</Text>
-                        </TouchableOpacity>
-                      );
-                    })
+                  ? visibleCryptos.map((c) => (
+                      <TouchableOpacity key={`crypto-${c.code}`} style={styles.operatorChip} onPress={() => onSellCrypto?.(c.code)}>
+                        <CryptoLogo rate={c} size={22} fallbackBackground={Colors.inputBg} fallbackColor={Colors.text} />
+                        <Text style={styles.operatorChipText} numberOfLines={1}>{c.name || c.code}</Text>
+                      </TouchableOpacity>
+                    ))
                   : (
                     <TouchableOpacity
                       key="__crypto"
@@ -1272,19 +1277,12 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                   </TouchableOpacity>
                 )}
                 {!operator && cryptoEnabled && (flattenCrypto
-                  ? cryptoRates.map((c) => {
-                      const source = pickCryptoSource(c);
-                      return (
-                        <TouchableOpacity key={`crypto-${c.code}`} style={styles.operatorRow} onPress={() => onSellCrypto?.(c.code)}>
-                          {source ? (
-                            <Image source={source as any} style={styles.operatorRowLogo as any} resizeMode="contain" />
-                          ) : (
-                            <FontAwesome6 name="bitcoin-sign" size={20} color={Colors.text} style={{ width: 32, textAlign: 'center' }} />
-                          )}
-                          <Text style={styles.operatorRowName} numberOfLines={1}>{c.name || c.code}</Text>
-                        </TouchableOpacity>
-                      );
-                    })
+                  ? visibleCryptos.map((c) => (
+                      <TouchableOpacity key={`crypto-${c.code}`} style={styles.operatorRow} onPress={() => onSellCrypto?.(c.code)}>
+                        <CryptoLogo rate={c} size={26} fallbackBackground={Colors.inputBg} fallbackColor={Colors.text} />
+                        <Text style={styles.operatorRowName} numberOfLines={1}>{c.name || c.code}</Text>
+                      </TouchableOpacity>
+                    ))
                   : (
                     <TouchableOpacity
                       key="__crypto"

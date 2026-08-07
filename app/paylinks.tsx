@@ -15,27 +15,29 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import { posterImageUrl, downloadPoster } from '../../src/utils/posterImage';
+import { posterImageUrl, downloadPoster } from '../src/utils/posterImage';
 import {
   paylinkService,
   type PayLink,
   type PayLinkPayment,
   type FeeBearer,
-} from '../../src/services/paylinkService';
-import { Input } from '../../src/components/Input';
-import { Button } from '../../src/components/Button';
-import { ResponsiveModal } from '../../src/components/ResponsiveModal';
-import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
-import { useThemedStyles } from '../../src/hooks/useThemedStyles';
-import { showAlert } from '../../src/stores/alertStore';
-import { CustomAlert } from '../../src/components/CustomAlert';
-import { useTheme } from '../../src/components/ThemeProvider';
+} from '../src/services/paylinkService';
+import { Input } from '../src/components/Input';
+import { Button } from '../src/components/Button';
+import { ResponsiveModal } from '../src/components/ResponsiveModal';
+import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../src/constants/theme';
+import { useThemedStyles } from '../src/hooks/useThemedStyles';
+import { showAlert } from '../src/stores/alertStore';
+import { CustomAlert } from '../src/components/CustomAlert';
+import { DesktopHeader } from '../src/components/DesktopHeader';
+import { DesktopFooter } from '../src/components/DesktopFooter';
+import { useTheme } from '../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
-import i18n from '../../src/i18n';
-import { useResponsive } from '../../src/hooks/useResponsive';
-import { useAuthStore } from '../../src/stores/authStore';
-import { useFormatXof } from '../../src/utils/format';
-import { getApiErrorMessage } from '../../src/utils/apiError';
+import i18n from '../src/i18n';
+import { useResponsive } from '../src/hooks/useResponsive';
+import { useAuthStore } from '../src/stores/authStore';
+import { useFormatXof } from '../src/utils/format';
+import { getApiErrorMessage } from '../src/utils/apiError';
 
 export default function PaymentLinksScreen() {
   const router = useRouter();
@@ -47,6 +49,8 @@ export default function PaymentLinksScreen() {
   const fmtXof = useFormatXof();
 
   const [links, setLinks] = useState<PayLink[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
+  const [archivedCount, setArchivedCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [copied, setCopied] = useState<number | null>(null);
@@ -69,11 +73,15 @@ export default function PaymentLinksScreen() {
 
   const load = useCallback(() => {
     setLoading(true);
-    paylinkService.list()
-      .then((res) => { setLinks(res); setLoadError(null); })
+    paylinkService.list(showArchived)
+      .then((res) => {
+        setLinks(res.links);
+        setArchivedCount(res.archived_count);
+        setLoadError(null);
+      })
       .catch((e) => setLoadError(getApiErrorMessage(e, t, t('paylinks.loadError'))))
       .finally(() => setLoading(false));
-  }, [t]);
+  }, [t, showArchived]);
   useEffect(() => { load(); }, [load]);
 
   const copy = async (link: PayLink) => {
@@ -116,6 +124,34 @@ export default function PaymentLinksScreen() {
     } catch (e: any) {
       showAlert(t('common.error'), getApiErrorMessage(e, t, t('paylinks.updateError')));
     }
+  };
+
+  /**
+   * Range un lien. C'est la seule sortie possible pour un lien qui a encaissé :
+   * ses paiements doivent rester rattachables a leur origine.
+   */
+  const archive = (link: PayLink) => {
+    const goingToArchive = !link.archived;
+    showAlert(
+      goingToArchive ? t('paylinks.archiveTitle') : t('paylinks.unarchiveTitle'),
+      goingToArchive ? t('paylinks.archiveMessage') : t('paylinks.unarchiveMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: goingToArchive ? t('paylinks.archive') : t('paylinks.unarchive'),
+          onPress: async () => {
+            try {
+              await paylinkService.archive(link.id, goingToArchive);
+              // Le lien change de liste : on le retire de celle affichee.
+              setLinks((prev) => prev.filter((l) => l.id !== link.id));
+              setArchivedCount((n) => (goingToArchive ? n + 1 : Math.max(0, n - 1)));
+            } catch (e: any) {
+              showAlert(t('common.error'), getApiErrorMessage(e, t, t('paylinks.updateError')));
+            }
+          },
+        },
+      ],
+    );
   };
 
   const remove = (link: PayLink) => {
@@ -284,14 +320,32 @@ export default function PaymentLinksScreen() {
 
           <View style={{ flex: 1 }} />
 
-          <TouchableOpacity
-            style={styles.actionDanger}
-            onPress={() => remove(link)}
-            activeOpacity={0.8}
-            accessibilityLabel={t('common.delete')}
-          >
-            <FontAwesome6 name="trash" size={12} color={Colors.error} />
-          </TouchableOpacity>
+          {link.can_delete ? (
+            <TouchableOpacity
+              style={styles.actionDanger}
+              onPress={() => remove(link)}
+              activeOpacity={0.8}
+              accessibilityLabel={t('common.delete')}
+            >
+              <FontAwesome6 name="trash" size={12} color={Colors.error} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.action}
+              onPress={() => archive(link)}
+              activeOpacity={0.8}
+              accessibilityLabel={link.archived ? t('paylinks.unarchive') : t('paylinks.archive')}
+            >
+              <FontAwesome6
+                name={link.archived ? 'box-open' : 'box-archive'}
+                size={12}
+                color={Colors.textMuted}
+              />
+              <Text style={[styles.actionText, { color: Colors.textMuted }]}>
+                {link.archived ? t('paylinks.unarchive') : t('paylinks.archive')}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <TouchableOpacity style={styles.toggle} onPress={() => openPayments(link)} activeOpacity={0.7}>
@@ -335,15 +389,12 @@ export default function PaymentLinksScreen() {
 
   const content = (
     <>
-      {!isDesktop && (
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.title}>{t('paylinks.title')}</Text>
-        </View>
-      )}
-      {isDesktop && <Text style={styles.title}>{t('paylinks.title')}</Text>}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
+          <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
+        </TouchableOpacity>
+        <Text style={styles.title}>{t('paylinks.title')}</Text>
+      </View>
 
       <Button
         title={t('paylinks.newLink')}
@@ -354,8 +405,26 @@ export default function PaymentLinksScreen() {
           }
           setFormOpen(true);
         }}
-        style={{ marginBottom: Spacing.lg }}
+        style={{ marginBottom: Spacing.md }}
       />
+
+      {/* Bascule vers les liens rangés — proposée seulement s'il en existe. */}
+      {(archivedCount > 0 || showArchived) && (
+        <TouchableOpacity
+          style={styles.archiveToggle}
+          onPress={() => setShowArchived((v) => !v)}
+          activeOpacity={0.7}
+        >
+          <FontAwesome6
+            name={showArchived ? 'arrow-left' : 'box-archive'}
+            size={13}
+            color={Colors.primary}
+          />
+          <Text style={styles.archiveToggleText}>
+            {showArchived ? t('paylinks.backToActive') : t('paylinks.seeArchived', { count: archivedCount })}
+          </Text>
+        </TouchableOpacity>
+      )}
 
       {loading ? (
         <ActivityIndicator color={Colors.primary} style={{ marginTop: Spacing.xl }} />
@@ -464,9 +533,16 @@ export default function PaymentLinksScreen() {
   if (isDesktop) {
     return (
       <View style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: 0 }]} keyboardShouldPersistTaps="handled">
-          {content}
-        </ScrollView>
+        <DesktopHeader />
+        <ImageBackground
+          source={isDark ? require('../assets/bg_page.jpg') : require('../assets/bg_page_light.jpg')}
+          style={styles.background}
+        >
+          <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+            {content}
+          </ScrollView>
+        </ImageBackground>
+        <DesktopFooter />
         {form}
         <CustomAlert />
       </View>
@@ -476,7 +552,7 @@ export default function PaymentLinksScreen() {
   return (
     <View style={{ flex: 1 }}>
       <ImageBackground
-        source={isDark ? require('../../assets/bg_page.jpg') : require('../../assets/bg_page_light.jpg')}
+        source={isDark ? require('../assets/bg_page.jpg') : require('../assets/bg_page_light.jpg')}
         style={styles.background}
       >
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
@@ -495,6 +571,15 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   background: { flex: 1 },
   scroll: { padding: Spacing.lg, paddingBottom: Spacing.xxl, maxWidth: 760, width: '100%', alignSelf: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.lg },
+  archiveToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    alignSelf: 'flex-start',
+    paddingVertical: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  archiveToggleText: { fontSize: FontSize.sm, color: Colors.primary, fontFamily: Fonts.medium },
   title: { fontSize: FontSize.xl, fontFamily: Fonts.bold, color: Colors.text, marginBottom: Spacing.md },
 
   card: {

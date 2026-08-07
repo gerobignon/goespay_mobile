@@ -17,6 +17,11 @@ import type { WelcomeBonus } from '../types';
 
 const celebratedKey = (userId: number | string) => `welcome_bonus_celebrated_${userId}`;
 
+// Rappel « bonus bloqué » quand le KYC est déjà validé : plus de carte à l'accueil,
+// juste la lightbox ouverte automatiquement UNE fois par session (mémoire du module,
+// remise à zéro au redémarrage de l'app / rechargement de la PWA).
+const blockedModalShown = new Set<string>();
+
 const HERO_GRADIENT = ['#FBBF24', '#F59E0B', '#B45309'] as const;
 const CTA_GRADIENT = ['#F59E0B', '#D97706'] as const;
 const DONE_GRADIENT = ['#10B981', '#34D399'] as const;
@@ -25,10 +30,10 @@ const BAR_GRADIENT = ['#F59E0B', '#FBBF24'] as const;
 /**
  * Carte « bonus de bienvenue » affichée au-dessus du solde à l'accueil :
  *   - KYC non soumis (validate=0) → incite à faire le KYC pour recevoir le bonus ;
- *   - KYC soumis (validate=2) → teaser « bonus à venir après validation » ;
- *   - bonus attribué mais bloqué (validate=1, state=blocked) → « en cours ».
+ *   - KYC soumis (validate=2) → teaser « bonus à venir après validation ».
  * Le bouton ouvre un modal premium détaillant montant + conditions/progression.
- * Masquée uniquement quand le bonus est déjà débloqué.
+ * KYC déjà validé (validate=1) : pas de carte, le modal s'ouvre seul une fois par session
+ * tant que le bonus reste bloqué. Rien du tout quand le bonus est débloqué.
  */
 export function WelcomeBonusCard() {
   const styles = useThemedStyles(createStyles);
@@ -56,6 +61,14 @@ export function WelcomeBonusCard() {
         .then(async (b) => {
           if (!alive) return;
           setBonus(b);
+          // KYC validé + bonus encore bloqué → rappel en lightbox, 1 fois par session.
+          if (b?.state === 'blocked' && validate === 1 && user?.id != null) {
+            const key = String(user.id);
+            if (!blockedModalShown.has(key)) {
+              blockedModalShown.add(key);
+              if (alive) setModal(true);
+            }
+          }
           // Bonus fraîchement crédité → célébration UNE fois (persistée par user).
           // Si l'user était hors-ligne au déblocage, ça se joue à sa 1re connexion.
           if (b?.state === 'unlocked' && user?.id != null) {
@@ -77,8 +90,7 @@ export function WelcomeBonusCard() {
 
   const notSubmitted = validate === 0;
   const pending = validate === 2;
-  const blocked = bonus?.state === 'blocked';
-  const showCard = notSubmitted || pending || blocked;
+  const showCard = notSubmitted || pending;
 
   const amount = bonus?.amount ?? 5000;
   const amountLabel = fmtXof(amount);
@@ -116,7 +128,6 @@ export function WelcomeBonusCard() {
   return (
     <>
       {showCard && (
-      <>
       <Reveal offset={14}>
         <LinearGradient
           colors={['#F59E0B', '#D97706', '#B45309']}
@@ -143,6 +154,7 @@ export function WelcomeBonusCard() {
           </View>
         </LinearGradient>
       </Reveal>
+      )}
 
       <ResponsiveModal visible={modal} onClose={() => setModal(false)}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -208,8 +220,6 @@ export function WelcomeBonusCard() {
           </View>
         </ScrollView>
       </ResponsiveModal>
-      </>
-      )}
 
       <WelcomeBonusCelebration visible={celebrate} amountLabel={amountLabel} onClose={dismissCelebration} />
     </>

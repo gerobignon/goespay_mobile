@@ -18,8 +18,12 @@ export function posterImageUrl(linkUrl: string, lang: string, dl = false): strin
 
 /**
  * Remet l'affiche à l'utilisateur.
- * - Web : ouvre l'URL en pièce jointe (`Content-Disposition: attachment`) — un
- *   `<a download>` serait ignoré, l'image venant d'une autre origine que la PWA.
+ * - Web : clic sur un `<a>` vers l'URL en pièce jointe (`Content-Disposition:
+ *   attachment`). PAS `window.open` : en PWA installée (standalone iOS) une
+ *   fenêtre nommée est bloquée SILENCIEUSEMENT — « rien ne se passe » au clic.
+ *   L'attribut `download` est ignoré (image d'une autre origine que la PWA),
+ *   c'est l'en-tête serveur qui déclenche le téléchargement ; en standalone on
+ *   omet aussi `target` pour éviter le même blocage.
  * - Natif : télécharge dans le cache puis ouvre la feuille de partage, d'où
  *   « Enregistrer l'image » et l'envoi direct vers WhatsApp.
  */
@@ -30,11 +34,23 @@ export async function downloadPoster(
   dialogTitle: string,
 ): Promise<void> {
   if (Platform.OS === 'web') {
-    // Ouverture DANS le geste utilisateur : Safari bloque silencieusement une
-    // fenêtre ouverte après un await (même piège que downloadPdf).
-    if (typeof window !== 'undefined') {
-      window.open(posterImageUrl(linkUrl, lang, true), '_blank');
-    }
+    if (typeof document === 'undefined') return;
+
+    const url = posterImageUrl(linkUrl, lang, true);
+    const standalone =
+      typeof window !== 'undefined' &&
+      (window.matchMedia?.('(display-mode: standalone)').matches ||
+        (window.navigator as unknown as { standalone?: boolean }).standalone === true);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `goespay-${code.toLowerCase()}.png`;
+    a.rel = 'noopener';
+    if (!standalone) a.target = '_blank';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     return;
   }
 

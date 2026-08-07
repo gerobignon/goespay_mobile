@@ -49,7 +49,9 @@ import { GatewayBadge } from './GatewayBadge';
 import { CountryPickerStep } from './CountryPickerStep';
 import FincraConversionHint from './FincraConversionHint';
 import { OperatorLogo } from './OperatorLogo';
-import { pickCryptoSource } from '../utils/cryptoLogos';
+import { CryptoLogo } from './CryptoLogo';
+import { CryptoSearchField } from './CryptoSearchField';
+import { useCryptoSearch } from '../hooks/useCryptoSearch';
 import { noConnectionMessage } from '../utils/apiError';
 
 // Zone SEPA (ISO-2) — pays destinataires proposés pour un virement SEPA (EUR).
@@ -179,6 +181,13 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const fetchBalance = useWalletStore((s) => s.fetchBalance);
   const balance = useWalletStore((s) => s.balance);
   const cryptoRates = useCryptoStore((s) => s.rates);
+  const {
+    query: cryptoQuery,
+    setQuery: setCryptoQuery,
+    cryptos: visibleCryptos,
+    showSearch: showCryptoSearch,
+    empty: noCryptoMatch,
+  } = useCryptoSearch(cryptoRates);
   const fetchCryptoRates = useCryptoStore((s) => s.fetchRates);
   const user = useAuthStore((s) => s.user);
   const countryFees = useConfigStore((s) => s.country_fees);
@@ -1429,25 +1438,26 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 {cryptoRates.length === 0 ? (
                   <Text style={styles.phoneHint}>{t('common.loading')}</Text>
                 ) : (
-                  <View style={styles.operatorListVertical}>
-                    {cryptoRates.map((c) => {
-                      const source = pickCryptoSource(c);
-                      return (
-                        <TouchableOpacity
-                          key={c.code}
-                          style={styles.operatorRow}
-                          onPress={() => onBuyCrypto?.(c.code)}
-                        >
-                          {source ? (
-                            <Image source={source as any} style={styles.operatorRowLogo} resizeMode="contain" />
-                          ) : (
-                            <FontAwesome6 name="bitcoin-sign" size={20} color={Colors.text} style={{ width: 32, textAlign: 'center' }} />
-                          )}
-                          <Text style={styles.operatorRowName} numberOfLines={1}>{c.name || c.code}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                  <>
+                    {showCryptoSearch && <CryptoSearchField value={cryptoQuery} onChange={setCryptoQuery} />}
+                    {noCryptoMatch && (
+                      <Text style={styles.phoneHint}>{t('cryptoModal.noSearchResult')}</Text>
+                    )}
+                    {visibleCryptos.length > 0 && (
+                      <View style={styles.operatorListVertical}>
+                        {visibleCryptos.map((c) => (
+                          <TouchableOpacity
+                            key={c.code}
+                            style={styles.operatorRow}
+                            onPress={() => onBuyCrypto?.(c.code)}
+                          >
+                            <CryptoLogo rate={c} size={26} fallbackBackground={Colors.inputBg} fallbackColor={Colors.text} />
+                            <Text style={styles.operatorRowName} numberOfLines={1}>{c.name || c.code}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </>
                 )}
               </>
             ) : (

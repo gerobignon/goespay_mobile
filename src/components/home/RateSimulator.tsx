@@ -79,6 +79,7 @@ export function RateSimulator({ allowCrypto = false }: { allowCrypto?: boolean }
   const countries = useCatalogStore((s) => s.countries);
   const cryptoRates = useCryptoStore((s) => s.rates);
   const fetchCryptoRates = useCryptoStore((s) => s.fetchRates);
+  const fetchCryptoEstimate = useCryptoStore((s) => s.fetchEstimate);
 
   const [tab, setTab] = useState<Tab>('send');
   const [corridorKey, setCorridorKey] = useState<Record<Tab, string>>({ send: '', deposit: '', crypto: '' });
@@ -175,6 +176,13 @@ export function RateSimulator({ allowCrypto = false }: { allowCrypto?: boolean }
       .catch(() => { if (!cancelled) { setParams(null); setFailed(true); setLoading(false); } });
     return () => { cancelled = true; };
   }, [tab, corridor?.key]);
+
+  // Seules les devises les plus utilisées arrivent avec un live_rate : les
+  // autres sont chiffrées à la sélection.
+  useEffect(() => {
+    if (tab !== 'crypto' || !crypto?.code) return;
+    fetchCryptoEstimate(crypto.code);
+  }, [tab, crypto?.code]);
 
   // ── Taux crypto : buy_rate/sell_rate du pays (XOF par USD) × live_rate (USD par unité) ──
   const cryptoRate = useMemo(() => {

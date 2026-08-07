@@ -23,6 +23,7 @@ import { showAlert } from '../../src/stores/alertStore';
 import { CustomAlert } from '../../src/components/CustomAlert';
 import { KycBanner } from '../../src/components/KycBanner';
 import { WelcomeBonusCard } from '../../src/components/WelcomeBonusCard';
+import { WalletStack } from '../../src/components/home/WalletStack';
 import { formatAmount } from '../../src/utils/format';
 import { useFormatXof, useCurrencyCode } from '../../src/utils/format';
 import {
@@ -33,6 +34,7 @@ import {
   FontSize,
   BorderRadius,
   Fonts,
+  withAlpha,
 } from '../../src/constants/theme';
 import { API_BASE_URL } from '../../src/constants/config';
 import { getAccountMenuItems } from '../../src/constants/accountMenu';
@@ -229,6 +231,67 @@ export default function DashboardScreen() {
     ? { uri: user.avatar.startsWith('http') ? user.avatar : `${API_BASE_URL.replace('/api/mobile/v1', '')}${user.avatar}` }
     : require('../../assets/avatar.png');
 
+  // ── Zone « Services » ────────────────────────────────────────────────
+  // Rendue directement sous la carte de solde. Regroupe les services qui ne
+  // sont pas des mouvements d'argent immédiats (contrairement à Recharger /
+  // Envoyer, qui restent sur le solde lui-même).
+  const services = [
+    showDeposit && {
+      key: 'paylink',
+      icon: 'link' as const,
+      color: Colors.primary,
+      label: t('home.paylink'),
+      onPress: () => router.push('/paylinks'),
+    },
+    // Cartes virtuelles : ouvertes en interne pour l'instant.
+    isAdmin && {
+      key: 'cards',
+      icon: 'credit-card' as const,
+      color: DarkColors.secondary,
+      label: t('home.cards'),
+      onPress: () => router.push('/cards'),
+    },
+    showP2P && {
+      key: 'p2p',
+      icon: 'right-left' as const,
+      color: DarkColors.positive,
+      label: t('home.p2p'),
+      onPress: () => setP2pVisible(true),
+    },
+  ].filter(Boolean) as Array<{
+    key: string;
+    icon: any;
+    color: string;
+    label: string;
+    onPress: () => void;
+  }>;
+
+  const renderServices = () => (services.length === 0 ? null : (
+    <View style={styles.servicesBlock}>
+      <Text style={styles.sectionTitle}>{ t('home.quickActions') }</Text>
+      <View style={styles.quickActions}>
+        {services.map((s) => (
+          <Bounce key={s.key} style={styles.quickBtn} onPress={s.onPress}>
+            <ImageBackground
+              source={require('../../assets/bg_page.jpg')}
+              style={styles.quickBg}
+              imageStyle={styles.quickBgImage}
+            >
+              {/* Même voile que la carte de solde : l'image reste visible sans
+                  jamais gêner la lecture du libellé. */}
+              <View style={styles.quickInner}>
+                <View style={[styles.quickIcon, { backgroundColor: withAlpha(s.color, 0.18) }]}>
+                  <FontAwesome6 name={s.icon} size={20} color={s.color} />
+                </View>
+                <Text style={styles.quickLabel} numberOfLines={1}>{s.label}</Text>
+              </View>
+            </ImageBackground>
+          </Bounce>
+        ))}
+      </View>
+    </View>
+  ));
+
   return (
     <ScreenBackground edges={['top']}>
       <ScrollView
@@ -294,61 +357,47 @@ export default function DashboardScreen() {
               {/* Bonus de bienvenue KYC : carte au-dessus du solde (teaser / progression). */}
               <WelcomeBonusCard />
 
-              <ImageBackground
-                source={require('../../assets/bg_page.jpg')}
-                style={styles.balanceCard}
-                imageStyle={styles.balanceCardImage}
-              >
-                <View style={styles.balanceOverlay}>
-                  {/* Bloc 1 : solde + boutons (padding latéral généreux) */}
-                  <View style={styles.balanceTop}>
-                    <Text style={styles.balanceLabel}>{ t('home.balance') }</Text>
-                    <Text style={styles.balanceAmount}>{fmtXof(animBalance, { withCode: false, decimals: 2 })}</Text>
-                    <Text style={styles.currency}>{currencyCode}</Text>
-                    <View style={styles.balanceActions}>
-                      {!configReady && (<><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /></>)}
-                      {showDeposit && (
-                      <Bounce
-                        style={[styles.actionBtn, { backgroundColor: DarkColors.secondary }]}
-                        onPress={() => setDepositVisible(true)}
-                      >
-                        <FontAwesome6 name="plus" size={16} color={Colors.white} />
-                        <Text style={styles.actionLabel} numberOfLines={1}>{ t('home.deposit') }</Text>
-                      </Bounce>
-                      )}
-                      {showTransfer && (
-                      <Bounce
-                        style={[styles.actionBtn, { backgroundColor: Colors.primary }]}
-                        onPress={() => setTransferVisible(true)}
-                      >
-                        <FontAwesome6 name="paper-plane" size={16} color={Colors.white} />
-                        <Text style={styles.actionLabel} numberOfLines={1}>{ t('home.transfer') }</Text>
-                      </Bounce>
-                      )}
-                      {showDeposit && (
-                      <Bounce
-                        style={[styles.actionBtn, styles.actionBtnPaylink]}
-                        onPress={() => router.push('/account/payment-links')}
-                      >
-                        <FontAwesome6 name="link" size={16} color={Colors.white} />
-                        <Text style={styles.actionLabel} numberOfLines={1}>{ t('home.paylink') }</Text>
-                      </Bounce>
-                      )}
-                      {showP2P && (
-                      <Bounce
-                        style={[styles.actionBtn, styles.actionBtnP2P]}
-                        onPress={() => setP2pVisible(true)}
-                      >
-                        <FontAwesome6 name="right-left" size={16} color={Colors.white} />
-                        <Text style={styles.actionLabel} numberOfLines={1}>{ t('home.p2p') }</Text>
-                      </Bounce>
-                      )}
+              <WalletStack>
+                <ImageBackground
+                  source={require('../../assets/bg_page.jpg')}
+                  style={styles.balanceCard}
+                  imageStyle={styles.balanceCardImage}
+                >
+                  <View style={styles.balanceOverlay}>
+                    {/* Bloc 1 : solde + boutons (padding latéral généreux) */}
+                    <View style={styles.balanceTop}>
+                      <Text style={styles.balanceLabel}>{ t('home.balance') }</Text>
+                      <Text style={styles.balanceAmount}>{fmtXof(animBalance, { withCode: false, decimals: 2 })}</Text>
+                      <Text style={styles.currency}>{currencyCode}</Text>
+                      <View style={styles.balanceActions}>
+                        {!configReady && (<><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /></>)}
+                        {showDeposit && (
+                        <Bounce
+                          style={[styles.actionBtn, { backgroundColor: DarkColors.secondary }]}
+                          onPress={() => setDepositVisible(true)}
+                        >
+                          <FontAwesome6 name="plus" size={16} color={Colors.white} />
+                          <Text style={styles.actionLabel} numberOfLines={1}>{ t('home.deposit') }</Text>
+                        </Bounce>
+                        )}
+                        {showTransfer && (
+                        <Bounce
+                          style={[styles.actionBtn, { backgroundColor: Colors.primary }]}
+                          onPress={() => setTransferVisible(true)}
+                        >
+                          <FontAwesome6 name="paper-plane" size={16} color={Colors.white} />
+                          <Text style={styles.actionLabel} numberOfLines={1}>{ t('home.transfer') }</Text>
+                        </Bounce>
+                        )}
+                      </View>
                     </View>
+                    {/* Bloc 2 : insights (padding latéral léger, hérité de balanceOverlay) */}
+                    <MonthlyInsights />
                   </View>
-                  {/* Bloc 2 : insights (padding latéral léger, hérité de balanceOverlay) */}
-                  <MonthlyInsights />
-                </View>
-              </ImageBackground>
+                </ImageBackground>
+              </WalletStack>
+
+              {renderServices()}
 
               {/* Widgets en dessous : V + G + A + C + E. */}
               {showDeposit && <VirtualAccountsBar />}
@@ -392,61 +441,47 @@ export default function DashboardScreen() {
             {/* Bonus de bienvenue KYC : carte au-dessus du solde (teaser / progression). */}
             <WelcomeBonusCard />
 
-            <ImageBackground
-              source={require('../../assets/bg_page.jpg')}
-              style={styles.balanceCard}
-              imageStyle={styles.balanceCardImage}
-            >
-              <View style={styles.balanceOverlay}>
-                {/* Bloc 1 : solde + boutons (padding latéral généreux) */}
-                <View style={styles.balanceTop}>
-                  <Text style={styles.balanceLabel}>{ t('home.balance') }</Text>
-                  <Text style={styles.balanceAmount}>{fmtXof(animBalance, { withCode: false, decimals: 2 })}</Text>
-                  <Text style={styles.currency}>{currencyCode}</Text>
-                  <View style={styles.balanceActions}>
-                    {!configReady && (<><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /></>)}
-                    {showDeposit && (
-                    <Bounce
-                      style={[styles.actionBtn, { backgroundColor: DarkColors.secondary }]}
-                      onPress={() => setDepositVisible(true)}
-                    >
-                      <FontAwesome6 name="plus" size={16} color={Colors.white} />
-                      <Text style={styles.actionLabel} numberOfLines={1}>{ t('home.deposit') }</Text>
-                    </Bounce>
-                    )}
-                    {showTransfer && (
-                    <Bounce
-                      style={[styles.actionBtn, { backgroundColor: Colors.primary }]}
-                      onPress={() => setTransferVisible(true)}
-                    >
-                      <FontAwesome6 name="paper-plane" size={16} color={Colors.white} />
-                      <Text style={styles.actionLabel} numberOfLines={1}>{ t('home.transfer') }</Text>
-                    </Bounce>
-                    )}
-                    {showDeposit && (
-                    <Bounce
-                      style={[styles.actionBtn, styles.actionBtnPaylink]}
-                      onPress={() => router.push('/account/payment-links')}
-                    >
-                      <FontAwesome6 name="link" size={16} color={Colors.white} />
-                      <Text style={styles.actionLabel} numberOfLines={1}>{ t('home.paylink') }</Text>
-                    </Bounce>
-                    )}
-                    {showP2P && (
-                    <Bounce
-                      style={[styles.actionBtn, styles.actionBtnP2P]}
-                      onPress={() => setP2pVisible(true)}
-                    >
-                      <FontAwesome6 name="right-left" size={16} color={Colors.white} />
-                      <Text style={styles.actionLabel} numberOfLines={1}>{ t('home.p2p') }</Text>
-                    </Bounce>
-                    )}
+            <WalletStack>
+              <ImageBackground
+                source={require('../../assets/bg_page.jpg')}
+                style={styles.balanceCard}
+                imageStyle={styles.balanceCardImage}
+              >
+                <View style={styles.balanceOverlay}>
+                  {/* Bloc 1 : solde + boutons (padding latéral généreux) */}
+                  <View style={styles.balanceTop}>
+                    <Text style={styles.balanceLabel}>{ t('home.balance') }</Text>
+                    <Text style={styles.balanceAmount}>{fmtXof(animBalance, { withCode: false, decimals: 2 })}</Text>
+                    <Text style={styles.currency}>{currencyCode}</Text>
+                    <View style={styles.balanceActions}>
+                      {!configReady && (<><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /><View style={[styles.actionBtn, styles.actionBtnSkeleton]} /></>)}
+                      {showDeposit && (
+                      <Bounce
+                        style={[styles.actionBtn, { backgroundColor: DarkColors.secondary }]}
+                        onPress={() => setDepositVisible(true)}
+                      >
+                        <FontAwesome6 name="plus" size={16} color={Colors.white} />
+                        <Text style={styles.actionLabel} numberOfLines={1}>{ t('home.deposit') }</Text>
+                      </Bounce>
+                      )}
+                      {showTransfer && (
+                      <Bounce
+                        style={[styles.actionBtn, { backgroundColor: Colors.primary }]}
+                        onPress={() => setTransferVisible(true)}
+                      >
+                        <FontAwesome6 name="paper-plane" size={16} color={Colors.white} />
+                        <Text style={styles.actionLabel} numberOfLines={1}>{ t('home.transfer') }</Text>
+                      </Bounce>
+                      )}
+                    </View>
                   </View>
+                  {/* Bloc 2 : insights (padding latéral léger, hérité de balanceOverlay) */}
+                  <MonthlyInsights />
                 </View>
-                {/* Bloc 2 : insights (padding latéral léger, hérité de balanceOverlay) */}
-                <MonthlyInsights />
-              </View>
-            </ImageBackground>
+              </ImageBackground>
+            </WalletStack>
+
+            {renderServices()}
 
             {/* Widgets en dessous : V + G + A + C + E. */}
             {showDeposit && <VirtualAccountsBar />}
@@ -699,12 +734,6 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   // Paylink et Transfert P2P : boutons pleins au même gabarit que Recharger /
   // Envoyer, différenciés par la teinte (prune / corail) et non par un fond
   // translucide — sur l'image de fond, le verre lisait comme un bouton désactivé.
-  actionBtnPaylink: {
-    backgroundColor: '#363457',
-  },
-  actionBtnP2P: {
-    backgroundColor: '#DB504A',
-  },
   // Placeholder neutre affiché tant que /config n'a pas confirmé l'état des actions.
   actionBtnSkeleton: {
     // La largeur vient de la grille (flexBasis) — seule la hauteur est calée.
@@ -722,6 +751,9 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.text,
     marginBottom: Spacing.md,
   },
+  servicesBlock: {
+    marginTop: Spacing.lg,
+  },
   quickActions: {
     flexDirection: 'row',
     gap: Spacing.md,
@@ -729,10 +761,19 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   quickBtn: {
     flex: 1,
-    alignItems: 'center',
-    backgroundColor: DarkColors.card,
-    paddingVertical: Spacing.md,
     borderRadius: BorderRadius.lg,
+    overflow: 'hidden',
+  },
+  quickBg: {
+    width: '100%',
+  },
+  quickBgImage: {
+    borderRadius: BorderRadius.lg,
+  },
+  quickInner: {
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    backgroundColor: 'rgba(5,12,30,0.82)',
   },
   quickIcon: {
     width: 48,
@@ -743,7 +784,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   quickLabel: {
-    fontSize: FontSize.xs,
+    fontSize: FontSize.sm,
     color: DarkColors.textSecondary,
     fontFamily: Fonts.semiBold,
   },

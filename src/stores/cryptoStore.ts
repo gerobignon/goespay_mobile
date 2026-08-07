@@ -43,23 +43,46 @@ export interface CryptoRate {
   sell_rate_td?: number | string | null;
   live_rate?: number;
   img?: string;
+  // Catalogue NOWPayments (sync backend) — absents des devises hors NOWPayments.
+  network?: string | null;
+  wallet_regex?: string | null;
+  precision?: number | null;
+  is_stable?: boolean;
+  is_popular?: boolean;
+  extra_id_exists?: boolean;
+  // Renseignés par fetchEstimate() à la sélection de la devise.
+  min_crypto?: number | null;
+  min_fiat?: number | null;
 }
 
 const CACHE_TTL = 60_000; // 1 minute
+const ESTIMATE_TTL = 60_000;
 
 interface CryptoState {
   rates: CryptoRate[];
   lastFetchedAt: number;
   loading: boolean;
   error: string | null;
+  /** Devises dont l'estimation est en cours (spinner du taux). */
+  estimating: Record<string, boolean>;
   fetchRates: (force?: boolean) => Promise<void>;
+  /**
+   * Prix USD + minimum d'UNE devise, à la sélection.
+   * Le backend ne pré-calcule que les devises actives prioritaires : toutes les
+   * autres arrivent avec live_rate=null et sont résolues ici.
+   */
+  fetchEstimate: (code: string, force?: boolean) => Promise<void>;
 }
+
+/** Horodatage des dernières estimations, hors state (aucun re-render utile). */
+const estimatedAt: Record<string, number> = {};
 
 export const useCryptoStore = create<CryptoState>((set, get) => ({
   rates: [],
   lastFetchedAt: 0,
   loading: false,
   error: null,
+  estimating: {},
 
   fetchRates: async (force = false) => {
     const { lastFetchedAt, loading } = get();
@@ -97,6 +120,51 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       set({ error: msg });
     } finally {
       set({ loading: false });
+    }
+  },
+
+  fetchEstimate: async (code, force = false) => {
+    const key = (code || '').toUpperCase();
+    if (!key) return;
+
+    const { estimating, rates } = get();
+    if (estimating[key]) return;
+
+    const known = rates.find((r) => (r.code || '').toUpperCase() === key);
+    const fresh = estimatedAt[key] && Date.now() - estimatedAt[key] < ESTIMATE_TTL;
+    // Déjà chiffrée et fraîche → rien à faire.
+    if (!force && fresh && known?.live_rate) return;
+    // Stablecoin : le backend renvoie déjà live_rate=1, inutile d'interroger.
+    if (!force && known?.is_stable && known?.live_rate) return;
+
+    set({ estimating: { ...estimating, [key]: true } });
+
+    try {
+      const response = await api.get('/crypto/estimate', { params: { currency: key } });
+      const data = response.data?.data ?? response.data;
+      if (!data) return;
+
+      estimatedAt[key] = Date.now();
+      set((s) => ({
+        rates: s.rates.map((r) =>
+          (r.code || '').toUpperCase() === key
+            ? {
+                ...r,
+                live_rate: data.live_rate ?? r.live_rate,
+                min_crypto: data.min_crypto ?? null,
+                min_fiat: data.min_fiat ?? null,
+              }
+            : r
+        ),
+      }));
+    } catch {
+      // Silencieux : l'écran affiche déjà « taux indisponible » et propose de réessayer.
+    } finally {
+      set((s) => {
+        const next = { ...s.estimating };
+        delete next[key];
+        return { estimating: next };
+      });
     }
   },
 }));

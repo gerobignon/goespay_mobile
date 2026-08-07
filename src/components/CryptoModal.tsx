@@ -7,17 +7,19 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   ScrollView,
   KeyboardAvoidingView,
   ActivityIndicator,
-  ImageSourcePropType,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Input } from './Input';
 import { ResponsiveModal } from './ResponsiveModal';
 import { Button } from './Button';
 import { CryptoSellDetailsModal } from './CryptoSellDetailsModal';
+import { CryptoLogo } from './CryptoLogo';
+import { CryptoSearchField } from './CryptoSearchField';
+import { useCryptoSearch } from '../hooks/useCryptoSearch';
+import { isValidCryptoAddress } from '../utils/cryptoAddress';
 import { useAuthStore } from '../stores/authStore';
 import { getApiErrorMessage } from '../utils/apiError';
 import { useWalletStore } from '../stores/walletStore';
@@ -52,29 +54,6 @@ interface CryptoModalProps {
 
 type Tab = 'buy' | 'sell';
 
-const CRYPTO_IMAGES: Record<string, ImageSourcePropType> = {
-  BTC: require('../../assets/crypto/btc.png'),
-  ETH: require('../../assets/crypto/eth.png'),
-  TRX: require('../../assets/crypto/trx.png'),
-  'BNB.BSC': require('../../assets/crypto/bnb.png'),
-  BNB: require('../../assets/crypto/bnb.png'),
-  'USDT.TRC20': require('../../assets/crypto/usdt.png'),
-  USDT: require('../../assets/crypto/usdt.png'),
-  'BUSD.BEP20': require('../../assets/crypto/busd.png'),
-  BUSD: require('../../assets/crypto/busd.png'),
-  LTC: require('../../assets/crypto/ltc.png'),
-  LTCT: require('../../assets/crypto/ltc.png'),
-};
-
-function pickCryptoSource(rate?: { code?: string; img?: string | null } | null): ImageSourcePropType | null {
-  if (rate?.img && typeof rate.img === 'string' && rate.img.length > 0) {
-    return { uri: rate.img };
-  }
-  const code = rate?.code;
-  if (code && CRYPTO_IMAGES[code]) return CRYPTO_IMAGES[code];
-  return null;
-}
-
 export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled = true, initialTab, initialCurrency, forceTab = false }: CryptoModalProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -91,6 +70,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
   const cryptoLoading = useCryptoStore((s) => s.loading);
   const cryptoError = useCryptoStore((s) => s.error);
   const fetchRates = useCryptoStore((s) => s.fetchRates);
+  const fetchEstimate = useCryptoStore((s) => s.fetchEstimate);
   const stablecoinCodes = useConfigStore((s) => s.stablecoin_codes);
   const cryptoBuyMinDefault = useConfigStore((s) => s.crypto_buy_min_default);
   const cryptoBuyMinBtc = useConfigStore((s) => s.crypto_buy_min_btc);
@@ -158,6 +138,13 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
     }
   }, [visible, rates, selectedCurrency]);
 
+  // Le backend ne pré-calcule le prix que des devises les plus utilisées :
+  // les autres sont chiffrées ici, à la sélection.
+  useEffect(() => {
+    if (!visible || !selectedCurrency) return;
+    fetchEstimate(selectedCurrency);
+  }, [visible, selectedCurrency]);
+
   const toRate = (v: unknown): number => {
     if (typeof v === 'number') return v;
     if (typeof v === 'string') {
@@ -182,6 +169,14 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
     const v = toRate(item[key]);
     return v > 0 ? v : fallback;
   };
+
+  const {
+    query: cryptoQuery,
+    setQuery: setCryptoQuery,
+    cryptos: visibleCryptos,
+    showSearch: showCryptoSearch,
+    empty: noCryptoMatch,
+  } = useCryptoSearch(rates, selectedCurrency);
 
   const selectedRate = rates.find((r) => r.code === selectedCurrency);
   const normalizedWalletAddress = walletAddress.trim();
@@ -348,6 +343,12 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
     }
     if (tab === 'buy' && !walletAddress.trim()) {
       showAlert(t('common.error'), t('cryptoModal.enterWalletAddress'));
+      return;
+    }
+    // Le réseau est encodé dans le code (USDT.TRC20…) : une adresse d'un autre
+    // réseau est perdue sans recours. On la refuse avant l'envoi.
+    if (tab === 'buy' && !isValidCryptoAddress(selectedRate, walletAddress)) {
+      showAlert(t('common.error'), t('cryptoModal.invalidAddress', { code: getCurrencyName(selectedCurrency) }));
       return;
     }
 
@@ -556,9 +557,13 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
               <>
                 {/* Currency selection */}
                 <Text style={styles.fieldLabel}>{t('cryptoModal.cryptocurrency')}</Text>
-                {isDesktop ? (
+                {showCryptoSearch && <CryptoSearchField value={cryptoQuery} onChange={setCryptoQuery} />}
+                {noCryptoMatch && (
+                  <Text style={styles.emptySearch}>{t('cryptoModal.noSearchResult')}</Text>
+                )}
+                {visibleCryptos.length === 0 ? null : isDesktop ? (
                   <View style={styles.currencyChipGrid}>
-                    {rates.map((item) => (
+                    {visibleCryptos.map((item) => (
                       <TouchableOpacity
                         key={item.code}
                         style={[
@@ -567,14 +572,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                         ]}
                         onPress={() => setSelectedCurrency(item.code)}
                       >
-                        {(() => {
-                          const src = pickCryptoSource(item);
-                          return src ? (
-                            <Image source={src} style={styles.currencyChipLogo} resizeMode="contain" />
-                          ) : (
-                            <Text style={styles.currencyIcon}>{getCryptoIcon(item.code)}</Text>
-                          );
-                        })()}
+                        <CryptoLogo rate={item} size={28} fallbackBackground={Colors.inputBg} fallbackColor={Colors.text} />
                         <View style={{ flex: 1 }}>
                           <Text
                             style={[
@@ -604,7 +602,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                     style={styles.currencyScroll}
                     contentContainerStyle={styles.currencyScrollContent}
                   >
-                    {rates.map((item) => (
+                    {visibleCryptos.map((item) => (
                       <TouchableOpacity
                         key={item.code}
                         style={[
@@ -613,14 +611,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                         ]}
                         onPress={() => setSelectedCurrency(item.code)}
                       >
-                        {(() => {
-                          const src = pickCryptoSource(item);
-                          return src ? (
-                            <Image source={src} style={styles.currencyLogo} resizeMode="contain" />
-                          ) : (
-                            <Text style={styles.currencyIcon}>{getCryptoIcon(item.code)}</Text>
-                          );
-                        })()}
+                        <CryptoLogo rate={item} size={36} fallbackBackground={Colors.inputBg} fallbackColor={Colors.text} />
                         <Text
                           style={[
                             styles.currencyName,
@@ -664,7 +655,12 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                         ? 1
                         : Number(selectedRate.live_rate);
                       if (sellRate > 0 && Number.isFinite(liveRate) && liveRate > 0) {
-                        const minCrypto = minXof / (sellRate * liveRate);
+                        // Deux planchers : le minimum commercial (XOF, admin) et
+                        // le minimum technique de l'agrégateur (min_crypto, via
+                        // /crypto/estimate). Le plus contraignant fait foi — sinon
+                        // l'utilisateur découvre le refus après l'envoi.
+                        const npMin = Number(selectedRate.min_crypto) || 0;
+                        const minCrypto = Math.max(minXof / (sellRate * liveRate), npMin);
                         const formatted = minCrypto < 0.0001
                           ? minCrypto.toExponential(2)
                           : minCrypto.toString().replace(/\.?0+$/, '');
@@ -800,12 +796,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
             {/* Crypto icon + name */}
             {selectedRate && (
               <View style={styles.confirmCryptoRow}>
-                {(() => {
-                  const src = pickCryptoSource(selectedRate);
-                  return src ? (
-                    <Image source={src} style={styles.confirmCryptoLogo} resizeMode="contain" />
-                  ) : null;
-                })()}
+                <CryptoLogo rate={selectedRate} size={32} fallbackBackground={Colors.inputBg} fallbackColor={Colors.text} />
                 <Text style={styles.confirmCryptoName}>{getCurrencyName(selectedCurrency)}</Text>
               </View>
             )}
@@ -893,12 +884,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                     style={[styles.saveWalletChip, isSelected && styles.saveWalletChipSelected]}
                     onPress={() => setSaveWalletCurrency(item.code)}
                   >
-                    {(() => {
-                      const src = pickCryptoSource(item);
-                      return src ? (
-                        <Image source={src} style={{ width: 16, height: 16 }} resizeMode="contain" />
-                      ) : null;
-                    })()}
+                    <CryptoLogo rate={item} size={16} fallbackBackground={Colors.inputBg} fallbackColor={Colors.text} />
                     <Text style={[styles.saveWalletChipText, isSelected && styles.saveWalletChipTextSelected]}>
                       {getCurrencyName(item.code)}
                     </Text>
@@ -940,27 +926,6 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
       <CustomAlert />
     </ResponsiveModal>
   );
-}
-
-function getCryptoIcon(code: string): string {
-  switch (code) {
-    case 'BTC':
-      return '₿';
-    case 'ETH':
-      return 'Ξ';
-    case 'BNB.BSC':
-    case 'BNB':
-      return '◆';
-    case 'TRX':
-      return '◈';
-    case 'LTC':
-      return 'Ł';
-    case 'USDT.TRC20':
-    case 'USDT':
-      return '₮';
-    default:
-      return '🪙';
-  }
 }
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
@@ -1026,6 +991,12 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: FontSize.sm,
     fontFamily: Fonts.semiBold,
     marginBottom: Spacing.sm,
+  },
+  emptySearch: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.regular,
+    marginBottom: Spacing.md,
   },
   currencyScroll: {
     marginBottom: Spacing.md,

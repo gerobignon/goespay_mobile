@@ -15,17 +15,20 @@ const CRYPTO_IMAGES: Record<string, ImageSourcePropType> = {
   LTCT: require('../../assets/crypto/ltc.png'),
 };
 
+// NOTE : ne pas réintroduire de helper renvoyant directement `{ uri: rate.img }`
+// pour un <Image>. Les logos du catalogue NOWPayments sont des SVG, que <Image>
+// ne rend pas en natif — passer par <CryptoLogo>, qui gère les deux cas.
+
+/** Asset local éventuel, sans passer par l'URL distante. */
+export function localCryptoSource(code?: string | null): ImageSourcePropType | null {
+  const c = code?.toUpperCase();
+  return (c && CRYPTO_IMAGES[c]) || null;
+}
+
 /**
- * Sélectionne la source d'image pour un taux crypto :
- *  1. URL fournie par l'API (`rate.img`)
- *  2. Asset local mappé par code (avec variantes BNB.BSC, USDT.TRC20…)
- *  3. null → le caller doit afficher une icône fallback
+ * Les logos du catalogue NOWPayments sont majoritairement des SVG, que
+ * <Image> ne sait pas rendre sur iOS/Android (contrairement au web).
  */
-export function pickCryptoSource(rate?: { code?: string; img?: string | null } | null): ImageSourcePropType | null {
-  if (rate?.img && typeof rate.img === 'string' && rate.img.length > 0) {
-    return { uri: rate.img };
-  }
-  const code = rate?.code?.toUpperCase();
-  if (code && CRYPTO_IMAGES[code]) return CRYPTO_IMAGES[code];
-  return null;
+export function isSvgUrl(url?: string | null): boolean {
+  return typeof url === 'string' && url.split('?')[0].toLowerCase().endsWith('.svg');
 }
