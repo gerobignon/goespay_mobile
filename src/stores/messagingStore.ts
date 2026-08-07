@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { AppState } from 'react-native';
 import { messagingService } from '../services/messagingService';
-import type { ChatMessage, ChatPrefs, Conversation } from '../types';
+import type { ChatMessage, ChatPrefs, ChatReplyPreview, Conversation } from '../types';
 
 /**
  * État de la messagerie in-app.
@@ -71,7 +71,7 @@ interface MessagingState {
   loadThread: (id: number, silent?: boolean) => Promise<void>;
   loadOlder: (id: number) => Promise<void>;
   pollThread: (id: number) => Promise<void>;
-  send: (id: number, body: string, imageUri?: string | null) => Promise<void>;
+  send: (id: number, body: string, imageUri?: string | null, replyTo?: ChatReplyPreview | null) => Promise<void>;
   retry: (id: number, tempId: number) => Promise<void>;
   markRead: (id: number) => Promise<void>;
   notifyTyping: (id: number) => void;
@@ -197,7 +197,7 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
     }
   },
 
-  send: async (id, body, imageUri) => {
+  send: async (id, body, imageUri, replyTo) => {
     const text = (body || '').trim();
     if (!text && !imageUri) return;
 
@@ -210,6 +210,9 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
       body: text,
       attachment: null,
       author: null,
+      // La citation est déjà affichable localement : la bulle optimiste la
+      // montre sans attendre la réponse du serveur.
+      reply_to: replyTo ?? null,
       created_at: new Date().toISOString(),
       pending: true,
       localImage: imageUri || undefined,
@@ -220,7 +223,7 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
     }));
 
     try {
-      const data = await messagingService.send(id, text, imageUri);
+      const data = await messagingService.send(id, text, imageUri, replyTo?.id ?? null);
       set((s) => ({
         threads: {
           ...s.threads,
@@ -254,7 +257,7 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
     set((s) => ({
       threads: { ...s.threads, [id]: (s.threads[id] || []).filter((m) => m.id !== tempId) },
     }));
-    await get().send(id, message.body, message.localImage);
+    await get().send(id, message.body, message.localImage, message.reply_to);
   },
 
   markRead: async (id) => {

@@ -22,10 +22,13 @@ import { EmojiPicker } from './EmojiPicker';
 /** Hauteur commune aux icônes et à la ligne de saisie — leur ligne de base. */
 const ICON_SLOT = 38;
 
+/** Même forme que l'extrait renvoyé par le serveur (ChatReplyPreview). */
 export interface ComposerQuote {
   id: number;
   author: string;
   body: string;
+  photo: boolean;
+  mine: boolean;
 }
 
 interface ChatComposerProps {

@@ -91,14 +91,19 @@ export const messagingService = {
     conversationId: number,
     body: string,
     imageUri?: string | null,
+    replyToId?: number | null,
   ): Promise<{ message: ChatMessage; conversation: Conversation }> => {
     if (!imageUri) {
-      const { data } = await api.post(`/messaging/conversations/${conversationId}/messages`, { body });
+      const { data } = await api.post(`/messaging/conversations/${conversationId}/messages`, {
+        body,
+        reply_to_id: replyToId || undefined,
+      });
       return data;
     }
 
     const form = new FormData();
     form.append('body', body ?? '');
+    if (replyToId) form.append('reply_to_id', String(replyToId));
     await appendImage(form, imageUri);
 
     const { data } = await api.post(`/messaging/conversations/${conversationId}/messages`, form, {

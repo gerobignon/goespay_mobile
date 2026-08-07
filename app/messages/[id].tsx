@@ -66,6 +66,8 @@ export default function ConversationScreen() {
   const [viewerUri, setViewerUri] = useState<string | null>(null);
   const [quote, setQuote] = useState<ComposerQuote | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [highlightId, setHighlightId] = useState<number | null>(null);
+  const listRef = useRef<FlatList<ChatMessage>>(null);
   const { keyboard: keyboardInset, viewportHeight } = useKeyboardInset();
   const insets = useSafeAreaInsets();
   useLockDocumentScroll();
@@ -165,12 +167,37 @@ export default function ConversationScreen() {
 
   /** Balayage sur une bulle → elle se retrouve citée au-dessus de la saisie. */
   const startQuote = (message: ChatMessage) => {
-    if (message.is_system) return;
+    if (message.is_system || message.id <= 0) return;
     const author = message.mine
       ? t('messages.you', 'Vous')
       : message.author?.name || conversation?.title || '';
     const body = message.body || (message.attachment ? t('messages.photo', 'Photo') : '');
-    setQuote({ id: message.id, author, body });
+    setQuote({ id: message.id, author, body, photo: !!message.attachment, mine: message.mine });
+  };
+
+  /**
+   * Signet : remonter au message cité. S'il n'est pas encore chargé, on tire
+   * une page d'historique et on réessaie — sans quoi le lien serait mort dès
+   * qu'on cite un message ancien.
+   */
+  const jumpToMessage = async (messageId: number) => {
+    let index = data.findIndex((m) => m.id === messageId);
+    if (index < 0) {
+      await loadOlder(conversationId);
+      index = useMessagingStore
+        .getState()
+        .threads[conversationId]?.slice()
+        .reverse()
+        .findIndex((m) => m.id === messageId) ?? -1;
+      if (index < 0) return;
+    }
+    try {
+      listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+    } catch {
+      // Index hors de la fenêtre rendue : le highlight suffit à situer.
+    }
+    setHighlightId(messageId);
+    setTimeout(() => setHighlightId((v) => (v === messageId ? null : v)), 1800);
   };
 
   const renderItem = ({ item, index }: { item: ChatMessage; index: number }) => {
@@ -191,6 +218,8 @@ export default function ConversationScreen() {
           onPressImage={setViewerUri}
           onRetry={(tempId) => retry(conversationId, tempId)}
           onQuote={startQuote}
+          onPressReply={jumpToMessage}
+          highlighted={highlightId === item.id}
         />
       </View>
     );
@@ -255,8 +284,11 @@ export default function ConversationScreen() {
           </View>
         ) : (
           <FlatList
+            ref={listRef}
             data={data}
             inverted
+            // Un saut vers un message non encore mesuré échoue autrement.
+            onScrollToIndexFailed={() => {}}
             keyExtractor={(m) => String(m.id)}
             renderItem={renderItem}
             contentContainerStyle={[
@@ -283,10 +315,10 @@ export default function ConversationScreen() {
 
         <ChatComposer
           onSend={(body, imageUri) => {
-            // La citation part avec le message, en préfixe, puis disparaît.
-            const text = quote ? `> ${quote.author} : ${quote.body}\n\n${body}` : body;
+            // La citation part comme référence, pas comme texte recopié.
+            const replyTo = quote;
             setQuote(null);
-            return send(conversationId, text, imageUri);
+            return send(conversationId, body, imageUri, replyTo);
           }}
           onTyping={() => notifyTyping(conversationId)}
           sending={isSending}

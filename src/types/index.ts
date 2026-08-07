@@ -321,6 +321,15 @@ export interface ChatAttachment {
   thumb: string | null;
 }
 
+/** Extrait du message auquel celui-ci répond. */
+export interface ChatReplyPreview {
+  id: number;
+  author: string;
+  body: string;
+  photo: boolean;
+  mine: boolean;
+}
+
 export interface ChatMessage {
   id: number;
   mine: boolean;
@@ -328,6 +337,7 @@ export interface ChatMessage {
   body: string;
   attachment: ChatAttachment | null;
   author: ChatAuthor | null;
+  reply_to: ChatReplyPreview | null;
   created_at: string | null;
   /** Champs locaux de l'envoi optimiste (jamais renvoyés par le serveur). */
   pending?: boolean;

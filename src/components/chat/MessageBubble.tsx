@@ -28,6 +28,10 @@ interface MessageBubbleProps {
   onRetry: (tempId: number) => void;
   /** Balayage gauche/droite sur la bulle → citer ce message. */
   onQuote?: (message: ChatMessage) => void;
+  /** Toucher sur le bloc cité → remonter au message d'origine. */
+  onPressReply?: (messageId: number) => void;
+  /** Mise en évidence passagère, après être remonté jusqu'ici. */
+  highlighted?: boolean;
 }
 
 /**
@@ -37,7 +41,15 @@ interface MessageBubbleProps {
  * Un balayage horizontal cite le message, dans les deux sens : sur un fil, la
  * main tombe indifféremment à gauche ou à droite selon le côté de la bulle.
  */
-export function MessageBubble({ message, peerReadId, onPressImage, onRetry, onQuote }: MessageBubbleProps) {
+export function MessageBubble({
+  message,
+  peerReadId,
+  onPressImage,
+  onRetry,
+  onQuote,
+  onPressReply,
+  highlighted,
+}: MessageBubbleProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const { t } = useTranslation();
@@ -98,8 +110,40 @@ export function MessageBubble({ message, peerReadId, onPressImage, onRetry, onQu
             ? { backgroundColor: mineBackground, borderBottomRightRadius: 4 }
             : { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderBottomLeftRadius: 4 },
           message.failed && { backgroundColor: withAlpha(colors.error, 0.25) },
+          // Signet : la bulle s'entoure brièvement quand on vient d'y remonter.
+          highlighted && { borderWidth: 2, borderColor: colors.secondary },
         ]}
       >
+        {/* Message cité : bloc distinct au-dessus du corps, et non plus recopié
+            dans le texte. Le toucher ramène au message d'origine. */}
+        {!!message.reply_to && (
+          <TouchableOpacity
+            style={[
+              styles.reply,
+              {
+                backgroundColor: mine ? withAlpha(colors.black, 0.18) : withAlpha(colors.text, 0.06),
+                borderLeftColor: mine ? colors.white : colors.secondary,
+              },
+            ]}
+            activeOpacity={0.7}
+            onPress={() => onPressReply?.(message.reply_to!.id)}
+            disabled={!onPressReply}
+          >
+            <Text
+              style={[styles.replyAuthor, { color: mine ? colors.white : colors.secondary }]}
+              numberOfLines={1}
+            >
+              {message.reply_to.author}
+            </Text>
+            <Text
+              style={[styles.replyBody, { color: mine ? withAlpha(colors.white, 0.85) : colors.textMuted }]}
+              numberOfLines={2}
+            >
+              {message.reply_to.body || (message.reply_to.photo ? t('messages.photo', 'Photo') : '')}
+            </Text>
+          </TouchableOpacity>
+        )}
+
         {!!image && (
           <TouchableOpacity
             activeOpacity={0.9}
@@ -161,6 +205,22 @@ const createStyles = (Colors: ColorPalette) =>
       fontFamily: Fonts.regular,
       fontSize: FontSize.md,
       lineHeight: FontSize.md * 1.4,
+    },
+    reply: {
+      borderLeftWidth: 3,
+      borderRadius: 8,
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: 6,
+      marginBottom: Spacing.xs,
+    },
+    replyAuthor: {
+      fontFamily: Fonts.bold,
+      fontSize: FontSize.xs,
+    },
+    replyBody: {
+      fontFamily: Fonts.regular,
+      fontSize: FontSize.sm,
+      marginTop: 1,
     },
     image: {
       width: 220,
