@@ -28,6 +28,8 @@ export interface User {
   created_at?: string;
   currency?: string;
   currency_source?: 'auto' | 'manual';
+  /** Droit d'accès à la messagerie in-app, accordé par le serveur. */
+  messaging_enabled?: boolean;
 }
 
 export interface Transaction {

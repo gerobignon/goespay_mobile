@@ -5,6 +5,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../stores/authStore';
 import { useDevBoardStore, selectDevUnread } from '../stores/devBoardStore';
+import { useMessagingAccess } from '../hooks/useMessagingAccess';
 import { Colors, DarkColors, type ColorPalette, Spacing, FontSize, Fonts, BorderRadius } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { API_BASE_URL } from '../constants/config';
@@ -16,8 +17,12 @@ const NAV_ITEMS = [
   { path: '/(tabs)', labelKey: 'tabs.home', icon: 'house' },
   { path: '/(tabs)/history', labelKey: 'tabs.history', icon: 'clock-rotate-left' },
   { path: '/(tabs)/affiliation', labelKey: 'account.referral', icon: 'users' },
-  { path: '/(tabs)/support', labelKey: 'tabs.messages', icon: 'comments' },
 ];
+
+// Même onglet, deux visages : boîte de réception pour qui a le droit de
+// messagerie, canaux de contact pour les autres (cf. useMessagingAccess).
+const SUPPORT_ITEM = { path: '/(tabs)/support', labelKey: 'tabs.support', icon: 'headset' };
+const MESSAGES_ITEM = { path: '/(tabs)/support', labelKey: 'tabs.messages', icon: 'comments' };
 
 // Cartes virtuelles : ouvertes en interne, réservées au groupe admin.
 const CARDS_ITEM = { path: '/cards', labelKey: 'cards.title', icon: 'credit-card' };
@@ -34,8 +39,10 @@ export function DesktopHeader() {
   const { t } = useTranslation();
   const devUnread = useDevBoardStore(selectDevUnread);
   const isAdmin = user?.group === 'admin';
+  const canMessage = useMessagingAccess();
   const navItems = [
     ...NAV_ITEMS,
+    canMessage ? MESSAGES_ITEM : SUPPORT_ITEM,
     ...(isAdmin ? [CARDS_ITEM] : []),
     ...(user?.id === 1 ? [DEV_ITEM] : []),
   ];

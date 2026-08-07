@@ -14,12 +14,15 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useDevBoardStore, selectDevUnread } from '../../src/stores/devBoardStore';
 import { useMessagingStore } from '../../src/stores/messagingStore';
+import { useMessagingAccess } from '../../src/hooks/useMessagingAccess';
 
+// L'onglet Support porte deux visages selon le droit de messagerie : boîte de
+// réception (bulles) ou canaux de contact (casque). Cf. useMessagingAccess.
 const ICON_FOR_ROUTE: Record<string, string> = {
   index: 'house',
   history: 'clock-rotate-left',
   affiliation: 'users',
-  support: 'comments',
+  support: 'headset',
   dev: 'diagram-project',
 };
 
@@ -40,6 +43,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const isSuperAdmin = useAuthStore((s) => s.user?.id === 1);
+  const canMessage = useMessagingAccess();
   const devUnread = useDevBoardStore(selectDevUnread);
   const msgUnread = useMessagingStore((s) => s.unreadTotal);
   // L'onglet Dev n'apparaît que pour le user id 1.
@@ -60,9 +64,10 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         const label = (options.title ?? route.name) as string;
         const isFocused = route.key === focusedKey;
         const color = isFocused ? colors.secondary : colors.textMuted;
-        const iconName = ICON_FOR_ROUTE[route.name] ?? 'circle';
+        const iconName =
+          route.name === 'support' && canMessage ? 'comments' : ICON_FOR_ROUTE[route.name] ?? 'circle';
         const badge =
-          route.name === 'dev' ? devUnread : route.name === 'support' ? msgUnread : 0;
+          route.name === 'dev' ? devUnread : route.name === 'support' && canMessage ? msgUnread : 0;
 
         const onPress = () => {
           const event = navigation.emit({
@@ -106,6 +111,7 @@ export default function TabsLayout() {
   const colors = useColors();
   const { t } = useTranslation();
   const isSuperAdmin = useAuthStore((s) => s.user?.id === 1);
+  const canMessage = useMessagingAccess();
   const fetchBoard = useDevBoardStore((s) => s.fetchBoard);
   const devUnread = useDevBoardStore(selectDevUnread);
   const msgUnread = useMessagingStore((s) => s.unreadTotal);
@@ -132,8 +138,11 @@ export default function TabsLayout() {
   }, [isSuperAdmin]);
 
   // Badge de messages : un compteur léger en fond, plus un rattrapage au retour
-  // au premier plan (l'app peut avoir manqué des push en veille).
+  // au premier plan (l'app peut avoir manqué des push en veille). Rien ne part
+  // sans le droit de messagerie — sinon un compte ordinaire sonderait en boucle
+  // une route qui lui répond 403.
   useEffect(() => {
+    if (!canMessage) return;
     fetchUnread();
     startInboxPolling();
     const sub = AppState.addEventListener('change', (s) => {
@@ -143,7 +152,7 @@ export default function TabsLayout() {
       stopInboxPolling();
       sub.remove();
     };
-  }, []);
+  }, [canMessage]);
 
   // Pastille de décompte sur l'icône (PWA installée / natif).
   const totalUnread = devUnread + msgUnread;
@@ -163,7 +172,10 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" options={{ title: t('tabs.home') }} />
       <Tabs.Screen name="history" options={{ title: t('tabs.history') }} />
       <Tabs.Screen name="affiliation" options={{ title: t('account.referral', 'Parrainage') }} />
-      <Tabs.Screen name="support" options={{ title: t('tabs.messages', 'Messages') }} />
+      <Tabs.Screen
+        name="support"
+        options={{ title: canMessage ? t('tabs.messages', 'Messages') : t('tabs.support') }}
+      />
       {/* Onglet Dev : présent pour tous en tant que route, masqué de la barre pour
           les non-admins (href:null) et filtré dans la CustomTabBar. */}
       <Tabs.Screen name="dev" options={{ title: t('dev.menuTitle'), href: isSuperAdmin ? undefined : null }} />
