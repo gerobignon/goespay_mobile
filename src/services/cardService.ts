@@ -87,14 +87,40 @@ export interface CardEligibility {
   needs_kyc_update: boolean;
 }
 
+/** Grille affichée au client, en USD. Pilotée depuis le back-office. */
+export interface CardFeeGrid {
+  rate_usd_xof: number;
+  issue_fee_usd: number;
+  fund_percent_low: number;
+  fund_fee_min_usd: number;
+  fund_threshold_usd: number;
+  fund_percent_high: number;
+  withdraw_fee_usd: number;
+  payment_fee_usd: number;
+  monthly_fee_usd: number;
+}
+
+/**
+ * Frais des conditions générales. Réels, mais rares : ils n'ont leur place que
+ * dans les CGU, jamais sur un écran d'opération.
+ */
+export interface CardTermsFees {
+  fx_percent: number;
+  fx_fixed_usd: number;
+  decline_fee_usd: number;
+  chargeback_fee_usd: number;
+}
+
 export interface CardPricing {
   currency: string;
   /** XOF pour 1 USD, marge comprise. null si aucun taux n'est disponible. */
   rate: number | null;
-  issue_fee: number;
-  month_fee: number;
   min_fund: number | null;
   max_fund: number | null;
+  /** Préfinancement minimum d'une émission, imposé par l'émetteur (USD). */
+  min_issue?: number | null;
+  card?: CardFeeGrid | null;
+  terms?: CardTermsFees | null;
 }
 
 export interface CardsResponse {
@@ -108,7 +134,12 @@ export interface CardQuote {
   amount_usd: number;
   rate: number;
   amount_xof: number;
+  /** Frais de l'opération (recharge ou retrait). */
+  fee_usd?: number;
   fee_xof: number;
+  /** Frais de création — présents uniquement sur le devis d'une commande. */
+  issue_fee_usd?: number;
+  issue_fee_xof?: number;
   total_xof: number;
   direction: 'fund' | 'withdraw';
 }
@@ -140,6 +171,15 @@ export const cardService = {
   issue: async (input: { brand?: string; initial_amount_usd?: number } = {}): Promise<VirtualCard> => {
     const response = await api.post('/maplerad/cards', input, { timeout: 70000 });
     return response.data.card;
+  },
+
+  /**
+   * Coût en XOF du préfinancement d'une carte à commander. Distinct de `quote`,
+   * qui suppose une carte existante : ici la carte n'existe pas encore.
+   */
+  issueQuote: async (amountUsd: number): Promise<CardQuote> => {
+    const response = await api.post('/maplerad/issue-quote', { amount_usd: amountUsd }, { timeout: 45000 });
+    return response.data;
   },
 
   quote: async (id: number, amountUsd: number, direction: 'fund' | 'withdraw' = 'fund'): Promise<CardQuote> => {

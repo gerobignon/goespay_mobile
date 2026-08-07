@@ -265,15 +265,17 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     // L'ombre épouse la forme de son conteneur : sans cet arrondi, elle dessine
     // un rectangle dont les angles dépassent de la carte.
     borderRadius: BorderRadius.xl,
-    // Détache la carte du dessus de celle qui la suit, sans halo marqué.
+    // Détache la carte du dessus de celle qui la suit. L'ombre est portée vers
+    // le bas, là où le panneau du dessous dépasse : c'est ce qui donne la
+    // profondeur, une ombre discrète laissait les deux panneaux à plat.
     ...Platform.select({
-      web: { boxShadow: '0 6px 16px rgba(0,0,0,0.22)' } as any,
+      web: { boxShadow: '0 10px 22px rgba(0,0,0,0.42)' } as any,
       default: {
         shadowColor: '#000',
-        shadowOpacity: 0.22,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 5 },
-        elevation: 5,
+        shadowOpacity: 0.42,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 8 },
+        elevation: 9,
       },
     }),
   },
@@ -281,11 +283,18 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
     flex: 1,
+    // Liseré sur les quatre côtés : c'est lui qui dessine le bord du panneau
+    // quand il dépasse sous le wallet. Sans lui, deux fonds sombres se
+    // confondaient et la pile ne se voyait pas.
+    borderWidth: 1,
+    borderColor: 'rgba(129,140,248,0.42)',
   },
   panelCardImage: { borderRadius: BorderRadius.xl },
   panelInner: {
     flex: 1,
-    backgroundColor: 'rgba(5,12,30,0.82)',
+    // Indigo profond, franchement distinct du bleu-nuit de la carte de solde :
+    // les deux panneaux doivent se reconnaître au premier coup d'œil.
+    backgroundColor: 'rgba(30,27,75,0.88)',
     paddingVertical: Spacing.xl,
     paddingHorizontal: Spacing.lg,
     alignItems: 'center',

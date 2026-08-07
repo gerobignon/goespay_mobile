@@ -24,6 +24,7 @@ import { Button } from '../src/components/Button';
 import { CustomAlert } from '../src/components/CustomAlert';
 import { CardSecretsModal } from '../src/components/CardSecretsModal';
 import { CardFundModal } from '../src/components/CardFundModal';
+import { CardOrderModal } from '../src/components/CardOrderModal';
 import { VirtualCardVisual, type CardCopyField } from '../src/components/VirtualCardVisual';
 import { CardBrandLogo } from '../src/components/CardBrandLogo';
 import { DesktopHeader } from '../src/components/DesktopHeader';
@@ -53,9 +54,11 @@ export default function CardsScreen() {
   const [data, setData] = useState<CardsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [ordering, setOrdering] = useState(false);
-  /** Réseau de la carte à commander — gravé à l'émission, définitif. */
-  const [brand, setBrand] = useState<'VISA' | 'MASTERCARD'>('VISA');
+  /** Carte affichée : l'écran n'en montre qu'une à la fois. */
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [orderOpen, setOrderOpen] = useState(false);
+  const [showDead, setShowDead] = useState(false);
+  const [showFees, setShowFees] = useState(false);
   const [openId, setOpenId] = useState<number | null>(null);
   const [transactions, setTransactions] = useState<Record<number, CardTransaction[]>>({});
   const [secretsFor, setSecretsFor] = useState<VirtualCard | null>(null);
@@ -130,31 +133,24 @@ export default function CardsScreen() {
 
   useEffect(() => () => stopPolling(), []);
 
-  const order = async () => {
-    setOrdering(true);
-    try {
-      const card = await cardService.issue({ brand });
-      setData((prev) => (prev ? { ...prev, cards: [card, ...prev.cards] } : prev));
-      pollCard(card.id);
-    } catch (e: any) {
-      const missing = e?.response?.data?.missing as string[] | undefined;
-      if (missing?.length) {
-        // Le dossier doit repasser en validation : on renvoie vers le KYC en
-        // mode re-soumission plutôt que d'afficher un refus sec.
-        showAlert(
-          t('cards.kycUpdateTitle'),
-          t('cards.kycUpdateMessage', { fields: missing.map((f) => t(`cards.field_${f}`, f)).join(', ') }),
-          [
-            { text: t('common.cancel'), style: 'cancel' },
-            { text: t('cards.completeKyc'), onPress: () => router.push('/kyc?edit=1') },
-          ],
-        );
-      } else {
-        showAlert(t('common.error'), getApiErrorMessage(e, t, t('cards.issueError')));
-      }
-    } finally {
-      setOrdering(false);
-    }
+  /** Carte commandée depuis le modal : elle devient la carte affichée. */
+  const onOrdered = (card: VirtualCard) => {
+    setData((prev) => (prev ? { ...prev, cards: [card, ...prev.cards] } : prev));
+    setSelectedId(card.id);
+    pollCard(card.id);
+  };
+
+  /** Refus pour dossier incomplet : on renvoie au KYC plutôt qu'un refus sec. */
+  const onIneligible = (e: any) => {
+    const missing = (e?.response?.data?.missing ?? []) as string[];
+    showAlert(
+      t('cards.kycUpdateTitle'),
+      t('cards.kycUpdateMessage', { fields: missing.map((f) => t(`cards.field_${f}`, f)).join(', ') }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('cards.completeKyc'), onPress: () => router.push('/kyc?edit=1') },
+      ],
+    );
   };
 
   const toggleDetails = async (card: VirtualCard) => {
@@ -248,6 +244,66 @@ export default function CardsScreen() {
     setSecretsFor(card);
   };
 
+  /**
+   * Sélecteur de carte : n'apparaît qu'à partir de deux cartes vivantes. Une
+   * pastille par carte (réseau + 4 derniers chiffres) plutôt qu'un défilement
+   * masqué — le nombre de cartes reste petit, et rien ne doit se deviner.
+   */
+  const renderPicker = (list: VirtualCard[], current: VirtualCard) => {
+    if (list.length < 2) return null;
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.pickerRow}
+      >
+        {list.map((c) => {
+          const on = c.id === current.id;
+          return (
+            <TouchableOpacity
+              key={c.id}
+              style={[styles.pickerChip, on && styles.pickerChipOn]}
+              onPress={() => setSelectedId(c.id)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.pickerLogo}>
+                <CardBrandLogo brand={c.brand} height={12} />
+              </View>
+              <Text style={[styles.pickerText, on && styles.pickerTextOn]}>
+                {c.last4 ? `•• ${c.last4}` : t('cards.statusPending')}
+              </Text>
+              <View style={[styles.pickerDot, { backgroundColor: statusColor(c) }]} />
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    );
+  };
+
+  /** Demandes non abouties : une ligne, un motif, aucune maquette de carte. */
+  const renderDead = (list: VirtualCard[]) => (
+    <View style={styles.deadBlock}>
+      <TouchableOpacity style={styles.deadHead} onPress={() => setShowDead((v) => !v)} activeOpacity={0.7}>
+        <Text style={styles.deadTitle}>{t('cards.pastRequests', { count: list.length })}</Text>
+        <FontAwesome6 name={showDead ? 'chevron-up' : 'chevron-down'} size={12} color={Colors.textMuted} />
+      </TouchableOpacity>
+
+      {showDead && list.map((c) => (
+        <View key={c.id} style={styles.deadRow}>
+          <View style={styles.deadRowLeft}>
+            <Text style={styles.deadRowTitle}>
+              {c.brand} · {statusLabel(c)}
+            </Text>
+            {!!c.reason && <Text style={styles.deadRowReason}>{c.reason}</Text>}
+          </View>
+          <Text style={styles.deadRowDate}>
+            {c.created_at ? new Date(c.created_at).toLocaleDateString('fr-FR') : ''}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+
   const renderCard = (card: VirtualCard) => {
     const open = openId === card.id;
     const rows = transactions[card.id] ?? [];
@@ -278,9 +334,6 @@ export default function CardsScreen() {
           </View>
         )}
 
-        {card.status === 'failed' && !!card.reason && (
-          <Text style={styles.failReason}>{card.reason}</Text>
-        )}
 
         {card.usable && (
           <View style={styles.actions}>
@@ -355,6 +408,14 @@ export default function CardsScreen() {
   const cards = data?.cards ?? [];
   const pricing = data?.pricing;
 
+  // Une page = UNE carte. Les demandes échouées ou résiliées ne sont pas des
+  // cartes : elles n'ont ni solde ni action, et empilées elles noyaient la seule
+  // carte utilisable. Elles descendent dans un repli, en une ligne chacune.
+  const liveCards = cards.filter((c) => c.status !== 'failed' && c.status !== 'terminated');
+  const deadCards = cards.filter((c) => c.status === 'failed' || c.status === 'terminated');
+
+  const shownCard = liveCards.find((c) => c.id === selectedId) ?? liveCards[0] ?? null;
+
   /** Écran d'accueil du produit : aperçu de la carte et conditions. */
   const renderIntro = () => (
     <View style={styles.intro}>
@@ -373,24 +434,49 @@ export default function CardsScreen() {
         ))}
       </View>
 
-      {!!pricing && (
-        <View style={styles.priceCard}>
-          <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>{t('cards.issueFee')}</Text>
-            <Text style={styles.priceValue}>
-              {pricing.issue_fee > 0 ? fmtXof(pricing.issue_fee) : t('cards.free')}
-            </Text>
-          </View>
-          {!!pricing.rate && (
-            <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>{t('cards.rate')}</Text>
-              <Text style={styles.priceValue}>1 USD = {fmtXof(pricing.rate)}</Text>
-            </View>
-          )}
-        </View>
-      )}
+      {renderFeeGrid()}
     </View>
   );
+
+  /**
+   * Grille tarifaire, telle que servie par le back-office.
+   *
+   * Elle ne montre QUE les frais que le client rencontre en utilisant sa carte.
+   * Les frais de conditions (conversion de devise, transaction refusée,
+   * contestation) sont volontairement absents : ils vivent dans les CGU, et les
+   * poser ici noierait les tarifs réellement utiles.
+   */
+  const renderFeeGrid = () => {
+    const grid = pricing?.card;
+    if (!grid) return null;
+
+    const usd = (v: number) => (v > 0 ? `${v.toFixed(2)} USD` : t('cards.free'));
+    const rate = grid.rate_usd_xof > 0 ? grid.rate_usd_xof : pricing?.rate;
+
+    const rows: Array<[string, string]> = [
+      [t('cards.rate'), rate ? `1 USD = ${fmtXof(rate)}` : '—'],
+      [t('cards.issueFee'), usd(grid.issue_fee_usd)],
+      [
+        t('cards.feeFundLow', { threshold: grid.fund_threshold_usd }),
+        `${grid.fund_percent_low} % (min ${grid.fund_fee_min_usd.toFixed(2)} USD)`,
+      ],
+      [t('cards.feeFundHigh', { threshold: grid.fund_threshold_usd }), `${grid.fund_percent_high} %`],
+      [t('cards.feeWithdraw'), usd(grid.withdraw_fee_usd)],
+      [t('cards.feePayment'), usd(grid.payment_fee_usd)],
+      [t('cards.feeMonthly'), usd(grid.monthly_fee_usd)],
+    ];
+
+    return (
+      <View style={styles.priceCard}>
+        {rows.map(([label, value]) => (
+          <View key={label} style={styles.priceRow}>
+            <Text style={styles.priceLabel}>{label}</Text>
+            <Text style={styles.priceValue}>{value}</Text>
+          </View>
+        ))}
+      </View>
+    );
+  };
 
   /** Le KYC est validé mais l'émetteur exige des informations absentes du dossier. */
   const renderKycUpdate = () => (
@@ -424,7 +510,28 @@ export default function CardsScreen() {
         <ActivityIndicator color={Colors.primary} style={{ marginTop: Spacing.xxl }} />
       ) : (
         <>
-          {cards.length > 0 ? cards.map(renderCard) : renderIntro()}
+          {shownCard ? (
+            <>
+              {renderPicker(liveCards, shownCard)}
+              {renderCard(shownCard)}
+            </>
+          ) : (
+            renderIntro()
+          )}
+
+          {/* La grille est déjà dépliée sur l'écran d'accueil du produit ; une
+              fois la carte en main, elle se consulte à la demande. */}
+          {!!shownCard && !!pricing?.card && (
+            <View style={styles.feesBlock}>
+              <TouchableOpacity style={styles.feesHead} onPress={() => setShowFees((v) => !v)} activeOpacity={0.7}>
+                <Text style={styles.feesTitle}>{t('cards.fees')}</Text>
+                <FontAwesome6 name={showFees ? 'chevron-up' : 'chevron-down'} size={12} color={Colors.textMuted} />
+              </TouchableOpacity>
+              {showFees && renderFeeGrid()}
+            </View>
+          )}
+
+          {deadCards.length > 0 && renderDead(deadCards)}
 
           {!!loadError && <Text style={styles.empty}>{loadError}</Text>}
 
@@ -451,39 +558,12 @@ export default function CardsScreen() {
           {eligibility?.reason === 'profile' && renderKycUpdate()}
 
           {eligibility?.can_order && (
-            <>
-              {/* Le réseau se choisit AVANT la commande : il est gravé à
-                  l'émission et ne se change plus ensuite. */}
-              <View style={styles.brandRow}>
-                {(['VISA', 'MASTERCARD'] as const).map((b) => (
-                  <TouchableOpacity
-                    key={b}
-                    style={[styles.brandChoice, brand === b && styles.brandChoiceOn]}
-                    onPress={() => setBrand(b)}
-                    disabled={ordering}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.brandChoiceLogo}>
-                      <CardBrandLogo brand={b} height={20} />
-                    </View>
-                    <FontAwesome6
-                      name={brand === b ? 'circle-dot' : 'circle'}
-                      size={14}
-                      color={brand === b ? Colors.primary : Colors.textMuted}
-                    />
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Button
-                title={cards.length > 0 ? t('cards.orderAnother') : t('cards.order')}
-                onPress={order}
-                loading={ordering}
-                disabled={ordering}
-                icon="credit-card"
-                style={{ marginTop: Spacing.md }}
-              />
-            </>
+            <Button
+              title={liveCards.length > 0 ? t('cards.orderAnother') : t('cards.order')}
+              onPress={() => setOrderOpen(true)}
+              icon="credit-card"
+              style={{ marginTop: Spacing.md }}
+            />
           )}
         </>
       )}
@@ -498,6 +578,13 @@ export default function CardsScreen() {
         copyField={copyField}
         onCopied={(field) => { if (secretsFor) flagCopied(secretsFor.id, field); }}
         onClose={() => { setSecretsFor(null); setCopyField(null); }}
+      />
+      <CardOrderModal
+        visible={orderOpen}
+        pricing={pricing}
+        onClose={() => setOrderOpen(false)}
+        onOrdered={onOrdered}
+        onIneligible={onIneligible}
       />
       <CardFundModal
         visible={!!fundFor}
@@ -581,34 +668,76 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   metaLabel: { fontSize: FontSize.sm, color: Colors.textMuted },
   metaBalance: { fontSize: FontSize.lg, color: Colors.text, fontFamily: Fonts.bold },
   statusPill: { borderRadius: BorderRadius.pill, paddingHorizontal: 12, paddingVertical: 5 },
-  brandRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
-  brandChoice: {
-    flex: 1,
+  pickerRow: { flexDirection: 'row', gap: Spacing.sm, paddingBottom: Spacing.md },
+  pickerChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: Spacing.sm,
-    paddingVertical: Spacing.sm,
+    paddingVertical: 7,
     paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.pill,
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: Colors.card,
   },
-  brandChoiceOn: { borderColor: Colors.primary, backgroundColor: Colors.primary + '14' },
+  pickerChipOn: { borderColor: Colors.primary, backgroundColor: Colors.primary + '14' },
   // Le logotype Visa est blanc : il lui faut un fond sombre pour rester lisible
   // hors de la carte, en thème clair comme en thème sombre.
-  brandChoiceLogo: {
+  pickerLogo: {
     backgroundColor: '#0b1f5c',
-    borderRadius: BorderRadius.sm,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
   },
+  pickerText: { fontSize: FontSize.sm, color: Colors.textMuted, fontFamily: Fonts.medium },
+  pickerTextOn: { color: Colors.text },
+  pickerDot: { width: 7, height: 7, borderRadius: 4 },
+  feesBlock: {
+    marginTop: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  feesHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+  },
+  feesTitle: { fontSize: FontSize.sm, color: Colors.textMuted, fontFamily: Fonts.medium },
+  deadBlock: {
+    marginTop: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  deadHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+  },
+  deadTitle: { fontSize: FontSize.sm, color: Colors.textMuted, fontFamily: Fonts.medium },
+  deadRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.md,
+  },
+  deadRowLeft: { flex: 1, gap: 2 },
+  deadRowTitle: { fontSize: FontSize.sm, color: Colors.text, fontFamily: Fonts.medium },
+  deadRowReason: { fontSize: FontSize.sm, color: Colors.textMuted },
+  deadRowDate: { fontSize: FontSize.sm, color: Colors.textMuted },
   statusText: { fontSize: FontSize.sm, fontFamily: Fonts.medium },
 
   pendingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   pendingText: { fontSize: FontSize.sm, color: Colors.textMuted },
-  failReason: { fontSize: FontSize.sm, color: Colors.error },
 
   actions: {
     flexDirection: 'row',
