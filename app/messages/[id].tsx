@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,8 +6,6 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
@@ -19,10 +17,11 @@ import { showAlert, type AlertButton } from '../../src/stores/alertStore';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useColors } from '../../src/components/ThemeProvider';
 import { useResponsive } from '../../src/hooks/useResponsive';
+import { useKeyboardInset } from '../../src/hooks/useKeyboardInset';
 import { BorderRadius, FontSize, Fonts, Spacing, type ColorPalette } from '../../src/constants/theme';
 import { useMessagingStore } from '../../src/stores/messagingStore';
 import { ChatAvatar } from '../../src/components/chat/ChatAvatar';
-import { ChatComposer } from '../../src/components/chat/ChatComposer';
+import { ChatComposer, type ComposerQuote } from '../../src/components/chat/ChatComposer';
 import { MessageBubble } from '../../src/components/chat/MessageBubble';
 import { DevImageViewer } from '../../src/components/dev/DevImageViewer';
 import { dayLabel, isNewDay, presenceLabel } from '../../src/components/chat/chatFormat';
@@ -62,6 +61,13 @@ export default function ConversationScreen() {
   } = useMessagingStore();
 
   const [viewerUri, setViewerUri] = useState<string | null>(null);
+  const [quote, setQuote] = useState<ComposerQuote | null>(null);
+  const keyboardInset = useKeyboardInset();
+  // Ouvrir les emojis ferme le clavier : sa hauteur est déjà retombée à zéro
+  // quand le panneau s'affiche. On garde la dernière mesure pour lui donner
+  // exactement la place que le clavier occupait — pas de saut de mise en page.
+  const lastKeyboardRef = useRef(0);
+  if (keyboardInset > 180) lastKeyboardRef.current = keyboardInset;
 
   useEffect(() => {
     if (!conversationId) return;
@@ -130,6 +136,16 @@ export default function ConversationScreen() {
     showAlert(conversation.title, '', actions);
   };
 
+  /** Balayage sur une bulle → elle se retrouve citée au-dessus de la saisie. */
+  const startQuote = (message: ChatMessage) => {
+    if (message.is_system) return;
+    const author = message.mine
+      ? t('messages.you', 'Vous')
+      : message.author?.name || conversation?.title || '';
+    const body = message.body || (message.attachment ? t('messages.photo', 'Photo') : '');
+    setQuote({ id: message.id, author, body });
+  };
+
   const renderItem = ({ item, index }: { item: ChatMessage; index: number }) => {
     // `data` est inversée : l'élément suivant est le message précédent dans le temps.
     const previous = data[index + 1];
@@ -147,6 +163,7 @@ export default function ConversationScreen() {
           peerReadId={conversation?.peer_read_id ?? 0}
           onPressImage={setViewerUri}
           onRetry={(tempId) => retry(conversationId, tempId)}
+          onQuote={startQuote}
         />
       </View>
     );
@@ -154,11 +171,9 @@ export default function ConversationScreen() {
 
   return (
     <ScreenBackground edges={['top']} animateEntrance={false}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      >
+      {/* La place du clavier est réservée ici, pas prise à l'en-tête : il reste
+          collé en haut, la liste rétrécit, la saisie se pose sur le clavier. */}
+      <View style={[styles.flex, { paddingBottom: keyboardInset }]}>
         {/* En-tête */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
@@ -231,11 +246,19 @@ export default function ConversationScreen() {
         )}
 
         <ChatComposer
-          onSend={(body, imageUri) => send(conversationId, body, imageUri)}
+          onSend={(body, imageUri) => {
+            // La citation part avec le message, en préfixe, puis disparaît.
+            const text = quote ? `> ${quote.author} : ${quote.body}\n\n${body}` : body;
+            setQuote(null);
+            return send(conversationId, text, imageUri);
+          }}
           onTyping={() => notifyTyping(conversationId)}
           sending={isSending}
+          quote={quote}
+          onCancelQuote={() => setQuote(null)}
+          keyboardHeight={lastKeyboardRef.current}
         />
-      </KeyboardAvoidingView>
+      </View>
 
       <DevImageViewer uri={viewerUri} onClose={() => setViewerUri(null)} />
       <CustomAlert />

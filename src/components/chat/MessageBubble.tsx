@@ -1,5 +1,14 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useRef } from 'react';
+import {
+  View,
+  Text,
+  Image,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  Animated,
+  PanResponder,
+} from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { BorderRadius, FontSize, Fonts, Spacing, withAlpha, type ColorPalette } from '../../constants/theme';
@@ -8,22 +17,50 @@ import { useColors } from '../ThemeProvider';
 import type { ChatMessage } from '../../types';
 import { messageTime } from './chatFormat';
 
+/** Distance de balayage au-delà de laquelle la citation se déclenche. */
+const SWIPE_TRIGGER = 56;
+
 interface MessageBubbleProps {
   message: ChatMessage;
   /** Dernier message lu par l'interlocuteur → coche double sur mes bulles. */
   peerReadId: number;
   onPressImage: (uri: string) => void;
   onRetry: (tempId: number) => void;
+  /** Balayage gauche/droite sur la bulle → citer ce message. */
+  onQuote?: (message: ChatMessage) => void;
 }
 
 /**
  * Bulle d'un message. Trois états visuels côté émetteur : en cours d'envoi,
  * envoyé, lu — l'échec reste affiché et réessayable plutôt que de disparaître.
+ *
+ * Un balayage horizontal cite le message, dans les deux sens : sur un fil, la
+ * main tombe indifféremment à gauche ou à droite selon le côté de la bulle.
  */
-export function MessageBubble({ message, peerReadId, onPressImage, onRetry }: MessageBubbleProps) {
+export function MessageBubble({ message, peerReadId, onPressImage, onRetry, onQuote }: MessageBubbleProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const { t } = useTranslation();
+  const tx = useRef(new Animated.Value(0)).current;
+
+  const pan = useRef(
+    PanResponder.create({
+      // Horizontal franc uniquement : sinon on volerait le défilement du fil.
+      onMoveShouldSetPanResponder: (_, g) =>
+        !!onQuote && Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
+      onPanResponderMove: (_, g) => {
+        tx.setValue(Math.max(-96, Math.min(96, g.dx)));
+      },
+      onPanResponderRelease: (_, g) => {
+        const triggered = Math.abs(g.dx) >= SWIPE_TRIGGER;
+        Animated.spring(tx, { toValue: 0, useNativeDriver: true, friction: 7 }).start();
+        if (triggered && onQuote) onQuote(message);
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(tx, { toValue: 0, useNativeDriver: true, friction: 7 }).start();
+      },
+    }),
+  ).current;
 
   if (message.is_system) {
     return (
@@ -36,22 +73,33 @@ export function MessageBubble({ message, peerReadId, onPressImage, onRetry }: Me
   const mine = message.mine;
   const image = message.localImage || message.attachment?.thumb || message.attachment?.url || null;
   const fullImage = message.attachment?.url || message.localImage || null;
-  const agentName = message.author?.is_agent ? message.author.agent_name : '';
   const read = mine && message.id > 0 && peerReadId >= message.id;
 
+  /**
+   * Le fond d'une bulle sortante raconte son avancement, sans qu'on ait à lire
+   * la coche : gris tant qu'il part, couleur atténuée une fois chez le serveur,
+   * pleine couleur quand l'autre l'a lu.
+   */
+  const mineBackground = message.pending
+    ? withAlpha(colors.textMuted, 0.28)
+    : read
+      ? colors.primary
+      : withAlpha(colors.primary, 0.55);
+
   return (
-    <View style={[styles.row, mine ? styles.rowMine : styles.rowTheirs]}>
+    <Animated.View
+      style={[styles.row, mine ? styles.rowMine : styles.rowTheirs, { transform: [{ translateX: tx }] }]}
+      {...pan.panHandlers}
+    >
       <View
         style={[
           styles.bubble,
           mine
-            ? { backgroundColor: colors.primary, borderBottomRightRadius: 4 }
+            ? { backgroundColor: mineBackground, borderBottomRightRadius: 4 }
             : { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderBottomLeftRadius: 4 },
           message.failed && { backgroundColor: withAlpha(colors.error, 0.25) },
         ]}
       >
-        {!!agentName && <Text style={[styles.agent, { color: colors.secondary }]}>{agentName}</Text>}
-
         {!!image && (
           <TouchableOpacity
             activeOpacity={0.9}
@@ -91,7 +139,7 @@ export function MessageBubble({ message, peerReadId, onPressImage, onRetry }: Me
           )}
         </View>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -108,11 +156,6 @@ const createStyles = (Colors: ColorPalette) =>
       borderRadius: BorderRadius.lg,
       paddingHorizontal: Spacing.md,
       paddingVertical: Spacing.sm + 2,
-    },
-    agent: {
-      fontFamily: Fonts.bold,
-      fontSize: FontSize.xs,
-      marginBottom: 2,
     },
     text: {
       fontFamily: Fonts.regular,

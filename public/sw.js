@@ -74,8 +74,11 @@ function targetUrl(data) {
   if (data.transactionId && data.type) {
     return '/transaction/' + data.type + '/' + data.transactionId;
   }
+  if (data.screen === 'messages') {
+    return data.conversationId ? '/messages/' + data.conversationId : '/support';
+  }
   if (data.screen === 'admin_dev') {
-    return '/admin/kanban';
+    return data.taskId ? '/admin/kanban?task=' + data.taskId : '/admin/kanban';
   }
   if (data.screen === 'history') {
     return '/history';
@@ -96,23 +99,39 @@ self.addEventListener('notificationclick', function (event) {
   );
 });
 
+/**
+ * Amène l'utilisateur sur `url`.
+ *
+ * Quand une fenêtre GoesPay est déjà ouverte, on la focalise et on lui DEMANDE
+ * de naviguer (postMessage → routeur Expo). `client.navigate()` rechargerait
+ * toute l'application — plusieurs secondes d'écran blanc pour ouvrir une
+ * conversation — et échoue silencieusement sur un client non contrôlé par ce
+ * service worker, ce qui laissait l'app ouverte sur la page en cours : c'était
+ * la cause du « ça ouvre l'app mais pas la discussion ».
+ *
+ * Sans fenêtre ouverte, openWindow charge l'URL profonde (le serveur renvoie
+ * index.html pour toute route, l'app est une SPA).
+ */
 function openTarget(url) {
-  return (
-    self.clients
-      .matchAll({ type: 'window', includeUncontrolled: true })
-      .then(function (clientList) {
-        for (var i = 0; i < clientList.length; i++) {
-          var client = clientList[i];
-          if ('focus' in client) {
+  return self.clients
+    .matchAll({ type: 'window', includeUncontrolled: true })
+    .then(function (clientList) {
+      for (var i = 0; i < clientList.length; i++) {
+        var client = clientList[i];
+        if ('focus' in client) {
+          try {
+            client.postMessage({ type: 'navigate', url: url });
+          } catch (e) {
+            // Fenêtre hors de portée : on retombe sur le rechargement.
             if ('navigate' in client) {
-              try { client.navigate(url); } catch (e) { /* cross-origin safe-guard */ }
+              try { client.navigate(url); } catch (e2) { /* cross-origin safe-guard */ }
             }
-            return client.focus();
           }
+          return client.focus();
         }
-        if (self.clients.openWindow) {
-          return self.clients.openWindow(url);
-        }
-      })
-  );
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(url);
+      }
+    });
 }

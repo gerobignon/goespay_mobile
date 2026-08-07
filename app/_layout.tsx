@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, Image, ActivityIndicator, StyleSheet, TouchableOpacity, Platform, Animated } from 'react-native';
@@ -28,6 +28,9 @@ import '../src/i18n';  // initialize i18next
 import { initLanguage } from '../src/i18n';
 import { useTranslation } from 'react-i18next';
 
+/** Charge utile d'une notification push, telle qu'envoyée par le backend. */
+type NotificationData = Record<string, string | undefined>;
+
 export default function RootLayout() {
   return (
     <ThemeProvider>
@@ -49,6 +52,36 @@ function RootInner() {
   const [showOfflineBanner, setShowOfflineBanner] = useState(false);
   const notifListenerRef = useRef<Notifications.Subscription | null>(null);
   const responseListenerRef = useRef<Notifications.Subscription | null>(null);
+  const coldStartHandledRef = useRef(false);
+
+  /**
+   * Destination d'une notification. Partagée par les trois chemins d'arrivée :
+   * tap application ouverte, tap application fermée (cold start), et clic sur
+   * une notification web relayé par le service worker.
+   */
+  const navigateFromNotification = useCallback(
+    (data?: NotificationData) => {
+      if (!data) return;
+
+      if (data.transactionId && data.type) {
+        router.push({
+          pathname: `/transaction/${data.type}/[id]` as any,
+          params: { id: String(data.transactionId) },
+        });
+      } else if (data.screen === 'messages') {
+        // Message reçu → le fil concerné, à défaut la liste.
+        router.push(data.conversationId ? `/messages/${data.conversationId}` : '/(tabs)/support');
+      } else if (data.screen === 'admin_dev') {
+        // Board Dev : la tâche commentée, pas seulement le board.
+        router.push(data.taskId ? `/admin/kanban?task=${data.taskId}` : '/admin/kanban');
+      } else if (data.screen === 'history') {
+        router.push('/(tabs)/history');
+      } else if (data.screen === 'home' || data.screen === 'kyc') {
+        router.push('/(tabs)');
+      }
+    },
+    [router],
+  );
 
   const [fontsLoaded] = useFonts({
     Quicksand_400Regular: require('../assets/fonts/Quicksand_400Regular.ttf'),
@@ -132,7 +165,15 @@ function RootInner() {
         // Push reçu pendant que l'onglet est ouvert : le SW prévient la page →
         // on rafraîchit le board Dev (badge d'onglet + pastille d'icône).
         navigator.serviceWorker.addEventListener('message', (event: MessageEvent) => {
-          const payload = event.data as { type?: string; data?: Record<string, string> } | undefined;
+          const payload = event.data as { type?: string; url?: string; data?: Record<string, string> } | undefined;
+
+          // Clic sur une notification alors que la PWA est ouverte : le service
+          // worker demande la navigation plutôt que de recharger l'application.
+          if (payload?.type === 'navigate' && payload.url) {
+            router.push(payload.url as any);
+            return;
+          }
+
           if (payload?.type !== 'push') return;
           if (payload.data?.screen === 'admin_dev') {
             import('../src/stores/devBoardStore')
@@ -298,39 +339,24 @@ function RootInner() {
       }
     });
 
-    // Listener : tap sur une notification → navigation
+    // Listener : tap sur une notification, application déjà lancée.
     responseListenerRef.current = addNotificationResponseListener((response) => {
-      const data = response.notification.request.content.data as Record<string, string> | undefined;
-      if (!data) return;
-
-      // Navigation basée sur les données de notification
-      if (data.transactionId && data.type) {
-        // Transaction (dépôt, transfert, retrait, crypto)
-        router.push({
-          pathname: `/transaction/${data.type}/[id]` as any,
-          params: { id: data.transactionId },
-        });
-      } else if (data.screen === 'admin_dev') {
-        // Board Kanban Dev (admin) → écran de gestion
-        router.push('/admin/kanban');
-      } else if (data.screen === 'messages') {
-        // Message reçu → le fil concerné, à défaut la liste
-        if (data.conversationId) {
-          router.push(`/messages/${data.conversationId}`);
-        } else {
-          router.push('/(tabs)/support');
-        }
-      } else if (data.screen === 'home') {
-        // KYC validée/rejetée → accueil
-        router.push('/(tabs)');
-      } else if (data.screen === 'history') {
-        // Fallback (historique)
-        router.push('/(tabs)/history');
-      } else if (data.screen === 'kyc') {
-        // Fallback ancien (KYC)
-        router.push('/(tabs)');
-      }
+      navigateFromNotification(response.notification.request.content.data as NotificationData);
     });
+
+    // Tap sur une notification alors que l'app était FERMÉE : le listener
+    // ci-dessus n'est monté qu'après le démarrage, donc il ne voit jamais la
+    // notification qui a lancé l'app — celle-ci s'ouvrait sur l'accueil. On
+    // rejoue la dernière réponse une fois le routeur prêt.
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (!response || coldStartHandledRef.current) return;
+        coldStartHandledRef.current = true;
+        const data = response.notification.request.content.data as NotificationData;
+        // Laisse le routeur monter ses écrans avant de pousser une destination.
+        setTimeout(() => navigateFromNotification(data), 350);
+      })
+      .catch(() => {});
 
     return () => {
       notifListenerRef.current?.remove();

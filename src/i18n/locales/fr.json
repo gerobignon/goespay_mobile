@@ -1073,6 +1073,9 @@
     "balance": "Solde",
     "expiry": "Expire le",
     "cvv": "CVV",
+    "copyNumber": "Copier le numéro",
+    "copyCvv": "Copier le cryptogramme",
+    "copy": "Copier",
     "cardNumber": "Numéro de carte",
     "cardDetails": "Détails de la carte",
     "holder": "Titulaire",
@@ -1204,6 +1207,10 @@
     "prefPresence": "Statut en ligne",
     "prefPresenceHint": "Montrer quand vous êtes connecté.",
     "blockedTitle": "Comptes bloqués",
-    "noBlocked": "Aucun compte bloqué."
+    "noBlocked": "Aucun compte bloqué.",
+    "you": "Vous",
+    "photo": "Photo",
+    "open": "Ouvrir",
+    "hide": "Masquer la conversation"
   }
 }

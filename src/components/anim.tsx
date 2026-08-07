@@ -54,6 +54,8 @@ export function Reveal({ children, delay = 0, offset = 18, duration = 450, style
 interface BounceProps {
   children: React.ReactNode;
   onPress?: () => void;
+  /** Appui long — menu contextuel sur une carte, par exemple. */
+  onLongPress?: () => void;
   disabled?: boolean;
   /** Échelle au toucher (défaut 0.96). */
   scaleTo?: number;
@@ -66,11 +68,12 @@ interface BounceProps {
  * Le `style` (y compris flex) est appliqué directement sur le Pressable animé
  * → conserve le layout d'origine (flex:1, etc.).
  */
-export function Bounce({ children, onPress, disabled, scaleTo = 0.96, style, hitSlop }: BounceProps) {
+export function Bounce({ children, onPress, onLongPress, disabled, scaleTo = 0.96, style, hitSlop }: BounceProps) {
   const s = useRef(new Animated.Value(1)).current;
   return (
     <AnimatedPressable
       onPress={onPress}
+      onLongPress={onLongPress}
       disabled={disabled}
       hitSlop={hitSlop}
       onPressIn={() => Animated.spring(s, { toValue: scaleTo, useNativeDriver: true, friction: 6 }).start()}

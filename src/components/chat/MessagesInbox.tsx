@@ -24,6 +24,9 @@ import { useTheme } from '../ThemeProvider';
 import { useMessagingStore } from '../../stores/messagingStore';
 import { ConversationRow } from './ConversationRow';
 import { ChatAvatar } from './ChatAvatar';
+import { DevImageViewer } from '../dev/DevImageViewer';
+import { showAlert, type AlertButton } from '../../stores/alertStore';
+import type { Conversation } from '../../types';
 
 const open = (url: string) => Linking.openURL(url).catch(() => {});
 
@@ -54,10 +57,13 @@ export function MessagesInbox() {
   const isLoading = useMessagingStore((s) => s.isLoading);
   const fetchConversations = useMessagingStore((s) => s.fetchConversations);
   const openSupport = useMessagingStore((s) => s.openSupport);
+  const setMuted = useMessagingStore((s) => s.setMuted);
+  const archiveConversation = useMessagingStore((s) => s.archiveConversation);
 
   const [refreshing, setRefreshing] = useState(false);
   const [openingSupport, setOpeningSupport] = useState(false);
   const [showChannels, setShowChannels] = useState(false);
+  const [viewerUri, setViewerUri] = useState<string | null>(null);
 
   const support = conversations.find((c) => c.type === 'support') || null;
   const directs = conversations.filter((c) => c.type === 'direct');
@@ -80,6 +86,35 @@ export function MessagesInbox() {
     setRefreshing(true);
     await fetchConversations(true);
     setRefreshing(false);
+  };
+
+  /** Appui long sur une conversation : les gestes qu'on ne veut pas voir en permanence. */
+  const openOptions = (conversation: Conversation) => {
+    const actions: AlertButton[] = [
+      { text: t('messages.open', 'Ouvrir'), onPress: () => router.push(`/messages/${conversation.id}`) },
+      {
+        text: conversation.muted
+          ? t('messages.unmute', 'Réactiver les notifications')
+          : t('messages.mute', 'Couper les notifications'),
+        onPress: () => setMuted(conversation.id, !conversation.muted),
+      },
+    ];
+
+    if (conversation.peer) {
+      actions.push({
+        text: t('messages.viewProfile', 'Voir le profil'),
+        onPress: () => router.push(`/messages/profile/${conversation.peer!.id}`),
+      });
+      actions.push({
+        text: t('messages.hide', 'Masquer la conversation'),
+        style: 'destructive',
+        onPress: () => archiveConversation(conversation.id),
+      });
+    }
+
+    actions.push({ text: t('common.cancel', 'Annuler'), style: 'cancel' });
+
+    showAlert(conversation.title, '', actions);
   };
 
   const goSupport = async () => {
@@ -170,7 +205,12 @@ export function MessagesInbox() {
           <View style={styles.list}>
             {directs.map((c, i) => (
               <Reveal key={c.id} delay={i * 45} offset={12}>
-                <ConversationRow conversation={c} onPress={() => router.push(`/messages/${c.id}`)} />
+                <ConversationRow
+                  conversation={c}
+                  onPress={() => router.push(`/messages/${c.id}`)}
+                  onLongPress={() => openOptions(c)}
+                  onPressAvatar={setViewerUri}
+                />
               </Reveal>
             ))}
           </View>
@@ -205,6 +245,7 @@ export function MessagesInbox() {
           </View>
         </View>
       </ScrollView>
+      <DevImageViewer uri={viewerUri} onClose={() => setViewerUri(null)} />
       <CustomAlert />
     </ScreenBackground>
   );

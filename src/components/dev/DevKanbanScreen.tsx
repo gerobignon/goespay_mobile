@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -38,6 +38,9 @@ export function DevKanbanScreen({ showBack = false }: { showBack?: boolean }) {
   const [taskTab, setTaskTab] = useState<'details' | 'comments' | undefined>(undefined);
   const [backlogVisible, setBacklogVisible] = useState(false);
   const [boardH, setBoardH] = useState(0);
+  // `?task=<id>` posé par le tap sur une notification de commentaire.
+  const { task: taskParam } = useLocalSearchParams<{ task?: string }>();
+  const openedFromParamRef = useRef<number | null>(null);
 
   // Réservé au super-admin (user id 1) — miroir de la garde backend (groupe admin).
   useEffect(() => {
@@ -53,6 +56,23 @@ export function DevKanbanScreen({ showBack = false }: { showBack?: boolean }) {
       fetchBoard(hasData).then(() => markSeen());
     }, [user?.id]),
   );
+
+  // Arrivée depuis une notification (`?task=<id>`) : on ouvre la tâche annoncée
+  // sur son fil de commentaires — venir d'une notif de commentaire pour
+  // atterrir sur le board entier obligeait à retrouver la carte à la main.
+  // Le board peut n'être pas encore chargé : on attend qu'il le soit.
+  useEffect(() => {
+    const wanted = Number(taskParam);
+    if (!wanted || !board || openedFromParamRef.current === wanted) return;
+    const found = [...Object.values(board.tasks_by_status || {}).flat(), ...(board.backlog || [])].find(
+      (t) => t.id === wanted,
+    );
+    if (!found) return;
+    openedFromParamRef.current = wanted;
+    setEditingTask(found);
+    setTaskTab('comments');
+    setTaskModal(true);
+  }, [taskParam, board]);
 
   if (!user || user.id !== 1) return null;
 

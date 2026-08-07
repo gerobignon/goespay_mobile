@@ -1073,6 +1073,9 @@
     "balance": "Balance",
     "expiry": "Expires",
     "cvv": "CVV",
+    "copyNumber": "Copy number",
+    "copyCvv": "Copy security code",
+    "copy": "Copy",
     "cardNumber": "Card number",
     "cardDetails": "Card details",
     "holder": "Cardholder",
@@ -1204,6 +1207,10 @@
     "prefPresence": "Online status",
     "prefPresenceHint": "Show when you are connected.",
     "blockedTitle": "Blocked accounts",
-    "noBlocked": "No blocked account."
+    "noBlocked": "No blocked account.",
+    "you": "You",
+    "photo": "Photo",
+    "open": "Open",
+    "hide": "Hide conversation"
   }
 }

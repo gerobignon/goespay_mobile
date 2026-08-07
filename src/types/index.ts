@@ -312,8 +312,8 @@ export interface ChatAuthor {
   id: number;
   name: string;
   avatar: string | null;
+  /** Réponse du support : toujours anonyme côté client, jamais l'agent nommé. */
   is_agent: boolean;
-  agent_name?: string;
 }
 
 export interface ChatAttachment {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { BorderRadius, FontSize, Fonts, Spacing, type ColorPalette } from '../../constants/theme';
@@ -14,9 +14,15 @@ import { shortAgo } from './chatFormat';
 export function ConversationRow({
   conversation,
   onPress,
+  onLongPress,
+  onPressAvatar,
 }: {
   conversation: Conversation;
   onPress: () => void;
+  /** Menu d'options de la conversation. */
+  onLongPress?: () => void;
+  /** Agrandissement de la photo de profil. */
+  onPressAvatar?: (uri: string) => void;
 }) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
@@ -24,16 +30,25 @@ export function ConversationRow({
 
   const isSupport = conversation.type === 'support';
   const unread = conversation.unread_count;
+  const avatar = conversation.avatar;
 
   return (
-    <Bounce style={styles.row} scaleTo={0.985} onPress={onPress}>
-      <ChatAvatar
-        name={conversation.title}
-        uri={conversation.avatar}
-        isSupport={isSupport}
-        online={conversation.peer?.online}
-        size={50}
-      />
+    <Bounce style={styles.row} scaleTo={0.985} onPress={onPress} onLongPress={onLongPress}>
+      {/* La photo répond au toucher pour elle-même : on la regarde sans ouvrir
+          la conversation. Sans photo, le toucher retombe sur la ligne. */}
+      <Pressable
+        onPress={avatar && onPressAvatar ? () => onPressAvatar(avatar) : onPress}
+        onLongPress={onLongPress}
+        hitSlop={4}
+      >
+        <ChatAvatar
+          name={conversation.title}
+          uri={avatar}
+          isSupport={isSupport}
+          online={conversation.peer?.online}
+          size={50}
+        />
+      </Pressable>
 
       <View style={styles.body}>
         <View style={styles.topLine}>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,30 +8,60 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Platform,
+  Keyboard,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { BorderRadius, FontSize, Fonts, Spacing, withAlpha, type ColorPalette } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { useColors } from '../ThemeProvider';
+import { EmojiPicker } from './EmojiPicker';
+
+export interface ComposerQuote {
+  id: number;
+  author: string;
+  body: string;
+}
 
 interface ChatComposerProps {
   onSend: (body: string, imageUri: string | null) => void | Promise<void>;
   onTyping?: () => void;
   sending?: boolean;
+  /** Message cité (swipe sur une bulle) ; null pour aucun. */
+  quote?: ComposerQuote | null;
+  onCancelQuote?: () => void;
   /** Message affiché à la place du champ quand l'échange est fermé (blocage). */
   disabledReason?: string | null;
+  /** Hauteur du clavier, pour caler le panneau d'emojis dessus. */
+  keyboardHeight?: number;
 }
 
-/** Barre de saisie : texte, photo optionnelle, envoi. */
-export function ChatComposer({ onSend, onTyping, sending, disabledReason }: ChatComposerProps) {
+/**
+ * Barre de saisie : texte, emojis, photo, envoi.
+ *
+ * La barre est posée sur une surface pleine et le champ est une pilule creusée
+ * à l'intérieur : sans ce contraste, la saisie se confondait avec le fond du
+ * fil et l'écran n'avait plus de bas.
+ */
+export function ChatComposer({
+  onSend,
+  onTyping,
+  sending,
+  quote,
+  onCancelQuote,
+  disabledReason,
+  keyboardHeight = 0,
+}: ChatComposerProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const { t } = useTranslation();
+  const inputRef = useRef<TextInput>(null);
 
   const [body, setBody] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [emojiOpen, setEmojiOpen] = useState(false);
 
   const pickImage = async () => {
     // Sur mobile la permission est demandée au premier usage ; sur web le
@@ -47,6 +77,18 @@ export function ChatComposer({ onSend, onTyping, sending, disabledReason }: Chat
     });
     if (!result.canceled && result.assets?.[0]?.uri) {
       setImageUri(result.assets[0].uri);
+      setEmojiOpen(false);
+    }
+  };
+
+  /** Emojis et clavier se disputent la même place : l'un ferme l'autre. */
+  const toggleEmoji = () => {
+    if (emojiOpen) {
+      setEmojiOpen(false);
+      inputRef.current?.focus();
+    } else {
+      Keyboard.dismiss();
+      setEmojiOpen(true);
     }
   };
 
@@ -56,6 +98,7 @@ export function ChatComposer({ onSend, onTyping, sending, disabledReason }: Chat
     // On vide tout de suite : la bulle optimiste prend le relais côté store.
     setBody('');
     setImageUri(null);
+    setEmojiOpen(false);
     await onSend(text, imageUri);
   };
 
@@ -72,6 +115,25 @@ export function ChatComposer({ onSend, onTyping, sending, disabledReason }: Chat
 
   return (
     <View style={styles.wrap}>
+      {/* Message cité */}
+      {!!quote && (
+        <View style={styles.quote}>
+          <View style={[styles.quoteBar, { backgroundColor: colors.secondary }]} />
+          <View style={styles.quoteBody}>
+            <Text style={[styles.quoteAuthor, { color: colors.secondary }]} numberOfLines={1}>
+              {quote.author}
+            </Text>
+            <Text style={styles.quoteText} numberOfLines={1}>
+              {quote.body}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={onCancelQuote} hitSlop={10}>
+            <FontAwesome6 name="xmark" size={14} color={colors.textMuted} />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Photo jointe */}
       {!!imageUri && (
         <View style={styles.preview}>
           <Image source={{ uri: imageUri }} style={styles.previewImage} />
@@ -85,38 +147,60 @@ export function ChatComposer({ onSend, onTyping, sending, disabledReason }: Chat
       )}
 
       <View style={styles.row}>
-        <TouchableOpacity style={styles.clip} onPress={pickImage} disabled={sending}>
-          <FontAwesome6 name="paperclip" size={17} color={colors.textMuted} />
-        </TouchableOpacity>
+        <View style={styles.field}>
+          <TouchableOpacity style={styles.fieldBtn} onPress={toggleEmoji} disabled={sending} hitSlop={6}>
+            <FontAwesome6
+              name={emojiOpen ? 'keyboard' : 'face-smile'}
+              size={19}
+              color={emojiOpen ? colors.secondary : colors.textMuted}
+            />
+          </TouchableOpacity>
 
-        <TextInput
-          style={styles.input}
-          value={body}
-          onChangeText={(v) => {
-            setBody(v);
-            onTyping?.();
-          }}
-          placeholder={t('messages.placeholder', 'Votre message…')}
-          placeholderTextColor={colors.textMuted}
-          multiline
-          maxLength={4000}
-        />
+          <TextInput
+            ref={inputRef}
+            style={styles.input}
+            value={body}
+            onChangeText={(v) => {
+              setBody(v);
+              onTyping?.();
+            }}
+            onFocus={() => setEmojiOpen(false)}
+            placeholder={t('messages.placeholder', 'Votre message…')}
+            placeholderTextColor={colors.textMuted}
+            multiline
+            maxLength={4000}
+          />
 
-        <TouchableOpacity
-          style={[
-            styles.send,
-            { backgroundColor: canSend ? colors.primary : withAlpha(colors.textMuted, 0.25) },
-          ]}
-          onPress={submit}
-          disabled={!canSend}
-        >
-          {sending ? (
-            <ActivityIndicator size="small" color={colors.white} />
-          ) : (
-            <FontAwesome6 name="paper-plane" size={15} color={colors.white} />
-          )}
+          <TouchableOpacity style={styles.fieldBtn} onPress={pickImage} disabled={sending} hitSlop={6}>
+            <FontAwesome6 name="paperclip" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity onPress={submit} disabled={!canSend} activeOpacity={0.85}>
+          <LinearGradient
+            colors={canSend ? [colors.primary, colors.info] : [withAlpha(colors.textMuted, 0.22), withAlpha(colors.textMuted, 0.22)]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.send}
+          >
+            {sending ? (
+              <ActivityIndicator size="small" color={colors.white} />
+            ) : (
+              <FontAwesome6 name="paper-plane" size={16} color={colors.white} />
+            )}
+          </LinearGradient>
         </TouchableOpacity>
       </View>
+
+      {emojiOpen && (
+        <EmojiPicker
+          height={keyboardHeight > 180 ? keyboardHeight : 260}
+          onPick={(emoji) => {
+            setBody((v) => v + emoji);
+            onTyping?.();
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -126,47 +210,83 @@ const createStyles = (Colors: ColorPalette) =>
     wrap: {
       borderTopWidth: 1,
       borderTopColor: Colors.border,
-      paddingHorizontal: Spacing.md,
-      paddingTop: Spacing.sm,
-      paddingBottom: Spacing.sm,
-      backgroundColor: Colors.background,
+      // Surface pleine : la barre doit se détacher du fond du fil.
+      backgroundColor: Colors.cardSolid,
     },
     row: {
       flexDirection: 'row',
       alignItems: 'flex-end',
       gap: Spacing.sm,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.sm,
+    },
+    field: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: Spacing.xs,
+      minHeight: 46,
+      borderRadius: 23,
+      borderWidth: 1,
+      borderColor: Colors.border,
+      // Creux dans la barre — plus sombre en thème sombre, plus clair en clair.
+      backgroundColor: Colors.background,
+      paddingHorizontal: Spacing.xs,
+    },
+    fieldBtn: {
+      width: 36,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     input: {
       flex: 1,
-      minHeight: 42,
       maxHeight: 120,
-      borderRadius: BorderRadius.xl,
-      borderWidth: 1,
-      borderColor: Colors.border,
-      backgroundColor: Colors.inputBg,
       color: Colors.text,
       fontFamily: Fonts.regular,
       fontSize: FontSize.md,
-      paddingHorizontal: Spacing.md,
-      paddingTop: Platform.OS === 'ios' ? 11 : 8,
-      paddingBottom: Platform.OS === 'ios' ? 11 : 8,
-    },
-    clip: {
-      width: 42,
-      height: 42,
-      alignItems: 'center',
-      justifyContent: 'center',
+      paddingTop: Platform.OS === 'ios' ? 13 : 10,
+      paddingBottom: Platform.OS === 'ios' ? 13 : 10,
+      paddingHorizontal: 2,
     },
     send: {
-      width: 42,
-      height: 42,
-      borderRadius: 21,
+      width: 46,
+      height: 46,
+      borderRadius: 23,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    quote: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+      paddingHorizontal: Spacing.md,
+      paddingTop: Spacing.sm,
+    },
+    quoteBar: {
+      width: 3,
+      alignSelf: 'stretch',
+      borderRadius: 2,
+      minHeight: 32,
+    },
+    quoteBody: {
+      flex: 1,
+      minWidth: 0,
+    },
+    quoteAuthor: {
+      fontFamily: Fonts.bold,
+      fontSize: FontSize.xs,
+    },
+    quoteText: {
+      fontFamily: Fonts.regular,
+      fontSize: FontSize.sm,
+      color: Colors.textMuted,
+      marginTop: 1,
     },
     preview: {
       alignSelf: 'flex-start',
-      marginBottom: Spacing.sm,
+      marginTop: Spacing.sm,
+      marginLeft: Spacing.md,
     },
     previewImage: {
       width: 76,
@@ -190,6 +310,7 @@ const createStyles = (Colors: ColorPalette) =>
       gap: Spacing.sm,
       borderTopWidth: 1,
       borderTopColor: Colors.border,
+      backgroundColor: Colors.cardSolid,
       paddingHorizontal: Spacing.lg,
       paddingVertical: Spacing.md,
     },
