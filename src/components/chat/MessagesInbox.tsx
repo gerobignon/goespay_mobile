@@ -156,6 +156,9 @@ export function MessagesInbox() {
         <View style={styles.header}>
           <Text style={styles.title}>{t('messages.title', 'Messages')}</Text>
           <View style={styles.headerActions}>
+            <Bounce style={styles.headerBtn} onPress={() => router.push('/messages/requests')}>
+              <FontAwesome6 name="user-plus" size={15} color={colors.text} />
+            </Bounce>
             <Bounce style={styles.headerBtn} onPress={() => router.push('/messages/settings')}>
               <FontAwesome6 name="sliders" size={15} color={colors.text} />
             </Bounce>

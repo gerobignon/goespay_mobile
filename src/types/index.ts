@@ -272,7 +272,31 @@ export type ConversationStatus = 'open' | 'pending' | 'closed';
 export type ContactSource = 'transfer' | 'referral' | 'sponsor';
 export type ReportReason = 'scam' | 'spam' | 'harassment' | 'other';
 
-/** Fiche publique d'un autre client (jamais d'email ni de téléphone). */
+/**
+ * Relation avec un autre client :
+ *  - friend   : invitation acceptée — seule relation qui ouvre un fil
+ *  - known    : lien déjà établi (parrainage, transfert) — nom visible, mais
+ *               discuter demande quand même une invitation
+ *  - stranger : rien
+ */
+export type ChatRelation = 'self' | 'friend' | 'known' | 'stranger';
+
+/** Niveau de visibilité d'une information du profil. */
+export type VisibilityLevel = 'public' | 'friends' | 'private';
+
+export interface ChatVisibility {
+  name: VisibilityLevel;
+  avatar: VisibilityLevel;
+  country: VisibilityLevel;
+  member_since: VisibilityLevel;
+  verified: VisibilityLevel;
+  presence: VisibilityLevel;
+}
+
+/**
+ * Fiche publique d'un autre client (jamais d'email ni de téléphone).
+ * Les champs cachés par ses réglages arrivent vides plutôt qu'absents.
+ */
 export interface PeerCard {
   id: number;
   name: string;
@@ -282,9 +306,21 @@ export interface PeerCard {
   member_since: string | null;
   online: boolean;
   last_seen_at: string | null;
+  relation: ChatRelation;
   /** null quand le serveur ne l'a pas calculé (listes, pour rester léger). */
   is_contact: boolean | null;
+  /** Présent dans la liste des personnes connues : peut-on déjà écrire ? */
+  can_message?: boolean;
   source?: ContactSource;
+}
+
+/** Invitation à discuter, reçue ou envoyée. */
+export interface ContactRequest {
+  id: number;
+  direction: 'incoming' | 'outgoing';
+  note: string;
+  created_at: string | null;
+  peer: PeerCard | null;
 }
 
 export interface PublicProfile extends PeerCard {

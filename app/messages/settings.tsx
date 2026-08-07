@@ -13,7 +13,7 @@ import { BorderRadius, FontSize, Fonts, Spacing, type ColorPalette } from '../..
 import { useMessagingStore } from '../../src/stores/messagingStore';
 import { messagingService } from '../../src/services/messagingService';
 import { ChatAvatar } from '../../src/components/chat/ChatAvatar';
-import type { BlockedUser, ChatPrefs } from '../../src/types';
+import type { BlockedUser, ChatPrefs, ChatVisibility, VisibilityLevel } from '../../src/types';
 
 /** Réglages de la messagerie : visibilité, premiers contacts, comptes bloqués. */
 export default function MessagingSettingsScreen() {
@@ -27,6 +27,7 @@ export default function MessagingSettingsScreen() {
   const savePrefs = useMessagingStore((s) => s.savePrefs);
 
   const [blocked, setBlocked] = useState<BlockedUser[]>([]);
+  const [visibility, setVisibility] = useState<ChatVisibility | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,7 +36,32 @@ export default function MessagingSettingsScreen() {
       .then(setBlocked)
       .catch(() => {})
       .finally(() => setLoading(false));
+
+    messagingService.getVisibility().then(setVisibility).catch(() => {});
   }, []);
+
+  /** Optimiste : le curseur suit le doigt, la sauvegarde suit derrière. */
+  const setLevel = (field: keyof ChatVisibility, level: VisibilityLevel) => {
+    if (!visibility) return;
+    const next = { ...visibility, [field]: level };
+    setVisibility(next);
+    messagingService.saveVisibility({ [field]: level }).catch(() => setVisibility(visibility));
+  };
+
+  const LEVELS: { key: VisibilityLevel; label: string }[] = [
+    { key: 'public', label: t('messages.levelPublic', 'Tous') },
+    { key: 'friends', label: t('messages.levelFriends', 'Amis') },
+    { key: 'private', label: t('messages.levelPrivate', 'Personne') },
+  ];
+
+  const FIELDS: { key: keyof ChatVisibility; label: string }[] = [
+    { key: 'name', label: t('messages.fieldName', 'Nom') },
+    { key: 'avatar', label: t('messages.fieldAvatar', 'Photo') },
+    { key: 'country', label: t('messages.fieldCountry', 'Pays') },
+    { key: 'member_since', label: t('messages.fieldSince', 'Ancienneté') },
+    { key: 'verified', label: t('messages.fieldVerified', 'Identité vérifiée') },
+    { key: 'presence', label: t('messages.fieldPresence', 'Statut en ligne') },
+  ];
 
   const unblock = async (userId: number) => {
     try {
@@ -95,6 +121,38 @@ export default function MessagingSettingsScreen() {
             </View>
           ))}
         </View>
+
+        {/* Qui voit quoi de mon profil */}
+        <Text style={styles.sectionTitle}>{t('messages.visibilityTitle', 'Qui voit mes informations')}</Text>
+
+        {!visibility ? (
+          <ActivityIndicator style={{ marginTop: Spacing.md }} color={colors.text} />
+        ) : (
+          <View style={styles.card}>
+            {FIELDS.map((field, i) => (
+              <View key={field.key} style={[styles.visRow, i > 0 && styles.rowDivider]}>
+                <Text style={styles.visLabel}>{field.label}</Text>
+                <View style={styles.levels}>
+                  {LEVELS.map((level) => {
+                    const active = visibility[field.key] === level.key;
+                    return (
+                      <TouchableOpacity
+                        key={level.key}
+                        style={[
+                          styles.level,
+                          active && { backgroundColor: colors.primary, borderColor: colors.primary },
+                        ]}
+                        onPress={() => setLevel(field.key, level.key)}
+                      >
+                        <Text style={[styles.levelText, active && { color: '#fff' }]}>{level.label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         <Text style={styles.sectionTitle}>{t('messages.blockedTitle', 'Comptes bloqués')}</Text>
 
@@ -172,6 +230,32 @@ const createStyles = (Colors: ColorPalette) =>
       fontSize: FontSize.xs,
       color: Colors.textMuted,
       marginTop: 2,
+    },
+    visRow: {
+      paddingVertical: Spacing.md - 2,
+    },
+    visLabel: {
+      fontFamily: Fonts.semiBold,
+      fontSize: FontSize.md,
+      color: Colors.text,
+      marginBottom: Spacing.sm,
+    },
+    levels: {
+      flexDirection: 'row',
+      gap: Spacing.xs,
+    },
+    level: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: Colors.border,
+      borderRadius: BorderRadius.pill,
+      paddingVertical: 7,
+      alignItems: 'center',
+    },
+    levelText: {
+      fontFamily: Fonts.semiBold,
+      fontSize: FontSize.sm,
+      color: Colors.textMuted,
     },
     sectionTitle: {
       fontFamily: Fonts.bold,

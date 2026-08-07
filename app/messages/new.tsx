@@ -19,7 +19,7 @@ import { Bounce, Reveal } from '../../src/components/anim';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useColors } from '../../src/components/ThemeProvider';
 import { useResponsive } from '../../src/hooks/useResponsive';
-import { BorderRadius, FontSize, Fonts, Spacing, type ColorPalette } from '../../src/constants/theme';
+import { BorderRadius, FontSize, Fonts, Spacing, withAlpha, type ColorPalette } from '../../src/constants/theme';
 import { useMessagingStore } from '../../src/stores/messagingStore';
 import { messagingService } from '../../src/services/messagingService';
 import { ChatAvatar } from '../../src/components/chat/ChatAvatar';
@@ -28,8 +28,15 @@ import type { PeerCard } from '../../src/types';
 const SEARCH_DEBOUNCE_MS = 400;
 
 /**
- * Démarrer une conversation : les contacts déjà liés d'abord (un transfert ou
- * un parrainage vaut présentation), la recherche ensuite pour tout le reste.
+ * Démarrer une conversation.
+ *
+ * Deux chemins, et un seul principe : personne n'apparaît sans l'avoir voulu.
+ *  - Les personnes déjà liées (filleuls, parrain, transferts) sont listées :
+ *    leur nom est déjà connu, le masquer ne protégerait rien. Écrire demande
+ *    quand même une invitation tant qu'elles ne l'ont pas acceptée.
+ *  - La recherche ne remonte que les comptes qui ont choisi de figurer dans
+ *    l'annuaire. Pour tous les autres, on envoie une invitation à l'aveugle :
+ *    l'écran ne dit jamais si le compte existe.
  */
 export default function NewConversationScreen() {
   const router = useRouter();
@@ -39,20 +46,22 @@ export default function NewConversationScreen() {
   const { t } = useTranslation();
   const openDirect = useMessagingStore((s) => s.openDirect);
 
-  const [contacts, setContacts] = useState<PeerCard[]>([]);
+  const [known, setKnown] = useState<PeerCard[]>([]);
   const [results, setResults] = useState<PeerCard[]>([]);
   const [query, setQuery] = useState('');
-  const [loadingContacts, setLoadingContacts] = useState(true);
+  const [note, setNote] = useState('');
+  const [loadingKnown, setLoadingKnown] = useState(true);
   const [searching, setSearching] = useState(false);
-  const [openingId, setOpeningId] = useState<number | null>(null);
+  const [busyId, setBusyId] = useState<number | null>(null);
+  const [inviting, setInviting] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     messagingService
       .getContacts()
-      .then(setContacts)
+      .then(setKnown)
       .catch(() => {})
-      .finally(() => setLoadingContacts(false));
+      .finally(() => setLoadingKnown(false));
   }, []);
 
   // Recherche différée : on interroge l'annuaire quand la frappe s'arrête, pas
@@ -81,8 +90,13 @@ export default function NewConversationScreen() {
     };
   }, [query]);
 
-  const start = async (peer: PeerCard) => {
-    setOpeningId(peer.id);
+  /** Ami : on ouvre le fil. Sinon : on invite. */
+  const act = async (peer: PeerCard) => {
+    if (peer.relation !== 'friend') {
+      await sendInvite(peer.id.toString(), peer.name);
+      return;
+    }
+    setBusyId(peer.id);
     try {
       const id = await openDirect(peer.id);
       router.replace(`/messages/${id}`);
@@ -92,41 +106,80 @@ export default function NewConversationScreen() {
         e?.response?.data?.error || t('messages.openFailed', 'Conversation impossible.'),
       );
     } finally {
-      setOpeningId(null);
+      setBusyId(null);
     }
   };
 
-  const sourceLabel = (source?: string) => {
-    if (source === 'referral') return t('messages.sourceReferral', 'Filleul');
-    if (source === 'sponsor') return t('messages.sourceSponsor', 'Parrain');
+  const sendInvite = async (identifier: string, label?: string) => {
+    setInviting(true);
+    try {
+      const message = await messagingService.invite(identifier, note);
+      setNote('');
+      setQuery('');
+      showAlert(t('messages.inviteSentTitle', 'Invitation envoyée'), message);
+    } catch (e: any) {
+      showAlert(
+        t('common.error', 'Erreur'),
+        e?.response?.data?.error || t('messages.actionFailed', 'Action impossible.'),
+      );
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const sourceLabel = (peer: PeerCard) => {
+    if (peer.source === 'referral') return t('messages.sourceReferral', 'Filleul');
+    if (peer.source === 'sponsor') return t('messages.sourceSponsor', 'Parrain');
     return t('messages.sourceTransfer', 'Transfert');
   };
 
-  const renderPeer = (peer: PeerCard, index: number, withSource: boolean) => (
-    <Reveal key={peer.id} delay={index * 35} offset={10}>
-      <Bounce style={styles.row} scaleTo={0.985} onPress={() => start(peer)}>
-        <ChatAvatar name={peer.name} uri={peer.avatar} online={peer.online} size={46} />
-        <View style={styles.rowBody}>
-          <View style={styles.rowTop}>
-            <Text style={styles.rowName} numberOfLines={1}>{peer.name}</Text>
-            {peer.verified && <FontAwesome6 name="circle-check" size={12} color={colors.positive} />}
-          </View>
-          <Text style={styles.rowMeta} numberOfLines={1}>
-            #{peer.id}
-            {peer.country ? ` · ${peer.country}` : ''}
-            {withSource && peer.source ? ` · ${sourceLabel(peer.source)}` : ''}
-          </Text>
-        </View>
-        {openingId === peer.id ? (
-          <ActivityIndicator size="small" color={colors.textMuted} />
-        ) : (
-          <FontAwesome6 name="message" size={14} color={colors.textMuted} />
-        )}
-      </Bounce>
-    </Reveal>
-  );
+  const renderPeer = (peer: PeerCard, index: number, withSource: boolean) => {
+    const isFriend = peer.relation === 'friend';
 
-  const searching2 = query.trim().length >= 2;
+    return (
+      <Reveal key={peer.id} delay={index * 35} offset={10}>
+        <Bounce style={styles.row} scaleTo={0.985} onPress={() => act(peer)}>
+          <ChatAvatar name={peer.name} uri={peer.avatar} online={peer.online} size={46} />
+          <View style={styles.rowBody}>
+            <View style={styles.rowTop}>
+              <Text style={styles.rowName} numberOfLines={1}>{peer.name}</Text>
+              {peer.verified && <FontAwesome6 name="circle-check" size={12} color={colors.positive} />}
+            </View>
+            <Text style={styles.rowMeta} numberOfLines={1}>
+              #{peer.id}
+              {peer.country ? ` · ${peer.country}` : ''}
+              {withSource && peer.source ? ` · ${sourceLabel(peer)}` : ''}
+            </Text>
+          </View>
+
+          {busyId === peer.id || (inviting && !isFriend) ? (
+            <ActivityIndicator size="small" color={colors.textMuted} />
+          ) : (
+            <View
+              style={[
+                styles.rowTag,
+                { backgroundColor: withAlpha(isFriend ? colors.primary : colors.secondary, 0.16) },
+              ]}
+            >
+              <FontAwesome6
+                name={isFriend ? 'message' : 'user-plus'}
+                size={12}
+                color={isFriend ? colors.primary : colors.secondary}
+              />
+              <Text
+                style={[styles.rowTagText, { color: isFriend ? colors.primary : colors.secondary }]}
+              >
+                {isFriend ? t('messages.write', 'Écrire') : t('messages.invite', 'Inviter')}
+              </Text>
+            </View>
+          )}
+        </Bounce>
+      </Reveal>
+    );
+  };
+
+  const searchingNow = query.trim().length >= 2;
+  const canInviteRaw = query.trim().length >= 2 && !searching;
 
   return (
     <ScreenBackground edges={['top']}>
@@ -151,7 +204,7 @@ export default function NewConversationScreen() {
             style={styles.searchInput}
             value={query}
             onChangeText={setQuery}
-            placeholder={t('messages.searchPlaceholder', 'Nom, identifiant, code, email, téléphone')}
+            placeholder={t('messages.searchPlaceholder', 'Identifiant, code, email, téléphone')}
             placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
             autoCorrect={false}
@@ -163,28 +216,70 @@ export default function NewConversationScreen() {
           )}
         </View>
 
-        {searching2 ? (
+        {searchingNow && (
           <>
-            <Text style={styles.sectionTitle}>{t('messages.results', 'Résultats')}</Text>
             {searching ? (
-              <ActivityIndicator style={{ marginTop: Spacing.md }} color={colors.text} />
-            ) : results.length === 0 ? (
-              <Text style={styles.emptyText}>{t('messages.noResult', 'Aucun compte trouvé.')}</Text>
+              <ActivityIndicator style={{ marginTop: Spacing.lg }} color={colors.text} />
             ) : (
-              <View style={styles.list}>{results.map((p, i) => renderPeer(p, i, false))}</View>
+              <>
+                {results.length > 0 && (
+                  <>
+                    <Text style={styles.sectionTitle}>{t('messages.results', 'Résultats')}</Text>
+                    <View style={styles.list}>{results.map((p, i) => renderPeer(p, i, false))}</View>
+                  </>
+                )}
+
+                {/* Invitation à l'aveugle : proposée quoi qu'il arrive, y compris
+                    sans résultat. C'est ce qui empêche de déduire l'existence
+                    d'un compte de la présence ou non d'un bouton. */}
+                <View style={styles.inviteCard}>
+                  <Text style={styles.inviteTitle}>{t('messages.inviteTitle', 'Inviter à discuter')}</Text>
+                  <Text style={styles.inviteHint}>
+                    {t(
+                      'messages.inviteHint',
+                      'Votre invitation part vers cet identifiant. Vous ne saurez pas s’il correspond à un compte tant que la personne n’a pas accepté.',
+                    )}
+                  </Text>
+                  <TextInput
+                    style={styles.noteInput}
+                    value={note}
+                    onChangeText={setNote}
+                    placeholder={t('messages.notePlaceholder', 'Un mot pour vous présenter (facultatif)')}
+                    placeholderTextColor={colors.textMuted}
+                    multiline
+                    maxLength={280}
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.inviteBtn,
+                      { backgroundColor: canInviteRaw ? colors.primary : withAlpha(colors.textMuted, 0.25) },
+                    ]}
+                    onPress={() => sendInvite(query.trim())}
+                    disabled={!canInviteRaw || inviting}
+                  >
+                    {inviting ? (
+                      <ActivityIndicator size="small" color={colors.white} />
+                    ) : (
+                      <Text style={styles.inviteBtnText}>{t('messages.sendInvite', 'Envoyer l’invitation')}</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </>
             )}
           </>
-        ) : (
+        )}
+
+        {!searchingNow && (
           <>
-            <Text style={styles.sectionTitle}>{t('messages.contacts', 'Contacts')}</Text>
-            {loadingContacts ? (
+            <Text style={styles.sectionTitle}>{t('messages.knownPeople', 'Personnes que vous connaissez')}</Text>
+            {loadingKnown ? (
               <ActivityIndicator style={{ marginTop: Spacing.md }} color={colors.text} />
-            ) : contacts.length === 0 ? (
+            ) : known.length === 0 ? (
               <Text style={styles.emptyText}>
-                {t('messages.noContact', 'Aucun contact pour le moment. Utilisez la recherche.')}
+                {t('messages.noKnown', 'Personne pour le moment. Utilisez la recherche ci-dessus.')}
               </Text>
             ) : (
-              <View style={styles.list}>{contacts.map((p, i) => renderPeer(p, i, true))}</View>
+              <View style={styles.list}>{known.map((p, i) => renderPeer(p, i, true))}</View>
             )}
           </>
         )}
@@ -196,21 +291,14 @@ export default function NewConversationScreen() {
 
 const createStyles = (Colors: ColorPalette) =>
   StyleSheet.create({
-    scroll: {
-      padding: Spacing.lg,
-      paddingBottom: Spacing.xl,
-    },
+    scroll: { padding: Spacing.lg, paddingBottom: Spacing.xl },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: Spacing.md,
       marginBottom: Spacing.lg,
     },
-    title: {
-      fontFamily: Fonts.bold,
-      fontSize: FontSize.xl,
-      color: Colors.text,
-    },
+    title: { fontFamily: Fonts.bold, fontSize: FontSize.xl, color: Colors.text },
     searchBox: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -238,9 +326,7 @@ const createStyles = (Colors: ColorPalette) =>
       marginTop: Spacing.lg,
       marginBottom: Spacing.sm,
     },
-    list: {
-      gap: Spacing.sm,
-    },
+    list: { gap: Spacing.sm },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -252,15 +338,8 @@ const createStyles = (Colors: ColorPalette) =>
       paddingHorizontal: Spacing.md,
       paddingVertical: Spacing.md,
     },
-    rowBody: {
-      flex: 1,
-      minWidth: 0,
-    },
-    rowTop: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: Spacing.xs,
-    },
+    rowBody: { flex: 1, minWidth: 0 },
+    rowTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
     rowName: {
       fontFamily: Fonts.semiBold,
       fontSize: FontSize.md,
@@ -273,6 +352,50 @@ const createStyles = (Colors: ColorPalette) =>
       color: Colors.textMuted,
       marginTop: 1,
     },
+    rowTag: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: Spacing.sm + 2,
+      paddingVertical: 6,
+      borderRadius: BorderRadius.pill,
+    },
+    rowTagText: { fontFamily: Fonts.semiBold, fontSize: FontSize.xs },
+    inviteCard: {
+      marginTop: Spacing.lg,
+      backgroundColor: Colors.surface,
+      borderWidth: 1,
+      borderColor: Colors.border,
+      borderRadius: BorderRadius.xl,
+      padding: Spacing.md,
+    },
+    inviteTitle: { fontFamily: Fonts.bold, fontSize: FontSize.md, color: Colors.text },
+    inviteHint: {
+      fontFamily: Fonts.regular,
+      fontSize: FontSize.xs,
+      color: Colors.textMuted,
+      marginTop: 4,
+      lineHeight: FontSize.xs * 1.5,
+    },
+    noteInput: {
+      marginTop: Spacing.md,
+      minHeight: 64,
+      borderWidth: 1,
+      borderColor: Colors.border,
+      borderRadius: BorderRadius.md,
+      padding: Spacing.sm + 2,
+      color: Colors.text,
+      fontFamily: Fonts.regular,
+      fontSize: FontSize.sm,
+      textAlignVertical: 'top',
+    },
+    inviteBtn: {
+      marginTop: Spacing.md,
+      borderRadius: BorderRadius.pill,
+      paddingVertical: Spacing.sm + 4,
+      alignItems: 'center',
+    },
+    inviteBtnText: { fontFamily: Fonts.bold, fontSize: FontSize.md, color: '#fff' },
     emptyText: {
       fontFamily: Fonts.regular,
       fontSize: FontSize.sm,

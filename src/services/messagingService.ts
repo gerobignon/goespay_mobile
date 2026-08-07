@@ -4,6 +4,8 @@ import type {
   BlockedUser,
   ChatMessage,
   ChatPrefs,
+  ChatVisibility,
+  ContactRequest,
   Conversation,
   PeerCard,
   PublicProfile,
@@ -133,9 +135,45 @@ export const messagingService = {
     await api.post(`/messaging/conversations/${conversationId}/archive`);
   },
 
+  /** Comptes déjà liés : filleuls, parrain, bénéficiaires de transferts. */
   getContacts: async (): Promise<PeerCard[]> => {
     const { data } = await api.get<{ contacts: PeerCard[] }>('/messaging/contacts');
     return data.contacts ?? [];
+  },
+
+  /**
+   * Envoie une invitation. La réponse est identique que le compte existe ou
+   * non — c'est voulu : l'écran ne peut donc pas afficher « compte trouvé ».
+   */
+  invite: async (identifier: string, note = ''): Promise<string> => {
+    const { data } = await api.post<{ message: string }>('/messaging/requests', {
+      identifier,
+      note,
+    });
+    return data.message;
+  },
+
+  getRequests: async (): Promise<{ incoming: ContactRequest[]; outgoing: ContactRequest[] }> => {
+    const { data } = await api.get('/messaging/requests');
+    return { incoming: data.incoming ?? [], outgoing: data.outgoing ?? [] };
+  },
+
+  acceptRequest: async (id: number): Promise<Conversation> => {
+    const { data } = await api.post<{ conversation: Conversation }>(`/messaging/requests/${id}/accept`);
+    return data.conversation;
+  },
+
+  declineRequest: async (id: number): Promise<void> => {
+    await api.post(`/messaging/requests/${id}/decline`);
+  },
+
+  getVisibility: async (): Promise<ChatVisibility> => {
+    const { data } = await api.get<{ visibility: ChatVisibility }>('/messaging/visibility');
+    return data.visibility;
+  },
+
+  saveVisibility: async (visibility: Partial<ChatVisibility>): Promise<void> => {
+    await api.put('/messaging/prefs', { visibility });
   },
 
   search: async (query: string): Promise<PeerCard[]> => {

@@ -71,6 +71,9 @@ function RootInner() {
       } else if (data.screen === 'messages') {
         // Message reçu → le fil concerné, à défaut la liste.
         router.push(data.conversationId ? `/messages/${data.conversationId}` : '/(tabs)/support');
+      } else if (data.screen === 'messages_requests') {
+        // Invitation reçue → la file des invitations, pas la liste des fils.
+        router.push('/messages/requests');
       } else if (data.screen === 'admin_dev') {
         // Board Dev : la tâche commentée, pas seulement le board.
         router.push(data.taskId ? `/admin/kanban?task=${data.taskId}` : '/admin/kanban');
