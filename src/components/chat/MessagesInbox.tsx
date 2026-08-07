@@ -25,7 +25,7 @@ import { useMessagingStore } from '../../stores/messagingStore';
 import { ConversationRow } from './ConversationRow';
 import { ChatAvatar } from './ChatAvatar';
 import { DevImageViewer } from '../dev/DevImageViewer';
-import { showAlert, type AlertButton } from '../../stores/alertStore';
+import { ActionSheet, type SheetAction } from '../ActionSheet';
 import type { Conversation } from '../../types';
 
 const open = (url: string) => Linking.openURL(url).catch(() => {});
@@ -64,6 +64,7 @@ export function MessagesInbox() {
   const [openingSupport, setOpeningSupport] = useState(false);
   const [showChannels, setShowChannels] = useState(false);
   const [viewerUri, setViewerUri] = useState<string | null>(null);
+  const [sheetFor, setSheetFor] = useState<Conversation | null>(null);
 
   const support = conversations.find((c) => c.type === 'support') || null;
   const directs = conversations.filter((c) => c.type === 'direct');
@@ -89,33 +90,37 @@ export function MessagesInbox() {
   };
 
   /** Appui long sur une conversation : les gestes qu'on ne veut pas voir en permanence. */
-  const openOptions = (conversation: Conversation) => {
-    const actions: AlertButton[] = [
-      { text: t('messages.open', 'Ouvrir'), onPress: () => router.push(`/messages/${conversation.id}`) },
-      {
-        text: conversation.muted
-          ? t('messages.unmute', 'Réactiver les notifications')
-          : t('messages.mute', 'Couper les notifications'),
-        onPress: () => setMuted(conversation.id, !conversation.muted),
-      },
-    ];
-
-    if (conversation.peer) {
-      actions.push({
-        text: t('messages.viewProfile', 'Voir le profil'),
-        onPress: () => router.push(`/messages/profile/${conversation.peer!.id}`),
-      });
-      actions.push({
-        text: t('messages.hide', 'Masquer la conversation'),
-        style: 'destructive',
-        onPress: () => archiveConversation(conversation.id),
-      });
-    }
-
-    actions.push({ text: t('common.cancel', 'Annuler'), style: 'cancel' });
-
-    showAlert(conversation.title, '', actions);
-  };
+  const sheetActions: SheetAction[] = sheetFor
+    ? [
+        {
+          label: t('messages.open', 'Ouvrir'),
+          icon: 'comment',
+          onPress: () => router.push(`/messages/${sheetFor.id}`),
+        },
+        {
+          label: sheetFor.muted
+            ? t('messages.unmute', 'Réactiver les notifications')
+            : t('messages.mute', 'Couper les notifications'),
+          icon: sheetFor.muted ? 'bell' : 'bell-slash',
+          onPress: () => setMuted(sheetFor.id, !sheetFor.muted),
+        },
+        ...(sheetFor.peer
+          ? [
+              {
+                label: t('messages.viewProfile', 'Voir le profil'),
+                icon: 'user',
+                onPress: () => router.push(`/messages/profile/${sheetFor.peer!.id}`),
+              },
+              {
+                label: t('messages.hide', 'Masquer la conversation'),
+                icon: 'eye-slash',
+                destructive: true,
+                onPress: () => archiveConversation(sheetFor.id),
+              },
+            ]
+          : []),
+      ]
+    : [];
 
   const goSupport = async () => {
     if (support) {
@@ -208,7 +213,7 @@ export function MessagesInbox() {
                 <ConversationRow
                   conversation={c}
                   onPress={() => router.push(`/messages/${c.id}`)}
-                  onLongPress={() => openOptions(c)}
+                  onLongPress={() => setSheetFor(c)}
                   onPressAvatar={setViewerUri}
                 />
               </Reveal>
@@ -245,6 +250,13 @@ export function MessagesInbox() {
           </View>
         </View>
       </ScrollView>
+      <ActionSheet
+        visible={!!sheetFor}
+        title={sheetFor?.title}
+        subtitle={sheetFor?.preview}
+        actions={sheetActions}
+        onClose={() => setSheetFor(null)}
+      />
       <DevImageViewer uri={viewerUri} onClose={() => setViewerUri(null)} />
       <CustomAlert />
     </ScreenBackground>

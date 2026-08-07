@@ -6,18 +6,21 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
 import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { CustomAlert } from '../../src/components/CustomAlert';
-import { showAlert, type AlertButton } from '../../src/stores/alertStore';
+import { showAlert } from '../../src/stores/alertStore';
+import { ActionSheet, type SheetAction } from '../../src/components/ActionSheet';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useColors } from '../../src/components/ThemeProvider';
 import { useResponsive } from '../../src/hooks/useResponsive';
-import { useKeyboardInset } from '../../src/hooks/useKeyboardInset';
+import { useKeyboardInset, useLockDocumentScroll } from '../../src/hooks/useKeyboardInset';
 import { BorderRadius, FontSize, Fonts, Spacing, type ColorPalette } from '../../src/constants/theme';
 import { useMessagingStore } from '../../src/stores/messagingStore';
 import { ChatAvatar } from '../../src/components/chat/ChatAvatar';
@@ -62,12 +65,33 @@ export default function ConversationScreen() {
 
   const [viewerUri, setViewerUri] = useState<string | null>(null);
   const [quote, setQuote] = useState<ComposerQuote | null>(null);
-  const keyboardInset = useKeyboardInset();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { keyboard: keyboardInset, viewportHeight } = useKeyboardInset();
+  const insets = useSafeAreaInsets();
+  useLockDocumentScroll();
   // Ouvrir les emojis ferme le clavier : sa hauteur est déjà retombée à zéro
   // quand le panneau s'affiche. On garde la dernière mesure pour lui donner
   // exactement la place que le clavier occupait — pas de saut de mise en page.
   const lastKeyboardRef = useRef(0);
   if (keyboardInset > 180) lastKeyboardRef.current = keyboardInset;
+
+  // Web : hauteur imposée par le viewport visuel, en position fixe pour ne plus
+  // dépendre du défilement du document. `position: 'fixed'` n'existe pas dans
+  // les types React Native mais est bien pris en charge par react-native-web.
+  //
+  // Le décalage de la barre d'état est repris ici : en position fixe l'écran
+  // sort du flux, donc le padding de sécurité posé par ScreenBackground ne
+  // s'applique plus et l'en-tête passerait sous l'heure et la batterie.
+  const webViewportStyle =
+    Platform.OS === 'web' && viewportHeight
+      ? ({
+          position: 'fixed',
+          top: insets.top,
+          left: 0,
+          right: 0,
+          height: Math.max(240, viewportHeight - insets.top),
+        } as any)
+      : null;
 
   useEffect(() => {
     if (!conversationId) return;
@@ -112,29 +136,32 @@ export default function ConversationScreen() {
         ? presenceLabel(peer.online, peer.last_seen_at, t)
         : '';
 
-  const openMenu = () => {
-    if (!conversation) return;
-
-    const actions: AlertButton[] = [
-      {
-        text: conversation.muted
-          ? t('messages.unmute', 'Réactiver les notifications')
-          : t('messages.mute', 'Couper les notifications'),
-        onPress: () => setMuted(conversation.id, !conversation.muted),
-      },
-    ];
-
-    if (!isSupport && peer) {
-      actions.push({
-        text: t('messages.viewProfile', 'Voir le profil'),
-        onPress: () => router.push(`/messages/profile/${peer.id}`),
-      });
-    }
-
-    actions.push({ text: t('common.cancel', 'Annuler'), style: 'cancel' });
-
-    showAlert(conversation.title, '', actions);
-  };
+  const menuActions: SheetAction[] = conversation
+    ? [
+        {
+          label: conversation.muted
+            ? t('messages.unmute', 'Réactiver les notifications')
+            : t('messages.mute', 'Couper les notifications'),
+          icon: conversation.muted ? 'bell' : 'bell-slash',
+          onPress: () => setMuted(conversation.id, !conversation.muted),
+        },
+        ...(!isSupport && peer
+          ? [
+              {
+                label: t('messages.viewProfile', 'Voir le profil'),
+                icon: 'user',
+                onPress: () => router.push(`/messages/profile/${peer.id}`),
+              },
+              {
+                label: t('messages.report', 'Signaler'),
+                icon: 'flag',
+                destructive: true,
+                onPress: () => router.push(`/messages/profile/${peer.id}`),
+              },
+            ]
+          : []),
+      ]
+    : [];
 
   /** Balayage sur une bulle → elle se retrouve citée au-dessus de la saisie. */
   const startQuote = (message: ChatMessage) => {
@@ -171,9 +198,18 @@ export default function ConversationScreen() {
 
   return (
     <ScreenBackground edges={['top']} animateEntrance={false}>
-      {/* La place du clavier est réservée ici, pas prise à l'en-tête : il reste
-          collé en haut, la liste rétrécit, la saisie se pose sur le clavier. */}
-      <View style={[styles.flex, { paddingBottom: keyboardInset }]}>
+      {/* Sur le web, l'écran est calé sur le viewport VISIBLE et posé en position
+          fixe : le clavier virtuel ne réduit pas le document, si bien qu'une
+          simple réserve en bas laissait la saisie au bas de la page — donc
+          sous le clavier — et la faisait suivre le défilement. En natif, il
+          suffit de réserver la place du clavier. */}
+      <View
+        style={[
+          styles.flex,
+          webViewportStyle,
+          !webViewportStyle && { paddingBottom: keyboardInset },
+        ]}
+      >
         {/* En-tête */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
@@ -207,7 +243,7 @@ export default function ConversationScreen() {
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={openMenu} hitSlop={10}>
+          <TouchableOpacity onPress={() => setMenuOpen(true)} hitSlop={10}>
             <FontAwesome6 name="ellipsis-vertical" size={18} color={colors.text} />
           </TouchableOpacity>
         </View>
@@ -260,6 +296,12 @@ export default function ConversationScreen() {
         />
       </View>
 
+      <ActionSheet
+        visible={menuOpen}
+        title={isSupport ? t('messages.supportTitle', 'Support GoesPay') : conversation?.title}
+        actions={menuActions}
+        onClose={() => setMenuOpen(false)}
+      />
       <DevImageViewer uri={viewerUri} onClose={() => setViewerUri(null)} />
       <CustomAlert />
     </ScreenBackground>

@@ -85,8 +85,9 @@ export function EmojiPicker({ onPick, height = 260 }: EmojiPickerProps) {
   const { width } = useWindowDimensions();
   const [active, setActive] = useState(0);
 
-  // Grille fluide : on vise ~44 px par emoji, jamais moins de 6 colonnes.
-  const columns = Math.max(6, Math.floor((width - Spacing.md * 2) / 46));
+  // Grille fluide, calibrée sur des emojis confortables : ~58 px par case, et
+  // jamais plus de 7 colonnes — au-delà, les symboles redeviennent minuscules.
+  const columns = Math.min(7, Math.max(5, Math.floor((width - Spacing.md * 2) / 58)));
   const size = (width - Spacing.md * 2) / columns;
 
   return (
@@ -141,8 +142,8 @@ const createStyles = (Colors: ColorPalette) =>
       justifyContent: 'center',
     },
     emoji: {
-      fontSize: 26,
-      lineHeight: 32,
+      fontSize: 34,
+      lineHeight: 42,
     },
     tabs: {
       flexDirection: 'row',
@@ -159,6 +160,6 @@ const createStyles = (Colors: ColorPalette) =>
       borderRadius: BorderRadius.pill,
     },
     tabIcon: {
-      fontSize: 19,
+      fontSize: 24,
     },
   });

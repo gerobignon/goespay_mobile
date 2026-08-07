@@ -19,6 +19,9 @@ import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { useColors } from '../ThemeProvider';
 import { EmojiPicker } from './EmojiPicker';
 
+/** Hauteur commune aux icônes et à la ligne de saisie — leur ligne de base. */
+const ICON_SLOT = 38;
+
 export interface ComposerQuote {
   id: number;
   author: string;
@@ -148,10 +151,10 @@ export function ChatComposer({
 
       <View style={styles.row}>
         <View style={styles.field}>
-          <TouchableOpacity style={styles.fieldBtn} onPress={toggleEmoji} disabled={sending} hitSlop={6}>
+          <TouchableOpacity style={styles.fieldBtn} onPress={toggleEmoji} disabled={sending} hitSlop={8}>
             <FontAwesome6
               name={emojiOpen ? 'keyboard' : 'face-smile'}
-              size={19}
+              size={21}
               color={emojiOpen ? colors.secondary : colors.textMuted}
             />
           </TouchableOpacity>
@@ -171,8 +174,8 @@ export function ChatComposer({
             maxLength={4000}
           />
 
-          <TouchableOpacity style={styles.fieldBtn} onPress={pickImage} disabled={sending} hitSlop={6}>
-            <FontAwesome6 name="paperclip" size={18} color={colors.textMuted} />
+          <TouchableOpacity style={styles.fieldBtn} onPress={pickImage} disabled={sending} hitSlop={8}>
+            <FontAwesome6 name="paperclip" size={19} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
 
@@ -186,7 +189,9 @@ export function ChatComposer({
             {sending ? (
               <ActivityIndicator size="small" color={colors.white} />
             ) : (
-              <FontAwesome6 name="paper-plane" size={16} color={colors.white} />
+              // Flèche montante plutôt qu'un avion en papier : celui de
+              // FontAwesome est le logo de Telegram, à ne pas emprunter.
+              <FontAwesome6 name="arrow-up" size={18} color={colors.white} />
             )}
           </LinearGradient>
         </TouchableOpacity>
@@ -223,36 +228,45 @@ const createStyles = (Colors: ColorPalette) =>
     field: {
       flex: 1,
       flexDirection: 'row',
+      // Tout se cale sur la même ligne de base : icônes et champ partagent la
+      // même hauteur utile (ICON_SLOT), et le champ grandit vers le haut quand
+      // le texte passe à la ligne. C'est ce qui manquait — des boutons de 44
+      // contre un champ plus court donnaient des icônes flottantes.
       alignItems: 'flex-end',
-      gap: Spacing.xs,
-      minHeight: 46,
-      borderRadius: 23,
+      minHeight: ICON_SLOT + 10,
+      borderRadius: (ICON_SLOT + 10) / 2,
       borderWidth: 1,
       borderColor: Colors.border,
       // Creux dans la barre — plus sombre en thème sombre, plus clair en clair.
       backgroundColor: Colors.background,
-      paddingHorizontal: Spacing.xs,
+      paddingHorizontal: 5,
+      paddingVertical: 5,
     },
     fieldBtn: {
-      width: 36,
-      height: 44,
+      width: ICON_SLOT,
+      height: ICON_SLOT,
+      borderRadius: ICON_SLOT / 2,
       alignItems: 'center',
       justifyContent: 'center',
     },
     input: {
       flex: 1,
+      minHeight: ICON_SLOT,
       maxHeight: 120,
       color: Colors.text,
       fontFamily: Fonts.regular,
       fontSize: FontSize.md,
-      paddingTop: Platform.OS === 'ios' ? 13 : 10,
-      paddingBottom: Platform.OS === 'ios' ? 13 : 10,
-      paddingHorizontal: 2,
+      // Padding symétrique calé sur la hauteur des icônes : le texte tombe
+      // exactement au centre de la même bande qu'elles.
+      paddingTop: Platform.OS === 'ios' ? 9 : 7,
+      paddingBottom: Platform.OS === 'ios' ? 9 : 7,
+      paddingHorizontal: Spacing.xs,
+      textAlignVertical: 'center',
     },
     send: {
-      width: 46,
-      height: 46,
-      borderRadius: 23,
+      width: ICON_SLOT + 10,
+      height: ICON_SLOT + 10,
+      borderRadius: (ICON_SLOT + 10) / 2,
       alignItems: 'center',
       justifyContent: 'center',
     },
