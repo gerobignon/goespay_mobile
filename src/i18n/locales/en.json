@@ -1256,6 +1256,7 @@
     "fieldCountry": "Country",
     "fieldSince": "Member since",
     "fieldVerified": "Verified identity",
-    "fieldPresence": "Online status"
+    "fieldPresence": "Online status",
+    "notVerified": "Not verified"
   }
 }

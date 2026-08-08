@@ -11,6 +11,8 @@ import { useColors } from '../../src/components/ThemeProvider';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { BorderRadius, FontSize, Fonts, Spacing, type ColorPalette } from '../../src/constants/theme';
 import { useMessagingStore } from '../../src/stores/messagingStore';
+import { useAuthStore } from '../../src/stores/authStore';
+import { API_BASE_URL } from '../../src/constants/config';
 import { messagingService } from '../../src/services/messagingService';
 import { ChatAvatar } from '../../src/components/chat/ChatAvatar';
 import type { BlockedUser, ChatPrefs, ChatVisibility, VisibilityLevel } from '../../src/types';
@@ -23,6 +25,7 @@ export default function MessagingSettingsScreen() {
   const { isWide } = useResponsive();
   const { t } = useTranslation();
 
+  const user = useAuthStore((s) => s.user);
   const prefs = useMessagingStore((s) => s.prefs);
   const savePrefs = useMessagingStore((s) => s.savePrefs);
 
@@ -54,13 +57,68 @@ export default function MessagingSettingsScreen() {
     { key: 'private', label: t('messages.levelPrivate', 'Personne') },
   ];
 
-  const FIELDS: { key: keyof ChatVisibility; label: string }[] = [
-    { key: 'name', label: t('messages.fieldName', 'Nom') },
-    { key: 'avatar', label: t('messages.fieldAvatar', 'Photo') },
-    { key: 'country', label: t('messages.fieldCountry', 'Pays') },
-    { key: 'member_since', label: t('messages.fieldSince', 'Ancienneté') },
-    { key: 'verified', label: t('messages.fieldVerified', 'Identité vérifiée') },
-    { key: 'presence', label: t('messages.fieldPresence', 'Statut en ligne') },
+  const fullName = [user?.surname, user?.name].filter(Boolean).join(' ');
+  const avatarUri = user?.avatar
+    ? user.avatar.startsWith('http')
+      ? user.avatar
+      : `${API_BASE_URL.replace('/api/mobile/v1', '')}${user.avatar}`
+    : null;
+  const memberSince = user?.created_at
+    ? new Date(user.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+    : '—';
+
+  /**
+   * Chaque réglage montre la valeur qu'il gouverne : on décide de cacher son
+   * pays en voyant écrit « BJ », pas en imaginant ce que « Pays » recouvre.
+   */
+  const FIELDS: { key: keyof ChatVisibility; label: string; preview: React.ReactNode }[] = [
+    {
+      key: 'name',
+      label: t('messages.fieldName', 'Nom'),
+      preview: <Text style={styles.preview} numberOfLines={1}>{fullName || '—'}</Text>,
+    },
+    {
+      key: 'avatar',
+      label: t('messages.fieldAvatar', 'Photo'),
+      preview: <ChatAvatar name={fullName} uri={avatarUri} size={30} />,
+    },
+    {
+      key: 'country',
+      label: t('messages.fieldCountry', 'Pays'),
+      preview: <Text style={styles.preview}>{user?.country?.toUpperCase() || '—'}</Text>,
+    },
+    {
+      key: 'member_since',
+      label: t('messages.fieldSince', 'Ancienneté'),
+      preview: <Text style={styles.preview}>{memberSince}</Text>,
+    },
+    {
+      key: 'verified',
+      label: t('messages.fieldVerified', 'Identité vérifiée'),
+      preview:
+        user?.validate === 1 ? (
+          <View style={styles.previewTag}>
+            <FontAwesome6 name="circle-check" size={11} color={colors.positive} />
+            <Text style={[styles.previewTagText, { color: colors.positive }]}>
+              {t('messages.verified', 'Identité vérifiée')}
+            </Text>
+          </View>
+        ) : (
+          <Text style={styles.preview}>{t('messages.notVerified', 'Non vérifiée')}</Text>
+        ),
+    },
+    {
+      key: 'presence',
+      label: t('messages.fieldPresence', 'Statut en ligne'),
+      preview: (
+        <View style={styles.previewTag}>
+          <View style={[styles.dot, { backgroundColor: colors.positive }]} />
+          <Text style={[styles.previewTagText, { color: colors.positive }]}>
+            {t('messages.online', 'En ligne')}
+          </Text>
+        </View>
+      ),
+    },
   ];
 
   const unblock = async (userId: number) => {
@@ -131,7 +189,10 @@ export default function MessagingSettingsScreen() {
           <View style={styles.card}>
             {FIELDS.map((field, i) => (
               <View key={field.key} style={[styles.visRow, i > 0 && styles.rowDivider]}>
-                <Text style={styles.visLabel}>{field.label}</Text>
+                <View style={styles.visHead}>
+                  <Text style={styles.visLabel}>{field.label}</Text>
+                  <View style={styles.previewSlot}>{field.preview}</View>
+                </View>
                 <View style={styles.levels}>
                   {LEVELS.map((level) => {
                     const active = visibility[field.key] === level.key;
@@ -234,11 +295,43 @@ const createStyles = (Colors: ColorPalette) =>
     visRow: {
       paddingVertical: Spacing.md - 2,
     },
+    visHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: Spacing.md,
+      marginBottom: Spacing.sm,
+    },
     visLabel: {
       fontFamily: Fonts.semiBold,
       fontSize: FontSize.md,
       color: Colors.text,
-      marginBottom: Spacing.sm,
+      flexShrink: 0,
+    },
+    previewSlot: {
+      flex: 1,
+      alignItems: 'flex-end',
+      minWidth: 0,
+    },
+    preview: {
+      fontFamily: Fonts.regular,
+      fontSize: FontSize.sm,
+      color: Colors.textMuted,
+      textAlign: 'right',
+    },
+    previewTag: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+    },
+    previewTagText: {
+      fontFamily: Fonts.semiBold,
+      fontSize: FontSize.xs,
+    },
+    dot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
     },
     levels: {
       flexDirection: 'row',

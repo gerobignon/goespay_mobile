@@ -1256,6 +1256,7 @@
     "fieldCountry": "Pays",
     "fieldSince": "Ancienneté",
     "fieldVerified": "Identité vérifiée",
-    "fieldPresence": "Statut en ligne"
+    "fieldPresence": "Statut en ligne",
+    "notVerified": "Non vérifiée"
   }
 }
