@@ -1,4 +1,4 @@
-import React, { forwardRef, useImperativeHandle, useRef, useState } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -18,12 +18,14 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { BorderRadius, FontSize, Fonts, Spacing, withAlpha, type ColorPalette } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
-import { useResponsive } from '../../hooks/useResponsive';
 import { useColors } from '../ThemeProvider';
 import { EmojiPicker } from './EmojiPicker';
 
 /** Hauteur commune aux icônes et à la ligne de saisie — leur ligne de base. */
 const ICON_SLOT = 38;
+
+/** Au-delà, la saisie défile au lieu de manger la conversation. */
+const INPUT_MAX_HEIGHT = 120;
 
 /** Même forme que l'extrait renvoyé par le serveur (ChatReplyPreview). */
 export interface ComposerQuote {
@@ -55,11 +57,12 @@ interface ChatComposerProps {
 }
 
 /**
- * Barre de saisie : texte, emojis, photo, envoi.
+ * Barre de saisie : emojis, pièce jointe, texte, envoi.
  *
- * La barre est posée sur une surface pleine et le champ est une pilule creusée
- * à l'intérieur : sans ce contraste, la saisie se confondait avec le fond du
- * fil et l'écran n'avait plus de bas.
+ * Une seule pilule porte tout, posée sur le fond du fil. Les états précédents
+ * — champ dans une barre opaque, puis boutons ronds séparés — empilaient des
+ * surfaces claires les unes à côté des autres sans qu'aucune ne l'emporte. Ici
+ * il n'y a qu'un objet, et le seul accent est le bouton d'envoi.
  */
 /** Ce que l'écran peut déclencher depuis l'extérieur (menu « joindre »). */
 export interface ChatComposerHandle {
@@ -82,12 +85,29 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const { t } = useTranslation();
-  const { isWide } = useResponsive();
   const inputRef = useRef<TextInput>(null);
 
   const [body, setBody] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
+
+  /**
+   * Hauteur du champ sur le web, recalculée à chaque frappe.
+   *
+   * `multiline` y produit un <textarea>, dont la hauteur par défaut vaut
+   * plusieurs lignes : la barre s'étirait dès le premier affichage, le texte
+   * restait collé en haut et les icônes, posées sur le bas, tombaient au fond.
+   * On la ramène donc à ce que le contenu occupe réellement — une ligne tant
+   * qu'il n'y en a qu'une, puis autant que nécessaire jusqu'au plafond.
+   */
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const el = inputRef.current as unknown as HTMLTextAreaElement | null;
+    if (!el?.style) return;
+
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, INPUT_MAX_HEIGHT)}px`;
+  }, [body]);
 
   const pickImage = async () => {
     // Sur mobile la permission est demandée au premier usage ; sur web le
@@ -188,27 +208,27 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
         </View>
       )}
 
+      {/* Une seule surface : les actions et la saisie partagent la barre, au
+          lieu de trois pastilles blanches qui flottent côte à côte. */}
       <View style={styles.row}>
-        {/* Emojis et pièces jointes vivent hors du champ : la pilule ne porte
-            que la saisie, les actions sont des boutons à part entière. */}
-        <TouchableOpacity style={styles.roundBtn} onPress={toggleEmoji} disabled={sending} hitSlop={8}>
-          <FontAwesome6
-            name={emojiOpen ? 'keyboard' : 'face-smile'}
-            size={19}
-            color={emojiOpen ? colors.secondary : colors.textMuted}
-          />
-        </TouchableOpacity>
+        <View style={styles.bar}>
+          <TouchableOpacity style={styles.iconBtn} onPress={toggleEmoji} disabled={sending} hitSlop={6}>
+            <FontAwesome6
+              name={emojiOpen ? 'keyboard' : 'face-smile'}
+              size={18}
+              color={emojiOpen ? colors.secondary : colors.textMuted}
+            />
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.roundBtn}
-          onPress={onAttach ?? pickImage}
-          disabled={sending}
-          hitSlop={8}
-        >
-          <FontAwesome6 name="paperclip" size={18} color={colors.textMuted} />
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={onAttach ?? pickImage}
+            disabled={sending}
+            hitSlop={6}
+          >
+            <FontAwesome6 name="paperclip" size={17} color={colors.textMuted} />
+          </TouchableOpacity>
 
-        <View style={[styles.field, isWide && styles.fieldWide]}>
           <TextInput
             ref={inputRef}
             style={styles.input}
@@ -222,25 +242,33 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
             placeholderTextColor={colors.textMuted}
             multiline
             maxLength={4000}
+            // Web : donne au <textarea> une hauteur d'une ligne dès le premier
+            // rendu, avant que la mesure ne prenne le relais — sans quoi la
+            // barre apparaît haute puis se rétracte sous les yeux.
+            {...(Platform.OS === 'web' ? { numberOfLines: 1 } : null)}
           />
-        </View>
 
-        <TouchableOpacity onPress={submit} disabled={!canSend} activeOpacity={0.85}>
-          <LinearGradient
-            colors={canSend ? [colors.primary, colors.info] : [withAlpha(colors.textMuted, 0.22), withAlpha(colors.textMuted, 0.22)]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.send}
-          >
-            {sending ? (
-              <ActivityIndicator size="small" color={colors.white} />
-            ) : (
-              // Flèche montante plutôt qu'un avion en papier : celui de
-              // FontAwesome est le logo de Telegram, à ne pas emprunter.
-              <FontAwesome6 name="arrow-up" size={18} color={colors.white} />
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
+          <TouchableOpacity onPress={submit} disabled={!canSend} activeOpacity={0.85}>
+            <LinearGradient
+              colors={canSend ? [colors.primary, colors.info] : [withAlpha(colors.textMuted, 0.16), withAlpha(colors.textMuted, 0.16)]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.send}
+            >
+              {sending ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                // Flèche montante plutôt qu'un avion en papier : celui de
+                // FontAwesome est le logo de Telegram, à ne pas emprunter.
+                <FontAwesome6
+                  name="arrow-up"
+                  size={16}
+                  color={canSend ? colors.white : colors.textMuted}
+                />
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       </View>
 
       </View>
@@ -266,34 +294,32 @@ const createStyles = (Colors: ColorPalette) =>
       backgroundColor: 'transparent',
     },
     row: {
-      flexDirection: 'row',
-      alignItems: 'flex-end',
-      gap: Spacing.sm,
       paddingHorizontal: Spacing.md,
       paddingVertical: Spacing.sm,
     },
-    field: {
-      flex: 1,
+    /**
+     * La barre entière est l'objet : une pilule unique qui contient les
+     * actions, la saisie et l'envoi. Le champ n'a pas de fond propre — deux
+     * surfaces imbriquées faisaient un empilement de blancs sans hiérarchie.
+     */
+    bar: {
       flexDirection: 'row',
-      // Tout se cale sur la même ligne de base : icônes et champ partagent la
-      // même hauteur utile (ICON_SLOT), et le champ grandit vers le haut quand
-      // le texte passe à la ligne. C'est ce qui manquait — des boutons de 44
-      // contre un champ plus court donnaient des icônes flottantes.
+      // Le bas comme ligne de base : quand le texte passe à la ligne, la barre
+      // grandit vers le haut et les icônes restent posées en bas.
       alignItems: 'flex-end',
       minHeight: ICON_SLOT + 10,
       borderRadius: (ICON_SLOT + 10) / 2,
       borderWidth: 1,
       borderColor: Colors.border,
-      // Creux dans la barre — plus sombre en thème sombre, plus clair en clair.
       backgroundColor: Colors.cardSolid,
-      paddingHorizontal: Spacing.sm,
-      paddingVertical: 5,
-      // La pilule se détache de la barre : c'est elle l'objet actif, pas le fond.
+      paddingHorizontal: 5,
+      paddingVertical: 4,
+      gap: 2,
       shadowColor: '#000',
-      shadowOpacity: 0.18,
-      shadowRadius: 10,
-      shadowOffset: { width: 0, height: 3 },
-      elevation: 3,
+      shadowOpacity: 0.1,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 2,
     },
     pending: {
       flexDirection: 'row',
@@ -308,28 +334,17 @@ const createStyles = (Colors: ColorPalette) =>
       fontSize: FontSize.sm,
       color: Colors.text,
     },
-    fieldWide: {
-      minHeight: ICON_SLOT + 20,
-      borderRadius: (ICON_SLOT + 20) / 2,
-      paddingHorizontal: Spacing.md,
-    },
-    /** Action posée à côté du champ, sur le fond de l'écran : elle a donc sa
-     *  propre surface, sinon l'icône flotterait sur le dégradé. */
-    roundBtn: {
+    /** Action dans la barre : pas de surface propre, juste l'icône. */
+    iconBtn: {
       width: ICON_SLOT,
       height: ICON_SLOT,
-      borderRadius: ICON_SLOT / 2,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: Colors.cardSolid,
-      borderWidth: 1,
-      borderColor: Colors.border,
-      marginBottom: 5,
     },
     input: {
       flex: 1,
       minHeight: ICON_SLOT,
-      maxHeight: 120,
+      maxHeight: INPUT_MAX_HEIGHT,
       color: Colors.text,
       fontFamily: Fonts.regular,
       fontSize: FontSize.md,
@@ -339,11 +354,14 @@ const createStyles = (Colors: ColorPalette) =>
       paddingBottom: Platform.OS === 'ios' ? 9 : 7,
       paddingHorizontal: Spacing.xs,
       textAlignVertical: 'center',
+      // Web : le cadre de focus du navigateur dessinerait un rectangle dans une
+      // barre arrondie.
+      ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null),
     },
     send: {
-      width: ICON_SLOT + 10,
-      height: ICON_SLOT + 10,
-      borderRadius: (ICON_SLOT + 10) / 2,
+      width: ICON_SLOT,
+      height: ICON_SLOT,
+      borderRadius: ICON_SLOT / 2,
       alignItems: 'center',
       justifyContent: 'center',
     },
