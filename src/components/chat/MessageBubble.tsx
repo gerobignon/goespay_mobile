@@ -17,6 +17,7 @@ import { useColors } from '../ThemeProvider';
 import { useResponsive } from '../../hooks/useResponsive';
 import type { ChatMessage } from '../../types';
 import { messageTime } from './chatFormat';
+import { MessageItemCard } from './MessageItemCard';
 
 /** Distance de balayage au-delà de laquelle la citation se déclenche. */
 const SWIPE_TRIGGER = 56;
@@ -151,6 +152,9 @@ export function MessageBubble({
             </Text>
           </TouchableOpacity>
         )}
+
+        {/* Objet de l'app joint au message : lien de paiement, opération… */}
+        {!!message.item && <MessageItemCard item={message.item} mine={mine} />}
 
         {!!image && (
           <TouchableOpacity

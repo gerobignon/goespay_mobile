@@ -48,14 +48,17 @@ export function ActionSheet({ visible, title, subtitle, actions, onClose }: Acti
       <Pressable style={styles.backdrop} onPress={onClose}>
         {/* Le panneau ne doit pas fermer la feuille : on stoppe le toucher ici. */}
         <Pressable style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]} onPress={() => {}}>
-          <View style={styles.handle} />
-
-          {!!title && (
-            <View style={styles.head}>
-              <Text style={styles.title} numberOfLines={1}>{title}</Text>
+          {/* Titre à gauche, fermeture à droite. Pas de poignée : elle promet
+              un glissement pour fermer que la feuille ne sait pas faire. */}
+          <View style={styles.head}>
+            <View style={styles.headText}>
+              {!!title && <Text style={styles.title} numberOfLines={1}>{title}</Text>}
               {!!subtitle && <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>}
             </View>
-          )}
+            <TouchableOpacity onPress={onClose} hitSlop={12}>
+              <FontAwesome6 name="xmark" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
 
           {actions.map((action, i) => (
             <TouchableOpacity
@@ -109,27 +112,24 @@ const createStyles = (Colors: ColorPalette) =>
       borderTopLeftRadius: BorderRadius.xl,
       borderTopRightRadius: BorderRadius.xl,
       paddingHorizontal: Spacing.md,
-      paddingTop: Spacing.sm,
+      paddingTop: Spacing.md,
       // Confort sur grand écran web : la feuille reste centrée et bornée.
       alignSelf: 'center',
       width: '100%',
       maxWidth: 520,
     },
-    handle: {
-      alignSelf: 'center',
-      width: 40,
-      height: 4,
-      borderRadius: 2,
-      backgroundColor: Colors.border,
-      marginBottom: Spacing.sm,
-    },
     head: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: Spacing.md,
       paddingHorizontal: Spacing.sm,
+      paddingTop: Spacing.xs,
       paddingBottom: Spacing.sm,
       borderBottomWidth: 1,
       borderBottomColor: Colors.border,
       marginBottom: Spacing.xs,
     },
+    headText: { flex: 1, minWidth: 0 },
     title: {
       fontFamily: Fonts.bold,
       fontSize: FontSize.md,

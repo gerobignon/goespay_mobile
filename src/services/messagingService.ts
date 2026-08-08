@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import api from './api';
 import type {
+  AttachableItem,
   BlockedUser,
   ChatMessage,
   ChatPrefs,
@@ -94,11 +95,14 @@ export const messagingService = {
     body: string,
     imageUri?: string | null,
     replyToId?: number | null,
+    attachment?: { type: string; ref: string } | null,
   ): Promise<{ message: ChatMessage; conversation: Conversation }> => {
     if (!imageUri) {
       const { data } = await api.post(`/messaging/conversations/${conversationId}/messages`, {
         body,
         reply_to_id: replyToId || undefined,
+        attachment_type: attachment?.type,
+        attachment_ref: attachment?.ref,
       });
       return data;
     }
@@ -106,6 +110,10 @@ export const messagingService = {
     const form = new FormData();
     form.append('body', body ?? '');
     if (replyToId) form.append('reply_to_id', String(replyToId));
+    if (attachment) {
+      form.append('attachment_type', attachment.type);
+      form.append('attachment_ref', attachment.ref);
+    }
     await appendImage(form, imageUri);
 
     const { data } = await api.post(`/messaging/conversations/${conversationId}/messages`, form, {
@@ -165,6 +173,17 @@ export const messagingService = {
 
   declineRequest: async (id: number): Promise<void> => {
     await api.post(`/messaging/requests/${id}/decline`);
+  },
+
+  /** Types joignables dans ce fil, et objets d'un type donné. */
+  getAttachables: async (
+    conversationId: number,
+    type?: string,
+  ): Promise<{ types: string[]; items: AttachableItem[] }> => {
+    const { data } = await api.get(`/messaging/conversations/${conversationId}/attachables`, {
+      params: type ? { type } : undefined,
+    });
+    return { types: data.types ?? [], items: data.items ?? [] };
   },
 
   getVisibility: async (): Promise<ChatVisibility> => {

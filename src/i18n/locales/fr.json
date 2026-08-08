@@ -276,7 +276,9 @@
     "search": "Rechercher...",
     "loadMore": "Charger plus",
     "buy": "Achat",
-    "sell": "Vente"
+    "sell": "Vente",
+    "filterPaylink": "Liens",
+    "filterP2p": "Entre clients"
   },
   "statement": {
     "title": "Relevé de compte",
@@ -1258,6 +1260,28 @@
     "fieldVerified": "Identité vérifiée",
     "fieldPresence": "Statut en ligne",
     "notVerified": "Non vérifiée",
-    "noResultHint": "Le compte existe peut-être sans figurer dans la recherche. Envoyez-lui une invitation ci-dessous."
+    "noResultHint": "Le compte existe peut-être sans figurer dans la recherche. Envoyez-lui une invitation ci-dessous.",
+    "attachTitle": "Joindre",
+    "attachPhoto": "Photo",
+    "attachPaylink": "Lien de paiement",
+    "attachTransfer": "Envoi d’argent",
+    "attachTx": "Une opération",
+    "attachCard": "Carte virtuelle",
+    "attachVaccount": "Compte de réception",
+    "attachStatement": "Relevé",
+    "attachEmpty": "Rien à joindre ici pour le moment.",
+    "freeAmount": "Montant libre",
+    "linkClosed": "Lien fermé",
+    "txSent": "Envoyé",
+    "txReceived": "Reçu",
+    "kind_transfer": "Envoi",
+    "kind_deposit": "Dépôt",
+    "kind_withdraw": "Envoi",
+    "kind_crypto": "Monnaie numérique",
+    "status_success": "Réussi",
+    "status_wait": "En attente",
+    "status_fail": "Échoué",
+    "status_active": "Active",
+    "status_pending": "En cours"
   }
 }

@@ -276,7 +276,9 @@
     "search": "Search...",
     "loadMore": "Load more",
     "buy": "Buy",
-    "sell": "Sell"
+    "sell": "Sell",
+    "filterPaylink": "Links",
+    "filterP2p": "Peer to peer"
   },
   "statement": {
     "title": "Account statement",
@@ -1258,6 +1260,28 @@
     "fieldVerified": "Verified identity",
     "fieldPresence": "Online status",
     "notVerified": "Not verified",
-    "noResultHint": "The account may exist without being listed. Send an invitation below."
+    "noResultHint": "The account may exist without being listed. Send an invitation below.",
+    "attachTitle": "Attach",
+    "attachPhoto": "Photo",
+    "attachPaylink": "Payment link",
+    "attachTransfer": "Money transfer",
+    "attachTx": "An operation",
+    "attachCard": "Virtual card",
+    "attachVaccount": "Receiving account",
+    "attachStatement": "Statement",
+    "attachEmpty": "Nothing to attach here yet.",
+    "freeAmount": "Open amount",
+    "linkClosed": "Link closed",
+    "txSent": "Sent",
+    "txReceived": "Received",
+    "kind_transfer": "Transfer",
+    "kind_deposit": "Deposit",
+    "kind_withdraw": "Transfer out",
+    "kind_crypto": "Crypto",
+    "status_success": "Successful",
+    "status_wait": "Pending",
+    "status_fail": "Failed",
+    "status_active": "Active",
+    "status_pending": "In progress"
   }
 }

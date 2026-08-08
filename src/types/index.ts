@@ -136,6 +136,8 @@ export interface WelcomeBonus {
   volume: { current: number; target: number };
   /** Condition B : filleuls ayant validé leur KYC + fait ≥1 transaction. */
   filleuls: { current: number; target: number };
+  /** L'annonce du déblocage a déjà été vue — mémoire serveur, pas appareil. */
+  celebrated?: boolean;
 }
 
 export interface AffiliationHistoryItem {
@@ -366,6 +368,35 @@ export interface ChatReplyPreview {
   mine: boolean;
 }
 
+/** Objet de l'application porté par un message. */
+export type MessageItemType =
+  | 'paylink'
+  | 'transfer'
+  | 'transaction'
+  | 'card'
+  | 'virtual_account'
+  | 'statement';
+
+export interface MessageItem {
+  type: MessageItemType;
+  ref: string;
+  /** Instantané figé à l'envoi, complété du statut à jour quand il bouge. */
+  meta: Record<string, any>;
+}
+
+/** Un objet proposé au choix dans le menu « joindre ». */
+export interface AttachableItem {
+  ref: string;
+  title?: string;
+  kind?: string;
+  amount?: number | null;
+  currency?: string;
+  status?: string;
+  date?: string;
+  active?: boolean;
+  outgoing?: boolean;
+}
+
 export interface ChatMessage {
   id: number;
   mine: boolean;
@@ -374,6 +405,7 @@ export interface ChatMessage {
   attachment: ChatAttachment | null;
   author: ChatAuthor | null;
   reply_to: ChatReplyPreview | null;
+  item: MessageItem | null;
   created_at: string | null;
   /** Champs locaux de l'envoi optimiste (jamais renvoyés par le serveur). */
   pending?: boolean;

@@ -24,11 +24,22 @@ import { useKeyboardInset, useLockDocumentScroll } from '../../src/hooks/useKeyb
 import { BorderRadius, FontSize, Fonts, Spacing, type ColorPalette } from '../../src/constants/theme';
 import { useMessagingStore } from '../../src/stores/messagingStore';
 import { ChatAvatar } from '../../src/components/chat/ChatAvatar';
-import { ChatComposer, type ComposerQuote } from '../../src/components/chat/ChatComposer';
+import { ChatComposer, type ChatComposerHandle, type ComposerQuote } from '../../src/components/chat/ChatComposer';
 import { MessageBubble } from '../../src/components/chat/MessageBubble';
 import { ImageLightbox } from '../../src/components/chat/ImageLightbox';
+import { AttachSheet } from '../../src/components/chat/AttachSheet';
 import { dayLabel, isNewDay, presenceLabel } from '../../src/components/chat/chatFormat';
-import type { ChatMessage } from '../../src/types';
+import type { ChatMessage, MessageItemType } from '../../src/types';
+
+/** Libellé et icône d'un objet joint, pour le rappel au-dessus de la saisie. */
+const ATTACH_LABEL: Record<string, { key: string; fallback: string; icon: string }> = {
+  paylink:         { key: 'messages.attachPaylink',   fallback: 'Lien de paiement',   icon: 'link' },
+  transfer:        { key: 'messages.attachTransfer',  fallback: 'Envoi d’argent',     icon: 'paper-plane' },
+  transaction:     { key: 'messages.attachTx',        fallback: 'Une opération',      icon: 'receipt' },
+  card:            { key: 'messages.attachCard',      fallback: 'Carte virtuelle',    icon: 'credit-card' },
+  virtual_account: { key: 'messages.attachVaccount',  fallback: 'Compte de réception', icon: 'building-columns' },
+  statement:       { key: 'messages.attachStatement', fallback: 'Relevé',             icon: 'file-lines' },
+};
 
 /**
  * Fil de conversation. La liste est inversée : le bas est l'ancre naturelle
@@ -66,8 +77,12 @@ export default function ConversationScreen() {
   const [viewerUri, setViewerUri] = useState<string | null>(null);
   const [quote, setQuote] = useState<ComposerQuote | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [attachOpen, setAttachOpen] = useState(false);
+  /** Objet choisi dans le menu, envoyé avec le prochain message. */
+  const [pendingItem, setPendingItem] = useState<{ type: MessageItemType; ref: string; label: string; icon: string } | null>(null);
   const [highlightId, setHighlightId] = useState<number | null>(null);
   const listRef = useRef<FlatList<ChatMessage>>(null);
+  const composerRef = useRef<ChatComposerHandle>(null);
   const { keyboard: keyboardInset, viewportHeight } = useKeyboardInset();
   const insets = useSafeAreaInsets();
   useLockDocumentScroll();
@@ -333,11 +348,20 @@ export default function ConversationScreen() {
         )}
 
         <ChatComposer
+          ref={composerRef}
           onSend={(body, imageUri) => {
             // La citation part comme référence, pas comme texte recopié.
             const replyTo = quote;
+            const item = pendingItem;
             setQuote(null);
-            return send(conversationId, body, imageUri, replyTo);
+            setPendingItem(null);
+            return send(
+              conversationId,
+              body,
+              imageUri,
+              replyTo,
+              item ? { type: item.type, ref: item.ref } : null,
+            );
           }}
           onTyping={() => notifyTyping(conversationId)}
           sending={isSending}
@@ -345,8 +369,26 @@ export default function ConversationScreen() {
           onCancelQuote={() => setQuote(null)}
           keyboardHeight={lastKeyboardRef.current}
           style={isWide ? styles.composerWide : undefined}
+          onAttach={() => setAttachOpen(true)}
+          pendingItem={pendingItem ? { label: pendingItem.label, icon: pendingItem.icon } : null}
+          onCancelItem={() => setPendingItem(null)}
         />
       </View>
+
+      <AttachSheet
+        visible={attachOpen}
+        conversationId={conversationId}
+        onClose={() => setAttachOpen(false)}
+        onPickPhoto={() => composerRef.current?.pickImage()}
+        onPick={(type, ref) =>
+          setPendingItem({
+            type,
+            ref,
+            label: ATTACH_LABEL[type] ? t(ATTACH_LABEL[type].key, ATTACH_LABEL[type].fallback) : type,
+            icon: ATTACH_LABEL[type]?.icon ?? 'paperclip',
+          })
+        }
+      />
 
       <ActionSheet
         visible={menuOpen}

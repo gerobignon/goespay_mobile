@@ -71,7 +71,13 @@ interface MessagingState {
   loadThread: (id: number, silent?: boolean) => Promise<void>;
   loadOlder: (id: number) => Promise<void>;
   pollThread: (id: number) => Promise<void>;
-  send: (id: number, body: string, imageUri?: string | null, replyTo?: ChatReplyPreview | null) => Promise<void>;
+  send: (
+    id: number,
+    body: string,
+    imageUri?: string | null,
+    replyTo?: ChatReplyPreview | null,
+    attachment?: { type: string; ref: string } | null,
+  ) => Promise<void>;
   retry: (id: number, tempId: number) => Promise<void>;
   markRead: (id: number) => Promise<void>;
   notifyTyping: (id: number) => void;
@@ -197,9 +203,9 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
     }
   },
 
-  send: async (id, body, imageUri, replyTo) => {
+  send: async (id, body, imageUri, replyTo, attachment) => {
     const text = (body || '').trim();
-    if (!text && !imageUri) return;
+    if (!text && !imageUri && !attachment) return;
 
     // Envoi optimiste : la bulle apparaît immédiatement, marquée en attente.
     const tempId = tempSeq--;
@@ -213,6 +219,7 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
       // La citation est déjà affichable localement : la bulle optimiste la
       // montre sans attendre la réponse du serveur.
       reply_to: replyTo ?? null,
+      item: null,
       created_at: new Date().toISOString(),
       pending: true,
       localImage: imageUri || undefined,
@@ -223,7 +230,7 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
     }));
 
     try {
-      const data = await messagingService.send(id, text, imageUri, replyTo?.id ?? null);
+      const data = await messagingService.send(id, text, imageUri, replyTo?.id ?? null, attachment ?? null);
       set((s) => ({
         threads: {
           ...s.threads,

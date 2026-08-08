@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -47,6 +47,11 @@ interface ChatComposerProps {
   keyboardHeight?: number;
   /** Contrainte de largeur imposée par l'écran (colonne de lecture desktop). */
   style?: StyleProp<ViewStyle>;
+  /** Ouvre le menu « joindre » (photo + objets de l'app). */
+  onAttach?: () => void;
+  /** Objet déjà sélectionné, à envoyer avec le message. */
+  pendingItem?: { label: string; icon?: string } | null;
+  onCancelItem?: () => void;
 }
 
 /**
@@ -56,7 +61,12 @@ interface ChatComposerProps {
  * à l'intérieur : sans ce contraste, la saisie se confondait avec le fond du
  * fil et l'écran n'avait plus de bas.
  */
-export function ChatComposer({
+/** Ce que l'écran peut déclencher depuis l'extérieur (menu « joindre »). */
+export interface ChatComposerHandle {
+  pickImage: () => void;
+}
+
+export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(function ChatComposer({
   onSend,
   onTyping,
   sending,
@@ -65,7 +75,10 @@ export function ChatComposer({
   disabledReason,
   keyboardHeight = 0,
   style,
-}: ChatComposerProps) {
+  onAttach,
+  pendingItem,
+  onCancelItem,
+}, ref) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const { t } = useTranslation();
@@ -104,6 +117,10 @@ export function ChatComposer({
       setEmojiOpen(true);
     }
   };
+
+  // La photo se choisit depuis le menu « joindre », qui vit dans l'écran :
+  // c'est le composer qui garde l'image, donc c'est lui qui ouvre le sélecteur.
+  useImperativeHandle(ref, () => ({ pickImage }), [pickImage]);
 
   const submit = async () => {
     const text = body.trim();
@@ -147,6 +164,17 @@ export function ChatComposer({
         </View>
       )}
 
+      {/* Objet de l'app en attente d'envoi */}
+      {!!pendingItem && (
+        <View style={styles.pending}>
+          <FontAwesome6 name={(pendingItem.icon ?? 'paperclip') as any} size={13} color={colors.secondary} />
+          <Text style={styles.pendingText} numberOfLines={1}>{pendingItem.label}</Text>
+          <TouchableOpacity onPress={onCancelItem} hitSlop={10}>
+            <FontAwesome6 name="xmark" size={13} color={colors.textMuted} />
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Photo jointe */}
       {!!imageUri && (
         <View style={styles.preview}>
@@ -170,6 +198,8 @@ export function ChatComposer({
             />
           </TouchableOpacity>
 
+          <View style={styles.divider} />
+
           <TextInput
             ref={inputRef}
             style={styles.input}
@@ -185,7 +215,12 @@ export function ChatComposer({
             maxLength={4000}
           />
 
-          <TouchableOpacity style={styles.fieldBtn} onPress={pickImage} disabled={sending} hitSlop={8}>
+          <TouchableOpacity
+            style={styles.fieldBtn}
+            onPress={onAttach ?? pickImage}
+            disabled={sending}
+            hitSlop={8}
+          >
             <FontAwesome6 name="paperclip" size={19} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
@@ -221,15 +256,15 @@ export function ChatComposer({
       )}
     </View>
   );
-}
+});
 
 const createStyles = (Colors: ColorPalette) =>
   StyleSheet.create({
     wrap: {
       borderTopWidth: 1,
       borderTopColor: Colors.border,
-      // Surface pleine : la barre doit se détacher du fond du fil.
-      backgroundColor: Colors.cardSolid,
+      // Fond sobre : c'est la pilule posée dessus qui porte le regard.
+      backgroundColor: Colors.background,
     },
     row: {
       flexDirection: 'row',
@@ -251,9 +286,35 @@ const createStyles = (Colors: ColorPalette) =>
       borderWidth: 1,
       borderColor: Colors.border,
       // Creux dans la barre — plus sombre en thème sombre, plus clair en clair.
-      backgroundColor: Colors.background,
+      backgroundColor: Colors.cardSolid,
       paddingHorizontal: 5,
       paddingVertical: 5,
+      // La pilule se détache de la barre : c'est elle l'objet actif, pas le fond.
+      shadowColor: '#000',
+      shadowOpacity: 0.18,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 3,
+    },
+    pending: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+      paddingHorizontal: Spacing.md,
+      paddingTop: Spacing.sm,
+    },
+    pendingText: {
+      flex: 1,
+      fontFamily: Fonts.medium,
+      fontSize: FontSize.sm,
+      color: Colors.text,
+    },
+    divider: {
+      width: 1,
+      alignSelf: 'center',
+      height: 22,
+      backgroundColor: Colors.border,
+      marginRight: 2,
     },
     fieldWide: {
       minHeight: ICON_SLOT + 20,
