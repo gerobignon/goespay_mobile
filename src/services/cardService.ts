@@ -140,6 +140,11 @@ export interface CardQuote {
   /** Frais de création — présents uniquement sur le devis d'une commande. */
   issue_fee_usd?: number;
   issue_fee_xof?: number;
+  /**
+   * Ce que le client paie (recharge, commande) ou reçoit (retrait), frais
+   * compris. Le détail se lit en USD, ce total est la seule conversion.
+   */
+  total_usd?: number;
   total_xof: number;
   direction: 'fund' | 'withdraw';
 }

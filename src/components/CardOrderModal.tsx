@@ -15,6 +15,9 @@ import { getApiErrorMessage } from '../utils/apiError';
 /** Repli si le serveur ne renvoie pas le minimum (vieille version d'API). */
 const FALLBACK_MIN_USD = 2;
 
+/** Montants de la carte : toujours deux décimales, la devise collée au montant. */
+const fmtUsd = (amount: number) => `${amount.toFixed(2)} USD`;
+
 export type CardBrand = 'VISA' | 'MASTERCARD';
 
 interface Props {
@@ -151,29 +154,35 @@ export function CardOrderModal({ visible, pricing, onClose, onOrdered, onIneligi
         {quoting && !quote ? (
           <ActivityIndicator size="small" color={Colors.primary} />
         ) : quote ? (
+          /* Le détail reste ENTIÈREMENT en USD — c'est la devise de la carte et
+             celle des tarifs. Mélanger les deux devises dans la même liste
+             donnait un total dont aucune ligne affichée ne rendait compte : le
+             montant chargé apparaissait en dollars, les frais en francs, et la
+             somme en francs. Une seule conversion, en bas, avec son taux. */
           <View style={styles.quote}>
             <View style={styles.quoteRow}>
               <Text style={styles.quoteLabel}>{t('cards.loadedOnCard')}</Text>
-              <Text style={styles.quoteValue}>{value.toFixed(2)} USD</Text>
+              <Text style={styles.quoteValue}>{fmtUsd(quote.amount_usd)}</Text>
             </View>
             {/* Frais détaillés : le client doit distinguer ce qu'il paie pour
                 avoir la carte de ce qu'il paie pour la charger. */}
-            {!!quote.issue_fee_xof && quote.issue_fee_xof > 0 && (
+            {!!quote.issue_fee_usd && quote.issue_fee_usd > 0 && (
               <View style={styles.quoteRow}>
                 <Text style={styles.quoteLabel}>{t('cards.issueFee')}</Text>
-                <Text style={styles.quoteValue}>{fmtXof(quote.issue_fee_xof)}</Text>
+                <Text style={styles.quoteValue}>{fmtUsd(quote.issue_fee_usd)}</Text>
               </View>
             )}
-            {quote.fee_xof > 0 && (
+            {!!quote.fee_usd && quote.fee_usd > 0 && (
               <View style={styles.quoteRow}>
                 <Text style={styles.quoteLabel}>{t('cards.topUpFee')}</Text>
-                <Text style={styles.quoteValue}>{fmtXof(quote.fee_xof)}</Text>
+                <Text style={styles.quoteValue}>{fmtUsd(quote.fee_usd)}</Text>
               </View>
             )}
-            <View style={styles.quoteRow}>
+            <View style={[styles.quoteRow, styles.totalRow]}>
               <Text style={styles.quoteLabel}>{t('cards.debited')}</Text>
               <Text style={styles.quoteTotal}>{fmtXof(quote.total_xof)}</Text>
             </View>
+            <Text style={styles.rateNote}>1 USD = {fmtXof(quote.rate)}</Text>
           </View>
         ) : null}
 
@@ -226,6 +235,10 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   quoteRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   quoteLabel: { fontSize: FontSize.sm, color: Colors.textMuted },
   quoteValue: { fontSize: FontSize.sm, color: Colors.text, fontFamily: Fonts.medium },
+  // Le trait sépare le détail en dollars du seul montant en francs : c'est là
+  // que la conversion a lieu, et elle doit se voir.
+  totalRow: { borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: Spacing.sm, marginTop: 2 },
   quoteTotal: { fontSize: FontSize.md, color: Colors.text, fontFamily: Fonts.bold },
+  rateNote: { fontSize: FontSize.xs, color: Colors.textMuted, textAlign: 'right' },
   error: { fontSize: FontSize.sm, color: Colors.error },
 });
