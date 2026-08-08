@@ -47,7 +47,7 @@ export function SendMoneySheet({ visible, peer, sending, onClose, onSend }: Send
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const balance = useWalletStore((s) => s.balance);
-  const { keyboard, viewportHeight } = useKeyboardInset();
+  const { keyboard, viewportHeight, offsetTop } = useKeyboardInset();
 
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
@@ -78,7 +78,20 @@ export function SendMoneySheet({ visible, peer, sending, onClose, onSend }: Send
   const isWeb = Platform.OS === 'web';
   const backdropStyle =
     isWeb && viewportHeight
-      ? ({ height: viewportHeight } as any)
+      ? ({
+          height: viewportHeight,
+          // `flexBasis: 'auto'` est indispensable : le fond porte `flex: 1`,
+          // qui vaut `flex-basis: 0%` — la hauteur posée ici était calculée par
+          // le flex et purement ignorée, donc le modal restait plein écran,
+          // bas sous le clavier. Même piège que `app/messages/[id].tsx`.
+          flexGrow: 0,
+          flexShrink: 0,
+          flexBasis: 'auto',
+          // iOS fait GLISSER la zone visible vers le bas pour dégager le champ :
+          // le modal, en `position: fixed`, ne suit pas — on lui rend le
+          // décalage, sans quoi son bas retombe sous le clavier.
+          marginTop: offsetTop,
+        } as any)
       : keyboard > 0
         ? { paddingBottom: keyboard }
         : null;

@@ -6,6 +6,17 @@ export interface KeyboardViewport {
   keyboard: number;
   /** Hauteur réellement visible — web uniquement, null ailleurs. */
   viewportHeight: number | null;
+  /**
+   * Décalage du viewport visible par rapport au viewport de mise en page —
+   * web uniquement, 0 ailleurs.
+   *
+   * iOS ne se contente pas de rétrécir la zone visible quand le clavier monte :
+   * il la FAIT GLISSER vers le bas pour amener le champ au-dessus des touches,
+   * sans toucher à `scrollY`. Un élément en `position: fixed` reste, lui, collé
+   * au viewport de mise en page : caler sa seule hauteur ne suffit pas, il faut
+   * aussi lui rendre ce décalage, sinon son bas repasse sous le clavier.
+   */
+  offsetTop: number;
 }
 
 /**
@@ -24,6 +35,7 @@ export interface KeyboardViewport {
 export function useKeyboardInset(): KeyboardViewport {
   const [keyboard, setKeyboard] = useState(0);
   const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+  const [offsetTop, setOffsetTop] = useState(0);
 
   useEffect(() => {
     if (Platform.OS === 'web') {
@@ -32,6 +44,7 @@ export function useKeyboardInset(): KeyboardViewport {
 
       const update = () => {
         setViewportHeight(vv.height);
+        setOffsetTop(vv.offsetTop);
         const covered = window.innerHeight - vv.height - vv.offsetTop;
         setKeyboard(covered > 60 ? covered : 0);
         // Le navigateur fait défiler la page pour montrer le champ ; l'écran
@@ -63,5 +76,5 @@ export function useKeyboardInset(): KeyboardViewport {
     };
   }, []);
 
-  return { keyboard, viewportHeight };
+  return { keyboard, viewportHeight, offsetTop };
 }
