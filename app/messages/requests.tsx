@@ -24,6 +24,11 @@ import type { ContactRequest } from '../../src/types';
  * montre — et son mot d'accompagnement, de quoi décider. Envoyées : on voit
  * seulement qu'elles sont en attente ; rien ne dit si elles ont été lues, ni
  * même si le compte visé existe.
+ *
+ * Refusées : repliées derrière un bouton, car un refus n'a pas à occuper
+ * l'écran. Elles restent en base pour empêcher les relances, donc les montrer
+ * est le seul moyen de revenir dessus — accepter, ou effacer pour rouvrir la
+ * porte à l'expéditeur.
  */
 export default function RequestsScreen() {
   const router = useRouter();
@@ -34,6 +39,8 @@ export default function RequestsScreen() {
 
   const [incoming, setIncoming] = useState<ContactRequest[]>([]);
   const [outgoing, setOutgoing] = useState<ContactRequest[]>([]);
+  const [declined, setDeclined] = useState<ContactRequest[]>([]);
+  const [showDeclined, setShowDeclined] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
 
@@ -42,6 +49,7 @@ export default function RequestsScreen() {
       const data = await messagingService.getRequests();
       setIncoming(data.incoming);
       setOutgoing(data.outgoing);
+      setDeclined(data.declined);
     } catch {
       // Liste vide plutôt qu'un écran d'erreur : rechargeable en revenant.
     } finally {
@@ -60,6 +68,7 @@ export default function RequestsScreen() {
     try {
       const conversation = await messagingService.acceptRequest(request.id);
       setIncoming((list) => list.filter((r) => r.id !== request.id));
+      setDeclined((list) => list.filter((r) => r.id !== request.id));
       router.push(`/messages/${conversation.id}`);
     } catch (e: any) {
       showAlert(t('common.error', 'Erreur'), e?.response?.data?.error || t('messages.actionFailed', 'Action impossible.'));
@@ -84,6 +93,35 @@ export default function RequestsScreen() {
               setIncoming((list) => list.filter((r) => r.id !== request.id));
             } catch {
               // Reste en liste : réessayable.
+            } finally {
+              setBusyId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  /** Efface le refus : l'expéditeur redevient capable d'inviter. */
+  const forget = (request: ContactRequest) => {
+    showAlert(
+      t('messages.forgetTitle', 'Supprimer ce refus ?'),
+      t('messages.forgetBody', 'Ce compte pourra de nouveau vous inviter.'),
+      [
+        { text: t('common.cancel', 'Annuler'), style: 'cancel' },
+        {
+          text: t('messages.forget', 'Supprimer'),
+          style: 'destructive',
+          onPress: async () => {
+            setBusyId(request.id);
+            try {
+              await messagingService.forgetRequest(request.id);
+              setDeclined((list) => list.filter((r) => r.id !== request.id));
+            } catch (e: any) {
+              showAlert(
+                t('common.error', 'Erreur'),
+                e?.response?.data?.error || t('messages.actionFailed', 'Action impossible.'),
+              );
             } finally {
               setBusyId(null);
             }
@@ -194,6 +232,81 @@ export default function RequestsScreen() {
                 ))}
               </View>
             )}
+
+            {declined.length > 0 && (
+              <>
+                <TouchableOpacity
+                  style={[styles.toggle, { borderColor: colors.border }]}
+                  onPress={() => setShowDeclined((v) => !v)}
+                  activeOpacity={0.7}
+                >
+                  <FontAwesome6 name="ban" size={12} color={colors.textMuted} />
+                  <Text style={styles.toggleText}>
+                    {t('messages.declinedTitle', 'Refusées')} ({declined.length})
+                  </Text>
+                  <FontAwesome6
+                    name={showDeclined ? 'chevron-up' : 'chevron-down'}
+                    size={12}
+                    color={colors.textMuted}
+                  />
+                </TouchableOpacity>
+
+                {showDeclined && (
+                  <View style={styles.list}>
+                    {declined.map((r, i) => (
+                      <Reveal key={r.id} delay={i * 45} offset={10}>
+                        <View style={styles.card}>
+                          <TouchableOpacity
+                            style={styles.cardHead}
+                            activeOpacity={0.7}
+                            onPress={() => r.peer && router.push(`/messages/profile/${r.peer.id}`)}
+                          >
+                            <ChatAvatar name={r.peer?.name || ''} uri={r.peer?.avatar} size={46} />
+                            <View style={styles.cardBody}>
+                              <View style={styles.cardTop}>
+                                <Text style={styles.cardName} numberOfLines={1}>{r.peer?.name}</Text>
+                                {r.peer?.verified && (
+                                  <FontAwesome6 name="circle-check" size={12} color={colors.positive} />
+                                )}
+                              </View>
+                              <Text style={styles.cardMeta} numberOfLines={1}>
+                                #{r.peer?.id}
+                                {r.peer?.country ? ` · ${r.peer.country}` : ''}
+                                {` · ${shortAgo(r.responded_at || r.created_at, t)}`}
+                              </Text>
+                            </View>
+                            <FontAwesome6 name="chevron-right" size={12} color={colors.textMuted} />
+                          </TouchableOpacity>
+
+                          {!!r.note && <Text style={styles.note}>« {r.note} »</Text>}
+
+                          <View style={styles.actions}>
+                            <TouchableOpacity
+                              style={[styles.decline, { borderColor: colors.border }]}
+                              onPress={() => forget(r)}
+                              disabled={busyId === r.id}
+                            >
+                              <Text style={styles.declineText}>{t('messages.forget', 'Supprimer')}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={[styles.accept, { backgroundColor: colors.primary }]}
+                              onPress={() => accept(r)}
+                              disabled={busyId === r.id}
+                            >
+                              {busyId === r.id ? (
+                                <ActivityIndicator size="small" color={colors.white} />
+                              ) : (
+                                <Text style={styles.acceptText}>{t('messages.accept', 'Accepter')}</Text>
+                              )}
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      </Reveal>
+                    ))}
+                  </View>
+                )}
+              </>
+            )}
           </>
         )}
       </ScrollView>
@@ -222,6 +335,18 @@ const createStyles = (Colors: ColorPalette) =>
       marginBottom: Spacing.sm,
     },
     list: { gap: Spacing.sm },
+    toggle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: Spacing.sm,
+      borderWidth: 1,
+      borderRadius: BorderRadius.pill,
+      paddingVertical: Spacing.sm + 2,
+      marginTop: Spacing.lg,
+      marginBottom: Spacing.sm,
+    },
+    toggleText: { fontFamily: Fonts.semiBold, fontSize: FontSize.sm, color: Colors.textMuted },
     card: {
       backgroundColor: Colors.surface,
       borderWidth: 1,

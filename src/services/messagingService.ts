@@ -161,9 +161,17 @@ export const messagingService = {
     return data.message;
   },
 
-  getRequests: async (): Promise<{ incoming: ContactRequest[]; outgoing: ContactRequest[] }> => {
+  getRequests: async (): Promise<{
+    incoming: ContactRequest[];
+    outgoing: ContactRequest[];
+    declined: ContactRequest[];
+  }> => {
     const { data } = await api.get('/messaging/requests');
-    return { incoming: data.incoming ?? [], outgoing: data.outgoing ?? [] };
+    return {
+      incoming: data.incoming ?? [],
+      outgoing: data.outgoing ?? [],
+      declined: data.declined ?? [],
+    };
   },
 
   acceptRequest: async (id: number): Promise<Conversation> => {
@@ -173,6 +181,11 @@ export const messagingService = {
 
   declineRequest: async (id: number): Promise<void> => {
     await api.post(`/messaging/requests/${id}/decline`);
+  },
+
+  /** Efface une invitation refusée : son expéditeur pourra réinviter. */
+  forgetRequest: async (id: number): Promise<void> => {
+    await api.delete(`/messaging/requests/${id}`);
   },
 
   /**

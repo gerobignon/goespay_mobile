@@ -319,9 +319,11 @@ export interface PeerCard {
 /** Invitation à discuter, reçue ou envoyée. */
 export interface ContactRequest {
   id: number;
-  direction: 'incoming' | 'outgoing';
+  /** « declined » : reçue puis refusée — conservée, donc réactivable. */
+  direction: 'incoming' | 'outgoing' | 'declined';
   note: string;
   created_at: string | null;
+  responded_at?: string | null;
   peer: PeerCard | null;
 }
 
