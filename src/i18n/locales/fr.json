@@ -226,7 +226,7 @@
     "deposit": "Recharger",
     "transfer": "Envoyer",
     "paylink": "Paylink",
-    "p2p": "Transfert P2P",
+    "p2p": "Transfert",
     "recentTransactions": "Dernières transactions",
     "noTransactions": "Aucune transaction récente.",
     "quickActions": "Services",
@@ -263,7 +263,7 @@
     "promo3Title": "Sécurisez votre compte",
     "promo3Desc": "Activez la double authentification dans Mon compte.",
     "promo3Cta": "Activer",
-    "cards": "Carte Visa"
+    "cards": "Carte virtuelle"
   },
   "history": {
     "title": "Historique",
@@ -660,7 +660,7 @@
     }
   },
   "p2p": {
-    "title": "Transfert P2P",
+    "title": "Transfert à un compte GoesPay",
     "identifierLabel": "Destinataire",
     "identifierPlaceholder": "Email, téléphone, identifiant ou code parrain",
     "amountLabel": "Montant (XOF)",

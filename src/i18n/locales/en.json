@@ -226,7 +226,7 @@
     "deposit": "Top up",
     "transfer": "Send",
     "paylink": "Paylink",
-    "p2p": "P2P transfer",
+    "p2p": "Transfer",
     "recentTransactions": "Recent transactions",
     "noTransactions": "No recent transactions.",
     "quickActions": "Services",
@@ -263,7 +263,7 @@
     "promo3Title": "Secure your account",
     "promo3Desc": "Enable two-factor authentication in My account.",
     "promo3Cta": "Enable",
-    "cards": "Visa Card"
+    "cards": "Virtual card"
   },
   "history": {
     "title": "History",
@@ -660,7 +660,7 @@
     }
   },
   "p2p": {
-    "title": "P2P transfer",
+    "title": "Transfer to a GoesPay account",
     "identifierLabel": "Recipient",
     "identifierPlaceholder": "Email, phone, account ID or referral code",
     "amountLabel": "Amount (XOF)",
