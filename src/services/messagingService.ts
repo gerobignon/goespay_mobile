@@ -208,16 +208,26 @@ export const messagingService = {
     return data;
   },
 
-  /** Types joignables dans ce fil, et objets d'un type donné. */
+  /**
+   * Types joignables dans ce fil, et objets d'un type donné.
+   *
+   * `scope: 'all'` cherche dans tout l'historique au lieu des seules opérations
+   * liées à l'interlocuteur — c'est ce que fait la recherche de transaction.
+   */
   getAttachables: async (
     conversationId: number,
     type?: string,
+    opts?: { q?: string; scope?: 'all' },
   ): Promise<{ types: string[]; items: AttachableItem[] }> => {
     const { data } = await api.get(`/messaging/conversations/${conversationId}/attachables`, {
-      params: type ? { type } : undefined,
+      params: type ? { type, q: opts?.q || undefined, scope: opts?.scope } : undefined,
     });
     return { types: data.types ?? [], items: data.items ?? [] };
   },
+
+  /** Reçu PDF d'une opération partagée dans un fil (les deux côtés y ont droit). */
+  receiptPath: (conversationId: number, messageId: number): string =>
+    `/messaging/conversations/${conversationId}/messages/${messageId}/receipt`,
 
   getVisibility: async (): Promise<ChatVisibility> => {
     const { data } = await api.get<{ visibility: ChatVisibility }>('/messaging/visibility');

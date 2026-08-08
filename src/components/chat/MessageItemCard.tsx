@@ -1,11 +1,14 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Linking, ActivityIndicator } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { BorderRadius, FontSize, Fonts, Spacing, withAlpha, type ColorPalette } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { useColors } from '../ThemeProvider';
 import { formatAmount } from '../../utils/format';
+import { downloadPdf } from '../../utils/pdfDownload';
+import { messagingService } from '../../services/messagingService';
+import { showAlert } from '../../stores/alertStore';
 import type { MessageItem } from '../../types';
 
 /**
@@ -16,10 +19,22 @@ import type { MessageItem } from '../../types';
  * rechercher de lui-même. Un champ absent est un champ que l'autre n'a pas le
  * droit de voir, pas une donnée à retrouver.
  */
-export function MessageItemCard({ item, mine }: { item: MessageItem; mine: boolean }) {
+export function MessageItemCard({
+  item,
+  mine,
+  conversationId,
+  messageId,
+}: {
+  item: MessageItem;
+  mine: boolean;
+  /** Nécessaires au reçu PDF : le droit de le lire vient du fil, pas de l'opération. */
+  conversationId?: number;
+  messageId?: number;
+}) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const { t } = useTranslation();
+  const [downloading, setDownloading] = useState(false);
 
   const meta = item.meta || {};
   const tint = mine ? colors.white : colors.secondary;
@@ -82,13 +97,63 @@ export function MessageItemCard({ item, mine }: { item: MessageItem; mine: boole
     case 'transaction': {
       const outgoing = meta.outgoing !== false;
       const kindLabel = String(t(`messages.kind_${meta.kind || 'transfer'}`, meta.kind || ''));
-      return shell('receipt', amount(meta.amount, meta.currency), [
-        [kindLabel, meta.status ? String(t(`messages.status_${meta.status}`, meta.status)) : ''].filter(Boolean).join(' · '),
-        meta.date ? String(meta.date).slice(0, 16).replace('T', ' ') : '',
-        meta.kind === 'transfer'
-          ? String(outgoing ? t('messages.txSent', 'Envoyé') : t('messages.txReceived', 'Reçu'))
-          : '',
-      ]);
+      const canDownload = conversationId != null && messageId != null;
+
+      const download = async () => {
+        if (!canDownload || downloading) return;
+        setDownloading(true);
+        try {
+          await downloadPdf(
+            messagingService.receiptPath(conversationId, messageId),
+            `goespay_${meta.kind || 'transfer'}_${meta.id ?? messageId}.pdf`,
+            String(t('messages.receipt', 'Reçu')),
+          );
+        } catch {
+          showAlert(
+            String(t('common.error', 'Erreur')),
+            String(t('messages.receiptFailed', 'Reçu indisponible.')),
+          );
+        } finally {
+          setDownloading(false);
+        }
+      };
+
+      return (
+        <View>
+          {shell('receipt', amount(meta.amount, meta.currency), [
+            [kindLabel, meta.status ? String(t(`messages.status_${meta.status}`, meta.status)) : '']
+              .filter(Boolean)
+              .join(' · '),
+            [meta.id != null ? `#${meta.id}` : '', meta.reference ? String(meta.reference) : '']
+              .filter(Boolean)
+              .join(' · '),
+            meta.date ? String(meta.date).slice(0, 16).replace('T', ' ') : '',
+            meta.kind === 'transfer'
+              ? String(outgoing ? t('messages.txSent', 'Envoyé') : t('messages.txReceived', 'Reçu'))
+              : '',
+          ])}
+
+          {canDownload && (
+            <TouchableOpacity
+              style={[styles.receiptBtn, { borderColor: withAlpha(tint, 0.5) }]}
+              onPress={download}
+              disabled={downloading}
+              activeOpacity={0.8}
+            >
+              {downloading ? (
+                <ActivityIndicator size="small" color={tint} />
+              ) : (
+                <>
+                  <FontAwesome6 name="file-pdf" size={12} color={tint} />
+                  <Text style={[styles.receiptBtnText, { color: tint }]}>
+                    {t('messages.receiptPdf', 'Reçu PDF')}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+      );
     }
 
     case 'card':
@@ -141,4 +206,15 @@ const createStyles = (Colors: ColorPalette) =>
     body: { flex: 1, minWidth: 0 },
     title: { fontFamily: Fonts.bold, fontSize: FontSize.sm },
     line: { fontFamily: Fonts.regular, fontSize: FontSize.xs, marginTop: 1 },
+    receiptBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: Spacing.xs,
+      borderWidth: 1,
+      borderRadius: BorderRadius.pill,
+      paddingVertical: Spacing.xs + 2,
+      marginBottom: Spacing.xs,
+    },
+    receiptBtnText: { fontFamily: Fonts.semiBold, fontSize: FontSize.xs },
   });

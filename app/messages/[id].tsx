@@ -247,6 +247,7 @@ export default function ConversationScreen() {
         )}
         <MessageBubble
           message={item}
+          conversationId={conversationId}
           peerReadId={conversation?.peer_read_id ?? 0}
           onPressImage={setViewerUri}
           onRetry={(tempId) => retry(conversationId, tempId)}

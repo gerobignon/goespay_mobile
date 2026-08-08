@@ -395,11 +395,16 @@ export interface MessageItem {
 /** Un objet proposé au choix dans le menu « joindre ». */
 export interface AttachableItem {
   ref: string;
+  /** Identifiant de l'opération, tel qu'il figure sur le reçu. */
+  id?: number;
   title?: string;
   kind?: string;
   amount?: number | null;
   currency?: string;
   status?: string;
+  reference?: string;
+  /** Libellé propre du moyen de paiement (jamais le code brut). */
+  mode?: string;
   date?: string;
   active?: boolean;
   outgoing?: boolean;

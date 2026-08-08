@@ -189,17 +189,26 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
       )}
 
       <View style={styles.row}>
+        {/* Emojis et pièces jointes vivent hors du champ : la pilule ne porte
+            que la saisie, les actions sont des boutons à part entière. */}
+        <TouchableOpacity style={styles.roundBtn} onPress={toggleEmoji} disabled={sending} hitSlop={8}>
+          <FontAwesome6
+            name={emojiOpen ? 'keyboard' : 'face-smile'}
+            size={19}
+            color={emojiOpen ? colors.secondary : colors.textMuted}
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.roundBtn}
+          onPress={onAttach ?? pickImage}
+          disabled={sending}
+          hitSlop={8}
+        >
+          <FontAwesome6 name="paperclip" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
+
         <View style={[styles.field, isWide && styles.fieldWide]}>
-          <TouchableOpacity style={styles.fieldBtn} onPress={toggleEmoji} disabled={sending} hitSlop={8}>
-            <FontAwesome6
-              name={emojiOpen ? 'keyboard' : 'face-smile'}
-              size={21}
-              color={emojiOpen ? colors.secondary : colors.textMuted}
-            />
-          </TouchableOpacity>
-
-          <View style={styles.divider} />
-
           <TextInput
             ref={inputRef}
             style={styles.input}
@@ -214,15 +223,6 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
             multiline
             maxLength={4000}
           />
-
-          <TouchableOpacity
-            style={styles.fieldBtn}
-            onPress={onAttach ?? pickImage}
-            disabled={sending}
-            hitSlop={8}
-          >
-            <FontAwesome6 name="paperclip" size={19} color={colors.textMuted} />
-          </TouchableOpacity>
         </View>
 
         <TouchableOpacity onPress={submit} disabled={!canSend} activeOpacity={0.85}>
@@ -261,10 +261,9 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
 const createStyles = (Colors: ColorPalette) =>
   StyleSheet.create({
     wrap: {
-      borderTopWidth: 1,
-      borderTopColor: Colors.border,
-      // Fond sobre : c'est la pilule posée dessus qui porte le regard.
-      backgroundColor: Colors.background,
+      // Aucun fond propre : la barre laisse voir celui de l'écran. Un aplat
+      // opaque coupait net le dégradé du fil par une bande claire.
+      backgroundColor: 'transparent',
     },
     row: {
       flexDirection: 'row',
@@ -287,7 +286,7 @@ const createStyles = (Colors: ColorPalette) =>
       borderColor: Colors.border,
       // Creux dans la barre — plus sombre en thème sombre, plus clair en clair.
       backgroundColor: Colors.cardSolid,
-      paddingHorizontal: 5,
+      paddingHorizontal: Spacing.sm,
       paddingVertical: 5,
       // La pilule se détache de la barre : c'est elle l'objet actif, pas le fond.
       shadowColor: '#000',
@@ -309,24 +308,23 @@ const createStyles = (Colors: ColorPalette) =>
       fontSize: FontSize.sm,
       color: Colors.text,
     },
-    divider: {
-      width: 1,
-      alignSelf: 'center',
-      height: 22,
-      backgroundColor: Colors.border,
-      marginRight: 2,
-    },
     fieldWide: {
       minHeight: ICON_SLOT + 20,
       borderRadius: (ICON_SLOT + 20) / 2,
-      paddingHorizontal: Spacing.sm,
+      paddingHorizontal: Spacing.md,
     },
-    fieldBtn: {
+    /** Action posée à côté du champ, sur le fond de l'écran : elle a donc sa
+     *  propre surface, sinon l'icône flotterait sur le dégradé. */
+    roundBtn: {
       width: ICON_SLOT,
       height: ICON_SLOT,
       borderRadius: ICON_SLOT / 2,
       alignItems: 'center',
       justifyContent: 'center',
+      backgroundColor: Colors.cardSolid,
+      borderWidth: 1,
+      borderColor: Colors.border,
+      marginBottom: 5,
     },
     input: {
       flex: 1,

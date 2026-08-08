@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -24,11 +25,24 @@ const TYPE_META: Record<string, { icon: string; labelKey: string; fallback: stri
   photo:           { icon: 'image',          labelKey: 'messages.attachPhoto',    fallback: 'Photo' },
   paylink:         { icon: 'link',           labelKey: 'messages.attachPaylink',  fallback: 'Lien de paiement' },
   transfer:        { icon: 'paper-plane',    labelKey: 'messages.attachTransfer', fallback: 'Envoi d’argent' },
-  transaction:     { icon: 'receipt',        labelKey: 'messages.attachTx',       fallback: 'Une opération' },
+  transaction:     { icon: 'receipt',        labelKey: 'messages.attachTx',       fallback: 'Reçu d’opération' },
   card:            { icon: 'credit-card',    labelKey: 'messages.attachCard',     fallback: 'Carte virtuelle' },
   virtual_account: { icon: 'building-columns', labelKey: 'messages.attachVaccount', fallback: 'Compte de réception' },
   statement:       { icon: 'file-lines',     labelKey: 'messages.attachStatement', fallback: 'Relevé' },
 };
+
+/** Les seuls types qui se cherchent : les opérations. */
+const isTxType = (type: string) => type === 'transaction' || type === 'transfer';
+
+/** Couleur d'un statut d'opération — la même sémantique que dans l'historique. */
+function statusTone(status: string | undefined, colors: any): string | null {
+  const s = (status || '').toLowerCase();
+  if (!s) return null;
+  if (['success', 'succes', 'active', 'approved', '1'].includes(s)) return colors.positive;
+  if (['wait', 'pending', 'processing', '0'].includes(s)) return colors.pending;
+  if (['fail', 'failed', 'cancel', 'canceled', 'declined', 'error'].includes(s)) return colors.error;
+  return colors.textMuted;
+}
 
 interface AttachSheetProps {
   visible: boolean;
@@ -65,11 +79,16 @@ export function AttachSheet({
   const [openType, setOpenType] = useState<string | null>(null);
   const [items, setItems] = useState<AttachableItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [query, setQuery] = useState('');
+  /** Recherche dans tout l'historique, hors du filtre par interlocuteur. */
+  const [searchAll, setSearchAll] = useState(false);
 
   useEffect(() => {
     if (!visible) {
       setOpenType(null);
       setItems([]);
+      setQuery('');
+      setSearchAll(false);
       return;
     }
     messagingService
@@ -78,11 +97,13 @@ export function AttachSheet({
       .catch(() => setTypes([]));
   }, [visible, conversationId]);
 
-  const openList = async (type: string) => {
-    setOpenType(type);
+  const fetchItems = async (type: string, q: string, all: boolean) => {
     setLoading(true);
     try {
-      const r = await messagingService.getAttachables(conversationId, type);
+      const r = await messagingService.getAttachables(conversationId, type, {
+        q,
+        scope: all ? 'all' : undefined,
+      });
       setItems(r.items);
     } catch {
       setItems([]);
@@ -90,6 +111,21 @@ export function AttachSheet({
       setLoading(false);
     }
   };
+
+  const openList = (type: string, all = false) => {
+    setOpenType(type);
+    setQuery('');
+    setSearchAll(all);
+    fetchItems(type, '', all);
+  };
+
+  // La recherche part au serveur : l'app n'a en mémoire que les dernières
+  // opérations, pas tout l'historique dans lequel on cherche.
+  useEffect(() => {
+    if (!openType || !isTxType(openType)) return;
+    const timer = setTimeout(() => fetchItems(openType, query.trim(), searchAll), 350);
+    return () => clearTimeout(timer);
+  }, [query, searchAll]);
 
   const label = (type: string) => {
     const meta = TYPE_META[type];
@@ -108,10 +144,51 @@ export function AttachSheet({
 
   const itemSub = (item: AttachableItem) => {
     const parts: string[] = [];
-    if (item.kind) parts.push(t(`messages.kind_${item.kind}`, item.kind));
-    if (item.status) parts.push(item.status);
+    if (item.mode) parts.push(item.mode);
+    if (item.reference) parts.push(item.reference);
     if (item.date) parts.push(item.date.slice(0, 10));
     return parts.join(' · ');
+  };
+
+  /** Pastilles : nature, statut, sens, identifiant. C'est ce qui distingue
+   *  deux lignes du même montant. */
+  const itemBadges = (item: AttachableItem) => {
+    const tone = statusTone(item.status, colors);
+    return (
+      <View style={styles.badges}>
+        {!!item.kind && (
+          <View style={[styles.badge, { backgroundColor: withAlpha(colors.secondary, 0.15) }]}>
+            <Text style={[styles.badgeText, { color: colors.secondary }]}>
+              {t(`messages.kind_${item.kind}`, item.kind)}
+            </Text>
+          </View>
+        )}
+        {!!item.status && !!tone && (
+          <View style={[styles.badge, { backgroundColor: withAlpha(tone, 0.15) }]}>
+            <Text style={[styles.badgeText, { color: tone }]}>
+              {t(`messages.status_${item.status}`, item.status)}
+            </Text>
+          </View>
+        )}
+        {item.outgoing != null && (
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: withAlpha(item.outgoing ? colors.error : colors.positive, 0.15) },
+            ]}
+          >
+            <Text style={[styles.badgeText, { color: item.outgoing ? colors.error : colors.positive }]}>
+              {item.outgoing ? t('messages.txSent', 'Envoyé') : t('messages.txReceived', 'Reçu')}
+            </Text>
+          </View>
+        )}
+        {item.id != null && (
+          <View style={[styles.badge, { backgroundColor: withAlpha(colors.textMuted, 0.14) }]}>
+            <Text style={[styles.badgeText, { color: colors.textMuted }]}>#{item.id}</Text>
+          </View>
+        )}
+      </View>
+    );
   };
 
   return (
@@ -168,26 +245,76 @@ export function AttachSheet({
                 </TouchableOpacity>
               ))}
             </View>
-          ) : loading ? (
-            <ActivityIndicator style={{ marginVertical: Spacing.xl }} color={colors.text} />
-          ) : items.length === 0 ? (
-            <Text style={styles.empty}>{t('messages.attachEmpty', 'Rien à joindre ici pour le moment.')}</Text>
           ) : (
-            <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-              {items.map((item) => (
+            <>
+              {isTxType(openType) && (
+                <View style={[styles.search, { borderColor: colors.border }]}>
+                  <FontAwesome6 name="magnifying-glass" size={13} color={colors.textMuted} />
+                  <TextInput
+                    style={styles.searchInput}
+                    value={query}
+                    onChangeText={setQuery}
+                    placeholder={t('messages.searchTx', 'Identifiant, référence ou montant')}
+                    placeholderTextColor={colors.textMuted}
+                    autoCorrect={false}
+                  />
+                  {!!query && (
+                    <TouchableOpacity onPress={() => setQuery('')} hitSlop={10}>
+                      <FontAwesome6 name="xmark" size={13} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+
+              {loading ? (
+                <ActivityIndicator style={{ marginVertical: Spacing.xl }} color={colors.text} />
+              ) : items.length === 0 ? (
+                <Text style={styles.empty}>
+                  {query
+                    ? t('messages.attachNoResult', 'Aucune opération ne correspond.')
+                    : t('messages.attachEmpty', 'Rien à joindre ici pour le moment.')}
+                </Text>
+              ) : (
+                <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+                  {items.map((item) => (
+                    <TouchableOpacity
+                      key={item.ref}
+                      style={styles.row}
+                      onPress={() => { onClose(); onPick(openType as MessageItemType, item.ref); }}
+                    >
+                      <View style={styles.rowBody}>
+                        <Text style={styles.rowLabel} numberOfLines={1}>{itemLine(item)}</Text>
+                        {itemBadges(item)}
+                        {!!itemSub(item) && <Text style={styles.rowSub} numberOfLines={1}>{itemSub(item)}</Text>}
+                      </View>
+                      <FontAwesome6 name="plus" size={13} color={colors.primary} />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+
+              {/* Les opérations listées sont celles qui concernent cette
+                  personne ; ce bouton ouvre l'historique entier. */}
+              {isTxType(openType) && !searchAll && (
                 <TouchableOpacity
-                  key={item.ref}
-                  style={styles.row}
-                  onPress={() => { onClose(); onPick(openType as MessageItemType, item.ref); }}
+                  style={[styles.footerBtn, { borderColor: colors.primary }]}
+                  onPress={() => {
+                    setSearchAll(true);
+                    fetchItems(openType, query.trim(), true);
+                  }}
                 >
-                  <View style={styles.rowBody}>
-                    <Text style={styles.rowLabel} numberOfLines={1}>{itemLine(item)}</Text>
-                    {!!itemSub(item) && <Text style={styles.rowSub} numberOfLines={1}>{itemSub(item)}</Text>}
-                  </View>
-                  <FontAwesome6 name="plus" size={13} color={colors.primary} />
+                  <FontAwesome6 name="magnifying-glass-dollar" size={14} color={colors.primary} />
+                  <Text style={[styles.footerBtnText, { color: colors.primary }]}>
+                    {t('messages.searchAnyTx', 'Chercher une autre transaction')}
+                  </Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+              )}
+              {isTxType(openType) && searchAll && (
+                <Text style={styles.scopeNote}>
+                  {t('messages.searchAllScope', 'Toutes vos opérations')}
+                </Text>
+              )}
+            </>
           )}
         </Pressable>
       </Pressable>
@@ -238,6 +365,53 @@ const createStyles = (Colors: ColorPalette) =>
       justifyContent: 'center',
     },
     rowBody: { flex: 1, minWidth: 0 },
+    badges: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: Spacing.xs,
+      marginTop: 4,
+    },
+    badge: {
+      borderRadius: BorderRadius.pill,
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: 2,
+    },
+    badgeText: { fontFamily: Fonts.semiBold, fontSize: FontSize.xs },
+    search: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+      borderWidth: 1,
+      borderRadius: BorderRadius.pill,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.xs,
+      marginBottom: Spacing.sm,
+    },
+    searchInput: {
+      flex: 1,
+      minHeight: 34,
+      color: Colors.text,
+      fontFamily: Fonts.regular,
+      fontSize: FontSize.sm,
+    },
+    footerBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: Spacing.sm,
+      borderWidth: 1,
+      borderRadius: BorderRadius.pill,
+      paddingVertical: Spacing.sm + 2,
+      marginTop: Spacing.sm,
+    },
+    footerBtnText: { fontFamily: Fonts.semiBold, fontSize: FontSize.sm },
+    scopeNote: {
+      fontFamily: Fonts.medium,
+      fontSize: FontSize.xs,
+      color: Colors.textMuted,
+      textAlign: 'center',
+      marginTop: Spacing.sm,
+    },
     rowLabel: { flex: 1, fontFamily: Fonts.medium, fontSize: FontSize.md, color: Colors.text },
     rowSub: {
       fontFamily: Fonts.regular,

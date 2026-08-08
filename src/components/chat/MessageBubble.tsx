@@ -25,6 +25,8 @@ const SWIPE_TRIGGER = 56;
 
 interface MessageBubbleProps {
   message: ChatMessage;
+  /** Fil d'origine : le reçu PDF d'une opération jointe se demande par là. */
+  conversationId: number;
   /** Dernier message lu par l'interlocuteur → coche double sur mes bulles. */
   peerReadId: number;
   onPressImage: (uri: string) => void;
@@ -46,6 +48,7 @@ interface MessageBubbleProps {
  */
 export function MessageBubble({
   message,
+  conversationId,
   peerReadId,
   onPressImage,
   onRetry,
@@ -155,7 +158,14 @@ export function MessageBubble({
         )}
 
         {/* Objet de l'app joint au message : lien de paiement, opération… */}
-        {!!message.item && <MessageItemCard item={message.item} mine={mine} />}
+        {!!message.item && (
+          <MessageItemCard
+            item={message.item}
+            mine={mine}
+            conversationId={conversationId}
+            messageId={message.id > 0 ? message.id : undefined}
+          />
+        )}
 
         {!!image && (
           <TouchableOpacity
