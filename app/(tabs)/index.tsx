@@ -354,7 +354,7 @@ export default function DashboardScreen() {
               style={[styles.wideColLeft, stickyStyle(stickyLeft)]}
               onLayout={(e) => setLeftColH(Math.round(e.nativeEvent.layout.height))}
             >
-              {/* Bonus de bienvenue KYC : carte au-dessus du solde (teaser / progression). */}
+              {/* Bonus de bienvenue KYC : pas de carte, juste le rappel en lightbox (1×/semaine max). */}
               <WelcomeBonusCard />
 
               <WalletStack>
@@ -438,7 +438,7 @@ export default function DashboardScreen() {
         ) : (
           <>
             {/* Mobile: single column layout */}
-            {/* Bonus de bienvenue KYC : carte au-dessus du solde (teaser / progression). */}
+            {/* Bonus de bienvenue KYC : pas de carte, juste le rappel en lightbox (1×/semaine max). */}
             <WelcomeBonusCard />
 
             <WalletStack>

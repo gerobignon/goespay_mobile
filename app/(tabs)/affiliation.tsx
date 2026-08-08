@@ -238,6 +238,65 @@ export default function AffiliationScreen() {
   const content = (
     <>
 
+      {/* Bonus de bienvenue KYC */}
+      {bonus && bonus.state !== 'none' && (
+        <Reveal delay={0} offset={14}>
+          <View style={styles.bonusCard}>
+            <View style={styles.bonusHeader}>
+              <View style={styles.bonusIcon}>
+                <FontAwesome6 name="gift" size={16} color={Colors.warning} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.bonusTitle}>{t('affiliation.bonusTitle', 'Bonus de bienvenue')}</Text>
+                <Text style={styles.bonusSubtitle}>
+                  {bonus.state === 'unlocked'
+                    ? t('affiliation.bonusUnlocked', { amount: fmtXof(bonus.amount), defaultValue: `${fmtXof(bonus.amount)} crédités sur votre solde` })
+                    : t('affiliation.bonusBlocked', { amount: fmtXof(bonus.amount), defaultValue: `Débloquez ${fmtXof(bonus.amount)} en remplissant les 2 conditions` })}
+                </Text>
+              </View>
+              <FontAwesome6
+                name={bonus.state === 'unlocked' ? 'circle-check' : 'lock'}
+                size={16}
+                color={bonus.state === 'unlocked' ? Colors.success : Colors.textMuted}
+              />
+            </View>
+
+            {bonus.state === 'blocked' && (
+              <View style={styles.bonusProgressList}>
+                {renderBonusProgress(
+                  t('affiliation.bonusVolume', 'Volume de transactions'),
+                  bonus.volume.current,
+                  bonus.volume.target,
+                  `${fmtXof(bonus.volume.current, { withCode: false })} / ${fmtXof(bonus.volume.target, { withCode: false })}`,
+                )}
+                {renderBonusProgress(
+                  t('affiliation.bonusFilleuls', 'Filleuls actifs (KYC + 1 transaction)'),
+                  bonus.filleuls.current,
+                  bonus.filleuls.target,
+                  `${bonus.filleuls.current} / ${bonus.filleuls.target}`,
+                )}
+              </View>
+            )}
+          </View>
+        </Reveal>
+      )}
+
+      {/* Claim */}
+      {(stats?.unpayed ?? 0) > 0 && (
+        <View style={styles.formCard}>
+          <Text style={styles.sectionLabel}>{t('affiliation.claimSection', 'Réclamer mes commissions')}</Text>
+          <Text style={styles.helperText}>{t('affiliation.claimHelper', { amount: fmtXof(stats?.unpayed ?? 0), defaultValue: `Vous avez ${fmtXof(stats?.unpayed ?? 0)} de commissions en attente.` })}</Text>
+          <Button
+            title={t('affiliation.claim', 'Réclamer')}
+            icon="wallet"
+            onPress={handleClaim}
+            loading={claiming}
+            style={[styles.smallBtn, { marginTop: Spacing.sm }]}
+            textStyle={styles.smallBtnText}
+          />
+        </View>
+      )}
+
       {/* Code de parrainage */}
       <View style={styles.formCard}>
         <Text style={styles.sectionLabel}>{t('affiliation.yourCode', 'Votre code de parrainage')}</Text>
@@ -342,65 +401,6 @@ export default function AffiliationScreen() {
           </View>
         </Reveal>
       </View>
-
-      {/* Bonus de bienvenue KYC */}
-      {bonus && bonus.state !== 'none' && (
-        <Reveal delay={0} offset={14}>
-          <View style={styles.bonusCard}>
-            <View style={styles.bonusHeader}>
-              <View style={styles.bonusIcon}>
-                <FontAwesome6 name="gift" size={16} color={Colors.warning} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.bonusTitle}>{t('affiliation.bonusTitle', 'Bonus de bienvenue')}</Text>
-                <Text style={styles.bonusSubtitle}>
-                  {bonus.state === 'unlocked'
-                    ? t('affiliation.bonusUnlocked', { amount: fmtXof(bonus.amount), defaultValue: `${fmtXof(bonus.amount)} crédités sur votre solde` })
-                    : t('affiliation.bonusBlocked', { amount: fmtXof(bonus.amount), defaultValue: `Débloquez ${fmtXof(bonus.amount)} en remplissant les 2 conditions` })}
-                </Text>
-              </View>
-              <FontAwesome6
-                name={bonus.state === 'unlocked' ? 'circle-check' : 'lock'}
-                size={16}
-                color={bonus.state === 'unlocked' ? Colors.success : Colors.textMuted}
-              />
-            </View>
-
-            {bonus.state === 'blocked' && (
-              <View style={styles.bonusProgressList}>
-                {renderBonusProgress(
-                  t('affiliation.bonusVolume', 'Volume de transactions'),
-                  bonus.volume.current,
-                  bonus.volume.target,
-                  `${fmtXof(bonus.volume.current, { withCode: false })} / ${fmtXof(bonus.volume.target, { withCode: false })}`,
-                )}
-                {renderBonusProgress(
-                  t('affiliation.bonusFilleuls', 'Filleuls actifs (KYC + 1 transaction)'),
-                  bonus.filleuls.current,
-                  bonus.filleuls.target,
-                  `${bonus.filleuls.current} / ${bonus.filleuls.target}`,
-                )}
-              </View>
-            )}
-          </View>
-        </Reveal>
-      )}
-
-      {/* Claim */}
-      {(stats?.unpayed ?? 0) > 0 && (
-        <View style={styles.formCard}>
-          <Text style={styles.sectionLabel}>{t('affiliation.claimSection', 'Réclamer mes commissions')}</Text>
-          <Text style={styles.helperText}>{t('affiliation.claimHelper', { amount: fmtXof(stats?.unpayed ?? 0), defaultValue: `Vous avez ${fmtXof(stats?.unpayed ?? 0)} de commissions en attente.` })}</Text>
-          <Button
-            title={t('affiliation.claim', 'Réclamer')}
-            icon="wallet"
-            onPress={handleClaim}
-            loading={claiming}
-            style={[styles.smallBtn, { marginTop: Spacing.sm }]}
-            textStyle={styles.smallBtnText}
-          />
-        </View>
-      )}
 
       {/* Tabs */}
       <View style={styles.tabRow}>

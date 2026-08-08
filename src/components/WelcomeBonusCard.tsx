@@ -11,11 +11,17 @@ import { affiliationService } from '../services/affiliationService';
 import { useFormatXof } from '../utils/format';
 import { ResponsiveModal } from './ResponsiveModal';
 import { WelcomeBonusCelebration } from './WelcomeBonusCelebration';
-import { Reveal } from './anim';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { WelcomeBonus } from '../types';
 
 const celebratedKey = (userId: number | string) => `welcome_bonus_celebrated_${userId}`;
+const teaserKey = (userId: number | string) => `welcome_bonus_teaser_at_${userId}`;
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+// Une seule tentative par lancement de l'app : sans ce garde-fou, chaque retour
+// sur l'accueil relancerait le tirage et la fenêtre finirait par s'ouvrir en
+// pleine navigation.
+const teaserTried = new Set<string>();
 
 const HERO_GRADIENT = ['#FBBF24', '#F59E0B', '#B45309'] as const;
 const CTA_GRADIENT = ['#F59E0B', '#D97706'] as const;
@@ -23,13 +29,12 @@ const DONE_GRADIENT = ['#10B981', '#34D399'] as const;
 const BAR_GRADIENT = ['#F59E0B', '#FBBF24'] as const;
 
 /**
- * Carte « bonus de bienvenue » affichée au-dessus du solde à l'accueil :
- *   - KYC non soumis (validate=0) → incite à faire le KYC pour recevoir le bonus ;
- *   - KYC soumis (validate=2) → teaser « bonus à venir après validation » ;
- *   - KYC validé (validate=1) + bonus bloqué → rappel des conditions.
- * Le bouton ouvre un modal premium détaillant montant + conditions/progression.
- * Le modal ne s'ouvre JAMAIS tout seul. Rien du tout quand le bonus est débloqué,
- * hormis la célébration qui, elle, ne se joue qu'une fois (drapeau serveur).
+ * Rappel « bonus de bienvenue » à l'accueil : aucune carte (elle vit sur l'écran
+ * affiliation), seulement la lightbox montant + conditions/progression, ouverte
+ * d'elle-même au plus UNE fois par semaine et de façon aléatoire tant que le
+ * bonus n'est pas débloqué (KYC à faire ou conditions à remplir).
+ * Quand le bonus est débloqué : plus rien, hormis la célébration qui ne se joue
+ * qu'une fois (mémoire serveur).
  */
 export function WelcomeBonusCard() {
   const styles = useThemedStyles(createStyles);
@@ -57,9 +62,22 @@ export function WelcomeBonusCard() {
         .then(async (b) => {
           if (!alive) return;
           setBonus(b);
-          // Aucun modal ouvert automatiquement pour l'état « bloqué » : l'user
-          // le rouvrait à chaque lancement de l'app / rechargement de la PWA.
-          // Il reste accessible depuis la carte (« Voir les conditions »).
+          // Rappel tant que le bonus n'est pas acquis : au plus une fois par
+          // semaine, et pas systématiquement au premier lancement de la semaine
+          // (tirage au sort) pour que ça reste une surprise et pas une corvée.
+          // `none` + KYC déjà validé = compte sans bonus attribué → on se tait.
+          const teasable = b?.state === 'blocked' || (b?.state === 'none' && validate !== 1);
+          if (teasable && user?.id != null) {
+            const key = String(user.id);
+            if (!teaserTried.has(key)) {
+              teaserTried.add(key);
+              const last = Number(await AsyncStorage.getItem(teaserKey(user.id))) || 0;
+              if (Date.now() - last > WEEK_MS && Math.random() < 0.4 && alive) {
+                setModal(true);
+                await AsyncStorage.setItem(teaserKey(user.id), String(Date.now()));
+              }
+            }
+          }
           // Bonus fraîchement crédité → célébration UNE SEULE FOIS, jamais
           // rejouée. C'est le SERVEUR qui s'en souvient (`celebrated`) : le
           // drapeau local ne vaut que pour l'appareil, et il repartait à zéro
@@ -87,11 +105,6 @@ export function WelcomeBonusCard() {
     // l'appel échoue : le drapeau local tient jusqu'à la prochaine occasion.
     affiliationService.markBonusCelebrated().catch(() => {});
   };
-
-  const notSubmitted = validate === 0;
-  const pending = validate === 2;
-  const blocked = validate === 1 && bonus?.state === 'blocked';
-  const showCard = notSubmitted || pending || blocked;
 
   const amount = bonus?.amount ?? 5000;
   const amountLabel = fmtXof(amount);
@@ -128,35 +141,6 @@ export function WelcomeBonusCard() {
 
   return (
     <>
-      {showCard && (
-      <Reveal offset={14}>
-        <LinearGradient
-          colors={['#F59E0B', '#D97706', '#B45309']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.card}
-        >
-          <View style={styles.iconCircle}>
-            <FontAwesome6 name="gift" size={20} color="#FFFFFF" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.title}>{t('welcomeBonus.teaserTitle', { amount: amountLabel, defaultValue: `${amountLabel} vous attendent ✨` })}</Text>
-            <Text style={styles.sub}>
-              {notSubmitted
-                ? t('welcomeBonus.notSubmittedSub', 'Terminez votre KYC pour recevoir votre bonus de bienvenue.')
-                : pending
-                  ? t('welcomeBonus.pendingSub', 'Votre bonus de bienvenue arrive après validation de votre KYC.')
-                  : t('welcomeBonus.blockedSub', 'Remplissez 2 conditions pour débloquer votre bonus.')}
-            </Text>
-            <TouchableOpacity style={styles.cta} onPress={() => setModal(true)} activeOpacity={0.85}>
-              <FontAwesome6 name="list-check" size={12} color="#B45309" />
-              <Text style={styles.ctaText}>{t('welcomeBonus.seeConditions', 'Voir les conditions')}</Text>
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
-      </Reveal>
-      )}
-
       <ResponsiveModal visible={modal} onClose={() => setModal(false)}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           {/* ── HERO ── */}
@@ -228,51 +212,6 @@ export function WelcomeBonusCard() {
 }
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
-  // ── Carte accueil ──
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    padding: Spacing.md,
-    borderRadius: 18,
-    marginBottom: Spacing.md,
-  },
-  iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.22)',
-  },
-  title: {
-    color: '#FFFFFF',
-    fontSize: FontSize.md,
-    fontFamily: Fonts.bold,
-  },
-  sub: {
-    color: 'rgba(255,255,255,0.92)',
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.medium,
-    marginTop: 2,
-    marginBottom: Spacing.sm,
-  },
-  cta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 6,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 7,
-    borderRadius: BorderRadius.pill,
-  },
-  ctaText: {
-    color: '#B45309',
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.bold,
-  },
-
   // ── Modal ──
   scroll: {
     paddingBottom: Spacing.xl,
