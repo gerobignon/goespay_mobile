@@ -25,7 +25,7 @@ const PEEK = 18;
 const BACK_SCALE = 0.94;
 /** Largeur d'un segment du sélecteur. */
 const SEG_W = 48;
-/** Déplacement horizontal minimal pour changer de carte. */
+/** Déplacement vertical minimal pour changer de panneau. */
 const SWIPE_THRESHOLD = 55;
 /** Largeur de l'aperçu de carte : un aperçu, pas la fiche de l'écran cartes. */
 const CARD_PREVIEW_WIDTH = 300;
@@ -111,14 +111,19 @@ export function WalletStack({ children }: Props) {
     ]).start();
   }, [depth, drag]);
 
-  // Glissement horizontal sur la pile. Le geste ne se déclenche qu'au-delà d'un
-  // seuil et seulement s'il est franchement horizontal, pour ne jamais voler le
-  // défilement vertical de la page.
+  // Glissement VERTICAL sur la pile : les panneaux sont empilés l'un sur
+  // l'autre, on tire donc de haut en bas comme on soulèverait la carte du
+  // dessus. L'horizontale est laissée au défilement des cartes virtuelles, qui
+  // vit à l'intérieur d'un panneau.
+  //
+  // Le seuil de prise est volontairement haut et l'exigence de verticalité
+  // franche : sinon la pile volerait le défilement de la page d'accueil, sur
+  // laquelle elle est posée.
   const pan = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 12 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
-    onPanResponderMove: (_, g) => drag.setValue(g.dx),
+    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 24 && Math.abs(g.dy) > Math.abs(g.dx) * 2.5,
+    onPanResponderMove: (_, g) => drag.setValue(g.dy),
     onPanResponderRelease: (_, g) => {
-      if (Math.abs(g.dx) > SWIPE_THRESHOLD) {
+      if (Math.abs(g.dy) > SWIPE_THRESHOLD) {
         goTo(active === 0 ? 1 : 0);
       } else {
         Animated.spring(drag, { toValue: 0, useNativeDriver: true, friction: 8 }).start();
@@ -250,13 +255,22 @@ export function WalletStack({ children }: Props) {
                 i === 0 ? null : { minHeight: height },
                 {
                   transform: [
-                    // Seule la carte du dessus suit le doigt.
-                    { translateX: isActive ? drag : 0 },
                     {
-                      translateY: d.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, PEEK + (stackHeight * (1 - BACK_SCALE)) / 2],
-                      }),
+                      // Seule la carte du dessus suit le doigt, et elle le suit
+                      // verticalement : le geste et l'empilement partagent le
+                      // même axe, donc la même transformation.
+                      translateY: isActive
+                        ? Animated.add(
+                            drag,
+                            d.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0, PEEK + (stackHeight * (1 - BACK_SCALE)) / 2],
+                            }),
+                          )
+                        : d.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0, PEEK + (stackHeight * (1 - BACK_SCALE)) / 2],
+                          }),
                     },
                     { scale: d.interpolate({ inputRange: [0, 1], outputRange: [1, BACK_SCALE] }) },
                   ],

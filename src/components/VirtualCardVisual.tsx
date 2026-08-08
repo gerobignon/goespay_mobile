@@ -56,6 +56,9 @@ interface Props {
  * valeurs réelles ne transitent que par la fenêtre de révélation ou la copie
  * directe, toutes deux derrière une ré-authentification serveur.
  */
+/** Largeur de référence : celle de la fiche pleine, sur l'écran Cartes. */
+const REFERENCE_WIDTH = 380;
+
 export function VirtualCardVisual({ card, holder, onCopy, copiedField, maxWidth = 380 }: Props) {
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();
@@ -85,6 +88,12 @@ export function VirtualCardVisual({ card, holder, onCopy, copiedField, maxWidth 
       ? ['#64748b', '#334155']
       : PALETTES[(card?.id ?? 0) % PALETTES.length];
 
+  // Une carte réduite doit réduire son contenu avec elle : les tailles de
+  // texte étaient fixes, si bien qu'un aperçu à 300 px portait le lettrage
+  // d'une carte de 380 — numéro et libellés paraissaient énormes.
+  const k = Math.min(1, maxWidth / REFERENCE_WIDTH);
+  const scaled = (value: number) => Math.round(value * k);
+
   return (
     <View style={[styles.wrap, { maxWidth }]}>
       <LinearGradient colors={palette} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.card}>
@@ -99,7 +108,7 @@ export function VirtualCardVisual({ card, holder, onCopy, copiedField, maxWidth 
           </View>
           <Image
             source={require('../../assets/logo.png')}
-            style={styles.logo}
+            style={[styles.logo, { width: scaled(112), height: scaled(34) }]}
             resizeMode="contain"
           />
         </View>
@@ -114,11 +123,11 @@ export function VirtualCardVisual({ card, holder, onCopy, copiedField, maxWidth 
           accessibilityRole={copyable ? 'button' : undefined}
           accessibilityLabel={copyable ? t('cards.copyNumber') : undefined}
         >
-          <Text style={styles.pan}>{digits}</Text>
+          <Text style={[styles.pan, { fontSize: scaled(22), letterSpacing: scaled(3) }]}>{digits}</Text>
           {copyable && (
             <FontAwesome6
               name={copiedField === 'pan' ? 'check' : 'copy'}
-              size={14}
+              size={scaled(14)}
               color={copiedField === 'pan' ? '#7ee2a8' : 'rgba(255,255,255,0.75)'}
             />
           )}
@@ -126,8 +135,8 @@ export function VirtualCardVisual({ card, holder, onCopy, copiedField, maxWidth 
 
         <View style={styles.bottom}>
           <View style={styles.bottomLeft}>
-            <Text style={styles.smallLabel}>{t('cards.holder')}</Text>
-            <Text style={styles.holder} numberOfLines={1}>
+            <Text style={[styles.smallLabel, { fontSize: scaled(9) }]}>{t('cards.holder')}</Text>
+            <Text style={[styles.holder, { fontSize: scaled(FontSize.sm) }]} numberOfLines={1}>
               {(holder || 'VOTRE NOM').toUpperCase()}
             </Text>
           </View>
@@ -137,8 +146,8 @@ export function VirtualCardVisual({ card, holder, onCopy, copiedField, maxWidth 
             disabled={!copyable}
             activeOpacity={0.7}
           >
-            <Text style={styles.smallLabel}>{t('cards.expiry')}</Text>
-            <Text style={styles.expiry}>{expiry}</Text>
+            <Text style={[styles.smallLabel, { fontSize: scaled(9) }]}>{t('cards.expiry')}</Text>
+            <Text style={[styles.expiry, { fontSize: scaled(FontSize.sm) }]}>{expiry}</Text>
           </TouchableOpacity>
 
           {/* Cryptogramme : un gabarit de points, jamais la valeur. Il figure sur
@@ -151,20 +160,20 @@ export function VirtualCardVisual({ card, holder, onCopy, copiedField, maxWidth 
             accessibilityRole={copyable ? 'button' : undefined}
             accessibilityLabel={copyable ? t('cards.copyCvv') : undefined}
           >
-            <Text style={styles.smallLabel}>{t('cards.cvv')}</Text>
+            <Text style={[styles.smallLabel, { fontSize: scaled(9) }]}>{t('cards.cvv')}</Text>
             <View style={styles.cvvRow}>
-              <Text style={styles.expiry}>•••</Text>
+              <Text style={[styles.expiry, { fontSize: scaled(FontSize.sm) }]}>•••</Text>
               {copyable && (
                 <FontAwesome6
                   name={copiedField === 'cvv' ? 'check' : 'copy'}
-                  size={11}
+                  size={scaled(11)}
                   color={copiedField === 'cvv' ? '#7ee2a8' : 'rgba(255,255,255,0.75)'}
                 />
               )}
             </View>
           </TouchableOpacity>
 
-          <CardBrandLogo brand={brand} height={26} />
+          <CardBrandLogo brand={brand} height={scaled(26)} />
         </View>
       </LinearGradient>
     </View>
