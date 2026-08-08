@@ -212,21 +212,14 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
           lieu de trois pastilles blanches qui flottent côte à côte. */}
       <View style={styles.row}>
         <View style={styles.bar}>
+          {/* Les deux actions encadrent la saisie : l'humeur à gauche, ce qu'on
+              ajoute au message à droite, contre le bouton d'envoi. */}
           <TouchableOpacity style={styles.iconBtn} onPress={toggleEmoji} disabled={sending} hitSlop={6}>
             <FontAwesome6
               name={emojiOpen ? 'keyboard' : 'face-smile'}
               size={18}
-              color={emojiOpen ? colors.secondary : colors.textMuted}
+              color={emojiOpen ? colors.primary : colors.secondary}
             />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={onAttach ?? pickImage}
-            disabled={sending}
-            hitSlop={6}
-          >
-            <FontAwesome6 name="paperclip" size={17} color={colors.textMuted} />
           </TouchableOpacity>
 
           <TextInput
@@ -247,6 +240,15 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
             // barre apparaît haute puis se rétracte sous les yeux.
             {...(Platform.OS === 'web' ? { numberOfLines: 1 } : null)}
           />
+
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={onAttach ?? pickImage}
+            disabled={sending}
+            hitSlop={6}
+          >
+            <FontAwesome6 name="paperclip" size={17} color={colors.primary} />
+          </TouchableOpacity>
 
           <TouchableOpacity onPress={submit} disabled={!canSend} activeOpacity={0.85}>
             <LinearGradient
