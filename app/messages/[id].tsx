@@ -84,12 +84,17 @@ export default function ConversationScreen() {
   // Surtout pas `position: fixed` : il se cale sur le premier ancêtre porteur
   // d'une transform — et ScreenBackground en a une — au lieu du viewport, ce
   // qui décalait tout l'écran vers le bas et poussait la saisie hors champ.
+  // `flexBasis: 'auto'` est indispensable : le conteneur porte déjà `flex: 1`,
+  // qui vaut flexBasis 0%. Poser une hauteur sans corriger la base laissait
+  // l'élément s'effondrer — la liste disparaissait et la saisie remontait
+  // contre l'en-tête.
   const webViewportStyle =
     Platform.OS === 'web' && viewportHeight
       ? ({
-          height: Math.max(240, viewportHeight - insets.top),
+          height: Math.max(320, viewportHeight - insets.top),
           flexGrow: 0,
           flexShrink: 0,
+          flexBasis: 'auto',
         } as any)
       : null;
 
@@ -283,6 +288,10 @@ export default function ConversationScreen() {
         ) : (
           <FlatList
             ref={listRef}
+            // Prend explicitement la place laissée entre l'en-tête et la
+            // saisie : sans ça, dans un conteneur de hauteur fixe, la liste
+            // peut se réduire à rien.
+            style={styles.flex}
             data={data}
             inverted
             // Un saut vers un message non encore mesuré échoue autrement.
