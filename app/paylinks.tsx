@@ -206,6 +206,20 @@ export default function PaymentLinksScreen() {
           </View>
         </View>
 
+        {/* Qui porte les frais : réglé à la création et invisible ensuite, alors
+            qu'il décide de ce que le lien rapporte vraiment (frais à ma charge =
+            retenus sur ce que je reçois). */}
+        <View style={[styles.feeBadge, link.fee_bearer === 'owner' && styles.feeBadgeOwner]}>
+          <FontAwesome6
+            name={link.fee_bearer === 'owner' ? 'hand-holding-dollar' : 'user'}
+            size={10}
+            color={link.fee_bearer === 'owner' ? Colors.warning : Colors.textSecondary}
+          />
+          <Text style={[styles.feeBadgeText, link.fee_bearer === 'owner' && styles.feeBadgeTextOwner]}>
+            {t('paylinks.feesLabel')} : {link.fee_bearer === 'owner' ? t('paylinks.feesOwner') : t('paylinks.feesPayer')}
+          </Text>
+        </View>
+
         {/* Le lien lui-même : toute la barre copie, l'icône confirme. */}
         <TouchableOpacity style={styles.urlRow} onPress={() => copy(link)} activeOpacity={0.7}>
           <FontAwesome6 name="link" size={12} color={Colors.primary} />
@@ -608,6 +622,22 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   badgeDotOff: { backgroundColor: Colors.textSecondary },
   badgeText: { fontSize: FontSize.xs, fontFamily: Fonts.semiBold, color: Colors.success },
   badgeTextOff: { color: Colors.textSecondary },
+
+  feeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.pill,
+    backgroundColor: Colors.border,
+    marginTop: -Spacing.xs,
+    marginBottom: Spacing.md,
+  },
+  feeBadgeOwner: { backgroundColor: Colors.warning + '1F' },
+  feeBadgeText: { fontSize: FontSize.xs, fontFamily: Fonts.semiBold, color: Colors.textSecondary },
+  feeBadgeTextOwner: { color: Colors.warning },
 
   urlRow: {
     flexDirection: 'row',
