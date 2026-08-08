@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { BorderRadius, FontSize, Fonts, Spacing, withAlpha, type ColorPalette } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { useColors } from '../ThemeProvider';
+import { useResponsive } from '../../hooks/useResponsive';
 import type { ChatMessage } from '../../types';
 import { messageTime } from './chatFormat';
 
@@ -53,6 +54,7 @@ export function MessageBubble({
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const { t } = useTranslation();
+  const { isWide } = useResponsive();
   const tx = useRef(new Animated.Value(0)).current;
 
   const pan = useRef(
@@ -100,12 +102,18 @@ export function MessageBubble({
 
   return (
     <Animated.View
-      style={[styles.row, mine ? styles.rowMine : styles.rowTheirs, { transform: [{ translateX: tx }] }]}
+      style={[
+        styles.row,
+        mine ? styles.rowMine : styles.rowTheirs,
+        isWide && styles.rowWide,
+        { transform: [{ translateX: tx }] },
+      ]}
       {...pan.panHandlers}
     >
       <View
         style={[
           styles.bubble,
+          isWide && styles.bubbleWide,
           mine
             ? { backgroundColor: mineBackground, borderBottomRightRadius: 4 }
             : { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderBottomLeftRadius: 4 },
@@ -195,6 +203,12 @@ const createStyles = (Colors: ColorPalette) =>
     },
     rowMine: { justifyContent: 'flex-end' },
     rowTheirs: { justifyContent: 'flex-start' },
+    // Grand écran : on resserre pour tenir plus d'échanges à l'écran.
+    rowWide: { marginBottom: 3 },
+    bubbleWide: {
+      maxWidth: 560,
+      paddingVertical: Spacing.sm,
+    },
     bubble: {
       maxWidth: '82%',
       borderRadius: BorderRadius.lg,

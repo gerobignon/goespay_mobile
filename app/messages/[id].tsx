@@ -41,7 +41,7 @@ export default function ConversationScreen() {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
-  const { isWide } = useResponsive();
+  const { isWide, isDesktop } = useResponsive();
   const { t } = useTranslation();
 
   const conversation = useMessagingStore((s) => s.conversations.find((c) => c.id === conversationId));
@@ -84,12 +84,20 @@ export default function ConversationScreen() {
   // Surtout pas `position: fixed` : il se cale sur le premier ancêtre porteur
   // d'une transform — et ScreenBackground en a une — au lieu du viewport, ce
   // qui décalait tout l'écran vers le bas et poussait la saisie hors champ.
+  // Calage sur le viewport visible : utile UNIQUEMENT sur mobile web, où le
+  // clavier virtuel réduit la zone visible sans réduire le document.
+  //
+  // Sur desktop il n'y a pas de clavier virtuel, mais un en-tête et un pied de
+  // page autour de l'écran : imposer la hauteur du viewport y faisait déborder
+  // le fil, et la saisie passait sous le pied de page. On laisse donc le flex
+  // faire son travail.
+  //
   // `flexBasis: 'auto'` est indispensable : le conteneur porte déjà `flex: 1`,
   // qui vaut flexBasis 0%. Poser une hauteur sans corriger la base laissait
   // l'élément s'effondrer — la liste disparaissait et la saisie remontait
   // contre l'en-tête.
   const webViewportStyle =
-    Platform.OS === 'web' && viewportHeight
+    Platform.OS === 'web' && viewportHeight && !isDesktop
       ? ({
           height: Math.max(320, viewportHeight - insets.top),
           flexGrow: 0,
@@ -242,8 +250,8 @@ export default function ConversationScreen() {
           !webViewportStyle && { paddingBottom: keyboardInset },
         ]}
       >
-        {/* En-tête */}
-        <View style={styles.header}>
+        {/* En-tête — aligné sur la colonne de lecture en grand écran. */}
+        <View style={[styles.header, isWide && styles.headerWide]}>
           <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
             <FontAwesome6 name="arrow-left" size={19} color={colors.text} />
           </TouchableOpacity>
@@ -300,7 +308,11 @@ export default function ConversationScreen() {
             renderItem={renderItem}
             contentContainerStyle={[
               styles.list,
-              isWide && { alignSelf: 'center', width: '100%', maxWidth: 760 },
+              // Sur grand écran, un fil pleine largeur étire chaque échange
+              // d'un bord à l'autre : on borne à une colonne de lecture et on
+              // resserre l'interligne pour qu'il tienne plus d'échanges à
+              // l'écran.
+              isWide && styles.listWide,
             ]}
             onEndReached={() => hasMore && loadOlder(conversationId)}
             onEndReachedThreshold={0.3}
@@ -332,6 +344,7 @@ export default function ConversationScreen() {
           quote={quote}
           onCancelQuote={() => setQuote(null)}
           keyboardHeight={lastKeyboardRef.current}
+          style={isWide ? styles.composerWide : undefined}
         />
       </View>
 
@@ -358,6 +371,17 @@ const createStyles = (Colors: ColorPalette) =>
       paddingVertical: Spacing.md,
       borderBottomWidth: 1,
       borderBottomColor: Colors.border,
+    },
+    headerWide: {
+      alignSelf: 'center',
+      width: '100%',
+      maxWidth: 940,
+      paddingHorizontal: Spacing.xl,
+    },
+    composerWide: {
+      alignSelf: 'center',
+      width: '100%',
+      maxWidth: 940,
     },
     headerWho: {
       flex: 1,
@@ -391,6 +415,14 @@ const createStyles = (Colors: ColorPalette) =>
       // se serait collé en haut, sous l'en-tête, avec un grand vide au-dessus
       // de la saisie.
       justifyContent: 'flex-start',
+    },
+    listWide: {
+      alignSelf: 'center',
+      width: '100%',
+      maxWidth: 940,
+      paddingHorizontal: Spacing.xl,
+      paddingTop: Spacing.sm,
+      paddingBottom: Spacing.sm,
     },
     loading: {
       flex: 1,

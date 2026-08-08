@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   Platform,
   Keyboard,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,6 +18,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { BorderRadius, FontSize, Fonts, Spacing, withAlpha, type ColorPalette } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
+import { useResponsive } from '../../hooks/useResponsive';
 import { useColors } from '../ThemeProvider';
 import { EmojiPicker } from './EmojiPicker';
 
@@ -42,6 +45,8 @@ interface ChatComposerProps {
   disabledReason?: string | null;
   /** Hauteur du clavier, pour caler le panneau d'emojis dessus. */
   keyboardHeight?: number;
+  /** Contrainte de largeur imposée par l'écran (colonne de lecture desktop). */
+  style?: StyleProp<ViewStyle>;
 }
 
 /**
@@ -59,10 +64,12 @@ export function ChatComposer({
   onCancelQuote,
   disabledReason,
   keyboardHeight = 0,
+  style,
 }: ChatComposerProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const { t } = useTranslation();
+  const { isWide } = useResponsive();
   const inputRef = useRef<TextInput>(null);
 
   const [body, setBody] = useState('');
@@ -121,6 +128,7 @@ export function ChatComposer({
 
   return (
     <View style={styles.wrap}>
+      <View style={style}>
       {/* Message cité */}
       {!!quote && (
         <View style={styles.quote}>
@@ -153,7 +161,7 @@ export function ChatComposer({
       )}
 
       <View style={styles.row}>
-        <View style={styles.field}>
+        <View style={[styles.field, isWide && styles.fieldWide]}>
           <TouchableOpacity style={styles.fieldBtn} onPress={toggleEmoji} disabled={sending} hitSlop={8}>
             <FontAwesome6
               name={emojiOpen ? 'keyboard' : 'face-smile'}
@@ -200,6 +208,8 @@ export function ChatComposer({
         </TouchableOpacity>
       </View>
 
+      </View>
+
       {emojiOpen && (
         <EmojiPicker
           height={keyboardHeight > 180 ? keyboardHeight : 260}
@@ -244,6 +254,11 @@ const createStyles = (Colors: ColorPalette) =>
       backgroundColor: Colors.background,
       paddingHorizontal: 5,
       paddingVertical: 5,
+    },
+    fieldWide: {
+      minHeight: ICON_SLOT + 20,
+      borderRadius: (ICON_SLOT + 20) / 2,
+      paddingHorizontal: Spacing.sm,
     },
     fieldBtn: {
       width: ICON_SLOT,
