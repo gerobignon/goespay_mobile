@@ -16,7 +16,7 @@ import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } fro
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { useAuthStore } from '../../stores/authStore';
 import { useCatalogStore, type CatalogOperator } from '../../stores/catalogStore';
-import { useCryptoStore, type CryptoRate } from '../../stores/cryptoStore';
+import { useCryptoStore, isCryptoDirAllowed, type CryptoRate } from '../../stores/cryptoStore';
 import { walletService, type SimulationParams } from '../../services/walletService';
 import { useFormatXof } from '../../utils/format';
 
@@ -135,7 +135,23 @@ export function RateSimulator({ allowCrypto = false }: { allowCrypto?: boolean }
     };
   }, [operators, countries, t]);
 
-  const cryptoList = useMemo(() => cryptoRates.filter((r) => r.code), [cryptoRates]);
+  // Le simulateur suit le sens choisi : une crypto ouverte à l'achat seulement
+  // ne doit pas être cotée à la vente.
+  const cryptoAny = useMemo(
+    () => cryptoRates.filter((r) => r.code && (isCryptoDirAllowed(r, 'buy') || isCryptoDirAllowed(r, 'sell'))),
+    [cryptoRates]
+  );
+  const cryptoList = useMemo(
+    () => cryptoAny.filter((r) => isCryptoDirAllowed(r, cryptoSide)),
+    [cryptoAny, cryptoSide]
+  );
+
+  // Aucun actif dans le sens courant : on bascule sur l'autre plutôt que de
+  // laisser un onglet Crypto vide (et le simulateur entier masqué).
+  useEffect(() => {
+    if (!cryptoAny.length || cryptoList.length) return;
+    setCryptoSide((s) => (s === 'buy' ? 'sell' : 'buy'));
+  }, [cryptoAny, cryptoList]);
 
   // Sélection par défaut dès que les listes arrivent.
   useEffect(() => {
@@ -143,7 +159,7 @@ export function RateSimulator({ allowCrypto = false }: { allowCrypto?: boolean }
       const next = { ...prev };
       if (!next.send && corridors.send.length) next.send = corridors.send[0].key;
       if (!next.deposit && corridors.deposit.length) next.deposit = corridors.deposit[0].key;
-      if (!next.crypto && cryptoList.length) next.crypto = cryptoList[0].code;
+      if (cryptoList.length && !cryptoList.some((r) => r.code === next.crypto)) next.crypto = cryptoList[0].code;
       return next;
     });
   }, [corridors, cryptoList]);
@@ -293,7 +309,7 @@ export function RateSimulator({ allowCrypto = false }: { allowCrypto?: boolean }
   const tabs: { key: Tab; label: string }[] = [
     { key: 'send', label: t('simulator.tabSend') },
     { key: 'deposit', label: t('simulator.tabDeposit') },
-    ...(allowCrypto && cryptoList.length ? [{ key: 'crypto' as Tab, label: t('simulator.tabCrypto') }] : []),
+    ...(allowCrypto && cryptoAny.length ? [{ key: 'crypto' as Tab, label: t('simulator.tabCrypto') }] : []),
   ];
 
   const options = tab === 'crypto'
@@ -304,7 +320,9 @@ export function RateSimulator({ allowCrypto = false }: { allowCrypto?: boolean }
     ? options.filter((o) => o.label.toLowerCase().includes(search.trim().toLowerCase()))
     : options;
 
-  if (!options.length) return null;
+  // L'onglet crypto reste affiché tant qu'un sens est ouvert : le masquer
+  // emporterait toute la carte, y compris Envoi et Recharge.
+  if (!options.length && !(tab === 'crypto' && cryptoAny.length)) return null;
 
   const rateLine = rate <= 0 ? null
     : tab === 'deposit' ? `1 ${srcCode} = ${fmt(rate, 2)} XOF`

@@ -31,7 +31,9 @@ export const DarkColors = {
 
 export const LightColors: ColorPalette = {
   primary: '#3176FE',
-  secondary: '#3176FE',
+  // Même doré que le thème sombre : l'accent de la marque ne change pas de
+  // teinte d'un thème à l'autre.
+  secondary: '#F4B228',
   info: '#104fcc',
   light: '#d8e3f7',
   background: '#f0f2f5',

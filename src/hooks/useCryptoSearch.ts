@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { CryptoRate } from '../stores/cryptoStore';
+import { isCryptoDirAllowed, type CryptoDir, type CryptoRate } from '../stores/cryptoStore';
 
 /** En dessous de ce nombre de devises, la recherche n'apporte rien. */
 const SEARCH_THRESHOLD = 12;
@@ -16,15 +16,23 @@ const matches = (rate: CryptoRate, q: string): boolean =>
  *
  * `selectedCode` reste toujours affichée, même hors résultats : sans elle,
  * l'utilisateur ne verrait plus sur quelle devise porte le montant saisi.
+ *
+ * `dir` restreint la liste au sens de l'écran : une devise dont l'admin n'a
+ * ouvert que l'achat ne doit pas apparaître à la vente, et inversement.
  */
-export function useCryptoSearch(rates: CryptoRate[], selectedCode?: string) {
+export function useCryptoSearch(rates: CryptoRate[], selectedCode?: string, dir?: CryptoDir) {
   const [query, setQuery] = useState('');
+
+  const allowed = useMemo(
+    () => (dir ? rates.filter((r) => isCryptoDirAllowed(r, dir)) : rates),
+    [rates, dir]
+  );
 
   const sorted = useMemo(
     // L'ordre serveur (actives, puis priorité catalogue) est déjà pertinent :
     // on ne fait que remonter les devises courantes.
-    () => [...rates].sort((a, b) => Number(!!b.is_popular) - Number(!!a.is_popular)),
-    [rates]
+    () => [...allowed].sort((a, b) => Number(!!b.is_popular) - Number(!!a.is_popular)),
+    [allowed]
   );
 
   const { cryptos, hits } = useMemo(() => {
@@ -49,9 +57,15 @@ export function useCryptoSearch(rates: CryptoRate[], selectedCode?: string) {
     setQuery,
     /** Liste à afficher (triée, filtrée, sélection conservée). */
     cryptos,
-    /** Afficher le champ de recherche ? */
-    showSearch: rates.length >= SEARCH_THRESHOLD,
+    /**
+     * Afficher le champ de recherche ? Une recherche en cours le garde visible :
+     * changer de sens réduit la liste, et le champ ne doit pas disparaître en
+     * laissant son filtre actif.
+     */
+    showSearch: allowed.length >= SEARCH_THRESHOLD || query.trim() !== '',
     /** Recherche en cours sans aucune correspondance. */
-    empty: rates.length > 0 && query.trim() !== '' && hits === 0,
+    empty: allowed.length > 0 && query.trim() !== '' && hits === 0,
+    /** Aucune devise ouverte dans ce sens (avant même toute recherche). */
+    none: allowed.length === 0,
   };
 }

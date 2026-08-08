@@ -707,7 +707,8 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   balanceActions: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    // Les deux actions restent sur UNE ligne : elles se partagent la largeur.
+    flexWrap: 'nowrap',
     justifyContent: 'center',
     marginTop: Spacing.lg,
     gap: Spacing.md,
@@ -719,14 +720,15 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    // Chaque action prend la largeur de son libellé — « Recharger » est plus
+    // large qu'« Envoyer », et aucun des deux n'est coupé. Une largeur commune
+    // imposée obligeait à tronquer le plus long.
     flexGrow: 0,
     flexShrink: 1,
-    flexBasis: '46%',
+    flexBasis: 'auto',
     maxWidth: 220,
     minHeight: 48,
-    // Padding resserré : « Transfert P2P » est le libellé le plus long et doit
-    // tenir sur une ligne dans une demi-largeur d'écran étroit.
-    paddingHorizontal: Spacing.sm + 2,
+    paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 4,
     borderRadius: BorderRadius.lg,
     gap: Spacing.sm,
@@ -736,7 +738,8 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   // translucide — sur l'image de fond, le verre lisait comme un bouton désactivé.
   // Placeholder neutre affiché tant que /config n'a pas confirmé l'état des actions.
   actionBtnSkeleton: {
-    // La largeur vient de la grille (flexBasis) — seule la hauteur est calée.
+    // Vide : sans contenu pour lui donner sa largeur, on la pose ici.
+    width: 130,
     height: 48,
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
@@ -752,14 +755,16 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   servicesBlock: {
-    // Resserré : la pile, son sélecteur et les services formaient trois blocs
-    // séparés par autant de vide qu'ils en occupaient.
-    marginTop: Spacing.md,
+    // Resserré contre le sélecteur de la pile : celui-ci lui appartient
+    // visuellement, un écart de bloc entier les séparait en deux îlots.
+    marginTop: Spacing.sm,
   },
   quickActions: {
     flexDirection: 'row',
     gap: Spacing.md,
-    marginBottom: Spacing.xl,
+    // Même respiration entre tous les blocs de l'accueil (cf. « Comptes
+    // virtuels » → carrousel), pas un trou deux fois plus grand ici.
+    marginBottom: 0,
   },
   quickBtn: {
     flex: 1,

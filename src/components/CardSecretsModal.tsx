@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, ActivityIndicator, AppState } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ResponsiveModal } from './ResponsiveModal';
@@ -8,94 +7,45 @@ import { Input } from './Input';
 import { Button } from './Button';
 import { cardService, type CardSecrets, type VirtualCard } from '../services/cardService';
 import { isBiometricAvailable, authenticateWithBiometric } from '../services/secureAuthService';
-import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
+import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
-import { showAlert } from '../stores/alertStore';
 import { getApiErrorMessage } from '../utils/apiError';
-
-/** Le numéro reste affiché ce nombre de secondes, puis se masque tout seul. */
-const AUTO_HIDE_SECONDS = 60;
 
 interface Props {
   visible: boolean;
   card: VirtualCard | null;
   onClose: () => void;
-  /**
-   * Copie directe, sans jamais montrer la valeur : la ré-authentification reste
-   * exigée — c'est le serveur qui délivre le secret — mais celui-ci va droit au
-   * presse-papier. Le porteur qui colle un numéro chez un marchand n'a aucune
-   * raison de l'afficher à l'écran, sous les yeux de qui passe.
-   */
-  copyField?: 'pan' | 'cvv' | null;
-  /** Copie effectuée : permet à l'appelant d'afficher sa propre confirmation. */
-  onCopied?: (field: 'pan' | 'cvv') => void;
+  /** Secrets délivrés par le serveur : l'appelant les affiche sur la carte. */
+  onRevealed: (secrets: CardSecrets) => void;
 }
 
 /**
- * Affichage du numéro complet et du CVV.
+ * Ré-authentification avant d'afficher les données d'une carte.
  *
  * Deux barrières distinctes :
  *  · locale (biométrie ou code de l'app) — confort, elle n'atteste rien côté serveur ;
- *  · serveur (mot de passe du compte ou code de double authentification) — la seule
- *    qui compte réellement, exigée par la route.
+ *  · serveur (mot de passe du compte) — la seule qui compte réellement, exigée par la route.
  *
- * Rien n'est conservé : les secrets vivent dans l'état du composant, disparaissent
- * à la fermeture, au passage en arrière-plan et après une minute. Aucun stockage,
- * aucun cache — sur le web, le stockage de l'app n'est pas chiffré.
+ * Cette fenêtre ne montre aucune donnée : elle obtient les secrets et les remet à
+ * l'écran appelant, qui les affiche sur la carte elle-même et les oublie au bout
+ * d'une minute. Rien n'est stocké — sur le web, le stockage de l'app n'est pas
+ * chiffré.
  */
-export function CardSecretsModal({ visible, card, onClose, copyField = null, onCopied }: Props) {
+export function CardSecretsModal({ visible, card, onClose, onRevealed }: Props) {
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();
 
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [secrets, setSecrets] = useState<CardSecrets | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(AUTO_HIDE_SECONDS);
-  const [copied, setCopied] = useState<string | null>(null);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const forget = () => {
-    setSecrets(null);
-    setPassword('');
-    setError(null);
-    setCountdown(AUTO_HIDE_SECONDS);
-    if (timer.current) {
-      clearInterval(timer.current);
-      timer.current = null;
+  // Rien ne survit à une fermeture.
+  useEffect(() => {
+    if (!visible) {
+      setPassword('');
+      setError(null);
     }
-  };
-
-  // Fermeture, changement de carte : on oublie immédiatement.
-  useEffect(() => {
-    if (!visible) forget();
   }, [visible]);
-
-  // Passage en arrière-plan : le numéro ne doit pas survivre dans le sélecteur
-  // d'applications.
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state !== 'active') forget();
-    });
-    return () => sub.remove();
-  }, []);
-
-  // Auto-masquage.
-  useEffect(() => {
-    if (!secrets) return;
-    timer.current = setInterval(() => {
-      setCountdown((c) => {
-        if (c <= 1) {
-          forget();
-          return AUTO_HIDE_SECONDS;
-        }
-        return c - 1;
-      });
-    }, 1000);
-    return () => {
-      if (timer.current) clearInterval(timer.current);
-    };
-  }, [secrets]);
 
   const reveal = async () => {
     if (!card) return;
@@ -126,19 +76,8 @@ export function CardSecretsModal({ visible, card, onClose, copyField = null, onC
     try {
       const res = await cardService.secrets(card.id, { password: password.trim() });
       setPassword('');
-
-      // Mode copie : la valeur part au presse-papier et l'état est aussitôt
-      // oublié — elle ne touche jamais le rendu.
-      if (copyField) {
-        await Clipboard.setStringAsync(copyField === 'pan' ? res.pan : res.cvv);
-        onCopied?.(copyField);
-        forget();
-        onClose();
-        return;
-      }
-
-      setSecrets(res);
-      setCountdown(AUTO_HIDE_SECONDS);
+      onRevealed(res);
+      onClose();
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('cards.revealError')));
     } finally {
@@ -146,110 +85,33 @@ export function CardSecretsModal({ visible, card, onClose, copyField = null, onC
     }
   };
 
-  const copy = async (key: string, value: string) => {
-    try {
-      await Clipboard.setStringAsync(value);
-      setCopied(key);
-      setTimeout(() => setCopied((c) => (c === key ? null : c)), 1500);
-    } catch (_) {}
-  };
-
-  const groupPan = (pan: string) => pan.replace(/(.{4})/g, '$1 ').trim();
-
   return (
     <ResponsiveModal visible={visible} onClose={onClose} disableBackdropClose={loading}>
       <View style={styles.container}>
         <View style={styles.head}>
-          <Text style={styles.title}>
-            {copyField === 'pan'
-              ? t('cards.copyNumber')
-              : copyField === 'cvv'
-                ? t('cards.copyCvv')
-                : t('cards.cardDetails')}
-          </Text>
+          <Text style={styles.title}>{t('cards.cardDetails')}</Text>
           <TouchableOpacity onPress={onClose} hitSlop={10}>
             <FontAwesome6 name="xmark" size={20} color={Colors.textMuted} />
           </TouchableOpacity>
         </View>
 
-        {!secrets ? (
-          <>
-            <Input
-              label={t('cards.password')}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              editable={!loading}
-            />
-            {Platform.OS === 'web' && <Text style={styles.webNote}>{t('cards.webSecurityNote')}</Text>}
-            {!!error && <Text style={styles.error}>{error}</Text>}
-            <Button
-              title={copyField ? t('cards.copy') : t('cards.reveal')}
-              onPress={reveal}
-              loading={loading}
-              disabled={loading}
-              icon={copyField ? 'copy' : 'eye'}
-            />
-          </>
-        ) : (
-          <>
-            <View style={styles.row}>
-              <Text style={styles.label}>{t('cards.cardNumber')}</Text>
-              <TouchableOpacity style={styles.valueRow} onPress={() => copy('pan', secrets.pan)}>
-                <Text style={styles.mono}>{groupPan(secrets.pan)}</Text>
-                <FontAwesome6
-                  name={copied === 'pan' ? 'check' : 'copy'}
-                  size={14}
-                  color={copied === 'pan' ? Colors.success : Colors.textMuted}
-                />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.split}>
-              <View style={styles.half}>
-                <Text style={styles.label}>{t('cards.expiry')}</Text>
-                <Text style={styles.mono}>
-                  {secrets.expiry_month}/{String(secrets.expiry_year).slice(-2)}
-                </Text>
-              </View>
-              <View style={styles.half}>
-                <Text style={styles.label}>{t('cards.cvv')}</Text>
-                <TouchableOpacity style={styles.valueRow} onPress={() => copy('cvv', secrets.cvv)}>
-                  <Text style={styles.mono}>{secrets.cvv}</Text>
-                  <FontAwesome6
-                    name={copied === 'cvv' ? 'check' : 'copy'}
-                    size={14}
-                    color={copied === 'cvv' ? Colors.success : Colors.textMuted}
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={styles.row}>
-              <Text style={styles.label}>{t('cards.holder')}</Text>
-              <Text style={styles.value}>{secrets.holder}</Text>
-            </View>
-
-            {!!secrets.billing_address && (
-              <View style={styles.row}>
-                <Text style={styles.label}>{t('cards.billingAddress')}</Text>
-                <Text style={styles.value}>
-                  {[
-                    secrets.billing_address.street,
-                    secrets.billing_address.city,
-                    secrets.billing_address.state,
-                    secrets.billing_address.postal_code,
-                    secrets.billing_address.country,
-                  ].filter(Boolean).join(', ')}
-                </Text>
-              </View>
-            )}
-
-            <Text style={styles.countdown}>{t('cards.autoHide', { seconds: countdown })}</Text>
-            <Button title={t('cards.hide')} onPress={forget} variant="outline" icon="eye-slash" />
-          </>
-        )}
+        <Input
+          label={t('cards.password')}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoCapitalize="none"
+          editable={!loading}
+        />
+        {Platform.OS === 'web' && <Text style={styles.webNote}>{t('cards.webSecurityNote')}</Text>}
+        {!!error && <Text style={styles.error}>{error}</Text>}
+        <Button
+          title={t('cards.reveal')}
+          onPress={reveal}
+          loading={loading}
+          disabled={loading}
+          icon="eye"
+        />
       </View>
     </ResponsiveModal>
   );
@@ -259,19 +121,6 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   container: { padding: Spacing.lg, gap: Spacing.md },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: FontSize.lg, fontFamily: Fonts.bold, color: Colors.text },
-  row: { gap: 4 },
-  split: { flexDirection: 'row', gap: Spacing.md },
-  half: { flex: 1, gap: 4 },
-  label: { fontSize: FontSize.sm, color: Colors.textMuted },
-  value: { fontSize: FontSize.md, color: Colors.text, fontFamily: Fonts.medium },
-  valueRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  mono: {
-    fontSize: FontSize.lg,
-    color: Colors.text,
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
-    letterSpacing: 1,
-  },
-  countdown: { fontSize: FontSize.sm, color: Colors.textMuted, textAlign: 'center' },
   webNote: { fontSize: FontSize.sm, color: Colors.warning },
   error: { fontSize: FontSize.sm, color: Colors.error },
 });

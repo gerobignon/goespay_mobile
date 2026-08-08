@@ -383,7 +383,9 @@ export type MessageItemType =
   | 'transaction'
   | 'card'
   | 'virtual_account'
-  | 'statement';
+  | 'statement'
+  /** Carte promotionnelle d'une annonce du canal, dessinée par l'app. */
+  | 'promo';
 
 export interface MessageItem {
   type: MessageItemType;

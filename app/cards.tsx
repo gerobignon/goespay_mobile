@@ -19,6 +19,7 @@ import {
   type VirtualCard,
   type CardsResponse,
   type CardTransaction,
+  type CardSecrets,
 } from '../src/services/cardService';
 import { Button } from '../src/components/Button';
 import { CustomAlert } from '../src/components/CustomAlert';
@@ -41,6 +42,8 @@ import { getApiErrorMessage } from '../src/utils/apiError';
 /** Rythme et durée du suivi d'émission (l'émetteur crée la carte de son côté). */
 const POLL_INTERVAL = 5000;
 const POLL_MAX_ATTEMPTS = 60;
+/** Les données réelles restent lisibles sur la carte ce nombre de secondes. */
+const REVEAL_SECONDS = 60;
 
 export default function CardsScreen() {
   const router = useRouter();
@@ -61,9 +64,13 @@ export default function CardsScreen() {
   const [showFees, setShowFees] = useState(false);
   const [openId, setOpenId] = useState<number | null>(null);
   const [transactions, setTransactions] = useState<Record<number, CardTransaction[]>>({});
-  const [secretsFor, setSecretsFor] = useState<VirtualCard | null>(null);
-  /** Champ demandé en copie directe : le secret ne s'affiche jamais. */
-  const [copyField, setCopyField] = useState<'pan' | 'cvv' | null>(null);
+  /** Carte pour laquelle on demande le mot de passe. */
+  const [authFor, setAuthFor] = useState<VirtualCard | null>(null);
+  /** Champ à copier dès que les secrets arrivent (copie déclenchée sur la carte). */
+  const [copyAfterAuth, setCopyAfterAuth] = useState<'pan' | 'cvv' | null>(null);
+  /** Données réelles affichées sur la carte, et pour combien de temps encore. */
+  const [revealed, setRevealed] = useState<{ id: number; secrets: CardSecrets } | null>(null);
+  const [revealLeft, setRevealLeft] = useState(REVEAL_SECONDS);
   const [copiedOn, setCopiedOn] = useState<{ id: number; field: CardCopyField } | null>(null);
   const [fundFor, setFundFor] = useState<{ card: VirtualCard; direction: 'fund' | 'withdraw' } | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -126,10 +133,35 @@ export default function CardsScreen() {
       if (state === 'active') {
         const pending = data?.cards.find((c) => c.pending);
         if (pending) pollCard(pending.id);
+      } else {
+        // Un numéro affiché ne doit pas survivre dans le sélecteur d'applications.
+        setRevealed(null);
+        setRevealLeft(REVEAL_SECONDS);
       }
     });
     return () => sub.remove();
   }, [data, pollCard]);
+
+  // Les données réelles s'effacent d'elles-mêmes au bout d'une minute.
+  useEffect(() => {
+    if (!revealed) return;
+    const id = setInterval(() => {
+      setRevealLeft((left) => {
+        if (left <= 1) {
+          setRevealed(null);
+          return REVEAL_SECONDS;
+        }
+        return left - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [revealed]);
+
+  // Changement de carte affichée : ce qui était révélé ne l'est plus.
+  useEffect(() => {
+    setRevealed(null);
+    setRevealLeft(REVEAL_SECONDS);
+  }, [selectedId]);
 
   useEffect(() => () => stopPolling(), []);
 
@@ -225,10 +257,18 @@ export default function CardsScreen() {
     setTimeout(() => setCopiedOn((c) => (c?.id === id && c.field === field ? null : c)), 1500);
   };
 
+  /** Efface les données réelles de l'écran. */
+  const hideSecrets = useCallback(() => {
+    setRevealed(null);
+    setRevealLeft(REVEAL_SECONDS);
+  }, []);
+
   /**
    * Copie depuis la carte. L'expiration n'est pas un secret : elle part
-   * directement. Le numéro et le cryptogramme passent par la ré-authentification
-   * serveur, mais ne s'affichent pas pour autant.
+   * directement. Le numéro et le cryptogramme se copient sans rien redemander
+   * une fois la carte révélée ; sinon, le mot de passe est exigé — et la
+   * révélation qui s'ensuit affiche TOUS les champs, pour que la copie du
+   * suivant ne repasse pas par la case authentification.
    */
   const copyFromCard = async (card: VirtualCard, field: CardCopyField) => {
     if (field === 'expiry') {
@@ -240,8 +280,25 @@ export default function CardsScreen() {
       flagCopied(card.id, 'expiry');
       return;
     }
-    setCopyField(field);
-    setSecretsFor(card);
+
+    if (revealed?.id === card.id) {
+      await Clipboard.setStringAsync(field === 'pan' ? revealed.secrets.pan : revealed.secrets.cvv);
+      flagCopied(card.id, field);
+      return;
+    }
+
+    setCopyAfterAuth(field);
+    setAuthFor(card);
+  };
+
+  /** Secrets obtenus : ils s'écrivent sur la carte, et la copie en cours aboutit. */
+  const onRevealed = async (card: VirtualCard, secrets: CardSecrets) => {
+    setRevealed({ id: card.id, secrets });
+    setRevealLeft(REVEAL_SECONDS);
+    if (copyAfterAuth) {
+      await Clipboard.setStringAsync(copyAfterAuth === 'pan' ? secrets.pan : secrets.cvv);
+      flagCopied(card.id, copyAfterAuth);
+    }
   };
 
   /**
@@ -288,17 +345,28 @@ export default function CardsScreen() {
         <FontAwesome6 name={showDead ? 'chevron-up' : 'chevron-down'} size={12} color={Colors.textMuted} />
       </TouchableOpacity>
 
-      {showDead && list.map((c) => (
-        <View key={c.id} style={styles.deadRow}>
-          <View style={styles.deadRowLeft}>
-            <Text style={styles.deadRowTitle}>
-              {c.brand} · {statusLabel(c)}
-            </Text>
-            {!!c.reason && <Text style={styles.deadRowReason}>{c.reason}</Text>}
+      {showDead && list.map((c, i) => (
+        <View key={c.id} style={[styles.deadRow, i > 0 && styles.deadRowSep]}>
+          {/* L'icône dit d'un coup d'œil ce qu'il est advenu : demande refusée
+              par l'émetteur, ou carte que le porteur a lui-même résiliée. */}
+          <View style={[styles.deadIcon, { backgroundColor: statusColor(c) + '18' }]}>
+            <FontAwesome6
+              name={c.status === 'failed' ? 'circle-xmark' : 'ban'}
+              size={14}
+              color={statusColor(c)}
+              iconStyle="solid"
+            />
           </View>
-          <Text style={styles.deadRowDate}>
-            {c.created_at ? new Date(c.created_at).toLocaleDateString('fr-FR') : ''}
-          </Text>
+          <View style={styles.deadRowLeft}>
+            <View style={styles.deadRowHead}>
+              <Text style={styles.deadRowTitle} numberOfLines={1}>{c.brand}</Text>
+              <Text style={styles.deadRowDate}>
+                {c.created_at ? new Date(c.created_at).toLocaleDateString('fr-FR') : ''}
+              </Text>
+            </View>
+            <Text style={[styles.deadRowStatus, { color: statusColor(c) }]}>{statusLabel(c)}</Text>
+            {!!c.reason && <Text style={styles.deadRowReason} numberOfLines={2}>{c.reason}</Text>}
+          </View>
         </View>
       ))}
     </View>
@@ -307,6 +375,7 @@ export default function CardsScreen() {
   const renderCard = (card: VirtualCard) => {
     const open = openId === card.id;
     const rows = transactions[card.id] ?? [];
+    const secrets = revealed?.id === card.id ? revealed.secrets : null;
 
     return (
       <View key={card.id} style={styles.cardBlock}>
@@ -315,7 +384,13 @@ export default function CardsScreen() {
           holder={holderName}
           onCopy={(field) => copyFromCard(card, field)}
           copiedField={copiedOn?.id === card.id ? copiedOn.field : null}
+          secrets={secrets}
         />
+
+        {/* Le porteur voit combien de temps ses données restent lisibles. */}
+        {!!secrets && (
+          <Text style={styles.revealCountdown}>{t('cards.autoHide', { seconds: revealLeft })}</Text>
+        )}
 
         {/* Gel et résiliation touchent la carte elle-même : ils restent contre
             elle, avant le solde et les opérations, plutôt que relégués en bas
@@ -323,28 +398,45 @@ export default function CardsScreen() {
         {(card.status === 'active' || card.status === 'frozen') && (
           <View style={styles.secondaryRow}>
             <TouchableOpacity
-              style={styles.secondaryBtn}
+              style={[styles.secondaryBtn, { borderColor: Colors.pending + '66', backgroundColor: Colors.pending + '14' }]}
               onPress={() => toggleFreeze(card)}
               disabled={busyId === card.id}
+              activeOpacity={0.8}
             >
-              <FontAwesome6 name={card.status === 'frozen' ? 'lock-open' : 'lock'} size={13} color={Colors.pending} />
+              <FontAwesome6 name={card.status === 'frozen' ? 'lock-open' : 'lock'} size={13} color={Colors.pending} iconStyle="solid" />
               <Text style={[styles.secondaryText, { color: Colors.pending }]}>
                 {card.status === 'frozen' ? t('cards.unfreeze') : t('cards.freeze')}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryBtn} onPress={() => terminate(card)} disabled={busyId === card.id}>
-              <FontAwesome6 name="trash" size={13} color={Colors.error} />
+            <TouchableOpacity
+              style={[styles.secondaryBtn, { borderColor: Colors.error + '66', backgroundColor: Colors.error + '12' }]}
+              onPress={() => terminate(card)}
+              disabled={busyId === card.id}
+              activeOpacity={0.8}
+            >
+              <FontAwesome6 name="trash" size={13} color={Colors.error} iconStyle="solid" />
               <Text style={[styles.secondaryText, { color: Colors.error }]}>{t('cards.terminate')}</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        <View style={styles.cardMeta}>
-          <View>
+        {/* Le solde de la carte est l'information principale de l'écran : il a
+            sa propre surface, son montant en grand, et l'état de la carte à côté. */}
+        <View style={styles.balanceCard}>
+          <View style={styles.balanceIcon}>
+            <FontAwesome6 name="credit-card" size={16} color={Colors.primary} iconStyle="solid" />
+          </View>
+          <View style={styles.balanceMain}>
             <Text style={styles.metaLabel}>{t('cards.balance')}</Text>
-            <Text style={styles.metaBalance}>{card.balance.toFixed(2)} {card.currency}</Text>
+            <View style={styles.balanceValueRow}>
+              <Text style={styles.metaBalance} numberOfLines={1} adjustsFontSizeToFit>
+                {card.balance.toFixed(2)}
+              </Text>
+              <Text style={styles.balanceCurrency}>{card.currency}</Text>
+            </View>
           </View>
           <View style={[styles.statusPill, { backgroundColor: statusColor(card) + '22' }]}>
+            <View style={[styles.statusDot, { backgroundColor: statusColor(card) }]} />
             <Text style={[styles.statusText, { color: statusColor(card) }]}>{statusLabel(card)}</Text>
           </View>
         </View>
@@ -360,20 +452,29 @@ export default function CardsScreen() {
         {card.usable && (
           <View style={styles.actions}>
             <TouchableOpacity style={styles.action} onPress={() => setFundFor({ card, direction: 'fund' })}>
-              <View style={styles.actionIcon}><FontAwesome6 name="plus" size={15} color={Colors.primary} /></View>
+              <View style={styles.actionIcon}><FontAwesome6 name="plus" size={15} color={Colors.primary} iconStyle="solid" /></View>
               <Text style={styles.actionText}>{t('cards.topUp')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.action} onPress={() => setFundFor({ card, direction: 'withdraw' })}>
-              <View style={styles.actionIcon}><FontAwesome6 name="arrow-down" size={15} color={Colors.primary} /></View>
+              <View style={styles.actionIcon}><FontAwesome6 name="arrow-down" size={15} color={Colors.primary} iconStyle="solid" /></View>
               <Text style={styles.actionText}>{t('cards.withdraw')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.action} onPress={() => { setCopyField(null); setSecretsFor(card); }}>
-              <View style={styles.actionIcon}><FontAwesome6 name="eye" size={15} color={Colors.primary} /></View>
-              <Text style={styles.actionText}>{t('cards.reveal')}</Text>
+            <TouchableOpacity
+              style={styles.action}
+              onPress={() => {
+                if (secrets) { hideSecrets(); return; }
+                setCopyAfterAuth(null);
+                setAuthFor(card);
+              }}
+            >
+              <View style={styles.actionIcon}>
+                <FontAwesome6 name={secrets ? 'eye-slash' : 'eye'} size={15} color={Colors.primary} iconStyle="solid" />
+              </View>
+              <Text style={styles.actionText}>{secrets ? t('cards.hide') : t('cards.reveal')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.action} onPress={() => toggleDetails(card)}>
               <View style={styles.actionIcon}>
-                <FontAwesome6 name={open ? 'chevron-up' : 'clock-rotate-left'} size={15} color={Colors.primary} />
+                <FontAwesome6 name={open ? 'chevron-up' : 'clock-rotate-left'} size={15} color={Colors.primary} iconStyle="solid" />
               </View>
               <Text style={styles.actionText}>{t('cards.history')}</Text>
             </TouchableOpacity>
@@ -424,6 +525,11 @@ export default function CardsScreen() {
     <View style={styles.intro}>
       <VirtualCardVisual holder={holderName} />
 
+      {/* Trois tuiles plutôt que trois lignes : l'argument produit se lit d'un
+          coup d'œil, et l'icône a la place d'exister.
+          `iconStyle="solid"` est OBLIGATOIRE — seules les fontes Regular et
+          Brands sont chargées, et un glyphe solide non résolu retombe sur
+          l'emoji du système : c'est ce qui donnait 🌐💳🔒 sur le web. */}
       <View style={styles.perks}>
         {[
           { icon: 'globe', text: t('cards.perkOnline') },
@@ -431,7 +537,9 @@ export default function CardsScreen() {
           { icon: 'lock', text: t('cards.perkFreeze') },
         ].map((p) => (
           <View key={p.icon} style={styles.perk}>
-            <FontAwesome6 name={p.icon as any} size={14} color={Colors.primary} />
+            <View style={styles.perkIcon}>
+              <FontAwesome6 name={p.icon as any} size={15} color={Colors.primary} iconStyle="solid" />
+            </View>
             <Text style={styles.perkText}>{p.text}</Text>
           </View>
         ))}
@@ -469,12 +577,24 @@ export default function CardsScreen() {
       [t('cards.feeMonthly'), usd(grid.monthly_fee_usd)],
     ];
 
+    const free = t('cards.free');
+
     return (
       <View style={styles.priceCard}>
-        {rows.map(([label, value]) => (
-          <View key={label} style={styles.priceRow}>
-            <Text style={styles.priceLabel}>{label}</Text>
-            <Text style={styles.priceValue}>{value}</Text>
+        <Text style={styles.priceTitle}>{t('cards.pricingTitle', 'Tarifs')}</Text>
+
+        {rows.map(([label, value], i) => (
+          <View key={label} style={[styles.priceRow, i > 0 && styles.priceRowSep]}>
+            <Text style={styles.priceLabel} numberOfLines={2}>{label}</Text>
+            {/* La gratuité est une bonne nouvelle : elle se lit comme telle,
+                au lieu de se fondre dans la colonne des montants. */}
+            {value === free ? (
+              <View style={styles.freePill}>
+                <Text style={styles.freePillText}>{free}</Text>
+              </View>
+            ) : (
+              <Text style={styles.priceValue}>{value}</Text>
+            )}
           </View>
         ))}
       </View>
@@ -504,7 +624,7 @@ export default function CardsScreen() {
     <>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
-          <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
+          <FontAwesome6 name="arrow-left" size={20} color={Colors.text} iconStyle="solid" />
         </TouchableOpacity>
         <Text style={styles.title}>{t('cards.title')}</Text>
       </View>
@@ -576,11 +696,10 @@ export default function CardsScreen() {
   const modals = (
     <>
       <CardSecretsModal
-        visible={!!secretsFor}
-        card={secretsFor}
-        copyField={copyField}
-        onCopied={(field) => { if (secretsFor) flagCopied(secretsFor.id, field); }}
-        onClose={() => { setSecretsFor(null); setCopyField(null); }}
+        visible={!!authFor}
+        card={authFor}
+        onRevealed={(secrets) => { if (authFor) onRevealed(authFor, secrets); }}
+        onClose={() => { setAuthFor(null); setCopyAfterAuth(null); }}
       />
       <CardOrderModal
         visible={orderOpen}
@@ -650,27 +769,112 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   title: { fontSize: FontSize.xl, fontFamily: Fonts.bold, color: Colors.text },
 
   intro: { gap: Spacing.lg },
-  perks: { gap: Spacing.sm },
-  perk: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  perkText: { fontSize: FontSize.md, color: Colors.text },
+  /** Trois tuiles de largeur égale, sur une ligne. */
+  perks: { flexDirection: 'row', gap: Spacing.sm },
+  perk: {
+    flex: 1,
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.surfaceBorder,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+  },
+  perkIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary + '1F',
+  },
+  perkText: {
+    fontSize: FontSize.sm,
+    color: Colors.text,
+    fontFamily: Fonts.medium,
+    textAlign: 'center',
+    lineHeight: 17,
+  },
 
   priceCard: {
     backgroundColor: Colors.card,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     borderColor: Colors.surfaceBorder,
-    padding: Spacing.md,
-    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
   },
-  priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  priceLabel: { fontSize: FontSize.md, color: Colors.textMuted },
+  priceTitle: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.bold,
+    color: Colors.textMuted,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    paddingVertical: Spacing.sm,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+  },
+  /** Filet entre deux lignes : sept lignes nues formaient un bloc illisible.
+      `surfaceBorder` était trop pâle pour se voir sur la surface des cartes. */
+  priceRowSep: { borderTopWidth: 1, borderTopColor: Colors.border },
+  priceLabel: { flex: 1, fontSize: FontSize.md, color: Colors.textMuted },
   priceValue: { fontSize: FontSize.md, color: Colors.text, fontFamily: Fonts.semiBold },
+  freePill: {
+    backgroundColor: Colors.positive + '1F',
+    borderRadius: BorderRadius.pill,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 3,
+  },
+  freePillText: { fontSize: FontSize.sm, fontFamily: Fonts.bold, color: Colors.positive },
 
   cardBlock: { marginBottom: Spacing.xl, gap: Spacing.md },
-  cardMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  metaLabel: { fontSize: FontSize.sm, color: Colors.textMuted },
-  metaBalance: { fontSize: FontSize.lg, color: Colors.text, fontFamily: Fonts.bold },
-  statusPill: { borderRadius: BorderRadius.pill, paddingHorizontal: 12, paddingVertical: 5 },
+  revealCountdown: { fontSize: FontSize.sm, color: Colors.textMuted, textAlign: 'center' },
+  balanceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    backgroundColor: Colors.card,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.surfaceBorder,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+  },
+  balanceIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary + '18',
+  },
+  balanceMain: { flex: 1, minWidth: 0 },
+  balanceValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+  balanceCurrency: { fontSize: FontSize.md, color: Colors.textMuted, fontFamily: Fonts.semiBold },
+  metaLabel: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
+    fontFamily: Fonts.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  metaBalance: { fontSize: FontSize.xxl, color: Colors.text, fontFamily: Fonts.bold },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: BorderRadius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  statusDot: { width: 7, height: 7, borderRadius: 4 },
   pickerRow: { flexDirection: 'row', gap: Spacing.sm, paddingBottom: Spacing.md },
   pickerChip: {
     flexDirection: 'row',
@@ -728,14 +932,24 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   deadRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    justifyContent: 'space-between',
     gap: Spacing.md,
     paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.md,
+    paddingVertical: Spacing.md,
+  },
+  /** Filet entre deux demandes : trois blocs de texte se confondaient. */
+  deadRowSep: { borderTopWidth: 1, borderTopColor: Colors.border },
+  deadIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   deadRowLeft: { flex: 1, gap: 2 },
-  deadRowTitle: { fontSize: FontSize.sm, color: Colors.text, fontFamily: Fonts.medium },
-  deadRowReason: { fontSize: FontSize.sm, color: Colors.textMuted },
+  deadRowHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm },
+  deadRowTitle: { flex: 1, fontSize: FontSize.md, color: Colors.text, fontFamily: Fonts.semiBold },
+  deadRowStatus: { fontSize: FontSize.sm, fontFamily: Fonts.medium },
+  deadRowReason: { fontSize: FontSize.sm, color: Colors.textMuted, lineHeight: 18 },
   deadRowDate: { fontSize: FontSize.sm, color: Colors.textMuted },
   statusText: { fontSize: FontSize.sm, fontFamily: Fonts.medium },
 
@@ -762,9 +976,21 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   actionText: { fontSize: FontSize.sm, color: Colors.text, fontFamily: Fonts.medium },
 
-  secondaryRow: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.xl },
-  secondaryBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 },
-  secondaryText: { fontSize: FontSize.sm, fontFamily: Fonts.medium },
+  // Gel et résiliation sont des actions, pas des liens : chacune est un bouton
+  // à part entière, teinté de sa couleur d'état et bordé sur ses quatre côtés.
+  secondaryRow: { flexDirection: 'row', gap: Spacing.sm },
+  secondaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    minHeight: 42,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+  },
+  secondaryText: { fontSize: FontSize.md, fontFamily: Fonts.semiBold },
 
   history: {
     backgroundColor: Colors.card,

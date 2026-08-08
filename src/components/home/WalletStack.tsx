@@ -31,6 +31,8 @@ const SWIPE_THRESHOLD = 55;
 const CARD_PREVIEW_WIDTH = 300;
 /** Marge rendue au conteneur pour que le découpage ne mange pas l'ombre. */
 const CLIP_PAD = 24;
+/** Cadence du défilement automatique des cartes. */
+const AUTOPLAY_MS = 5000;
 
 interface Props {
   /** Panneau principal : la carte de solde du wallet. */
@@ -68,6 +70,9 @@ export function WalletStack({ children }: Props) {
   const [cardIndex, setCardIndex] = useState(0);
   /** Largeur utile du panneau, mesurée : elle cale la pagination du glissement. */
   const [pagerWidth, setPagerWidth] = useState(0);
+  /** Le défilement s'arrête dès que le client prend la main : il choisit sa carte. */
+  const [autoPlay, setAutoPlay] = useState(true);
+  const pagerRef = useRef<ScrollView>(null);
 
   /** Position de chaque panneau dans la pile : 0 = devant, 1 = dessous. */
   const depth = useRef([new Animated.Value(0), new Animated.Value(1)]).current;
@@ -94,6 +99,29 @@ export function WalletStack({ children }: Props) {
   // n'a rien à faire dans un aperçu d'accueil.
   const liveCards = (cards ?? []).filter((c) => c.status !== 'failed' && c.status !== 'terminated');
   const activeCard = liveCards[Math.min(cardIndex, Math.max(0, liveCards.length - 1))] ?? null;
+
+  /** Amène la carte demandée devant, et met à jour le solde affiché avec elle. */
+  const goToCard = useCallback((i: number, stopAuto = true) => {
+    if (stopAuto) setAutoPlay(false);
+    setCardIndex(i);
+    if (pagerWidth > 0) {
+      pagerRef.current?.scrollTo({ x: i * pagerWidth, animated: true });
+    }
+  }, [pagerWidth]);
+
+  // Défilement automatique des cartes, tant que le client n'a pas choisi la
+  // sienne. Il reprend au début après la dernière.
+  useEffect(() => {
+    if (!autoPlay || liveCards.length < 2 || pagerWidth === 0) return;
+    const id = setInterval(() => {
+      setCardIndex((prev) => {
+        const next = (prev + 1) % liveCards.length;
+        pagerRef.current?.scrollTo({ x: next * pagerWidth, animated: true });
+        return next;
+      });
+    }, AUTOPLAY_MS);
+    return () => clearInterval(id);
+  }, [autoPlay, liveCards.length, pagerWidth]);
 
   /** Fait passer devant le panneau demandé, et l'autre dessous. */
   const goTo = useCallback((i: number) => {
@@ -136,6 +164,7 @@ export function WalletStack({ children }: Props) {
         {liveCards.length > 1 ? (
           <View style={styles.pager} onLayout={(e) => setPagerWidth(Math.round(e.nativeEvent.layout.width))}>
             <ScrollView
+              ref={pagerRef}
               horizontal
               style={styles.pagerScroll}
               pagingEnabled
@@ -147,6 +176,7 @@ export function WalletStack({ children }: Props) {
                   setCardIndex(Math.round(e.nativeEvent.contentOffset.x / pagerWidth));
                 }
               }}
+              onScrollBeginDrag={() => { setAutoPlay(false); }}
             >
               {liveCards.map((c) => (
                 <TouchableOpacity
@@ -159,12 +189,6 @@ export function WalletStack({ children }: Props) {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-
-            <View style={styles.dots}>
-              {liveCards.map((c, i) => (
-                <View key={c.id} style={[styles.dot, i === cardIndex && styles.dotOn]} />
-              ))}
-            </View>
           </View>
         ) : (
           <TouchableOpacity activeOpacity={0.9} onPress={() => router.push('/cards')}>
@@ -173,20 +197,33 @@ export function WalletStack({ children }: Props) {
         )}
 
         {activeCard ? (
-          <TouchableOpacity style={styles.panelFooter} activeOpacity={0.7} onPress={() => router.push('/cards')}>
-            <Text style={styles.panelBalance}>
-              {activeCard.balance.toFixed(2)} {activeCard.currency}
-            </Text>
-            {/* Plusieurs cartes défilent au même endroit : sans ce rappel, on ne
-                sait pas à laquelle se rapporte le solde affiché dessous. */}
-            {liveCards.length > 1 && !!activeCard.last4 && (
-              <Text style={styles.panelBalanceFor}>•••• {activeCard.last4}</Text>
-            )}
-            <View style={styles.panelAction}>
-              <Text style={styles.panelActionText}>{t('cards.manage')}</Text>
-              <FontAwesome6 name="chevron-right" size={12} color={DarkColors.textSecondary} />
+          /* Une seule ligne sous la carte, calée sur sa largeur : le sélecteur de
+             carte à gauche, le solde de la carte affichée à droite. Le rappel du
+             numéro et le lien « Gérer » ajoutaient deux lignes qui faisaient
+             dépasser le panneau. */
+          <View style={styles.panelFooter}>
+            <View style={styles.dots}>
+              {liveCards.length > 1 && liveCards.map((c, i) => (
+                <TouchableOpacity
+                  key={c.id}
+                  activeOpacity={0.8}
+                  onPress={() => goToCard(i)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: i === cardIndex }}
+                  style={[styles.dot, i === cardIndex && styles.dotOn]}
+                >
+                  <Text style={[styles.dotText, i === cardIndex && styles.dotTextOn]}>
+                    {c.last4 ?? '••••'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
-          </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.7} onPress={() => router.push('/cards')}>
+              <Text style={styles.panelBalance}>
+                {activeCard.balance.toFixed(2)} {activeCard.currency}
+              </Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <TouchableOpacity style={styles.panelAction} activeOpacity={0.7} onPress={() => router.push('/cards')}>
             <Text style={styles.panelActionText}>{t('cards.order')}</Text>
@@ -323,6 +360,10 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     paddingHorizontal: CLIP_PAD,
     paddingTop: CLIP_PAD,
     marginTop: -CLIP_PAD,
+    // La réserve du bas n'existe que pour l'ombre : on la rend à la page, sauf
+    // les quelques pixels où l'ombre se voit réellement. Sinon la pile laissait
+    // un trou avant le sélecteur.
+    marginBottom: -(CLIP_PAD - 8),
   },
   panel: {
     position: 'absolute',
@@ -380,22 +421,30 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   flex: { flex: 1 },
   pager: { width: '100%' },
   pagerScroll: { width: '100%' },
-  dots: { flexDirection: 'row', gap: 6, marginTop: Spacing.sm },
+  dots: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  // Le repère de défilement porte le numéro : on sait quelle carte est devant,
+  // et on y va d'un toucher.
   dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.28)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.pill,
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
-  dotOn: { backgroundColor: '#ffffff' },
-  panelBalanceFor: {
-    color: 'rgba(255,255,255,0.6)',
+  dotOn: { backgroundColor: 'rgba(255,255,255,0.28)' },
+  dotText: {
+    color: 'rgba(255,255,255,0.55)',
     fontSize: FontSize.xs,
     fontFamily: Fonts.medium,
-    letterSpacing: 1,
-    marginTop: 1,
   },
-  panelFooter: { alignItems: 'center', gap: Spacing.sm },
+  dotTextOn: { color: '#ffffff' },
+  panelFooter: {
+    width: CARD_PREVIEW_WIDTH,
+    maxWidth: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+  },
   panelBalance: {
     color: DarkColors.secondary,
     fontSize: FontSize.xl,

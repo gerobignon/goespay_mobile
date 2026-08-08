@@ -34,7 +34,7 @@ import type { SavedPhone } from '../types';
 import { useTranslation } from 'react-i18next';
 
 import { useConfigStore } from '../stores/configStore';
-import { useCryptoStore } from '../stores/cryptoStore';
+import { useCryptoStore, isCryptoDirAllowed } from '../stores/cryptoStore';
 import { useFormatXof } from '../utils/format';
 import { useDepositQuote } from '../stores/transferQuoteStore';
 import { getApiErrorMessage } from '../utils/apiError';
@@ -137,7 +137,14 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
     cryptos: visibleCryptos,
     showSearch: showCryptoSearch,
     empty: noCryptoMatch,
-  } = useCryptoSearch(cryptoRates);
+  } = useCryptoSearch(cryptoRates, undefined, 'sell');
+  // Cryptos dont l'admin a ouvert la VENTE : recharger le solde, c'est vendre.
+  const sellRates = useMemo(() => cryptoRates.filter((r) => isCryptoDirAllowed(r, 'sell')), [cryptoRates]);
+  const cryptoLoaded = cryptoRates.length > 0;
+  const hasSellCrypto = sellRates.length > 0;
+  // Tant que les taux ne sont pas chargés on garde l'entrée : la masquer puis la
+  // remettre ferait clignoter la liste des moyens de recharge.
+  const showCryptoEntry = cryptoEnabled && (!cryptoLoaded || hasSellCrypto);
   const fetchCryptoRates = useCryptoStore((s) => s.fetchRates);
   const fmtXof = useFormatXof();
   // Garde une trace si l'utilisateur a vidé/modifié le champ téléphone manuellement
@@ -451,7 +458,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // Au-delà d'une poignée de devises (le catalogue NOWPayments en rend des
   // dizaines activables), les aplatir noierait les opérateurs Mobile Money :
   // on repasse au groupe « Crypto », qui ouvre l'écran de sélection avec recherche.
-  const flattenCrypto = !isAdmin && cryptoEnabled && cryptoRates.length <= FLATTEN_CRYPTO_MAX;
+  const flattenCrypto = !isAdmin && cryptoEnabled && hasSellCrypto && sellRates.length <= FLATTEN_CRYPTO_MAX;
   const operatorsForStep = othersOpen ? otherOps : (clientFlattenOthers ? otherOps : primaryOps);
   // Entrée « International » : visible dès qu'il y a des rails internationaux pour
   // ce user (y compris pays listés — dim 3), au niveau du picker, hors flatten.
@@ -1110,7 +1117,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                 cardLabel={t('depositModal.others')}
                 onSelectCountry={(code) => { setSelectedCountry(code); setOperator(''); }}
                 onSelectCard={() => { setOthersOpen(true); setOperator(''); }}
-                showCryptoTile={cryptoEnabled}
+                showCryptoTile={showCryptoEntry}
                 cryptoLabel={t('depositModal.cryptoGroup')}
                 onSelectCrypto={() => { setCryptoOpen(true); setOperator(''); }}
                 label={t('depositModal.chooseCountry')}
@@ -1127,6 +1134,8 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                 </TouchableOpacity>
                 {cryptoRates.length === 0 ? (
                   <Text style={styles.hintText}>{t('common.loading')}</Text>
+                ) : !hasSellCrypto ? (
+                  <Text style={styles.hintText}>{t('cryptoModal.noSellCrypto')}</Text>
                 ) : (
                   <>
                     {showCryptoSearch && <CryptoSearchField value={cryptoQuery} onChange={setCryptoQuery} />}
@@ -1217,7 +1226,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                     <Text style={styles.operatorChipText} numberOfLines={1}>{t('depositModal.others')}</Text>
                   </TouchableOpacity>
                 )}
-                {cryptoEnabled && (flattenCrypto
+                {showCryptoEntry && (flattenCrypto
                   ? visibleCryptos.map((c) => (
                       <TouchableOpacity key={`crypto-${c.code}`} style={styles.operatorChip} onPress={() => onSellCrypto?.(c.code)}>
                         <CryptoLogo rate={c} size={22} fallbackBackground={Colors.inputBg} fallbackColor={Colors.text} />
@@ -1276,7 +1285,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                     <Text style={styles.operatorRowName}>{t('depositModal.others')}</Text>
                   </TouchableOpacity>
                 )}
-                {!operator && cryptoEnabled && (flattenCrypto
+                {!operator && showCryptoEntry && (flattenCrypto
                   ? visibleCryptos.map((c) => (
                       <TouchableOpacity key={`crypto-${c.code}`} style={styles.operatorRow} onPress={() => onSellCrypto?.(c.code)}>
                         <CryptoLogo rate={c} size={26} fallbackBackground={Colors.inputBg} fallbackColor={Colors.text} />

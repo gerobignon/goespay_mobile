@@ -14,6 +14,8 @@ interface ChatAvatarProps {
   online?: boolean;
   /** Support : casque sur fond de marque plutôt que des initiales. */
   isSupport?: boolean;
+  /** Canal d'annonces GoesPay : mégaphone plutôt que des initiales. */
+  isChannel?: boolean;
   /**
    * Le compte cache son identité : œil barré plutôt que des initiales, qui ne
    * seraient de toute façon que son identifiant réaffiché.
@@ -22,7 +24,7 @@ interface ChatAvatarProps {
 }
 
 /** Avatar rond : photo si elle existe, sinon initiales sur fond de marque. */
-export function ChatAvatar({ name, uri, size = 48, online, isSupport, hidden }: ChatAvatarProps) {
+export function ChatAvatar({ name, uri, size = 48, online, isSupport, isChannel, hidden }: ChatAvatarProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const dotSize = Math.max(9, Math.round(size * 0.26));
@@ -39,14 +41,19 @@ export function ChatAvatar({ name, uri, size = 48, online, isSupport, hidden }: 
               width: size,
               height: size,
               borderRadius: size / 2,
-              backgroundColor: isSupport
-                ? colors.primary
-                : withAlpha(hidden ? colors.textMuted : colors.secondary, 0.22),
+              backgroundColor: isChannel
+                ? colors.secondary
+                : isSupport
+                  ? colors.primary
+                  : withAlpha(hidden ? colors.textMuted : colors.secondary, 0.22),
             },
           ]}
         >
           {isSupport ? (
             <FontAwesome6 name="headset" size={size * 0.42} color={colors.white} />
+          ) : isChannel ? (
+            // Mégaphone sombre : sur le doré, le blanc passe à 1,9:1.
+            <FontAwesome6 name="bullhorn" size={size * 0.4} color={colors.black} />
           ) : hidden ? (
             <FontAwesome6 name="eye-slash" size={size * 0.36} color={colors.textMuted} />
           ) : (

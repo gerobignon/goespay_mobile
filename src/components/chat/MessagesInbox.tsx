@@ -11,6 +11,7 @@ import {
   AppState,
 } from 'react-native';
 
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -68,6 +69,9 @@ export function MessagesInbox() {
   const [sheetFor, setSheetFor] = useState<Conversation | null>(null);
 
   const support = conversations.find((c) => c.type === 'support') || null;
+  // Canal d'annonces : il n'existe qu'après la première diffusion, et il a sa
+  // propre carte — filtré des directs, il n'apparaîtrait nulle part.
+  const channel = conversations.find((c) => c.type === 'broadcast') || null;
   const directs = conversations.filter((c) => c.type === 'direct');
 
   // Rechargement à l'ouverture de l'onglet, puis rafraîchissement régulier tant
@@ -231,6 +235,57 @@ export function MessagesInbox() {
             )}
           </Bounce>
         </Reveal>
+
+        {/* Canal d'annonces GoesPay */}
+        {channel && (
+          <Reveal offset={12}>
+            <Bounce
+              style={[
+                styles.channelCard,
+                { borderColor: withAlpha(colors.secondary, channel.unread_count > 0 ? 0.6 : 0.32) },
+              ]}
+              scaleTo={0.985}
+              onPress={() => router.push(`/messages/${channel.id}`)}
+            >
+              {/* Fond dégradé bleu → doré : le canal ne se confond pas avec le
+                  support, qui garde la surface neutre. */}
+              <LinearGradient
+                colors={[
+                  withAlpha(colors.primary, isDark ? 0.2 : 0.1),
+                  withAlpha(colors.secondary, isDark ? 0.22 : 0.12),
+                ]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <ChatAvatar name={channel.title} isChannel size={50} />
+              <View style={styles.supportBody}>
+                <View style={styles.channelTitleRow}>
+                  <Text style={[styles.supportTitle, { color: colors.primary }]}>{channel.title}</Text>
+                  {channel.unread_count > 0 && (
+                    <View style={[styles.channelTag, { backgroundColor: colors.secondary }]}>
+                      <Text style={[styles.channelTagText, { color: colors.background }]}>
+                        {t('messages.channelNew', 'Nouveau')}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={[styles.supportSub, { color: colors.text }]} numberOfLines={1}>
+                  {channel.preview || t('messages.channelSub', 'Annonces et nouveautés')}
+                </Text>
+              </View>
+              {channel.unread_count > 0 ? (
+                <View style={[styles.badge, { backgroundColor: colors.error }]}>
+                  <Text style={styles.badgeText}>
+                    {channel.unread_count > 99 ? '99+' : channel.unread_count}
+                  </Text>
+                </View>
+              ) : (
+                <FontAwesome6 name="arrow-right" size={13} color={colors.primary} />
+              )}
+            </Bounce>
+          </Reveal>
+        )}
 
         {/* Conversations */}
         <Text style={styles.sectionTitle}>{t('messages.conversations', 'Conversations')}</Text>
@@ -405,6 +460,33 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderColor: Colors.border,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
+  },
+  // Le canal d'annonces se distingue du support : teinte primaire, contour
+  // marqué quand il reste quelque chose à lire.
+  channelCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1.5,
+    overflow: 'hidden',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  channelTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  channelTag: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+  },
+  channelTagText: {
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.semiBold,
   },
   supportBody: {
     flex: 1,

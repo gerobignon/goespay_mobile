@@ -37,6 +37,8 @@ interface MessageBubbleProps {
   onPressReply?: (messageId: number) => void;
   /** Mise en évidence passagère, après être remonté jusqu'ici. */
   highlighted?: boolean;
+  /** Canal d'annonces : la bulle est centrée, il n'y a pas d'interlocuteur. */
+  centered?: boolean;
 }
 
 /**
@@ -55,6 +57,7 @@ export function MessageBubble({
   onQuote,
   onPressReply,
   highlighted,
+  centered,
 }: MessageBubbleProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
@@ -99,6 +102,11 @@ export function MessageBubble({
    * la coche : gris tant qu'il part, couleur atténuée une fois chez le serveur,
    * pleine couleur quand l'autre l'a lu.
    */
+  // La carte promo n'est pas une pièce jointe comme les autres : elle a son
+  // propre cadre, sa propre largeur, et vit HORS de la bulle.
+  const isPromo = message.item?.type === 'promo';
+  const hasBubble = !!message.body || !!image || !!message.reply_to || (!!message.item && !isPromo);
+
   const mineBackground = message.pending
     ? withAlpha(colors.textMuted, 0.28)
     : read
@@ -109,12 +117,25 @@ export function MessageBubble({
     <Animated.View
       style={[
         styles.row,
-        mine ? styles.rowMine : styles.rowTheirs,
+        centered ? styles.rowCentered : mine ? styles.rowMine : styles.rowTheirs,
         isWide && styles.rowWide,
         { transform: [{ translateX: tx }] },
       ]}
       {...pan.panHandlers}
     >
+      <View style={[styles.stack, isPromo && styles.stackPromo, isWide && styles.stackWide]}>
+      {/* Carte promo : posée nue dans le fil, à sa pleine largeur — enfermée
+          dans la bulle, elle se retrouvait comprimée à deux mots par ligne. */}
+      {isPromo && (
+        <MessageItemCard
+          item={message.item!}
+          mine={mine}
+          conversationId={conversationId}
+          messageId={message.id > 0 ? message.id : undefined}
+        />
+      )}
+
+      {hasBubble ? (
       <View
         style={[
           styles.bubble,
@@ -122,6 +143,9 @@ export function MessageBubble({
           mine
             ? { backgroundColor: mineBackground, borderBottomRightRadius: 4 }
             : { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderBottomLeftRadius: 4 },
+          // Annonce : pas de coin tronqué, rien ne pointe vers un émetteur.
+          centered && { borderBottomLeftRadius: BorderRadius.lg },
+          isPromo && { marginTop: Spacing.sm },
           message.failed && { backgroundColor: withAlpha(colors.error, 0.25) },
           // Signet : la bulle s'entoure brièvement quand on vient d'y remonter.
           highlighted && { borderWidth: 2, borderColor: colors.secondary },
@@ -158,7 +182,7 @@ export function MessageBubble({
         )}
 
         {/* Objet de l'app joint au message : lien de paiement, opération… */}
-        {!!message.item && (
+        {!!message.item && !isPromo && (
           <MessageItemCard
             item={message.item}
             mine={mine}
@@ -216,6 +240,13 @@ export function MessageBubble({
           )}
         </View>
       </View>
+      ) : (
+        // Annonce réduite à sa carte : l'heure se pose dessous, sans coquille.
+        <Text style={[styles.time, styles.timeBare, { color: colors.textMuted }]}>
+          {messageTime(message.created_at)}
+        </Text>
+      )}
+      </View>
     </Animated.View>
   );
 }
@@ -228,14 +259,25 @@ const createStyles = (Colors: ColorPalette) =>
     },
     rowMine: { justifyContent: 'flex-end' },
     rowTheirs: { justifyContent: 'flex-start' },
+    rowCentered: { justifyContent: 'center' },
     // Grand écran : on resserre pour tenir plus d'échanges à l'écran.
     rowWide: { marginBottom: 3 },
-    bubbleWide: {
+    // Colonne d'un message : c'est ELLE qui borne la largeur, la bulle et la
+    // carte s'y logent chacune à leur façon.
+    stack: {
+      maxWidth: '82%',
+    },
+    stackPromo: {
+      maxWidth: '100%',
+      flex: 1,
+    },
+    stackWide: {
       maxWidth: 560,
+    },
+    bubbleWide: {
       paddingVertical: Spacing.sm,
     },
     bubble: {
-      maxWidth: '82%',
       borderRadius: BorderRadius.lg,
       paddingHorizontal: Spacing.md,
       paddingVertical: Spacing.sm + 2,
@@ -278,6 +320,11 @@ const createStyles = (Colors: ColorPalette) =>
     time: {
       fontFamily: Fonts.regular,
       fontSize: FontSize.xs,
+    },
+    timeBare: {
+      alignSelf: 'flex-end',
+      marginTop: 4,
+      marginRight: 2,
     },
     retry: {
       flexDirection: 'row',

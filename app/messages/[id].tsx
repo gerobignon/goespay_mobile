@@ -236,7 +236,9 @@ export default function ConversationScreen() {
   const renderItem = ({ item, index }: { item: ChatMessage; index: number }) => {
     // `data` est inversée : l'élément suivant est le message précédent dans le temps.
     const previous = data[index + 1];
-    const showDay = isNewDay(previous?.created_at ?? null, item.created_at);
+    // Le canal n'est pas une discussion : les annonces s'y suivent sans
+    // séparateur de jour.
+    const showDay = !isBroadcast && isNewDay(previous?.created_at ?? null, item.created_at);
 
     return (
       <View>
@@ -254,6 +256,7 @@ export default function ConversationScreen() {
           onQuote={startQuote}
           onPressReply={jumpToMessage}
           highlighted={highlightId === item.id}
+          centered={isBroadcast}
         />
       </View>
     );
@@ -355,14 +358,9 @@ export default function ConversationScreen() {
           />
         )}
 
-        {isBroadcast ? (
-          <View style={styles.readOnlyNote}>
-            <FontAwesome6 name="bullhorn" size={13} color={colors.textMuted} />
-            <Text style={styles.readOnlyText}>
-              {t('messages.broadcastReadOnly', 'Canal d\'information — les réponses ne sont pas lues.')}
-            </Text>
-          </View>
-        ) : (
+        {/* Canal en lecture seule : ni saisie, ni mention — l'absence de champ
+            de réponse le dit déjà. */}
+        {isBroadcast ? null : (
         <ChatComposer
           ref={composerRef}
           onSend={(body, imageUri) => {
@@ -541,23 +539,5 @@ const createStyles = (Colors: ColorPalette) =>
       color: Colors.textMuted,
       textAlign: 'center',
       maxWidth: 280,
-    },
-    // Remplace la zone de saisie sur un canal de diffusion : la place reste
-    // occupée, pour que l'absence de champ se lise comme un choix.
-    readOnlyNote: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: Spacing.sm,
-      paddingVertical: Spacing.md,
-      paddingHorizontal: Spacing.lg,
-      borderTopWidth: 1,
-      borderTopColor: Colors.border,
-      backgroundColor: Colors.card,
-    },
-    readOnlyText: {
-      fontFamily: Fonts.regular,
-      fontSize: FontSize.sm,
-      color: Colors.textMuted,
     },
   });

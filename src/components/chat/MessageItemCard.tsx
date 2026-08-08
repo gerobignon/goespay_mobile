@@ -9,6 +9,7 @@ import { formatAmount } from '../../utils/format';
 import { downloadPdf } from '../../utils/pdfDownload';
 import { messagingService } from '../../services/messagingService';
 import { showAlert } from '../../stores/alertStore';
+import { PromoCard } from './PromoCard';
 import type { MessageItem } from '../../types';
 
 /**
@@ -43,7 +44,13 @@ export function MessageItemCard({
     if (url) Linking.openURL(url).catch(() => {});
   };
 
-  const shell = (icon: string, title: string, lines: string[], onPress?: () => void) => {
+  const shell = (
+    icon: string,
+    title: string,
+    lines: string[],
+    onPress?: () => void,
+    trailing?: React.ReactNode,
+  ) => {
     const Wrapper: any = onPress ? TouchableOpacity : View;
     return (
       <Wrapper
@@ -71,7 +78,7 @@ export function MessageItemCard({
             </Text>
           ))}
         </View>
-        {!!onPress && <FontAwesome6 name="arrow-up-right-from-square" size={12} color={tint} />}
+        {trailing ?? (!!onPress && <FontAwesome6 name="arrow-up-right-from-square" size={12} color={tint} />)}
       </Wrapper>
     );
   };
@@ -80,6 +87,11 @@ export function MessageItemCard({
     value != null ? `${formatAmount(Number(value))} ${currency || 'XOF'}` : '';
 
   switch (item.type) {
+    // La promo a sa propre carte : elle ne rentre pas dans la coquille commune
+    // (visuel pleine largeur, dégradé, bouton).
+    case 'promo':
+      return <PromoCard meta={meta} />;
+
     case 'paylink':
       return shell(
         'link',
@@ -118,41 +130,39 @@ export function MessageItemCard({
         }
       };
 
-      return (
-        <View>
-          {shell('receipt', amount(meta.amount, meta.currency), [
-            [kindLabel, meta.status ? String(t(`messages.status_${meta.status}`, meta.status)) : '']
-              .filter(Boolean)
-              .join(' · '),
-            [meta.id != null ? `#${meta.id}` : '', meta.reference ? String(meta.reference) : '']
-              .filter(Boolean)
-              .join(' · '),
-            meta.date ? String(meta.date).slice(0, 16).replace('T', ' ') : '',
+      // La carte EST le reçu : la toucher le télécharge. Un bouton encadré en
+      // dessous doublait l'objet et écrasait la bulle.
+      return shell(
+        'receipt',
+        amount(meta.amount, meta.currency),
+        [
+          [
+            kindLabel,
             meta.kind === 'transfer'
               ? String(outgoing ? t('messages.txSent', 'Envoyé') : t('messages.txReceived', 'Reçu'))
               : '',
-          ])}
-
-          {canDownload && (
-            <TouchableOpacity
-              style={[styles.receiptBtn, { borderColor: withAlpha(tint, 0.5) }]}
-              onPress={download}
-              disabled={downloading}
-              activeOpacity={0.8}
-            >
-              {downloading ? (
-                <ActivityIndicator size="small" color={tint} />
-              ) : (
-                <>
-                  <FontAwesome6 name="file-pdf" size={12} color={tint} />
-                  <Text style={[styles.receiptBtnText, { color: tint }]}>
-                    {t('messages.receiptPdf', 'Reçu PDF')}
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-          )}
-        </View>
+            meta.status ? String(t(`messages.status_${meta.status}`, meta.status)) : '',
+          ]
+            .filter(Boolean)
+            .join(' · '),
+          [
+            meta.id != null ? `#${meta.id}` : '',
+            meta.date ? String(meta.date).slice(0, 16).replace('T', ' ') : '',
+          ]
+            .filter(Boolean)
+            .join(' · '),
+        ],
+        canDownload ? download : undefined,
+        canDownload ? (
+          downloading ? (
+            <ActivityIndicator size="small" color={tint} />
+          ) : (
+            <View style={[styles.pdfTag, { backgroundColor: withAlpha(tint, 0.16) }]}>
+              <FontAwesome6 name="file-pdf" size={11} color={tint} />
+              <Text style={[styles.pdfTagText, { color: tint }]}>PDF</Text>
+            </View>
+          )
+        ) : undefined,
       );
     }
 
@@ -206,15 +216,13 @@ const createStyles = (Colors: ColorPalette) =>
     body: { flex: 1, minWidth: 0 },
     title: { fontFamily: Fonts.bold, fontSize: FontSize.sm },
     line: { fontFamily: Fonts.regular, fontSize: FontSize.xs, marginTop: 1 },
-    receiptBtn: {
+    pdfTag: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      gap: Spacing.xs,
-      borderWidth: 1,
+      gap: 4,
       borderRadius: BorderRadius.pill,
-      paddingVertical: Spacing.xs + 2,
-      marginBottom: Spacing.xs,
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: 4,
     },
-    receiptBtnText: { fontFamily: Fonts.semiBold, fontSize: FontSize.xs },
+    pdfTagText: { fontFamily: Fonts.bold, fontSize: FontSize.xs, letterSpacing: 0.4 },
   });

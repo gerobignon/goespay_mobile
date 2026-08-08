@@ -37,7 +37,7 @@ import type { SavedPhone } from '../types';
 import { useTranslation } from 'react-i18next';
 
 import { useConfigStore } from '../stores/configStore';
-import { useCryptoStore } from '../stores/cryptoStore';
+import { useCryptoStore, isCryptoDirAllowed } from '../stores/cryptoStore';
 import { useFormatXof } from '../utils/format';
 import { useFincraRate } from '../stores/fincraRateStore';
 import { useTransferQuote } from '../stores/transferQuoteStore';
@@ -187,7 +187,13 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     cryptos: visibleCryptos,
     showSearch: showCryptoSearch,
     empty: noCryptoMatch,
-  } = useCryptoSearch(cryptoRates);
+  } = useCryptoSearch(cryptoRates, undefined, 'buy');
+  // Cryptos dont l'admin a ouvert l'ACHAT : envoyer vers une adresse, c'est acheter.
+  const buyRates = useMemo(() => cryptoRates.filter((r) => isCryptoDirAllowed(r, 'buy')), [cryptoRates]);
+  const hasBuyCrypto = buyRates.length > 0;
+  // Tant que les taux ne sont pas chargés on garde l'entrée : la masquer puis la
+  // remettre ferait clignoter la liste des destinations.
+  const showCryptoEntry = cryptoEnabled && (cryptoRates.length === 0 || hasBuyCrypto);
   const fetchCryptoRates = useCryptoStore((s) => s.fetchRates);
   const user = useAuthStore((s) => s.user);
   const countryFees = useConfigStore((s) => s.country_fees);
@@ -1420,7 +1426,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 operators={pickerOperators}
                 groupByContinent
                 onSelectCountry={(code) => { setSelectedCountry(code); setOperator(''); }}
-                showCryptoTile={cryptoEnabled}
+                showCryptoTile={showCryptoEntry}
                 cryptoLabel={t('depositModal.cryptoGroup')}
                 onSelectCrypto={() => { setCryptoOpen(true); setOperator(''); }}
                 label={t('transferModal.chooseCountry')}
@@ -1437,6 +1443,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 </TouchableOpacity>
                 {cryptoRates.length === 0 ? (
                   <Text style={styles.phoneHint}>{t('common.loading')}</Text>
+                ) : !hasBuyCrypto ? (
+                  <Text style={styles.phoneHint}>{t('cryptoModal.noBuyCrypto')}</Text>
                 ) : (
                   <>
                     {showCryptoSearch && <CryptoSearchField value={cryptoQuery} onChange={setCryptoQuery} />}

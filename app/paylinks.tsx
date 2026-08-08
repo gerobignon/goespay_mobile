@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -69,7 +69,20 @@ export default function PaymentLinksScreen() {
   const [freeAmount, setFreeAmount] = useState(false);
   const [reusable, setReusable] = useState(false);
   const [feeBearer, setFeeBearer] = useState<FeeBearer>('payer');
+  // Acceptation de la clause de responsabilité — obligatoire à chaque création.
+  const [accepted, setAccepted] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  // Ouvrir les conditions doit amener le texte à l'écran, pas le laisser hors champ.
+  const formScrollRef = useRef<ScrollView>(null);
+  const termsCardY = useRef(0);
+
+  const closeForm = () => {
+    setFormOpen(false);
+    setAccepted(false);
+    setTermsOpen(false);
+  };
 
   const load = useCallback(() => {
     setLoading(true);
@@ -97,7 +110,7 @@ export default function PaymentLinksScreen() {
   };
 
   const create = async () => {
-    if (!title.trim()) return;
+    if (!title.trim() || !accepted) return;
     setBusy(true);
     try {
       const link = await paylinkService.create({
@@ -107,7 +120,7 @@ export default function PaymentLinksScreen() {
         fee_bearer: feeBearer,
       });
       setLinks((prev) => [link, ...prev]);
-      setFormOpen(false);
+      closeForm();
       setTitle(''); setAmount(''); setFreeAmount(false); setReusable(false); setFeeBearer('payer');
       copy(link);
     } catch (e: any) {
@@ -453,15 +466,15 @@ export default function PaymentLinksScreen() {
   );
 
   const form = (
-    <ResponsiveModal visible={formOpen} onClose={() => setFormOpen(false)}>
+    <ResponsiveModal visible={formOpen} onClose={closeForm} disableBackdropClose>
       <View style={styles.formHead}>
         <Text style={styles.formTitle}>{t('paylinks.newLink')}</Text>
-        <TouchableOpacity style={styles.formClose} onPress={() => setFormOpen(false)} hitSlop={10}>
+        <TouchableOpacity style={styles.formClose} onPress={closeForm} hitSlop={10}>
           <FontAwesome6 name="xmark" size={18} color={Colors.textSecondary} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.formScroll} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={formScrollRef} style={{ flex: 1 }} contentContainerStyle={styles.formScroll} keyboardShouldPersistTaps="handled">
         <Input
           label={t('paylinks.reason')}
           value={title}
@@ -531,6 +544,54 @@ export default function PaymentLinksScreen() {
             </TouchableOpacity>
           ))}
         </View>
+        {/* Clause de responsabilité : acceptation explicite exigée à chaque création. */}
+        <View
+          style={styles.termsCard}
+          onLayout={(e) => { termsCardY.current = e.nativeEvent.layout.y; }}
+        >
+          <View style={styles.termsHead}>
+            <FontAwesome6 name="triangle-exclamation" size={15} color={Colors.warning} iconStyle="solid" />
+            <Text style={styles.termsHeadText}>{t('paylinks.terms.heading')}</Text>
+          </View>
+
+          <Text style={styles.termsText}>{t('paylinks.terms.summary')}</Text>
+
+          <TouchableOpacity onPress={() => setTermsOpen((v) => !v)} activeOpacity={0.7}>
+            <Text style={styles.termsLink}>
+              {termsOpen ? t('paylinks.terms.hide') : t('paylinks.terms.read')}
+            </Text>
+          </TouchableOpacity>
+
+          {termsOpen && (
+            <View
+              style={styles.termsBody}
+              onLayout={(e) => {
+                formScrollRef.current?.scrollTo({
+                  y: Math.max(0, termsCardY.current + e.nativeEvent.layout.y - Spacing.md),
+                  animated: true,
+                });
+              }}
+            >
+              <Text style={styles.termsTitle}>{t('paylinks.terms.title')}</Text>
+              <Text style={styles.termsFull}>{t('paylinks.terms.full')}</Text>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.termsRow, accepted && styles.termsRowOn]}
+            onPress={() => setAccepted((v) => !v)}
+            activeOpacity={0.7}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: accepted }}
+          >
+            <View style={[styles.checkbox, accepted && styles.checkboxOn]}>
+              {accepted && <FontAwesome6 name="check" size={11} color={Colors.white} />}
+            </View>
+            <Text style={[styles.termsAccept, accepted && styles.termsAcceptOn]}>
+              {t('paylinks.terms.accept')}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       <View style={styles.formFoot}>
@@ -538,7 +599,7 @@ export default function PaymentLinksScreen() {
           title={t('paylinks.create')}
           onPress={create}
           loading={busy}
-          disabled={!title.trim() || (!freeAmount && !amount)}
+          disabled={!title.trim() || (!freeAmount && !amount) || !accepted}
         />
       </View>
     </ResponsiveModal>
@@ -800,6 +861,88 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   optionHint: { fontSize: FontSize.sm, fontFamily: Fonts.regular, color: Colors.textSecondary, marginTop: 2 },
 
   groupLabel: { fontSize: FontSize.sm, fontFamily: Fonts.medium, color: Colors.textSecondary, marginBottom: Spacing.sm },
+
+  termsCard: {
+    marginTop: Spacing.lg,
+    padding: Spacing.md,
+    backgroundColor: Colors.warning + '14',
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.warning + '55',
+  },
+  termsHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  termsHeadText: {
+    flex: 1,
+    fontSize: FontSize.md,
+    fontFamily: Fonts.semiBold,
+    color: Colors.warning,
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    marginTop: Spacing.md,
+    padding: Spacing.md,
+    backgroundColor: Colors.background,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  termsRowOn: { borderColor: Colors.primary },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxOn: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  termsAccept: {
+    flex: 1,
+    fontSize: FontSize.md,
+    fontFamily: Fonts.medium,
+    color: Colors.text,
+  },
+  termsAcceptOn: { color: Colors.text },
+  termsText: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.regular,
+    color: Colors.text,
+    lineHeight: 20,
+  },
+  termsLink: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.medium,
+    color: Colors.primary,
+    marginTop: Spacing.sm,
+  },
+  termsBody: {
+    marginTop: Spacing.md,
+    padding: Spacing.md,
+    backgroundColor: Colors.background,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  termsTitle: {
+    fontSize: FontSize.md,
+    fontFamily: Fonts.medium,
+    color: Colors.text,
+    marginBottom: Spacing.sm,
+  },
+  termsFull: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.regular,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+  },
   segment: {
     flexDirection: 'row',
     backgroundColor: Colors.background,

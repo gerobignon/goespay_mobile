@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Modal,
@@ -23,7 +23,7 @@ import { isValidCryptoAddress } from '../utils/cryptoAddress';
 import { useAuthStore } from '../stores/authStore';
 import { getApiErrorMessage } from '../utils/apiError';
 import { useWalletStore } from '../stores/walletStore';
-import { useCryptoStore, CryptoRate } from '../stores/cryptoStore';
+import { useCryptoStore, isCryptoDirAllowed, CryptoRate } from '../stores/cryptoStore';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { useResponsive } from '../hooks/useResponsive';
@@ -129,14 +129,32 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
     }
   }, [visible]);
 
+  // Devises ouvertes dans le sens de l'onglet : l'admin peut n'autoriser
+  // qu'un sens pour une crypto donnée (Marchés → Crypto).
+  const dirRates = useMemo(() => rates.filter((r) => isCryptoDirAllowed(r, tab)), [rates, tab]);
+  // Une adresse enregistrée ne sert qu'à recevoir un achat.
+  const buyRates = useMemo(() => rates.filter((r) => isCryptoDirAllowed(r, 'buy')), [rates]);
+
   // Auto-select unique active currency: when the API returns only one rate, preselect it.
   useEffect(() => {
     if (!visible) return;
     if (selectedCurrency) return;
-    if (rates.length === 1 && rates[0]?.code) {
-      setSelectedCurrency(rates[0].code);
+    if (dirRates.length === 1 && dirRates[0]?.code) {
+      setSelectedCurrency(dirRates[0].code);
     }
-  }, [visible, rates, selectedCurrency]);
+  }, [visible, dirRates, selectedCurrency]);
+
+  // Changement d'onglet : une devise ouverte dans l'autre sens seulement ne
+  // peut pas rester sélectionnée, sinon le montant porte sur une devise que le
+  // serveur refusera.
+  useEffect(() => {
+    if (!selectedCurrency) return;
+    const rate = rates.find((r) => r.code === selectedCurrency);
+    if (rate && !isCryptoDirAllowed(rate, tab)) {
+      setSelectedCurrency('');
+      setAmount('');
+    }
+  }, [tab, rates, selectedCurrency]);
 
   // Le backend ne pré-calcule le prix que des devises les plus utilisées :
   // les autres sont chiffrées ici, à la sélection.
@@ -176,13 +194,18 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
     cryptos: visibleCryptos,
     showSearch: showCryptoSearch,
     empty: noCryptoMatch,
-  } = useCryptoSearch(rates, selectedCurrency);
+    none: noCryptoForTab,
+  } = useCryptoSearch(rates, selectedCurrency, tab);
 
   const selectedRate = rates.find((r) => r.code === selectedCurrency);
   const normalizedWalletAddress = walletAddress.trim();
   const normalizedCurrency = normalizeCurrencyCode(selectedCurrency || '');
-  const walletsForSelectedCurrency = savedWallets.filter(
-    (w) => !selectedCurrency || normalizeCurrencyCode(w.currency) === normalizedCurrency,
+  const walletsForSelectedCurrency = savedWallets.filter((w) =>
+    selectedCurrency
+      ? normalizeCurrencyCode(w.currency) === normalizedCurrency
+      // Sans devise choisie, on ne propose que les adresses d'une devise ouverte
+      // dans le sens courant : les autres ne mèneraient nulle part.
+      : dirRates.some((r) => normalizeCurrencyCode(r.code) === normalizeCurrencyCode(w.currency)),
   );
   const existingSelectedWallet = savedWallets.find(
     (w) => normalizeCurrencyCode(w.currency) === normalizedCurrency && w.address === normalizedWalletAddress,
@@ -306,7 +329,9 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
 
   function resolveRateCodeFromWalletCurrency(walletCurrency: string): string {
     const normalized = normalizeCurrencyCode(walletCurrency);
-    const matchedRate = rates.find((rate) => normalizeCurrencyCode(rate.code) === normalized);
+    // Résolu dans le sens courant : sélectionner une devise fermée serait
+    // aussitôt annulé, et le tap n'aurait aucun effet visible.
+    const matchedRate = dirRates.find((rate) => normalizeCurrencyCode(rate.code) === normalized);
     return matchedRate?.code || '';
   }
 
@@ -552,6 +577,13 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                     style={{ marginTop: Spacing.md }}
                   />
                 )}
+              </View>
+            ) : noCryptoForTab ? (
+              <View style={styles.loadingContainer}>
+                <FontAwesome6 name="circle-info" size={32} color={Colors.textMuted} />
+                <Text style={styles.loadingText}>
+                  {t(tab === 'sell' ? 'cryptoModal.noSellCrypto' : 'cryptoModal.noBuyCrypto')}
+                </Text>
               </View>
             ) : (
               <>
@@ -875,7 +907,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
             {/* Sélecteur de monnaie */}
             <Text style={styles.saveWalletLabel}>{t('cryptoModal.selectCurrency')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.saveWalletCurrencyScroll} contentContainerStyle={{ gap: Spacing.xs, paddingVertical: Spacing.xs }}>
-              {rates.map((item) => {
+              {buyRates.map((item) => {
                 const code = normalizeCurrencyCode(item.code);
                 const isSelected = normalizeCurrencyCode(saveWalletCurrency) === code;
                 return (

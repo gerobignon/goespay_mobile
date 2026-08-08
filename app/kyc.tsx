@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,13 @@ import {
   Image,
   FlatList,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenBackground } from '../src/components/ScreenBackground';
 import { ResponsiveModal } from '../src/components/ResponsiveModal';
 import { useResponsive } from '../src/hooks/useResponsive';
@@ -22,19 +27,31 @@ import { Input } from '../src/components/Input';
 import { Button } from '../src/components/Button';
 import { Card } from '../src/components/Card';
 import { GlassCard } from '../src/components/GlassCard';
+import { ActionSheet } from '../src/components/ActionSheet';
+import { Reveal, Bounce } from '../src/components/anim';
+import { useColors } from '../src/components/ThemeProvider';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Spacing, FontSize, BorderRadius, Fonts } from '../src/constants/theme';
+import { Spacing, FontSize, BorderRadius, Fonts, withAlpha } from '../src/constants/theme';
 import type { ColorPalette } from '../src/constants/theme';
 import { useThemedStyles } from '../src/hooks/useThemedStyles';
 import { showAlert } from '../src/stores/alertStore';
 import { ALL_COUNTRIES } from '../src/constants/countries';
+import { getApiErrorMessage } from '../src/utils/apiError';
 import { useTranslation } from 'react-i18next';
 
 const DOC_TYPES_KEYS = [
-  { value: 'Passport', key: 'kyc.passport' },
-  { value: 'Identity card', key: 'kyc.identityCard' },
-  { value: "Driver's license", key: 'kyc.driverLicense' },
+  { value: 'Passport', key: 'kyc.passport', icon: 'passport' },
+  { value: 'Identity card', key: 'kyc.identityCard', icon: 'id-card' },
+  { value: "Driver's license", key: 'kyc.driverLicense', icon: 'car' },
 ];
+
+/** Cible d'une prise de vue (pièce ou selfie) — pilote la feuille caméra/galerie. */
+type PhotoTarget = 'id' | 'selfie' | null;
+
+/** Erreurs de saisie, par nom de champ. */
+type Errors = Record<string, string>;
+
+const STEP_COUNT = 4;
 
 export default function KycScreen() {
   const router = useRouter();
@@ -47,10 +64,12 @@ export default function KycScreen() {
   const editMode = edit === '1';
   const { user, refreshProfile } = useAuthStore();
   const styles = useThemedStyles(createStyles);
+  const colors = useColors();
   const { t } = useTranslation();
   const { contentMaxWidth } = useResponsive();
+  const insets = useSafeAreaInsets();
 
-  const DOC_TYPES = DOC_TYPES_KEYS.map((d) => ({ value: d.value, label: t(d.key) }));
+  const DOC_TYPES = DOC_TYPES_KEYS.map((d) => ({ ...d, label: t(d.key) }));
 
   // Personal info state (pre-filled from user)
   const [country, setCountry] = useState(user?.country ?? '');
@@ -77,6 +96,14 @@ export default function KycScreen() {
   const [fileUri, setFileUri] = useState<string | null>(null);
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [photoTarget, setPhotoTarget] = useState<PhotoTarget>(null);
+
+  // Assistant : étape courante + erreurs affichées (elles n'apparaissent qu'après
+  // une tentative de passage à l'étape suivante, jamais pendant la frappe).
+  const [step, setStep] = useState(0);
+  const [errors, setErrors] = useState<Errors>({});
+  const scrollRef = useRef<ScrollView>(null);
+  const progress = useRef(new Animated.Value(0)).current;
 
   // Country picker modal
   const [countryModalVisible, setCountryModalVisible] = useState(false);
@@ -93,68 +120,154 @@ export default function KycScreen() {
     );
   }, [countrySearch]);
 
-  const takePhoto = async (setter: (uri: string) => void) => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      showAlert('Permission requise', "L'accès à la caméra est nécessaire pour le KYC.");
-      return;
+  // Aperçus effectifs : nouvelle photo prise, sinon celle déjà envoyée.
+  const idPreview = fileUri ?? user?.kyc_file_url ?? null;
+  const selfiePreview = selfieUri ?? user?.kyc_tof_url ?? null;
+
+  const STEPS = [
+    { label: t('kyc.identity'), icon: 'user-large' },
+    { label: t('kyc.document'), icon: 'id-card' },
+    { label: t('kyc.stepPhotos'), icon: 'camera' },
+    { label: t('kyc.stepReview'), icon: 'circle-check' },
+  ];
+
+  /* ─────────────────────────── Validation ──────────────────────────────── */
+
+  // Une seule source de vérité : sert à la fois au blocage du « Continuer », à
+  // l'affichage des erreurs et à l'état (vert / gris) des pastilles du stepper.
+  const validateStep = (i: number): Errors => {
+    const e: Errors = {};
+    const req = t('kyc.errRequired');
+    if (i === 0) {
+      if (!country) e.country = req;
+      if (!city.trim()) e.city = req;
+      if (!postcode.trim()) e.postcode = req;
+      if (!stateProv.trim()) e.state = req;
+      if (!address.trim()) e.address = req;
+      if (!phone.trim()) e.phone = req;
+      const d = parseInt(birthDay, 10), m = parseInt(birthMonth, 10), y = parseInt(birthYear, 10);
+      if (!birthDay || !birthMonth || birthYear.length !== 4) e.birthdate = req;
+      else if (isNaN(d) || d < 1 || d > 31 || isNaN(m) || m < 1 || m > 12 || y < 1900 || y > new Date().getFullYear()) {
+        e.birthdate = t('kyc.errBirthdate');
+      }
     }
+    if (i === 1) {
+      if (!docType) e.docType = t('kyc.errDocType');
+      if (!idnumber.trim()) e.idnumber = req;
+      const m = parseInt(idexpMonth, 10);
+      if (!idexpMonth || !idexpYear) e.idexp = req;
+      else if (isNaN(m) || m < 1 || m > 12) e.idexp = t('kyc.errMonth');
+      else if (idexpYear.length !== 4) e.idexp = t('kyc.errYear');
+      else {
+        const now = new Date();
+        const y = parseInt(idexpYear, 10);
+        if (y < now.getFullYear() || (y === now.getFullYear() && m < now.getMonth() + 1)) {
+          e.idexp = t('kyc.errExpiryPast');
+        }
+      }
+    }
+    if (i === 2) {
+      if (!idPreview) e.idPhoto = t('kyc.errIdPhoto');
+      if (!selfiePreview) e.selfie = t('kyc.errSelfie');
+    }
+    return e;
+  };
+
+  const stepDone = [0, 1, 2].map((i) => Object.keys(validateStep(i)).length === 0);
+  const allDone = stepDone.every(Boolean);
+
+  // Barre de progression : avance avec l'étape courante, pas avec le remplissage
+  // (le client doit voir « où il en est », pas un pourcentage qui recule).
+  useEffect(() => {
+    Animated.timing(progress, {
+      toValue: (step + 1) / STEP_COUNT,
+      duration: 420,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [step]);
+
+  const scrollTop = () => scrollRef.current?.scrollTo({ y: 0, animated: true });
+
+  const goToStep = (i: number) => {
+    setErrors({});
+    setStep(i);
+    scrollTop();
+  };
+
+  const goNext = () => {
+    const e = validateStep(step);
+    setErrors(e);
+    if (Object.keys(e).length > 0) return;
+    setStep((s) => Math.min(s + 1, STEP_COUNT - 1));
+    scrollTop();
+  };
+
+  const goPrev = () => {
+    if (step === 0) { goBack(); return; }
+    setErrors({});
+    setStep((s) => s - 1);
+    scrollTop();
+  };
+
+  // Pastille du stepper : on ne saute en avant que sur une étape atteignable
+  // (toutes celles qui la précèdent sont valides) — sinon le retour est libre.
+  const canJumpTo = (i: number) => i <= step || stepDone.slice(0, i).every(Boolean);
+
+  /* ─────────────────────────── Photos ──────────────────────────────────── */
+
+  const applyPhoto = async (uri: string, target: Exclude<PhotoTarget, null>) => {
+    const compressed = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ resize: { width: 1600 } }],
+      { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+    );
+    (target === 'id' ? setFileUri : setSelfieUri)(compressed.uri);
+    setErrors((prev) => ({ ...prev, [target === 'id' ? 'idPhoto' : 'selfie']: '' }));
+  };
+
+  // Caméra et galerie : la galerie est le seul recours quand la caméra n'est pas
+  // disponible (web de bureau, permission refusée durablement).
+  const pickFrom = async (source: 'camera' | 'gallery') => {
+    const target = photoTarget;
+    setPhotoTarget(null);
+    if (!target) return;
     try {
-      const result = await ImagePicker.launchCameraAsync({
+      if (source === 'camera') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') { showAlert(t('common.error'), t('kyc.cameraPermission')); return; }
+        const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.8 });
+        if (!result.canceled && result.assets[0]) await applyPhoto(result.assets[0].uri, target);
+        return;
+      }
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') { showAlert(t('common.error'), t('kyc.galleryPermission')); return; }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
         allowsEditing: true,
         quality: 0.8,
       });
-      if (!result.canceled && result.assets[0]) {
-        const compressed = await ImageManipulator.manipulateAsync(
-          result.assets[0].uri,
-          [{ resize: { width: 1600 } }],
-          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
-        );
-        setter(compressed.uri);
-      }
+      if (!result.canceled && result.assets[0]) await applyPhoto(result.assets[0].uri, target);
     } catch {
-      showAlert('Caméra indisponible', 'Veuillez vérifier que la caméra est accessible.');
+      showAlert(t('common.error'), t('kyc.cameraUnavailable'));
     }
   };
 
+  /* ─────────────────────────── Envoi ───────────────────────────────────── */
+
   const handleSubmit = async () => {
-    if (!city.trim()) { showAlert('Erreur', 'Veuillez entrer votre ville.'); return; }
-    if (!stateProv.trim()) { showAlert('Erreur', 'Veuillez entrer votre province / état.'); return; }
-    if (!postcode.trim()) { showAlert('Erreur', 'Veuillez entrer votre code postal.'); return; }
-    if (!address.trim()) { showAlert('Erreur', 'Veuillez entrer votre adresse.'); return; }
-    if (!idnumber.trim()) { showAlert('Erreur', 'Veuillez entrer le numéro de votre pièce.'); return; }
-    // Date de naissance (3 cases) → AAAA-MM-JJ
-    if (!birthDay.trim() || !birthMonth.trim() || birthYear.length !== 4) { showAlert('Erreur', 'Veuillez entrer votre date de naissance (JJ / MM / AAAA).'); return; }
-    const bDay = parseInt(birthDay, 10), bMonth = parseInt(birthMonth, 10), bYear = parseInt(birthYear, 10);
-    if (isNaN(bDay) || bDay < 1 || bDay > 31 || isNaN(bMonth) || bMonth < 1 || bMonth > 12 || bYear < 1900 || bYear > new Date().getFullYear()) {
-      showAlert('Erreur', 'Date de naissance invalide.'); return;
+    // Filet : une étape peut avoir été invalidée après coup (photo retirée…).
+    for (let i = 0; i < 3; i++) {
+      const e = validateStep(i);
+      if (Object.keys(e).length > 0) { setStep(i); setErrors(e); scrollTop(); return; }
     }
     const birthdateIso = `${birthYear}-${birthMonth.padStart(2, '0')}-${birthDay.padStart(2, '0')}`;
-    if (!idexpMonth.trim() || !idexpYear.trim()) { showAlert('Erreur', "Veuillez entrer la date d'expiration."); return; }
-    const monthNum = parseInt(idexpMonth, 10);
-    if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) { showAlert('Erreur', 'Mois invalide (1-12).'); return; }
-    if (idexpYear.length !== 4) { showAlert('Erreur', 'Année invalide (4 chiffres).'); return; }
-    const yearNum = parseInt(idexpYear, 10);
-    const now = new Date();
-    const curYear = now.getFullYear();
-    const curMonth = now.getMonth() + 1;
-    if (yearNum < curYear || (yearNum === curYear && monthNum < curMonth)) {
-      showAlert('Erreur', "La date d'expiration doit être postérieure à aujourd'hui.");
-      return;
-    }
-    const idexp = `${idexpMonth.padStart(2, '0')}/${idexpYear}`;
-    if (!phone.trim()) { showAlert('Erreur', 'Veuillez entrer votre numéro de téléphone.'); return; }
-    if (!docType) { showAlert('Erreur', 'Veuillez choisir un type de document.'); return; }
-    if (!fileUri && !user?.kyc_file_url) { showAlert('Erreur', "Veuillez ajouter la photo de votre pièce d'identité."); return; }
-    if (!selfieUri && !user?.kyc_tof_url) { showAlert('Erreur', 'Veuillez ajouter votre selfie.'); return; }
+    // Format « MM/YYYY » conservé tel quel : l'admin (validations.htm) découpe
+    // idexp sur « / » et attend exactement deux parties.
+    const idexpValue = `${idexpMonth.padStart(2, '0')}/${idexpYear}`;
 
     setLoading(true);
     try {
-      // Convert DD/MM/YYYY → YYYY-MM-DD for backend
-      const idexpIso = (() => {
-        const m = idexp.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-        return m ? `${m[3]}-${m[2]}-${m[1]}` : idexp.trim();
-      })();
       await authService.uploadKyc(
         {
           type: docType,
@@ -164,7 +277,7 @@ export default function KycScreen() {
           address: address.trim(),
           idnumber: idnumber.trim(),
           birthdate: birthdateIso,
-          idexp: idexpIso,
+          idexp: idexpValue,
           phone: phone.trim(),
           country,
           telegram: telegram.trim(),
@@ -185,23 +298,95 @@ export default function KycScreen() {
         data: error?.response?.data,
         message: error?.message,
       });
-      const data = error?.response?.data;
-      // Erreurs de champ (422) EN PRIORITÉ : le détail (« téléphone déjà associé… »)
-      // avant le message générique « Les données fournies sont invalides. ».
-      const fieldErrors = data?.errors && typeof data.errors === 'object'
-        ? Object.values(data.errors).flat().filter(Boolean).join('\n')
-        : null;
-      const msg = fieldErrors
-        || data?.error
-        || data?.message
-        || (typeof data === 'string' && !data.trim().startsWith('<') ? data.slice(0, 200) : null)
-        || error?.message
-        || "Erreur lors de l'envoi des documents.";
-      showAlert('Erreur', msg as string);
+      showAlert(t('common.error'), getApiErrorMessage(error, t, t('kyc.uploadError')));
     } finally {
       setLoading(false);
     }
   };
+
+  /* ─────────────────────────── Fragments ───────────────────────────────── */
+
+  const renderHeader = (subtitle?: string) => (
+    <View style={styles.header}>
+      <Bounce style={styles.backBtn} scaleTo={0.9} onPress={goBack} hitSlop={8}>
+        <FontAwesome6 name="arrow-left" size={16} color={colors.text} />
+      </Bounce>
+      <View style={styles.headerText}>
+        <Text style={styles.title}>{t('kyc.title')}</Text>
+        {!!subtitle && <Text style={styles.headerSub}>{subtitle}</Text>}
+      </View>
+      <View style={styles.backBtnGhost} />
+    </View>
+  );
+
+  const renderField = (label: string, node: React.ReactNode, error?: string, wrapStyle?: any) => (
+    <View style={[styles.field, wrapStyle]}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      {node}
+      {!!error && <Text style={styles.fieldError}>{error}</Text>}
+    </View>
+  );
+
+  // Zone photo : aperçu plein cadre + « Reprendre », sinon appel à l'action.
+  const renderPhotoPicker = (
+    preview: string | null,
+    target: Exclude<PhotoTarget, null>,
+    icon: string,
+    addLabel: string,
+    error?: string
+  ) => (
+    <>
+      <Bounce
+        style={[styles.imagePicker, preview ? styles.imagePickerFilled : null, !!error && styles.imagePickerError] as any}
+        scaleTo={0.98}
+        onPress={() => setPhotoTarget(target)}
+      >
+        {preview ? (
+          <>
+            <Image source={{ uri: preview }} style={styles.previewImage} />
+            <View style={styles.previewBadge}>
+              <FontAwesome6 name="check" size={10} color={colors.white} />
+            </View>
+            <View style={styles.retakeChip}>
+              <FontAwesome6 name="rotate-right" size={11} color={colors.white} />
+              <Text style={styles.retakeText}>{t('kyc.retake')}</Text>
+            </View>
+          </>
+        ) : (
+          <View style={styles.placeholderContainer}>
+            <View style={styles.placeholderIcon}>
+              <FontAwesome6 name={icon} size={26} color={colors.primary} />
+            </View>
+            <Text style={styles.placeholderTitle}>{addLabel}</Text>
+            <Text style={styles.placeholderHint}>{t('kyc.photoFormat')}</Text>
+          </View>
+        )}
+      </Bounce>
+      {!!error && <Text style={styles.fieldError}>{error}</Text>}
+    </>
+  );
+
+  // Ligne du récapitulatif
+  const renderSummaryRow = (label: string, value?: string | null) => (
+    <View style={styles.sumRow} key={label}>
+      <Text style={styles.sumLabel}>{label}</Text>
+      <Text style={styles.sumValue} numberOfLines={1}>{value || '—'}</Text>
+    </View>
+  );
+
+  const renderSummaryCard = (title: string, targetStep: number, rows: React.ReactNode) => (
+    <Card style={styles.sectionCard}>
+      <View style={styles.sumHead}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        <TouchableOpacity onPress={() => goToStep(targetStep)} hitSlop={10} activeOpacity={0.7}>
+          <Text style={styles.sumEdit}>{t('common.edit')}</Text>
+        </TouchableOpacity>
+      </View>
+      {rows}
+    </Card>
+  );
+
+  /* ─────────────────────────── États terminaux ─────────────────────────── */
 
   // --- État: validate == 2 (en attente) — sauf en mode édition (re-soumission) ---
   if (user?.validate === 2 && !editMode) {
@@ -209,33 +394,22 @@ export default function KycScreen() {
       <ScreenBackground>
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={[styles.contentWrapper, { maxWidth: contentMaxWidth }]}>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={goBack}>
-              <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
-            </TouchableOpacity>
-            <Text style={styles.title}>{t('kyc.title')}</Text>
-            <View style={{ width: 20 }} />
-          </View>
-
-          <GlassCard style={styles.pendingContainer}>
-            <LinearGradient
-              colors={['#F4B228', '#e0951a']}
-              style={styles.pendingIconGrad}
-            >
-              <FontAwesome6 name="clock" size={44} color={Colors.white} />
-            </LinearGradient>
-            <Text style={styles.pendingTitle}>{t('kyc.documentsReceived')}</Text>
-            <Text style={styles.pendingText}>
-              {t('kyc.pending')}
-            </Text>
-          </GlassCard>
-
-          <Button
-            title="Retour au tableau de bord"
-            onPress={() => router.replace('/(tabs)')}
-            icon="house"
-            style={{ marginTop: Spacing.xl }}
-          />
+            {renderHeader()}
+            <Reveal>
+              <GlassCard style={styles.pendingContainer}>
+                <LinearGradient colors={['#F4B228', '#e0951a']} style={styles.pendingIconGrad}>
+                  <FontAwesome6 name="clock" size={44} color={colors.white} />
+                </LinearGradient>
+                <Text style={styles.pendingTitle}>{t('kyc.documentsReceived')}</Text>
+                <Text style={styles.pendingText}>{t('kyc.pending')}</Text>
+              </GlassCard>
+            </Reveal>
+            <Button
+              title={t('kyc.backToDashboard')}
+              onPress={() => router.replace('/(tabs)')}
+              icon="house"
+              style={{ marginTop: Spacing.xl }}
+            />
           </View>
         </ScrollView>
       </ScreenBackground>
@@ -248,349 +422,422 @@ export default function KycScreen() {
       <ScreenBackground>
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={[styles.contentWrapper, { maxWidth: contentMaxWidth }]}>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={goBack}>
-              <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
-            </TouchableOpacity>
-            <Text style={styles.title}>{t('kyc.title')}</Text>
-            <View style={{ width: 20 }} />
-          </View>
-
-          <GlassCard style={styles.pendingContainer}>
-            <LinearGradient
-              colors={['#3ecf8e', '#198754']}
-              style={styles.pendingIconGrad}
-            >
-              <FontAwesome6 name="circle-check" size={44} color={Colors.white} />
-            </LinearGradient>
-            <Text style={styles.pendingTitle}>{t('kyc.accountVerified')}</Text>
-            <Text style={styles.pendingText}>
-              {t('kyc.approved')}
-            </Text>
-          </GlassCard>
-
-          <Button
-            title="Retour"
-            onPress={goBack}
-            icon="arrow-left"
-            style={{ marginTop: Spacing.xl }}
-          />
+            {renderHeader()}
+            <Reveal>
+              <GlassCard style={styles.pendingContainer}>
+                <LinearGradient colors={['#3ecf8e', '#198754']} style={styles.pendingIconGrad}>
+                  <FontAwesome6 name="circle-check" size={44} color={colors.white} />
+                </LinearGradient>
+                <Text style={styles.pendingTitle}>{t('kyc.accountVerified')}</Text>
+                <Text style={styles.pendingText}>{t('kyc.approved')}</Text>
+              </GlassCard>
+            </Reveal>
+            <Button title={t('common.back')} onPress={goBack} icon="arrow-left" style={{ marginTop: Spacing.xl }} />
           </View>
         </ScrollView>
       </ScreenBackground>
     );
   }
 
-  // --- État: validate == 0 (non vérifié) ---
+  /* ─────────────────────────── Assistant ───────────────────────────────── */
+
+  const docLabel = DOC_TYPES.find((d) => d.value === docType)?.label;
+
   return (
     <ScreenBackground style={{ overflow: 'hidden' }}>
-      <ScrollView
+      <KeyboardAvoidingView
         style={{ flex: 1, width: '100%' }}
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={[styles.contentWrapper, { maxWidth: contentMaxWidth }]}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={goBack}>
-            <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.title}>{t('kyc.title')}</Text>
-          <View style={{ width: 20 }} />
-        </View>
-
-        {/* Instructions */}
-        <Card>
-          <View style={styles.instructionRow}>
-            <FontAwesome6 name="fingerprint" size={20} color={Colors.secondary} />
-            <Text style={styles.instructions}>
-              Vérifiez votre identité pour accéder à toutes les fonctionnalités de votre compte.
-            </Text>
-          </View>
-        </Card>
-
-        {/* Aperçu du processus */}
-        <View style={styles.guideImageWrapper}>
-          <Image source={require('../assets/vali1.png')} style={styles.guideImageFill} />
-        </View>
-
-        {/* ── Informations personnelles ── */}
-        <Text style={styles.sectionTitle}>
-          <FontAwesome6 name="user-gear" size={14} color={Colors.secondary} />
-          {'  '}Informations personnelles
-        </Text>
-        <Card style={{ gap: Spacing.sm }}>
-          {/* Pays */}
-          <Text style={styles.fieldLabel}>{t('kyc.country')}</Text>
-          <TouchableOpacity
-            style={styles.countryPicker}
-            onPress={() => setCountryModalVisible(true)}
-            activeOpacity={0.7}
-          >
-            <Text style={selectedCountry ? styles.countryPickerText : styles.countryPickerPlaceholder}>
-              {selectedCountry ? `${selectedCountry.name} (+${selectedCountry.phone})` : t('kyc.selectCountry')}
-            </Text>
-            <FontAwesome6 name="chevron-down" size={12} color={Colors.textMuted} />
-          </TouchableOpacity>
-
-          {/* Ville */}
-          <Text style={styles.fieldLabel}>{t('kyc.city')}</Text>
-          <Input placeholder="Votre ville" value={city} onChangeText={setCity} />
-
-          {/* Province / État */}
-          <Text style={styles.fieldLabel}>{t('kyc.state')}</Text>
-          <Input placeholder={t('kyc.statePlaceholder')} value={stateProv} onChangeText={setStateProv} />
-
-          {/* Code postal */}
-          <Text style={styles.fieldLabel}>{t('kyc.postcode')}</Text>
-          <Input placeholder={t('kyc.postcodePlaceholder')} value={postcode} onChangeText={setPostcode} />
-
-          {/* Adresse */}
-          <Text style={styles.fieldLabel}>{t('kyc.address')}</Text>
-          <Input placeholder="Adresse complète" value={address} onChangeText={setAddress} />
-
-          {/* N° pièce d'identité */}
-          <Text style={styles.fieldLabel}>N° pièce d'identité</Text>
-          <Input placeholder="Numéro de la pièce" value={idnumber} onChangeText={setIdnumber} />
-
-          {/* Date de naissance : JJ / MM / AAAA */}
-          <Text style={styles.fieldLabel}>Date de naissance</Text>
-          <View style={styles.expiryRow}>
-            <View style={styles.expiryField}>
-              <Input
-                placeholder="JJ"
-                value={birthDay}
-                onChangeText={(v) => {
-                  const digits = v.replace(/[^0-9]/g, '').slice(0, 2);
-                  if (digits.length === 2) {
-                    const n = parseInt(digits, 10);
-                    if (n < 1) { setBirthDay('01'); return; }
-                    if (n > 31) { setBirthDay('31'); return; }
-                  }
-                  setBirthDay(digits);
-                }}
-                keyboardType="number-pad"
-                maxLength={2}
-              />
-            </View>
-            <Text style={styles.expirySep}>/</Text>
-            <View style={styles.expiryField}>
-              <Input
-                placeholder="MM"
-                value={birthMonth}
-                onChangeText={(v) => {
-                  const digits = v.replace(/[^0-9]/g, '').slice(0, 2);
-                  if (digits.length === 2) {
-                    const n = parseInt(digits, 10);
-                    if (n < 1) { setBirthMonth('01'); return; }
-                    if (n > 12) { setBirthMonth('12'); return; }
-                  }
-                  setBirthMonth(digits);
-                }}
-                keyboardType="number-pad"
-                maxLength={2}
-              />
-            </View>
-            <Text style={styles.expirySep}>/</Text>
-            <View style={styles.expiryFieldWide}>
-              <Input
-                placeholder="AAAA"
-                value={birthYear}
-                onChangeText={(v) => setBirthYear(v.replace(/[^0-9]/g, '').slice(0, 4))}
-                keyboardType="number-pad"
-                maxLength={4}
-              />
-            </View>
-          </View>
-
-          {/* Date d'expiration */}
-          <Text style={styles.fieldLabel}>{t('kyc.expiryDate')}</Text>
-          <View style={styles.expiryRow}>
-            <View style={styles.expiryField}>
-              <Input
-                placeholder="MM"
-                value={idexpMonth}
-                onChangeText={(v) => {
-                  const digits = v.replace(/[^0-9]/g, '').slice(0, 2);
-                  if (digits.length === 2) {
-                    const n = parseInt(digits, 10);
-                    if (n < 1) { setIdexpMonth('01'); return; }
-                    if (n > 12) { setIdexpMonth('12'); return; }
-                  }
-                  setIdexpMonth(digits);
-                }}
-                keyboardType="number-pad"
-                maxLength={2}
-              />
-            </View>
-            <Text style={styles.expirySep}>/</Text>
-            <View style={styles.expiryFieldWide}>
-              <Input
-                placeholder="AAAA"
-                value={idexpYear}
-                onChangeText={(v) => setIdexpYear(v.replace(/[^0-9]/g, '').slice(0, 4))}
-                keyboardType="number-pad"
-                maxLength={4}
-              />
-            </View>
-          </View>
-
-          {/* Téléphone */}
-          <Text style={styles.fieldLabel}>{t('kyc.whatsapp')} {prefix ? `(${prefix})` : ''}</Text>
-          <Input
-            placeholder="Numéro sans indicatif"
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-          />
-
-          {/* Telegram */}
-          <Text style={styles.fieldLabel}>{t('kyc.telegramOptional')}</Text>
-          <Input placeholder="@username" value={telegram} onChangeText={setTelegram} />
-        </Card>
-
-        {/* ── Type de document ── */}
-        <Text style={styles.sectionTitle}>
-          <FontAwesome6 name="id-card" size={14} color={Colors.secondary} />
-          {'  '}Type de document
-        </Text>
-        <View style={styles.docTypeContainer}>
-          {DOC_TYPES.map((dt) => (
-            <TouchableOpacity
-              key={dt.value}
-              style={[
-                styles.docTypeBtn,
-                docType === dt.value && styles.docTypeBtnActive,
-              ]}
-              onPress={() => setDocType(dt.value)}
-              activeOpacity={0.7}
-            >
-              <FontAwesome6
-                name={dt.value === 'Passport' ? 'passport' : dt.value === 'Identity card' ? 'id-card' : 'car'}
-                size={16}
-                color={docType === dt.value ? Colors.white : Colors.textMuted}
-              />
-              <Text
-                style={[
-                  styles.docTypeText,
-                  docType === dt.value && styles.docTypeTextActive,
-                ]}
-              >
-                {dt.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* ── Photo pièce d'identité (visible seulement si docType choisi) ── */}
-        {docType ? (
-          <>
-            <Text style={styles.sectionTitle}>
-              <FontAwesome6 name="camera" size={14} color={Colors.secondary} />
-              {'  '}Photo de la pièce d'identité
-            </Text>
-            <View style={styles.guideImageDocWrapper}>
-              <Image source={require('../assets/kyc_id_sample.jpg')} style={styles.guideImageFill} />
-            </View>
-            <Card style={{ marginBottom: Spacing.sm, paddingVertical: Spacing.sm }}>
-              <View style={styles.instructionRow}>
-                <FontAwesome6 name="circle-info" size={14} color={Colors.secondary} />
-                <Text style={styles.selfieHint}>{t('kyc.idHint')}</Text>
-              </View>
-            </Card>
-            <TouchableOpacity
-              style={styles.imagePicker}
-              onPress={() => takePhoto(setFileUri)}
-              activeOpacity={0.7}
-            >
-              {fileUri ? (
-                <Image source={{ uri: fileUri }} style={styles.previewImage} />
-              ) : user?.kyc_file_url ? (
-                <Image source={{ uri: user.kyc_file_url }} style={styles.previewImage} />
-              ) : (
-                <View style={styles.placeholderContainer}>
-                  <View style={styles.placeholderIcon}>
-                    <FontAwesome6 name="id-card" size={28} color={Colors.textMuted} />
-                  </View>
-                  <Text style={styles.placeholderTitle}>{t('kyc.addId')}</Text>
-                  <Text style={styles.placeholderHint}>JPG ou PNG • Max 8 Mo</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-
-            {/* ── Selfie avec la pièce ── */}
-            <Text style={styles.sectionTitle}>
-              <FontAwesome6 name="user" size={14} color={Colors.secondary} />
-              {'  '}Selfie avec la pièce
-            </Text>
-            <View style={styles.guideImageWrapper}>
-              <Image source={require('../assets/kyc_selfie_sample.jpg')} style={styles.guideImageFill} />
-            </View>
-            <Card style={{ marginBottom: Spacing.sm, paddingVertical: Spacing.sm }}>
-              <View style={styles.instructionRow}>
-                <FontAwesome6 name="circle-info" size={14} color={Colors.secondary} />
-                <Text style={styles.selfieHint}>{t('kyc.selfieHint')}</Text>
-              </View>
-            </Card>
-            <TouchableOpacity
-              style={styles.imagePicker}
-              onPress={() => takePhoto(setSelfieUri)}
-              activeOpacity={0.7}
-            >
-              {selfieUri ? (
-                <Image source={{ uri: selfieUri }} style={styles.previewImage} />
-              ) : user?.kyc_tof_url ? (
-                <Image source={{ uri: user.kyc_tof_url }} style={styles.previewImage} />
-              ) : (
-                <View style={styles.placeholderContainer}>
-                  <View style={styles.placeholderIcon}>
-                    <FontAwesome6 name="camera-retro" size={28} color={Colors.textMuted} />
-                  </View>
-                  <Text style={styles.placeholderTitle}>{t('kyc.addSelfie')}</Text>
-                  <Text style={styles.placeholderHint}>JPG ou PNG • Max 8 Mo</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </>
-        ) : null}
-
-        <Button
-          title="Valider le KYC"
-          onPress={handleSubmit}
-          icon="fingerprint"
-          loading={loading}
-          disabled={!docType || (!fileUri && !user?.kyc_file_url) || (!selfieUri && !user?.kyc_tof_url) || !city || !stateProv || !postcode || !address || !idnumber || !birthDay || !birthMonth || !birthYear || !idexpMonth || !idexpYear || !phone}
-          style={{ marginTop: Spacing.xl, marginBottom: Spacing.xxl }}
-        />
-
-        <TouchableOpacity
-          style={styles.laterBtn}
-          onPress={goBack}
-          activeOpacity={0.7}
+        <ScrollView
+          ref={scrollRef}
+          style={{ flex: 1, width: '100%' }}
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
         >
-          <FontAwesome6 name="rectangle-xmark" size={14} color={Colors.textMuted} />
-          <Text style={styles.laterText}>{t('common.completeLater')}</Text>
-        </TouchableOpacity>
-        </View>{/* /maxWidth wrapper */}
-      </ScrollView>
+          <View style={[styles.contentWrapper, { maxWidth: contentMaxWidth }]}>
+            {renderHeader(t('kyc.stepOf', { n: step + 1, total: STEP_COUNT }))}
+
+            {/* Barre de progression continue */}
+            <View style={styles.progressTrack}>
+              <Animated.View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+                    backgroundColor: allDone ? colors.positive : colors.primary,
+                  },
+                ]}
+              />
+            </View>
+
+            {/* Stepper — pastilles cliquables */}
+            <View style={styles.stepper}>
+              {STEPS.map((s, i) => {
+                const done = i < 3 ? stepDone[i] : allDone;
+                const active = i === step;
+                const reachable = canJumpTo(i);
+                return (
+                  <React.Fragment key={s.label}>
+                    {i > 0 && <View style={[styles.stepLine, (i <= step || stepDone[i - 1]) && styles.stepLineDone]} />}
+                    <Bounce
+                      style={styles.stepItem}
+                      scaleTo={0.92}
+                      disabled={!reachable}
+                      onPress={() => reachable && goToStep(i)}
+                    >
+                      <View style={[
+                        styles.stepDot,
+                        done && styles.stepDotDone,
+                        active && styles.stepDotActive,
+                        !reachable && styles.stepDotLocked,
+                      ]}>
+                        <FontAwesome6
+                          name={done && !active ? 'check' : s.icon}
+                          size={13}
+                          color={active || (done && !active) ? colors.white : colors.textMuted}
+                        />
+                      </View>
+                      <Text style={[styles.stepLabel, (active || done) && styles.stepLabelActive]} numberOfLines={1}>
+                        {s.label}
+                      </Text>
+                    </Bounce>
+                  </React.Fragment>
+                );
+              })}
+            </View>
+
+            {/* ── Étape 1 : identité ── */}
+            {step === 0 && (
+              <Reveal key="s0" offset={14}>
+                <Card style={styles.sectionCard}>
+                  {renderField(
+                    t('kyc.country'),
+                    <Bounce
+                      style={[styles.countryPicker, !!errors.country && styles.inputErrorBox] as any}
+                      scaleTo={0.99}
+                      onPress={() => setCountryModalVisible(true)}
+                    >
+                      <View style={styles.countryPickerLeft}>
+                        <FontAwesome6 name="globe" size={14} color={colors.textMuted} />
+                        <Text
+                          style={selectedCountry ? styles.countryPickerText : styles.countryPickerPlaceholder}
+                          numberOfLines={1}
+                        >
+                          {selectedCountry ? `${selectedCountry.name} (+${selectedCountry.phone})` : t('kyc.selectCountry')}
+                        </Text>
+                      </View>
+                      <FontAwesome6 name="chevron-down" size={12} color={colors.textMuted} />
+                    </Bounce>,
+                    errors.country
+                  )}
+
+                  <View style={styles.row}>
+                    {renderField(
+                      t('kyc.city'),
+                      <Input placeholder={t('kyc.cityPlaceholder')} value={city} onChangeText={setCity} error={errors.city} containerStyle={styles.inputFlush} />,
+                      undefined,
+                      styles.col
+                    )}
+                    {renderField(
+                      t('kyc.postcode'),
+                      <Input placeholder={t('kyc.postcodePlaceholder')} value={postcode} onChangeText={setPostcode} error={errors.postcode} containerStyle={styles.inputFlush} />,
+                      undefined,
+                      styles.col
+                    )}
+                  </View>
+
+                  {renderField(
+                    t('kyc.state'),
+                    <Input placeholder={t('kyc.statePlaceholder')} value={stateProv} onChangeText={setStateProv} error={errors.state} containerStyle={styles.inputFlush} />
+                  )}
+
+                  {renderField(
+                    t('kyc.address'),
+                    <Input placeholder={t('kyc.addressPlaceholder')} value={address} onChangeText={setAddress} error={errors.address} containerStyle={styles.inputFlush} />
+                  )}
+
+                  <View style={styles.divider} />
+
+                  {renderField(
+                    t('kyc.birthdate'),
+                    <View style={styles.dateRow}>
+                      <Input
+                        placeholder="JJ"
+                        value={birthDay}
+                        onChangeText={(v) => {
+                          const digits = v.replace(/[^0-9]/g, '').slice(0, 2);
+                          if (digits.length === 2) {
+                            const n = parseInt(digits, 10);
+                            if (n < 1) { setBirthDay('01'); return; }
+                            if (n > 31) { setBirthDay('31'); return; }
+                          }
+                          setBirthDay(digits);
+                        }}
+                        keyboardType="number-pad"
+                        maxLength={2}
+                        textAlign="center"
+                        containerStyle={styles.dateCell}
+                      />
+                      <Text style={styles.dateSep}>/</Text>
+                      <Input
+                        placeholder="MM"
+                        value={birthMonth}
+                        onChangeText={(v) => {
+                          const digits = v.replace(/[^0-9]/g, '').slice(0, 2);
+                          if (digits.length === 2) {
+                            const n = parseInt(digits, 10);
+                            if (n < 1) { setBirthMonth('01'); return; }
+                            if (n > 12) { setBirthMonth('12'); return; }
+                          }
+                          setBirthMonth(digits);
+                        }}
+                        keyboardType="number-pad"
+                        maxLength={2}
+                        textAlign="center"
+                        containerStyle={styles.dateCell}
+                      />
+                      <Text style={styles.dateSep}>/</Text>
+                      <Input
+                        placeholder="AAAA"
+                        value={birthYear}
+                        onChangeText={(v) => setBirthYear(v.replace(/[^0-9]/g, '').slice(0, 4))}
+                        keyboardType="number-pad"
+                        maxLength={4}
+                        textAlign="center"
+                        containerStyle={styles.dateCellWide}
+                      />
+                    </View>,
+                    errors.birthdate
+                  )}
+
+                  {renderField(
+                    t('kyc.whatsapp'),
+                    <Input
+                      placeholder={t('kyc.phonePlaceholder')}
+                      value={phone}
+                      onChangeText={setPhone}
+                      keyboardType="phone-pad"
+                      prefix={prefix || undefined}
+                      error={errors.phone}
+                      containerStyle={styles.inputFlush}
+                    />
+                  )}
+
+                  {renderField(
+                    t('kyc.telegramOptional'),
+                    <Input placeholder="@username" value={telegram} onChangeText={setTelegram} containerStyle={styles.inputFlush} />
+                  )}
+                </Card>
+              </Reveal>
+            )}
+
+            {/* ── Étape 2 : document ── */}
+            {step === 1 && (
+              <Reveal key="s1" offset={14}>
+                <Card style={styles.sectionCard}>
+                  <Text style={styles.fieldLabel}>{t('kyc.documentType')}</Text>
+                  <View style={styles.docTypeContainer}>
+                    {DOC_TYPES.map((dt) => {
+                      const active = docType === dt.value;
+                      return (
+                        <Bounce
+                          key={dt.value}
+                          style={[styles.docTypeBtn, active ? styles.docTypeBtnActive : null] as any}
+                          onPress={() => { setDocType(dt.value); setErrors((p) => ({ ...p, docType: '' })); }}
+                        >
+                          {active && (
+                            <View style={styles.docTypeCheck}>
+                              <FontAwesome6 name="check" size={9} color={colors.white} />
+                            </View>
+                          )}
+                          <FontAwesome6 name={dt.icon} size={20} color={active ? colors.primary : colors.textMuted} />
+                          <Text style={[styles.docTypeText, active && styles.docTypeTextActive]}>{dt.label}</Text>
+                        </Bounce>
+                      );
+                    })}
+                  </View>
+                  {!!errors.docType && <Text style={styles.fieldError}>{errors.docType}</Text>}
+
+                  {renderField(
+                    t('kyc.idNumber'),
+                    <Input placeholder={t('kyc.idNumberPlaceholder')} value={idnumber} onChangeText={setIdnumber} error={errors.idnumber} containerStyle={styles.inputFlush} />
+                  )}
+
+                  {renderField(
+                    t('kyc.expiryDate'),
+                    <View style={styles.dateRow}>
+                      <Input
+                        placeholder="MM"
+                        value={idexpMonth}
+                        onChangeText={(v) => {
+                          const digits = v.replace(/[^0-9]/g, '').slice(0, 2);
+                          if (digits.length === 2) {
+                            const n = parseInt(digits, 10);
+                            if (n < 1) { setIdexpMonth('01'); return; }
+                            if (n > 12) { setIdexpMonth('12'); return; }
+                          }
+                          setIdexpMonth(digits);
+                        }}
+                        keyboardType="number-pad"
+                        maxLength={2}
+                        textAlign="center"
+                        containerStyle={styles.dateCell}
+                      />
+                      <Text style={styles.dateSep}>/</Text>
+                      <Input
+                        placeholder="AAAA"
+                        value={idexpYear}
+                        onChangeText={(v) => setIdexpYear(v.replace(/[^0-9]/g, '').slice(0, 4))}
+                        keyboardType="number-pad"
+                        maxLength={4}
+                        textAlign="center"
+                        containerStyle={styles.dateCellWide}
+                      />
+                    </View>,
+                    errors.idexp
+                  )}
+                </Card>
+              </Reveal>
+            )}
+
+            {/* ── Étape 3 : photos ── */}
+            {step === 2 && (
+              <Reveal key="s2" offset={14}>
+                <Card style={styles.sectionCard}>
+                  <Text style={styles.photoLabel}>{t('kyc.idPhoto')}</Text>
+                  <View style={styles.guideImageDocWrapper}>
+                    <Image source={require('../assets/kyc_id_sample.jpg')} style={styles.guideImageFill} />
+                  </View>
+                  <Text style={styles.photoHint}>{t('kyc.idHint')}</Text>
+                  {renderPhotoPicker(idPreview, 'id', 'id-card', t('kyc.addId'), errors.idPhoto)}
+
+                  <View style={styles.divider} />
+
+                  <Text style={styles.photoLabel}>{t('kyc.selfieWithId')}</Text>
+                  <View style={styles.guideImageWrapper}>
+                    <Image source={require('../assets/kyc_selfie_sample.jpg')} style={styles.guideImageFill} />
+                  </View>
+                  <Text style={styles.photoHint}>{t('kyc.selfieHint')}</Text>
+                  {renderPhotoPicker(selfiePreview, 'selfie', 'camera-retro', t('kyc.addSelfie'), errors.selfie)}
+                </Card>
+              </Reveal>
+            )}
+
+            {/* ── Étape 4 : récapitulatif ── */}
+            {step === 3 && (
+              <Reveal key="s3" offset={14}>
+                <View style={styles.reviewHero}>
+                  <LinearGradient colors={['#3ecf8e', '#198754']} style={styles.reviewIcon}>
+                    <FontAwesome6 name="clipboard-check" size={26} color={colors.white} />
+                  </LinearGradient>
+                  <Text style={styles.reviewTitle}>{t('kyc.reviewTitle')}</Text>
+                </View>
+
+                {renderSummaryCard(t('kyc.identity'), 0, (
+                  <>
+                    {renderSummaryRow(t('kyc.country'), selectedCountry?.name)}
+                    {renderSummaryRow(t('kyc.city'), city)}
+                    {renderSummaryRow(t('kyc.postcode'), postcode)}
+                    {renderSummaryRow(t('kyc.state'), stateProv)}
+                    {renderSummaryRow(t('kyc.address'), address)}
+                    {renderSummaryRow(t('kyc.birthdate'), `${birthDay}/${birthMonth}/${birthYear}`)}
+                    {renderSummaryRow(t('kyc.whatsapp'), `${prefix} ${phone}`.trim())}
+                    {!!telegram.trim() && renderSummaryRow('Telegram', telegram)}
+                  </>
+                ))}
+
+                {renderSummaryCard(t('kyc.document'), 1, (
+                  <>
+                    {renderSummaryRow(t('kyc.documentType'), docLabel)}
+                    {renderSummaryRow(t('kyc.idNumber'), idnumber)}
+                    {renderSummaryRow(t('kyc.expiryDate'), `${idexpMonth}/${idexpYear}`)}
+                  </>
+                ))}
+
+                {renderSummaryCard(t('kyc.stepPhotos'), 2, (
+                  <View style={styles.thumbRow}>
+                    {[idPreview, selfiePreview].map((uri, i) => (
+                      <View key={i} style={styles.thumbWrap}>
+                        {uri ? <Image source={{ uri }} style={styles.thumb} /> : <View style={styles.thumb} />}
+                        <View style={styles.thumbBadge}>
+                          <FontAwesome6 name="check" size={9} color={colors.white} />
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                ))}
+              </Reveal>
+            )}
+
+            <View style={styles.laterWrap}>
+              <Bounce style={styles.laterBtn} scaleTo={0.97} onPress={goBack}>
+                <View style={styles.laterIcon}>
+                  <FontAwesome6 name="clock-rotate-left" size={12} color={colors.textSecondary} />
+                </View>
+                <Text style={styles.laterText}>{t('common.completeLater')}</Text>
+              </Bounce>
+            </View>
+          </View>{/* /maxWidth wrapper */}
+        </ScrollView>
+
+        {/* Barre d'action fixe — l'action principale reste sous le pouce */}
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
+          <View style={[styles.footerInner, { maxWidth: contentMaxWidth }]}>
+            <Bounce style={styles.footerBack} scaleTo={0.95} onPress={goPrev} disabled={loading}>
+              <FontAwesome6 name="arrow-left" size={15} color={colors.text} />
+            </Bounce>
+            {step < STEP_COUNT - 1 ? (
+              <Button
+                title={t('common.next')}
+                onPress={goNext}
+                icon="arrow-right"
+                style={styles.footerBtn}
+              />
+            ) : (
+              <Button
+                title={t('kyc.validateKyc')}
+                onPress={handleSubmit}
+                icon="fingerprint"
+                loading={loading}
+                disabled={!allDone}
+                style={styles.footerBtn}
+              />
+            )}
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+
+      {/* Source de la photo : caméra ou galerie */}
+      <ActionSheet
+        visible={photoTarget !== null}
+        title={t('kyc.addPhoto')}
+        subtitle={photoTarget === 'selfie' ? t('kyc.selfieWithId') : t('kyc.idPhoto')}
+        onClose={() => setPhotoTarget(null)}
+        actions={[
+          { label: t('kyc.takePhoto'), icon: 'camera', onPress: () => pickFrom('camera') },
+          { label: t('kyc.fromGallery'), icon: 'images', onPress: () => pickFrom('gallery') },
+        ]}
+      />
 
       {/* Country picker modal */}
       <ResponsiveModal visible={countryModalVisible} onClose={() => { setCountryModalVisible(false); setCountrySearch(''); }} width={420}>
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{t('kyc.selectCountry')}</Text>
-            <TouchableOpacity onPress={() => { setCountryModalVisible(false); setCountrySearch(''); }}>
-              <FontAwesome6 name="xmark" size={20} color={Colors.text} />
+            <TouchableOpacity onPress={() => { setCountryModalVisible(false); setCountrySearch(''); }} hitSlop={10}>
+              <FontAwesome6 name="xmark" size={20} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
           <View style={styles.modalSearchRow}>
-            <FontAwesome6 name="magnifying-glass" size={14} color={Colors.textMuted} />
+            <FontAwesome6 name="magnifying-glass" size={14} color={colors.textMuted} />
             <TextInput
-              placeholder="Rechercher un pays..."
-              placeholderTextColor={Colors.textMuted}
+              placeholder={t('kyc.searchCountry')}
+              placeholderTextColor={colors.textMuted}
               value={countrySearch}
               onChangeText={setCountrySearch}
               style={styles.modalSearchInput}
-              selectionColor={Colors.secondary}
+              selectionColor={colors.secondary}
               autoCorrect={false}
             />
           </View>
@@ -598,28 +845,25 @@ export default function KycScreen() {
             data={filteredCountries}
             keyExtractor={(item) => item.code}
             keyboardShouldPersistTaps="handled"
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[
-                  styles.countryItem,
-                  item.code === country && styles.countryItemActive,
-                ]}
-                onPress={() => {
-                  setCountry(item.code);
-                  setCountryModalVisible(false);
-                  setCountrySearch('');
-                }}
-                activeOpacity={0.7}
-              >
-                <Text style={[
-                  styles.countryItemText,
-                  item.code === country && styles.countryItemTextActive,
-                ]}>
-                  {item.name}
-                </Text>
-                <Text style={styles.countryItemPhone}>+{item.phone}</Text>
-              </TouchableOpacity>
-            )}
+            renderItem={({ item }) => {
+              const active = item.code === country;
+              return (
+                <TouchableOpacity
+                  style={[styles.countryItem, active && styles.countryItemActive]}
+                  onPress={() => {
+                    setCountry(item.code);
+                    setErrors((p) => ({ ...p, country: '' }));
+                    setCountryModalVisible(false);
+                    setCountrySearch('');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.countryItemText, active && styles.countryItemTextActive]}>{item.name}</Text>
+                  <Text style={styles.countryItemPhone}>+{item.phone}</Text>
+                  {active && <FontAwesome6 name="check" size={13} color={colors.primary} style={{ marginLeft: Spacing.sm }} />}
+                </TouchableOpacity>
+              );
+            }}
           />
         </View>
       </ResponsiveModal>
@@ -630,6 +874,7 @@ export default function KycScreen() {
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   scroll: {
     padding: Spacing.lg,
+    paddingBottom: 120,
   },
   contentWrapper: {
     width: '100%',
@@ -640,60 +885,168 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
+  headerText: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerSub: {
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.semiBold,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.inputBg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  backBtnGhost: {
+    width: 36,
   },
   title: {
     fontSize: FontSize.xl,
     fontFamily: Fonts.bold,
     color: Colors.text,
   },
-  instructionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
+  // Progression
+  progressTrack: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.border,
+    overflow: 'hidden',
+    marginBottom: Spacing.lg,
   },
-  instructions: {
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  // Stepper
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    marginBottom: Spacing.xs,
+  },
+  stepItem: {
+    alignItems: 'center',
+    width: 74,
+    gap: 6,
+  },
+  stepDot: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.inputBg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  stepDotActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  stepDotDone: {
+    backgroundColor: Colors.positive,
+    borderColor: Colors.positive,
+  },
+  stepDotLocked: {
+    opacity: 0.5,
+  },
+  stepLine: {
     flex: 1,
-    color: Colors.textSecondary,
-    fontSize: FontSize.sm,
-    lineHeight: 20,
+    height: 2,
+    marginTop: 16,
+    borderRadius: 1,
+    backgroundColor: Colors.border,
+  },
+  stepLineDone: {
+    backgroundColor: Colors.positive,
+  },
+  stepLabel: {
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.semiBold,
+    color: Colors.textMuted,
+    textAlign: 'center',
+  },
+  stepLabelActive: {
+    color: Colors.text,
+  },
+  // Sections
+  sectionCard: {
+    marginTop: Spacing.md,
   },
   sectionTitle: {
     fontSize: FontSize.md,
     fontFamily: Fonts.bold,
     color: Colors.text,
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.sm,
   },
-  // Date d'expiration : deux champs côte à côte (largeurs fixes pour éviter débordement web)
-  expiryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.border,
+    marginVertical: Spacing.md,
   },
-  expiryField: {
-    width: 70,
+  // Champs
+  field: {
+    marginTop: Spacing.md,
   },
-  expiryFieldWide: {
-    width: 110,
-  },
-  expirySep: {
-    fontSize: FontSize.lg,
-    color: Colors.textMuted,
-    fontFamily: Fonts.bold,
-  },
-  // Field labels & country picker
   fieldLabel: {
     fontSize: FontSize.sm,
     fontFamily: Fonts.semiBold,
     color: Colors.textSecondary,
-    marginBottom: 4,
-    marginTop: Spacing.sm,
+    marginBottom: 6,
   },
+  fieldError: {
+    color: Colors.error,
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.semiBold,
+    marginTop: 4,
+  },
+  inputFlush: {
+    marginBottom: 0,
+  },
+  inputErrorBox: {
+    borderColor: Colors.error,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  col: {
+    flex: 1,
+  },
+  // Dates (JJ / MM / AAAA)
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  dateCell: {
+    width: 64,
+    marginBottom: 0,
+  },
+  dateCellWide: {
+    width: 96,
+    marginBottom: 0,
+  },
+  dateSep: {
+    fontSize: FontSize.lg,
+    color: Colors.textMuted,
+    fontFamily: Fonts.bold,
+  },
+  // Sélecteur de pays
   countryPicker: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: Spacing.sm,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.md,
     backgroundColor: Colors.inputBg,
@@ -701,13 +1054,21 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  countryPickerLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
   countryPickerText: {
-    fontSize: FontSize.sm,
+    flex: 1,
+    fontSize: FontSize.md,
     fontFamily: Fonts.semiBold,
     color: Colors.text,
   },
   countryPickerPlaceholder: {
-    fontSize: FontSize.sm,
+    flex: 1,
+    fontSize: FontSize.md,
     fontFamily: Fonts.regular,
     color: Colors.textMuted,
   },
@@ -760,7 +1121,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   countryItemActive: {
-    backgroundColor: Colors.primary + '20',
+    backgroundColor: withAlpha(Colors.primary, 0.12),
   },
   countryItemText: {
     fontSize: FontSize.sm,
@@ -778,39 +1139,69 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontFamily: Fonts.regular,
     marginLeft: Spacing.sm,
   },
-  // Later button
-  laterBtn: {
+  // « Compléter plus tard » : pastille discrète, pas un lien souligné
+  laterWrap: {
     alignItems: 'center',
-    paddingVertical: Spacing.md,
-    marginTop: Spacing.sm,
+    marginTop: Spacing.lg,
+  },
+  laterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: 10,
+    paddingLeft: 10,
+    paddingRight: Spacing.md,
+    borderRadius: BorderRadius.pill,
+    // Teinte d'accent très diluée : lisible sur le fond clair comme sur le sombre
+    // (inputBg est transparent en thème clair — il ne ferait pas de pastille).
+    backgroundColor: withAlpha(Colors.secondary, 0.1),
+    borderWidth: 1,
+    borderColor: withAlpha(Colors.secondary, 0.25),
+  },
+  laterIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: withAlpha(Colors.secondary, 0.22),
   },
   laterText: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: FontSize.sm,
     fontFamily: Fonts.semiBold,
-    textDecorationLine: 'underline',
   },
-  // Document type selector
+  // Sélecteur de type de document
   docTypeContainer: {
     flexDirection: 'row',
     gap: Spacing.sm,
   },
   docTypeBtn: {
     flex: 1,
-    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 8,
     paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.sm,
+    paddingHorizontal: Spacing.xs,
     backgroundColor: Colors.inputBg,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
     borderColor: Colors.border,
   },
   docTypeBtnActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: withAlpha(Colors.primary, 0.12),
     borderColor: Colors.primary,
+  },
+  docTypeCheck: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   docTypeText: {
     color: Colors.textMuted,
@@ -819,17 +1210,35 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     textAlign: 'center',
   },
   docTypeTextActive: {
-    color: Colors.white,
+    color: Colors.primary,
   },
-  // Image pickers
+  // Photos
+  photoLabel: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.bold,
+    color: Colors.text,
+  },
+  photoHint: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    lineHeight: 18,
+    marginBottom: Spacing.sm,
+  },
   imagePicker: {
     height: 180,
     backgroundColor: Colors.inputBg,
     borderRadius: BorderRadius.lg,
-    borderWidth: 2,
-    borderColor: Colors.primary,
+    borderWidth: 1.5,
+    borderColor: withAlpha(Colors.primary, 0.5),
     borderStyle: 'dashed',
     overflow: 'hidden',
+  },
+  imagePickerFilled: {
+    borderStyle: 'solid',
+    borderColor: Colors.positive,
+  },
+  imagePickerError: {
+    borderColor: Colors.error,
   },
   placeholderContainer: {
     flex: 1,
@@ -838,16 +1247,16 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     gap: 6,
   },
   placeholderIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.border + '50',
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: withAlpha(Colors.primary, 0.12),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
   },
   placeholderTitle: {
-    color: Colors.textSecondary,
+    color: Colors.text,
     fontSize: FontSize.sm,
     fontFamily: Fonts.semiBold,
   },
@@ -860,7 +1269,35 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     height: '100%',
     resizeMode: 'cover',
   },
-  // Image guide "process" (vali1.png et vali2.png) : 596x342
+  previewBadge: {
+    position: 'absolute',
+    top: Spacing.sm,
+    left: Spacing.sm,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.positive,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  retakeChip: {
+    position: 'absolute',
+    bottom: Spacing.sm,
+    right: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.pill,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  retakeText: {
+    color: Colors.white,
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.semiBold,
+  },
+  // Image guide "process" : 596x342
   guideImageWrapper: {
     width: '100%',
     maxWidth: 420,
@@ -868,8 +1305,9 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     alignSelf: 'center',
     borderRadius: BorderRadius.md,
     overflow: 'hidden',
+    marginVertical: Spacing.sm,
   },
-  // Image guide "exemples piece" (vali0.jpg) : 1201x836
+  // Image guide "exemples piece" : 1201x836
   guideImageDocWrapper: {
     width: '100%',
     maxWidth: 420,
@@ -877,33 +1315,121 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     alignSelf: 'center',
     borderRadius: BorderRadius.md,
     overflow: 'hidden',
-    marginVertical: Spacing.md,
+    marginVertical: Spacing.sm,
   },
   guideImageFill: {
     width: '100%',
     height: '100%',
     resizeMode: 'contain',
   },
-  selfieHint: {
+  // Récapitulatif
+  reviewHero: {
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+  },
+  reviewIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reviewTitle: {
+    fontSize: FontSize.lg,
+    fontFamily: Fonts.bold,
+    color: Colors.text,
+  },
+  sumHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  sumEdit: {
+    color: Colors.primary,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+  },
+  sumRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: 7,
+  },
+  sumLabel: {
+    color: Colors.textMuted,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.regular,
+  },
+  sumValue: {
     flex: 1,
-    color: Colors.textSecondary,
-    fontSize: FontSize.xs,
-    lineHeight: 18,
+    textAlign: 'right',
+    color: Colors.text,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+  },
+  thumbRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  thumbWrap: {
+    flex: 1,
+    aspectRatio: 4 / 3,
+    borderRadius: BorderRadius.md,
+    overflow: 'hidden',
+    backgroundColor: Colors.inputBg,
+  },
+  thumb: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  thumbBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: Colors.positive,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Barre d'action fixe
+  footer: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.border,
+    backgroundColor: Colors.cardSolid,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+  },
+  footerInner: {
+    width: '100%',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  footerBack: {
+    width: 48,
+    height: 48,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.inputBg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  footerBtn: {
+    flex: 1,
   },
   // Pending / Validated state
   pendingContainer: {
     alignItems: 'center',
     paddingVertical: Spacing.xl,
     gap: Spacing.md,
-  },
-  pendingIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.secondary + '20',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.sm,
   },
   pendingIconGrad: {
     width: 88,

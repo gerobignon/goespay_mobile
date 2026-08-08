@@ -14,6 +14,7 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Clipboard from 'expo-clipboard';
 import { Button } from '../../src/components/Button';
 import { Reveal, Bounce } from '../../src/components/anim';
@@ -281,20 +282,34 @@ export default function AffiliationScreen() {
         </Reveal>
       )}
 
-      {/* Claim */}
+      {/* Claim — de l'argent qui attend le client : la carte le montre comme un
+          gain, montant en grand, l'action juste à côté. */}
       {(stats?.unpayed ?? 0) > 0 && (
-        <View style={styles.formCard}>
-          <Text style={styles.sectionLabel}>{t('affiliation.claimSection', 'Réclamer mes commissions')}</Text>
-          <Text style={styles.helperText}>{t('affiliation.claimHelper', { amount: fmtXof(stats?.unpayed ?? 0), defaultValue: `Vous avez ${fmtXof(stats?.unpayed ?? 0)} de commissions en attente.` })}</Text>
-          <Button
-            title={t('affiliation.claim', 'Réclamer')}
-            icon="wallet"
-            onPress={handleClaim}
-            loading={claiming}
-            style={[styles.smallBtn, { marginTop: Spacing.sm }]}
-            textStyle={styles.smallBtnText}
-          />
-        </View>
+        <Reveal offset={12}>
+          <LinearGradient
+            colors={[Colors.secondary, '#1D3A8A', '#0F172A']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.claimCard}
+          >
+            <View style={styles.claimTop}>
+              <View style={styles.claimIcon}>
+                <FontAwesome6 name="sack-dollar" size={18} color={Colors.white} iconStyle="solid" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.claimLabel}>{t('affiliation.claimSection', 'Commissions en attente')}</Text>
+                <Text style={styles.claimAmount} numberOfLines={1} adjustsFontSizeToFit>
+                  {fmtXof(stats?.unpayed ?? 0)}
+                </Text>
+              </View>
+            </View>
+
+            <Bounce onPress={handleClaim} style={styles.claimBtn} disabled={claiming}>
+              <FontAwesome6 name={claiming ? 'hourglass-half' : 'wallet'} size={14} color="#0F172A" iconStyle="solid" />
+              <Text style={styles.claimBtnText}>{t('affiliation.claim', 'Réclamer')}</Text>
+            </Bounce>
+          </LinearGradient>
+        </Reveal>
       )}
 
       {/* Code de parrainage */}
@@ -338,33 +353,44 @@ export default function AffiliationScreen() {
           </>
         ) : (
           <>
-            <View style={styles.codeBox}>
-              <Text style={styles.codeText}>{referralCode || '—'}</Text>
-              <Bounce style={styles.inlineIconBtn} onPress={startEdit}>
-                <FontAwesome6 name="pen" size={13} color={Colors.primary} />
-              </Bounce>
-              <Bounce style={styles.inlineIconBtn} onPress={handleCopyCode}>
-                <FontAwesome6 name="copy" size={14} color={Colors.primary} />
-              </Bounce>
-            </View>
-            <Text style={styles.helperText}>{t('affiliation.description', 'Partagez ce code ou ce lien avec vos amis. Lorsqu\'ils s\'inscrivent avec, ils deviennent vos filleuls et vous recevez des commissions sur leurs transactions.')}</Text>
+            {/* Le code EST le contenu de la carte : il se lit de loin, se copie
+                d'un toucher, et le lien qu'il produit s'affiche dessous — c'est
+                ce qu'on colle réellement dans une conversation. */}
+            <Bounce style={styles.codePanel} onPress={handleCopyCode}>
+              <View style={styles.codePanelMain}>
+                <Text style={styles.codeText} numberOfLines={1} adjustsFontSizeToFit>
+                  {referralCode || '—'}
+                </Text>
+                <Text style={styles.codeLink} numberOfLines={1}>
+                  {referralLink.replace(/^https?:\/\//, '')}
+                </Text>
+              </View>
+              <View style={styles.codeIcons}>
+                <Bounce style={styles.inlineIconBtn} onPress={startEdit} hitSlop={6}>
+                  <FontAwesome6 name="pen" size={13} color={Colors.primary} />
+                </Bounce>
+                <Bounce style={styles.inlineIconBtn} onPress={handleCopyCode} hitSlop={6}>
+                  <FontAwesome6 name="copy" size={14} color={Colors.primary} />
+                </Bounce>
+              </View>
+            </Bounce>
 
             <View style={styles.actionsRow}>
-          <Button
-            title={t('affiliation.copyLink', 'Copier le lien')}
-            icon="link"
-            variant="outline"
-            onPress={handleCopyLink}
-            style={[styles.smallBtn, { flex: 1 }]}
-            textStyle={styles.smallBtnText}
-          />
-          <Button
-            title={t('affiliation.share', 'Partager')}
-            icon="share-nodes"
-            onPress={handleShare}
-            style={[styles.smallBtn, { flex: 1 }]}
-            textStyle={styles.smallBtnText}
-          />
+              <Button
+                title={t('affiliation.copyLink', 'Copier le lien')}
+                icon="link"
+                variant="outline"
+                onPress={handleCopyLink}
+                style={[styles.smallBtn, { flex: 1 }]}
+                textStyle={styles.smallBtnText}
+              />
+              <Button
+                title={t('affiliation.share', 'Partager')}
+                icon="share-nodes"
+                onPress={handleShare}
+                style={[styles.smallBtn, { flex: 1 }]}
+                textStyle={styles.smallBtnText}
+              />
             </View>
           </>
         )}
@@ -536,6 +562,46 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.surfaceBorder,
   },
+  // C — Commissions à réclamer. Surface pleine et montant en grand, comme les
+  // cards mises en avant ailleurs dans l'app : c'est un gain, pas un formulaire.
+  claimCard: {
+    borderRadius: 16,
+    padding: Spacing.lg,
+    gap: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  claimTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  claimIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.22)',
+  },
+  claimLabel: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  claimAmount: {
+    color: Colors.white,
+    fontSize: FontSize.xxl,
+    fontFamily: Fonts.bold,
+    marginTop: 2,
+  },
+  claimBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    minHeight: 44,
+    borderRadius: BorderRadius.pill,
+    backgroundColor: Colors.white,
+  },
+  claimBtnText: { color: '#0F172A', fontSize: FontSize.md, fontFamily: Fonts.bold },
   bonusCard: {
     backgroundColor: Colors.card,
     borderRadius: 16,
@@ -617,12 +683,33 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     paddingVertical: Spacing.sm,
     marginBottom: Spacing.sm,
   },
+  // Panneau du code : surface teintée bordée sur ses quatre côtés, tapable en
+  // entier pour copier.
+  codePanel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    backgroundColor: Colors.primary + '12',
+    borderWidth: 1,
+    borderColor: Colors.primary + '3A',
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+  },
+  codePanelMain: { flex: 1, minWidth: 0 },
+  codeIcons: { flexDirection: 'row', gap: Spacing.sm },
   codeText: {
-    flex: 1,
-    fontSize: FontSize.lg,
+    fontSize: FontSize.xl,
     fontFamily: Fonts.bold,
     color: Colors.primary,
-    letterSpacing: 1,
+    letterSpacing: 2,
+  },
+  // Le lien réellement partagé, sous le code : plus parlant qu'un paragraphe.
+  codeLink: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.medium,
+    color: Colors.textMuted,
+    marginTop: 2,
   },
   codeInput: {
     flex: 1,

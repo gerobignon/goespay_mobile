@@ -3,7 +3,7 @@ import { View, Text, Image, StyleSheet, Platform, TouchableOpacity } from 'react
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import type { VirtualCard } from '../services/cardService';
+import type { VirtualCard, CardSecrets } from '../services/cardService';
 import { CardBrandLogo } from './CardBrandLogo';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
@@ -44,6 +44,12 @@ interface Props {
   onCopy?: (field: CardCopyField) => void;
   /** Champ dont la copie vient d'aboutir : coche brève à la place de l'icône. */
   copiedField?: CardCopyField | null;
+  /**
+   * Données réelles, une fois la ré-authentification passée : le numéro et le
+   * cryptogramme s'écrivent alors sur la carte, là où le porteur les cherche.
+   * Absentes, la carte ne montre que le numéro masqué servi par le serveur.
+   */
+  secrets?: CardSecrets | null;
   /** Largeur maximale ; réduire donne un aperçu (accueil) plutôt qu'une fiche. */
   maxWidth?: number;
 }
@@ -51,15 +57,15 @@ interface Props {
 /**
  * Représentation visuelle d'une carte.
  *
- * N'affiche JAMAIS de donnée sensible : le numéro montré est celui, déjà masqué,
+ * Par défaut, aucune donnée sensible : le numéro montré est celui, déjà masqué,
  * que renvoie le serveur, et le cryptogramme n'est qu'un gabarit de points. Les
- * valeurs réelles ne transitent que par la fenêtre de révélation ou la copie
- * directe, toutes deux derrière une ré-authentification serveur.
+ * valeurs réelles n'apparaissent que si l'appelant passe `secrets`, c'est-à-dire
+ * après une ré-authentification serveur, et pour le temps qu'il décide.
  */
 /** Largeur de référence : celle de la fiche pleine, sur l'écran Cartes. */
 const REFERENCE_WIDTH = 380;
 
-export function VirtualCardVisual({ card, holder, onCopy, copiedField, maxWidth = 380 }: Props) {
+export function VirtualCardVisual({ card, holder, onCopy, copiedField, secrets, maxWidth = 380 }: Props) {
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();
 
@@ -70,9 +76,11 @@ export function VirtualCardVisual({ card, holder, onCopy, copiedField, maxWidth 
 
   // Un PAN masqué arrive sous la forme « 465189******2455 » : on le regroupe par
   // quatre pour retrouver la lecture d'une vraie carte.
-  const digits = card?.masked_pan
-    ? card.masked_pan.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim()
-    : '•••• •••• •••• ••••';
+  const digits = secrets?.pan
+    ? secrets.pan.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim()
+    : card?.masked_pan
+      ? card.masked_pan.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim()
+      : '•••• •••• •••• ••••';
 
   const expiry = card?.expiry_month
     ? `${card.expiry_month}/${String(card.expiry_year).slice(-2)}`
@@ -113,8 +121,9 @@ export function VirtualCardVisual({ card, holder, onCopy, copiedField, maxWidth 
           />
         </View>
 
-        {/* Le numéro complet n'est jamais affiché ici : le toucher le copie, la
-            ré-authentification se jouant dans la fenêtre appelante. */}
+        {/* Numéro masqué par défaut ; complet seulement si l'appelant a obtenu
+            les secrets. Le toucher copie, en demandant la ré-authentification
+            si elle n'a pas déjà eu lieu. */}
         <TouchableOpacity
           style={styles.panRow}
           onPress={() => onCopy?.('pan')}
@@ -150,8 +159,9 @@ export function VirtualCardVisual({ card, holder, onCopy, copiedField, maxWidth 
             <Text style={[styles.expiry, { fontSize: scaled(FontSize.sm) }]}>{expiry}</Text>
           </TouchableOpacity>
 
-          {/* Cryptogramme : un gabarit de points, jamais la valeur. Il figure sur
-              la carte parce que le porteur le cherche là — le toucher le copie. */}
+          {/* Cryptogramme : des points tant que rien n'est révélé, la valeur une
+              fois la ré-authentification passée. Il figure sur la carte parce que
+              le porteur le cherche là — le toucher le copie. */}
           <TouchableOpacity
             style={styles.cvvBlock}
             onPress={() => onCopy?.('cvv')}
@@ -162,7 +172,7 @@ export function VirtualCardVisual({ card, holder, onCopy, copiedField, maxWidth 
           >
             <Text style={[styles.smallLabel, { fontSize: scaled(9) }]}>{t('cards.cvv')}</Text>
             <View style={styles.cvvRow}>
-              <Text style={[styles.expiry, { fontSize: scaled(FontSize.sm) }]}>•••</Text>
+              <Text style={[styles.expiry, { fontSize: scaled(FontSize.sm) }]}>{secrets?.cvv ?? '•••'}</Text>
               {copyable && (
                 <FontAwesome6
                   name={copiedField === 'cvv' ? 'check' : 'copy'}

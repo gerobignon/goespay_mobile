@@ -43,6 +43,10 @@ export interface CryptoRate {
   sell_rate_td?: number | string | null;
   live_rate?: number;
   img?: string;
+  // Sens ouverts pour cette devise (admin → Marchés). Absents des backends
+  // antérieurs : tout est alors autorisé, comme avant.
+  buy_active?: boolean;
+  sell_active?: boolean;
   // Catalogue NOWPayments (sync backend) — absents des devises hors NOWPayments.
   network?: string | null;
   wallet_regex?: string | null;
@@ -54,6 +58,16 @@ export interface CryptoRate {
   min_crypto?: number | null;
   min_fiat?: number | null;
 }
+
+/** Sens d'une opération crypto : achat (envoi) ou vente (recharge). */
+export type CryptoDir = 'buy' | 'sell';
+
+/**
+ * Devise proposable dans ce sens ? Le `!== false` est volontaire : un backend
+ * qui n'envoie pas encore les flags laisse tout ouvert, comme avant.
+ */
+export const isCryptoDirAllowed = (rate: CryptoRate, dir: CryptoDir): boolean =>
+  (dir === 'buy' ? rate.buy_active : rate.sell_active) !== false;
 
 const CACHE_TTL = 60_000; // 1 minute
 const ESTIMATE_TTL = 60_000;
