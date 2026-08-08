@@ -1187,7 +1187,7 @@
     "newTitle": "New message",
     "searchPlaceholder": "Name, ID, code, email, phone",
     "results": "Results",
-    "noResult": "No account found.",
+    "noResult": "No account visible for this search.",
     "contacts": "Contacts",
     "noContact": "No contact yet. Use the search.",
     "sourceTransfer": "Transfer",
@@ -1257,6 +1257,7 @@
     "fieldSince": "Member since",
     "fieldVerified": "Verified identity",
     "fieldPresence": "Online status",
-    "notVerified": "Not verified"
+    "notVerified": "Not verified",
+    "noResultHint": "The account may exist without being listed. Send an invitation below."
   }
 }

@@ -1187,7 +1187,7 @@
     "newTitle": "Nouveau message",
     "searchPlaceholder": "Nom, identifiant, code, email, téléphone",
     "results": "Résultats",
-    "noResult": "Aucun compte trouvé.",
+    "noResult": "Aucun compte visible pour cette recherche.",
     "contacts": "Contacts",
     "noContact": "Aucun contact pour le moment. Utilisez la recherche.",
     "sourceTransfer": "Transfert",
@@ -1257,6 +1257,7 @@
     "fieldSince": "Ancienneté",
     "fieldVerified": "Identité vérifiée",
     "fieldPresence": "Statut en ligne",
-    "notVerified": "Non vérifiée"
+    "notVerified": "Non vérifiée",
+    "noResultHint": "Le compte existe peut-être sans figurer dans la recherche. Envoyez-lui une invitation ci-dessous."
   }
 }

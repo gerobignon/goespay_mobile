@@ -160,6 +160,21 @@ function RootInner() {
         styleEl.innerHTML = 'html, body, #root { height: 100dvh !important; }';
         document.head.appendChild(styleEl);
       }
+
+      // Halo de focus du navigateur : l'anneau bleu (ou violet selon le moteur)
+      // qui cerne un champ actif est dessiné par-dessus nos propres bordures et
+      // jure avec le reste. Les champs de l'app ont déjà leur état focus.
+      // `:focus-visible` reste intact : la navigation au clavier garde un repère.
+      const focusStyle = document.createElement('style');
+      focusStyle.innerHTML = [
+        'input:focus, textarea:focus, select:focus, [contenteditable]:focus,',
+        'input:focus-within, textarea:focus-within, div:focus, div:focus-within {',
+        '  outline: none !important;',
+        '  box-shadow: none !important;',
+        '  -webkit-tap-highlight-color: transparent;',
+        '}',
+      ].join('\n');
+      document.head.appendChild(focusStyle);
       // Service worker Web Push (public/sw.js) : sert UNIQUEMENT à recevoir les
       // notifications push + gérer le clic. Pas de handler fetch → n'interfère
       // pas avec l'app. La souscription elle-même se fait via l'opt-in Réglages.

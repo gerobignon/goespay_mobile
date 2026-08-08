@@ -222,11 +222,27 @@ export default function NewConversationScreen() {
               <ActivityIndicator style={{ marginTop: Spacing.lg }} color={colors.text} />
             ) : (
               <>
-                {results.length > 0 && (
+                {results.length > 0 ? (
                   <>
                     <Text style={styles.sectionTitle}>{t('messages.results', 'Résultats')}</Text>
                     <View style={styles.list}>{results.map((p, i) => renderPeer(p, i, false))}</View>
                   </>
+                ) : (
+                  // Formulé sans mentir : l'absence de résultat ne prouve pas
+                  // l'absence de compte — un compte hors annuaire ne sort
+                  // jamais d'une recherche, et c'est exactement le but.
+                  <View style={styles.noResult}>
+                    <FontAwesome6 name="user-slash" size={18} color={colors.textMuted} />
+                    <Text style={styles.noResultText}>
+                      {t('messages.noResult', 'Aucun compte visible pour cette recherche.')}
+                    </Text>
+                    <Text style={styles.noResultHint}>
+                      {t(
+                        'messages.noResultHint',
+                        'Le compte existe peut-être sans figurer dans la recherche. Envoyez-lui une invitation ci-dessous.',
+                      )}
+                    </Text>
+                  </View>
                 )}
 
                 {/* Invitation à l'aveugle : proposée quoi qu'il arrive, y compris
@@ -361,6 +377,25 @@ const createStyles = (Colors: ColorPalette) =>
       borderRadius: BorderRadius.pill,
     },
     rowTagText: { fontFamily: Fonts.semiBold, fontSize: FontSize.xs },
+    noResult: {
+      alignItems: 'center',
+      gap: Spacing.xs,
+      paddingVertical: Spacing.lg,
+      paddingHorizontal: Spacing.md,
+    },
+    noResultText: {
+      fontFamily: Fonts.semiBold,
+      fontSize: FontSize.md,
+      color: Colors.text,
+      textAlign: 'center',
+    },
+    noResultHint: {
+      fontFamily: Fonts.regular,
+      fontSize: FontSize.sm,
+      color: Colors.textMuted,
+      textAlign: 'center',
+      lineHeight: FontSize.sm * 1.45,
+    },
     inviteCard: {
       marginTop: Spacing.lg,
       backgroundColor: Colors.surface,

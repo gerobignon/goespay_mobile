@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,9 @@ import {
   Animated,
   ImageBackground,
   TouchableOpacity,
-  PanResponder,
   Platform,
   ScrollView,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -71,8 +71,6 @@ export function WalletStack({ children }: Props) {
 
   /** Position de chaque panneau dans la pile : 0 = devant, 1 = dessous. */
   const depth = useRef([new Animated.Value(0), new Animated.Value(1)]).current;
-  /** Suivi du doigt sur la carte du dessus. */
-  const drag = useRef(new Animated.Value(0)).current;
 
   const isAdmin = user?.group === 'admin';
 
@@ -101,7 +99,6 @@ export function WalletStack({ children }: Props) {
   const goTo = useCallback((i: number) => {
     setActive(i);
     Animated.parallel([
-      Animated.spring(drag, { toValue: 0, useNativeDriver: true, friction: 8, tension: 60 }),
       ...depth.map((v, idx) => Animated.spring(v, {
         toValue: idx === i ? 0 : 1,
         useNativeDriver: true,
@@ -109,30 +106,13 @@ export function WalletStack({ children }: Props) {
         tension: 60,
       })),
     ]).start();
-  }, [depth, drag]);
+  }, [depth]);
 
-  // Glissement VERTICAL sur la pile : les panneaux sont empilés l'un sur
-  // l'autre, on tire donc de haut en bas comme on soulèverait la carte du
-  // dessus. L'horizontale est laissée au défilement des cartes virtuelles, qui
-  // vit à l'intérieur d'un panneau.
-  //
-  // Le seuil de prise est volontairement haut et l'exigence de verticalité
-  // franche : sinon la pile volerait le défilement de la page d'accueil, sur
-  // laquelle elle est posée.
-  const pan = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 24 && Math.abs(g.dy) > Math.abs(g.dx) * 2.5,
-    onPanResponderMove: (_, g) => drag.setValue(g.dy),
-    onPanResponderRelease: (_, g) => {
-      if (Math.abs(g.dy) > SWIPE_THRESHOLD) {
-        goTo(active === 0 ? 1 : 0);
-      } else {
-        Animated.spring(drag, { toValue: 0, useNativeDriver: true, friction: 8 }).start();
-      }
-    },
-    onPanResponderTerminate: () => {
-      Animated.spring(drag, { toValue: 0, useNativeDriver: true, friction: 8 }).start();
-    },
-  }), [active, drag, goTo]);
+  // Pas de geste de balayage sur la pile. Il ne pouvait pas cohabiter : en
+  // horizontal il entrait en concurrence avec le défilement des cartes logé
+  // dans l'un des panneaux, en vertical avec celui de la page d'accueil sur
+  // laquelle la pile est posée. On change de panneau en touchant celui du
+  // dessous, ou par le sélecteur sous la pile — deux gestes sans ambiguïté.
 
   /** Panneau « carte virtuelle », calé sur la présentation de la carte de solde. */
   const renderCardPanel = () => (
@@ -155,7 +135,10 @@ export function WalletStack({ children }: Props) {
           <View style={styles.pager} onLayout={(e) => setPagerWidth(Math.round(e.nativeEvent.layout.width))}>
             <ScrollView
               horizontal
+              style={styles.pagerScroll}
               pagingEnabled
+              snapToInterval={pagerWidth || undefined}
+              decelerationRate="fast"
               showsHorizontalScrollIndicator={false}
               onMomentumScrollEnd={(e) => {
                 if (pagerWidth > 0) {
@@ -164,7 +147,7 @@ export function WalletStack({ children }: Props) {
               }}
             >
               {liveCards.map((c) => (
-                <View key={c.id} style={pagerWidth > 0 ? { width: pagerWidth } : undefined}>
+                <View key={c.id} style={pagerWidth > 0 ? { width: pagerWidth, alignItems: 'center' } : undefined}>
                   <VirtualCardVisual card={c} holder={holder} maxWidth={CARD_PREVIEW_WIDTH} />
                 </View>
               ))}
@@ -185,6 +168,11 @@ export function WalletStack({ children }: Props) {
             <Text style={styles.panelBalance}>
               {activeCard.balance.toFixed(2)} {activeCard.currency}
             </Text>
+            {/* Plusieurs cartes défilent au même endroit : sans ce rappel, on ne
+                sait pas à laquelle se rapporte le solde affiché dessous. */}
+            {liveCards.length > 1 && !!activeCard.last4 && (
+              <Text style={styles.panelBalanceFor}>•••• {activeCard.last4}</Text>
+            )}
             <View style={styles.panelAction}>
               <Text style={styles.panelActionText}>{t('cards.manage')}</Text>
               <FontAwesome6 name="chevron-right" size={12} color={DarkColors.textSecondary} />
@@ -238,7 +226,6 @@ export function WalletStack({ children }: Props) {
           aussi. */}
       <View
         style={[styles.clip, { height: stackHeight + PEEK + CLIP_PAD * 2 }]}
-        {...pan.panHandlers}
       >
         {order.map((i) => {
           const d = depth[i];
@@ -256,21 +243,10 @@ export function WalletStack({ children }: Props) {
                 {
                   transform: [
                     {
-                      // Seule la carte du dessus suit le doigt, et elle le suit
-                      // verticalement : le geste et l'empilement partagent le
-                      // même axe, donc la même transformation.
-                      translateY: isActive
-                        ? Animated.add(
-                            drag,
-                            d.interpolate({
-                              inputRange: [0, 1],
-                              outputRange: [0, PEEK + (stackHeight * (1 - BACK_SCALE)) / 2],
-                            }),
-                          )
-                        : d.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0, PEEK + (stackHeight * (1 - BACK_SCALE)) / 2],
-                          }),
+                      translateY: d.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, PEEK + (stackHeight * (1 - BACK_SCALE)) / 2],
+                      }),
                     },
                     { scale: d.interpolate({ inputRange: [0, 1], outputRange: [1, BACK_SCALE] }) },
                   ],
@@ -278,7 +254,16 @@ export function WalletStack({ children }: Props) {
                 },
               ]}
             >
-              {panels[i]}
+              {/* Le panneau du dessous ne fait qu'une chose au toucher : passer
+                  devant. Sans ce garde, on déclencherait les actions du panneau
+                  caché à travers la carte du dessus. */}
+              {isActive ? (
+                panels[i]
+              ) : (
+                <Pressable style={styles.flex} onPress={() => goTo(i)} accessibilityRole="button">
+                  <View style={styles.flex} pointerEvents="none">{panels[i]}</View>
+                </Pressable>
+              )}
             </Animated.View>
           );
         })}
@@ -380,7 +365,12 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
-  pager: { width: '100%', alignItems: 'center' },
+  // Pas d'alignItems ici : centrer les enfants écrase la largeur du ScrollView,
+  // qui prend alors celle de son contenu (n cartes) et déborde du panneau — on
+  // voyait deux demi-cartes au lieu d'une, et la pagination ne tombait jamais juste.
+  flex: { flex: 1 },
+  pager: { width: '100%' },
+  pagerScroll: { width: '100%' },
   dots: { flexDirection: 'row', gap: 6, marginTop: Spacing.sm },
   dot: {
     width: 6,
@@ -389,6 +379,13 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.28)',
   },
   dotOn: { backgroundColor: '#ffffff' },
+  panelBalanceFor: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.medium,
+    letterSpacing: 1,
+    marginTop: 1,
+  },
   panelFooter: { alignItems: 'center', gap: Spacing.sm },
   panelBalance: {
     color: DarkColors.secondary,
@@ -404,7 +401,8 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   switch: {
     flexDirection: 'row',
     alignSelf: 'center',
-    marginTop: Spacing.md,
+    // Collé à la pile : il la commande, il doit lui appartenir visuellement.
+    marginTop: Spacing.xs,
     padding: 3,
     borderRadius: BorderRadius.pill,
     backgroundColor: Colors.surface,

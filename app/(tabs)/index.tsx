@@ -749,10 +749,12 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: FontSize.lg,
     fontFamily: Fonts.bold,
     color: Colors.text,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   servicesBlock: {
-    marginTop: Spacing.lg,
+    // Resserré : la pile, son sélecteur et les services formaient trois blocs
+    // séparés par autant de vide qu'ils en occupaient.
+    marginTop: Spacing.md,
   },
   quickActions: {
     flexDirection: 'row',
