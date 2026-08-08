@@ -11,6 +11,23 @@ import { useThemedStyles } from '../hooks/useThemedStyles';
 /** Proportions réelles d'une carte bancaire (85,6 × 54 mm). */
 const CARD_RATIO = 1.586;
 
+/**
+ * Teintes possibles d'une carte.
+ *
+ * Deux cartes du même réseau doivent se distinguer AU PREMIER COUP D'ŒIL : dans
+ * une liste, le porteur reconnaît sa carte à sa couleur bien avant de lire ses
+ * quatre derniers chiffres. La teinte est dérivée de l'identifiant, donc stable
+ * dans le temps et cohérente entre l'accueil et l'écran cartes.
+ */
+const PALETTES: Array<[string, string]> = [
+  ['#2b5cff', '#0b1f5c'],   // bleu GoesPay
+  ['#7b3fe4', '#2a1259'],   // violet
+  ['#0f9b8e', '#06342f'],   // teal
+  ['#e0623f', '#4a1a10'],   // cuivre
+  ['#3f5bd9', '#101a3d'],   // indigo
+  ['#c2367f', '#3d0f28'],   // magenta
+];
+
 /** Champ copiable depuis la carte. L'expiration n'est pas un secret. */
 export type CardCopyField = 'pan' | 'cvv' | 'expiry';
 
@@ -27,6 +44,8 @@ interface Props {
   onCopy?: (field: CardCopyField) => void;
   /** Champ dont la copie vient d'aboutir : coche brève à la place de l'icône. */
   copiedField?: CardCopyField | null;
+  /** Largeur maximale ; réduire donne un aperçu (accueil) plutôt qu'une fiche. */
+  maxWidth?: number;
 }
 
 /**
@@ -37,7 +56,7 @@ interface Props {
  * valeurs réelles ne transitent que par la fenêtre de révélation ou la copie
  * directe, toutes deux derrière une ré-authentification serveur.
  */
-export function VirtualCardVisual({ card, holder, onCopy, copiedField }: Props) {
+export function VirtualCardVisual({ card, holder, onCopy, copiedField, maxWidth = 380 }: Props) {
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();
 
@@ -59,14 +78,15 @@ export function VirtualCardVisual({ card, holder, onCopy, copiedField }: Props) 
   const frozen = card?.status === 'frozen';
   const dead = card?.status === 'terminated' || card?.status === 'failed';
 
+  // Gelée ou morte, la carte perd sa couleur : l'état prime sur l'identité.
   const palette: [string, string] = dead
     ? ['#4b5563', '#1f2937']
     : frozen
       ? ['#64748b', '#334155']
-      : ['#2b5cff', '#0b1f5c'];
+      : PALETTES[(card?.id ?? 0) % PALETTES.length];
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, { maxWidth }]}>
       <LinearGradient colors={palette} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.card}>
         {/* Reflets décoratifs : deux disques très diffus, sans image à charger. */}
         <View style={styles.glowTop} />
@@ -152,7 +172,7 @@ export function VirtualCardVisual({ card, holder, onCopy, copiedField }: Props) 
 }
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
-  wrap: { width: '100%', maxWidth: 380, alignSelf: 'center' },
+  wrap: { width: '100%', alignSelf: 'center' },
   card: {
     width: '100%',
     aspectRatio: CARD_RATIO,

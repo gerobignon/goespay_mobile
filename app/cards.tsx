@@ -317,6 +317,28 @@ export default function CardsScreen() {
           copiedField={copiedOn?.id === card.id ? copiedOn.field : null}
         />
 
+        {/* Gel et résiliation touchent la carte elle-même : ils restent contre
+            elle, avant le solde et les opérations, plutôt que relégués en bas
+            d'écran où ils semblaient se rapporter à toute la page. */}
+        {(card.status === 'active' || card.status === 'frozen') && (
+          <View style={styles.secondaryRow}>
+            <TouchableOpacity
+              style={styles.secondaryBtn}
+              onPress={() => toggleFreeze(card)}
+              disabled={busyId === card.id}
+            >
+              <FontAwesome6 name={card.status === 'frozen' ? 'lock-open' : 'lock'} size={13} color={Colors.pending} />
+              <Text style={[styles.secondaryText, { color: Colors.pending }]}>
+                {card.status === 'frozen' ? t('cards.unfreeze') : t('cards.freeze')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryBtn} onPress={() => terminate(card)} disabled={busyId === card.id}>
+              <FontAwesome6 name="trash" size={13} color={Colors.error} />
+              <Text style={[styles.secondaryText, { color: Colors.error }]}>{t('cards.terminate')}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.cardMeta}>
           <View>
             <Text style={styles.metaLabel}>{t('cards.balance')}</Text>
@@ -354,25 +376,6 @@ export default function CardsScreen() {
                 <FontAwesome6 name={open ? 'chevron-up' : 'clock-rotate-left'} size={15} color={Colors.primary} />
               </View>
               <Text style={styles.actionText}>{t('cards.history')}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {(card.status === 'active' || card.status === 'frozen') && (
-          <View style={styles.secondaryRow}>
-            <TouchableOpacity
-              style={styles.secondaryBtn}
-              onPress={() => toggleFreeze(card)}
-              disabled={busyId === card.id}
-            >
-              <FontAwesome6 name={card.status === 'frozen' ? 'lock-open' : 'lock'} size={13} color={Colors.pending} />
-              <Text style={[styles.secondaryText, { color: Colors.pending }]}>
-                {card.status === 'frozen' ? t('cards.unfreeze') : t('cards.freeze')}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryBtn} onPress={() => terminate(card)} disabled={busyId === card.id}>
-              <FontAwesome6 name="trash" size={13} color={Colors.error} />
-              <Text style={[styles.secondaryText, { color: Colors.error }]}>{t('cards.terminate')}</Text>
             </TouchableOpacity>
           </View>
         )}

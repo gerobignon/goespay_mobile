@@ -314,7 +314,7 @@
     "logout": "Se déconnecter",
     "logoutConfirm": "Déconnecter",
     "personalInfo": "Informations personnelles",
-    "referral": "Parrainage",
+    "referral": "Affiliation",
     "firstName": "Prénom",
     "lastName": "Nom",
     "phone": "Téléphone",
@@ -882,7 +882,7 @@
     "retry": "Réessayer"
   },
   "affiliation": {
-    "title": "Parrainage",
+    "title": "Affiliation",
     "bonusTitle": "Bonus de bienvenue",
     "bonusBlocked": "Débloquez {{amount}} en remplissant les 2 conditions.",
     "bonusUnlocked": "{{amount}} crédités sur votre solde.",

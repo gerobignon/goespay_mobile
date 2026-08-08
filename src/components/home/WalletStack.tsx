@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   PanResponder,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -26,6 +27,10 @@ const BACK_SCALE = 0.94;
 const SEG_W = 48;
 /** Déplacement horizontal minimal pour changer de carte. */
 const SWIPE_THRESHOLD = 55;
+/** Largeur de l'aperçu de carte : un aperçu, pas la fiche de l'écran cartes. */
+const CARD_PREVIEW_WIDTH = 300;
+/** Marge rendue au conteneur pour que le découpage ne mange pas l'ombre. */
+const CLIP_PAD = 24;
 
 interface Props {
   /** Panneau principal : la carte de solde du wallet. */
@@ -59,6 +64,10 @@ export function WalletStack({ children }: Props) {
   const [active, setActive] = useState(0);
   const [cards, setCards] = useState<VirtualCard[] | null>(null);
   const [cardsReady, setCardsReady] = useState(false);
+  /** Carte visible dans le panneau, quand le client en a plusieurs. */
+  const [cardIndex, setCardIndex] = useState(0);
+  /** Largeur utile du panneau, mesurée : elle cale la pagination du glissement. */
+  const [pagerWidth, setPagerWidth] = useState(0);
 
   /** Position de chaque panneau dans la pile : 0 = devant, 1 = dessous. */
   const depth = useRef([new Animated.Value(0), new Animated.Value(1)]).current;
@@ -81,8 +90,12 @@ export function WalletStack({ children }: Props) {
   }, [isAdmin]);
 
   const holder = `${user?.name ?? ''} ${user?.surname ?? ''}`.trim();
-  const activeCard = cards?.find((c) => c.status === 'active') ?? cards?.[0] ?? null;
   const hasStack = cardsReady && cards !== null;
+
+  // Cartes réellement présentables : une demande échouée ou une carte résiliée
+  // n'a rien à faire dans un aperçu d'accueil.
+  const liveCards = (cards ?? []).filter((c) => c.status !== 'failed' && c.status !== 'terminated');
+  const activeCard = liveCards[Math.min(cardIndex, Math.max(0, liveCards.length - 1))] ?? null;
 
   /** Fait passer devant le panneau demandé, et l'autre dessous. */
   const goTo = useCallback((i: number) => {
@@ -130,7 +143,37 @@ export function WalletStack({ children }: Props) {
       >
         <Text style={styles.panelLabel}>{t('cards.title')}</Text>
 
-        <VirtualCardVisual card={activeCard} holder={holder} />
+        {/* Plusieurs cartes : elles défilent sur place. Le glissement reste
+            capté par ce défilement, jamais par la pile — on change de panneau
+            avec les deux pastilles sous la pile, pas en balayant la carte. */}
+        {liveCards.length > 1 ? (
+          <View style={styles.pager} onLayout={(e) => setPagerWidth(Math.round(e.nativeEvent.layout.width))}>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={(e) => {
+                if (pagerWidth > 0) {
+                  setCardIndex(Math.round(e.nativeEvent.contentOffset.x / pagerWidth));
+                }
+              }}
+            >
+              {liveCards.map((c) => (
+                <View key={c.id} style={pagerWidth > 0 ? { width: pagerWidth } : undefined}>
+                  <VirtualCardVisual card={c} holder={holder} maxWidth={CARD_PREVIEW_WIDTH} />
+                </View>
+              ))}
+            </ScrollView>
+
+            <View style={styles.dots}>
+              {liveCards.map((c, i) => (
+                <View key={c.id} style={[styles.dot, i === cardIndex && styles.dotOn]} />
+              ))}
+            </View>
+          </View>
+        ) : (
+          <VirtualCardVisual card={activeCard} holder={holder} maxWidth={CARD_PREVIEW_WIDTH} />
+        )}
 
         {activeCard ? (
           <View style={styles.panelFooter}>
@@ -183,7 +226,15 @@ export function WalletStack({ children }: Props) {
 
   return (
     <View>
-      <View style={{ height: stackHeight + PEEK }} {...pan.panHandlers}>
+      {/* Le panneau qui part sur le côté doit être COUPÉ à la lisière de la
+          pile : sans cela il glissait par-dessus le reste de l'accueil pendant
+          le geste, jusqu'à recouvrir l'en-tête. La marge négative rend au
+          conteneur la place que prend l'ombre, qui serait sinon rognée elle
+          aussi. */}
+      <View
+        style={[styles.clip, { height: stackHeight + PEEK + CLIP_PAD * 2 }]}
+        {...pan.panHandlers}
+      >
         {order.map((i) => {
           const d = depth[i];
           const isActive = i === active;
@@ -257,11 +308,19 @@ export function WalletStack({ children }: Props) {
 }
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
+  clip: {
+    // Découpe ce qui sort de la pile pendant le glissement.
+    overflow: 'hidden',
+    marginHorizontal: -CLIP_PAD,
+    paddingHorizontal: CLIP_PAD,
+    paddingTop: CLIP_PAD,
+    marginTop: -CLIP_PAD,
+  },
   panel: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
+    left: CLIP_PAD,
+    right: CLIP_PAD,
+    top: CLIP_PAD,
     // L'ombre épouse la forme de son conteneur : sans cet arrondi, elle dessine
     // un rectangle dont les angles dépassent de la carte.
     borderRadius: BorderRadius.xl,
@@ -307,6 +366,15 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
+  pager: { width: '100%', alignItems: 'center' },
+  dots: { flexDirection: 'row', gap: 6, marginTop: Spacing.sm },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.28)',
+  },
+  dotOn: { backgroundColor: '#ffffff' },
   panelFooter: { alignItems: 'center', gap: Spacing.sm },
   panelBalance: {
     color: DarkColors.secondary,

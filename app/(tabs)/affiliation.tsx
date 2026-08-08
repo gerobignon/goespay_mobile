@@ -231,7 +231,7 @@ export default function AffiliationScreen() {
       <TouchableOpacity onPress={() => router.back()}>
         <FontAwesome6 name="arrow-left" size={20} color={Colors.text} />
       </TouchableOpacity>
-      <Text style={styles.title}>{t('affiliation.title', 'Parrainage')}</Text>
+      <Text style={styles.title}>{t('affiliation.title', 'Affiliation')}</Text>
     </View>
   );
 

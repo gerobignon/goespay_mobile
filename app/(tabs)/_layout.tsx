@@ -171,7 +171,7 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" options={{ title: t('tabs.home') }} />
       <Tabs.Screen name="history" options={{ title: t('tabs.history') }} />
-      <Tabs.Screen name="affiliation" options={{ title: t('account.referral', 'Parrainage') }} />
+      <Tabs.Screen name="affiliation" options={{ title: t('account.referral', 'Affiliation') }} />
       <Tabs.Screen
         name="support"
         options={{ title: canMessage ? t('tabs.messages', 'Messages') : t('tabs.support') }}

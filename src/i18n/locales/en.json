@@ -314,7 +314,7 @@
     "logout": "Sign out",
     "logoutConfirm": "Sign out",
     "personalInfo": "Personal information",
-    "referral": "Referral",
+    "referral": "Affiliate",
     "firstName": "First name",
     "lastName": "Last name",
     "phone": "Phone",
@@ -882,7 +882,7 @@
     "retry": "Retry"
   },
   "affiliation": {
-    "title": "Referral",
+    "title": "Affiliate",
     "bonusTitle": "Welcome bonus",
     "bonusBlocked": "Unlock {{amount}} by meeting both conditions.",
     "bonusUnlocked": "{{amount}} credited to your balance.",

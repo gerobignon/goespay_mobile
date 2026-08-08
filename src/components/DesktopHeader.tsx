@@ -24,8 +24,6 @@ const NAV_ITEMS = [
 const SUPPORT_ITEM = { path: '/(tabs)/support', labelKey: 'tabs.support', icon: 'headset' };
 const MESSAGES_ITEM = { path: '/(tabs)/support', labelKey: 'tabs.messages', icon: 'comments' };
 
-// Cartes virtuelles : ouvertes en interne, réservées au groupe admin.
-const CARDS_ITEM = { path: '/cards', labelKey: 'cards.title', icon: 'credit-card' };
 
 // Entrée réservée au user id 1 (board Dev).
 const DEV_ITEM = { path: '/(tabs)/dev', labelKey: 'dev.menuTitle', icon: 'diagram-project' };
@@ -38,12 +36,12 @@ export function DesktopHeader() {
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();
   const devUnread = useDevBoardStore(selectDevUnread);
-  const isAdmin = user?.group === 'admin';
   const canMessage = useMessagingAccess();
+  // Les cartes virtuelles ne figurent plus dans la barre : elles se rejoignent
+  // depuis l'accueil (pile de comptes) et le menu du compte.
   const navItems = [
     ...NAV_ITEMS,
     canMessage ? MESSAGES_ITEM : SUPPORT_ITEM,
-    ...(isAdmin ? [CARDS_ITEM] : []),
     ...(user?.id === 1 ? [DEV_ITEM] : []),
   ];
 
