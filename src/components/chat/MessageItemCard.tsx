@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Linking, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { BorderRadius, FontSize, Fonts, Spacing, withAlpha, type ColorPalette } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
@@ -10,6 +11,7 @@ import { downloadPdf } from '../../utils/pdfDownload';
 import { messagingService } from '../../services/messagingService';
 import { showAlert } from '../../stores/alertStore';
 import { PromoCard } from './PromoCard';
+import { openLink } from '../../utils/openLink';
 import type { MessageItem } from '../../types';
 
 /**
@@ -35,13 +37,16 @@ export function MessageItemCard({
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const { t } = useTranslation();
+  const router = useRouter();
   const [downloading, setDownloading] = useState(false);
 
   const meta = item.meta || {};
   const tint = mine ? colors.white : colors.secondary;
 
   const open = (url?: string) => {
-    if (url) Linking.openURL(url).catch(() => {});
+    // Lien de paiement partagé : même résolveur que les annonces — navigation
+    // interne si l'adresse mène à l'app, repli si la PWA refuse la fenêtre.
+    if (url) openLink(url, (path) => router.push(path as any));
   };
 
   const shell = (

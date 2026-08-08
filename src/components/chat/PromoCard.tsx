@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
+import { openLink } from '../../utils/openLink';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BorderRadius, FontSize, Fonts, Spacing, withAlpha, type ColorPalette } from '../../constants/theme';
@@ -19,16 +20,29 @@ import { useColors } from '../ThemeProvider';
  * vérifié la destination du bouton : ici on affiche, on ne filtre plus.
  */
 
-/** Destinations autorisées, telles que les nomme le serveur. */
-const ROUTES: Record<string, string> = {
-  home: '/(tabs)',
-  deposit: '/(tabs)',
-  transfer: '/(tabs)',
-  history: '/(tabs)/history',
-  affiliation: '/(tabs)/affiliation',
-  kyc: '/kyc',
-  messages: '/(tabs)/support',
-  cards: '/account',
+/**
+ * Destinations autorisées, telles que les nomme le serveur.
+ *
+ * ⚠️ Miroir de `InAppBroadcast::PROMO_TARGETS` : une cible proposée à la
+ * rédaction et absente d'ici donne un bouton qui ne fait rien.
+ */
+const ROUTES: Record<string, { pathname: string; params?: Record<string, string> }> = {
+  home: { pathname: '/(tabs)' },
+  // Recharger, Envoyer, Compte à compte et Crypto ne sont pas des écrans mais
+  // des modals de l'accueil : on y arrive par `?action=…`, que l'accueil
+  // consomme à l'ouverture. Sans lui, le client atterrissait devant son solde,
+  // à chercher le bouton que l'annonce venait de lui promettre.
+  deposit: { pathname: '/(tabs)', params: { action: 'deposit' } },
+  transfer: { pathname: '/(tabs)', params: { action: 'transfer' } },
+  p2p: { pathname: '/(tabs)', params: { action: 'p2p' } },
+  crypto: { pathname: '/(tabs)', params: { action: 'crypto' } },
+  history: { pathname: '/(tabs)/history' },
+  affiliation: { pathname: '/(tabs)/affiliation' },
+  kyc: { pathname: '/kyc' },
+  messages: { pathname: '/(tabs)/support' },
+  paylinks: { pathname: '/paylinks' },
+  // L'écran des cartes est `app/cards.tsx` : `/account` ouvrait le compte.
+  cards: { pathname: '/cards' },
 };
 
 interface Props {
@@ -53,11 +67,11 @@ export function PromoCard({ meta }: Props) {
   const openCta = () => {
     if (!ctaTarget) return;
     if (/^https?:\/\//i.test(ctaTarget)) {
-      Linking.openURL(ctaTarget).catch(() => {});
+      openLink(ctaTarget, (path) => router.push(path as any));
       return;
     }
     const route = ROUTES[ctaTarget];
-    if (route) router.push(route as any);
+    if (route) router.push({ pathname: route.pathname, params: route.params } as any);
   };
 
   return (

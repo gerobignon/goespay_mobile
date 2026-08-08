@@ -4,7 +4,9 @@ import {
   Text,
   StyleSheet,
   Modal,
+  Platform,
   Pressable,
+  ScrollView,
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
@@ -14,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BorderRadius, FontSize, Fonts, Spacing, withAlpha, type ColorPalette } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
+import { useKeyboardInset } from '../../hooks/useKeyboardInset';
 import { useColors } from '../ThemeProvider';
 import { useWalletStore } from '../../stores/walletStore';
 import { formatAmount } from '../../utils/format';
@@ -44,6 +47,7 @@ export function SendMoneySheet({ visible, peer, sending, onClose, onSend }: Send
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const balance = useWalletStore((s) => s.balance);
+  const { keyboard, viewportHeight } = useKeyboardInset();
 
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
@@ -60,10 +64,33 @@ export function SendMoneySheet({ visible, peer, sending, onClose, onSend }: Send
     onClose();
   };
 
+  /**
+   * Place à laisser au clavier — la feuille est ancrée en bas, elle passait
+   * dessous dès l'ouverture (le montant est en `autoFocus`).
+   *
+   * Web : le clavier virtuel ne réduit PAS le document, seulement le viewport
+   * visible ; le modal reste donc plein écran et son bas est masqué. On cale le
+   * fond sur la hauteur réellement visible — même remède que l'écran de
+   * conversation (`app/messages/[id].tsx`).
+   *
+   * Natif : le clavier a une hauteur mesurable, le fond la lui réserve.
+   */
+  const isWeb = Platform.OS === 'web';
+  const backdropStyle =
+    isWeb && viewportHeight
+      ? ({ height: viewportHeight } as any)
+      : keyboard > 0
+        ? { paddingBottom: keyboard }
+        : null;
+
+  // Clavier ouvert, la zone du home indicator est couverte : lui réserver la
+  // marge en plus ferait flotter la feuille au-dessus du clavier.
+  const bottomPad = keyboard > 0 ? Spacing.md : Math.max(insets.bottom, Spacing.md);
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={close}>
-      <Pressable style={styles.backdrop} onPress={close}>
-        <Pressable style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]} onPress={() => {}}>
+      <Pressable style={[styles.backdrop, backdropStyle]} onPress={close}>
+        <Pressable style={[styles.sheet, { paddingBottom: bottomPad }]} onPress={() => {}}>
           <View style={styles.head}>
             <Text style={styles.title}>
               {confirming ? t('messages.confirmSend', 'Confirmer l’envoi') : t('messages.sendMoney', 'Envoyer de l’argent')}
@@ -73,6 +100,15 @@ export function SendMoneySheet({ visible, peer, sending, onClose, onSend }: Send
             </TouchableOpacity>
           </View>
 
+          {/* Le corps défile : clavier ouvert sur un petit écran, la feuille
+              dépassait la place restante et le bouton se retrouvait hors champ. */}
+          <ScrollView
+            style={styles.body}
+            contentContainerStyle={styles.bodyContent}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+            showsVerticalScrollIndicator={false}
+          >
           <View style={styles.peer}>
             <ChatAvatar name={peer?.name || ''} uri={peer?.avatar} size={40} />
             <View style={styles.peerBody}>
@@ -144,6 +180,7 @@ export function SendMoneySheet({ visible, peer, sending, onClose, onSend }: Send
               </TouchableOpacity>
             </>
           )}
+          </ScrollView>
         </Pressable>
       </Pressable>
     </Modal>
@@ -162,7 +199,14 @@ const createStyles = (Colors: ColorPalette) =>
       alignSelf: 'center',
       width: '100%',
       maxWidth: 520,
+      // Le fond ne dépasse jamais la place laissée par le clavier : la feuille
+      // s'y limite, et c'est son corps qui défile.
+      maxHeight: '100%',
     },
+    // `flexShrink` sans `flexGrow` : la liste se réduit quand la place manque,
+    // mais ne tire pas la feuille en plein écran quand elle est courte.
+    body: { flexGrow: 0, flexShrink: 1 },
+    bodyContent: { paddingBottom: Spacing.xs },
     head: {
       flexDirection: 'row',
       alignItems: 'center',

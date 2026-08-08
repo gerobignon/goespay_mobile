@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   Modal,
   Platform,
 } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
@@ -130,6 +130,30 @@ export default function DashboardScreen() {
   };
   const isValidated = user?.validate === 1;
   const { t } = useTranslation();
+
+  // Flux ouvert depuis l'extérieur de l'écran — bouton d'une annonce du canal,
+  // notification, lien partagé : `/(tabs)?action=deposit`. Recharger et Envoyer
+  // ne sont pas des routes mais des modals de l'accueil ; sans ce paramètre, un
+  // bouton « Recharger » ne pouvait que déposer le client sur l'accueil.
+  //
+  // On attend que /config ait répondu : les modals ne s'ouvrent que pour un
+  // service visible par ce compte, et tester avant la réponse les refuserait
+  // tous. Le paramètre est ensuite effacé, sinon un simple retour sur l'accueil
+  // rouvrirait le modal.
+  const { action } = useLocalSearchParams<{ action?: string }>();
+  useEffect(() => {
+    if (!action || !configReady) return;
+
+    const flows: Record<string, (() => void) | undefined> = {
+      deposit: showDeposit ? () => setDepositVisible(true) : undefined,
+      transfer: showTransfer ? () => setTransferVisible(true) : undefined,
+      p2p: showP2P ? () => setP2pVisible(true) : undefined,
+      crypto: showCrypto ? () => openCrypto('buy') : undefined,
+    };
+    flows[String(action)]?.();
+
+    router.setParams({ action: undefined } as any);
+  }, [action, configReady, showDeposit, showTransfer, showP2P, showCrypto]);
 
   // Slides du carrousel promo — pilotées depuis l'admin (/config → promo_slides).
   // Image = URL distante ({uri}), lien optionnel ouvert au tap. Carrousel masqué

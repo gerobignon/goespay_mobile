@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Linking, type TextStyle } from 'react-native';
+import { View, Text, StyleSheet, Platform, type TextStyle } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Fonts, FontSize, Spacing } from '../../constants/theme';
+import { internalPathFor, openLink } from '../../utils/openLink';
 
 /**
  * Rendu d'une annonce du canal GoesPay, rédigée en HTML par l'équipe.
@@ -122,18 +124,17 @@ function parse(html: string): Block[] {
 
 export function RichBody({ html, color, linkColor }: Props) {
   const blocks = useMemo(() => parse(html || ''), [html]);
+  const router = useRouter();
 
   if (!blocks.length) return null;
 
-  const open = (href: string) => {
-    // Un lien d'annonce vient de l'équipe, mais on n'ouvre que ce qui ressemble
-    // à une adresse : jamais un schéma exotique. Les mêmes schémas que ceux
-    // acceptés à la rédaction côté serveur — sans quoi un numéro d'assistance
-    // s'afficherait en lien et ne ferait rien au toucher.
-    if (/^https?:\/\//i.test(href) || /^mailto:/i.test(href) || /^tel:/i.test(href)) {
-      Linking.openURL(href).catch(() => {});
-    }
-  };
+  // Un lien d'annonce vient de l'équipe, mais on n'ouvre que ce qui ressemble
+  // à une adresse : jamais un schéma exotique. Les mêmes schémas que ceux
+  // acceptés à la rédaction côté serveur — sans quoi un numéro d'assistance
+  // s'afficherait en lien et ne ferait rien au toucher. `openLink` se charge
+  // du reste : navigation interne pour un lien vers l'app, repli de fenêtre
+  // pour la PWA qui refuse `window.open`.
+  const open = (href: string) => openLink(href, (path) => router.push(path as any));
 
   return (
     <View style={styles.wrap}>
@@ -157,12 +158,35 @@ export function RichBody({ html, color, linkColor }: Props) {
                 style.color = linkColor;
                 style.textDecorationLine = 'underline';
               }
+              // Sur le web, un lien doit être une vraie ancre : un simple
+              // `onPress` produisait un <span> cliquable — pas de curseur, pas
+              // de clic-milieu, pas d'ouverture dans un onglet, et un clic
+              // avalé dès que le balayage de citation prenait la main. Avec un
+              // href, le navigateur ouvre le lien lui-même ; on n'intercepte
+              // que les liens internes, pour naviguer sans recharger l'app.
+              const web = Platform.OS === 'web' && !!span.href;
+              const internal = web ? internalPathFor(span.href as string) : null;
+              const anchor =
+                web && (internal || /^https?:\/\//i.test(span.href as string))
+                  ? {
+                      href: span.href,
+                      hrefAttrs: internal
+                        ? undefined
+                        : { target: '_blank', rel: 'noopener noreferrer' },
+                    }
+                  : {};
+
+              const onPress = !span.href
+                ? undefined
+                : web && !internal
+                  ? undefined // l'ancre suffit : pas de double ouverture
+                  : (e: any) => {
+                      e?.preventDefault?.();
+                      open(span.href as string);
+                    };
+
               return (
-                <Text
-                  key={j}
-                  style={style}
-                  onPress={span.href ? () => open(span.href as string) : undefined}
-                >
+                <Text key={j} style={style} onPress={onPress} {...(anchor as any)}>
                   {span.text}
                 </Text>
               );
