@@ -386,7 +386,11 @@ const createStyles = (Colors: ColorPalette) =>
       paddingTop: Spacing.md,
       paddingBottom: Spacing.md,
       flexGrow: 1,
-      justifyContent: 'flex-end',
+      // Liste inversée : son axe est retourné, donc « flex-start » place bien
+      // le contenu EN BAS à l'écran. Avec « flex-end », un fil de deux messages
+      // se serait collé en haut, sous l'en-tête, avec un grand vide au-dessus
+      // de la saisie.
+      justifyContent: 'flex-start',
     },
     loading: {
       flex: 1,
