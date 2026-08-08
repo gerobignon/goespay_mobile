@@ -45,7 +45,10 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const isSuperAdmin = useAuthStore((s) => s.user?.id === 1);
   const canMessage = useMessagingAccess();
   const devUnread = useDevBoardStore(selectDevUnread);
-  const msgUnread = useMessagingStore((s) => s.unreadTotal);
+  // Une invitation non traitée sollicite autant qu'un message non lu : les deux
+  // alimentent la même pastille, sinon l'invitation n'existe que pour qui pense
+  // à ouvrir l'écran dédié.
+  const msgUnread = useMessagingStore((s) => s.unreadTotal + s.pendingRequests);
   // L'onglet Dev n'apparaît que pour le user id 1.
   const routes = state.routes.filter((r) => r.name !== 'dev' || isSuperAdmin);
   const focusedKey = state.routes[state.index]?.key;
@@ -114,7 +117,7 @@ export default function TabsLayout() {
   const canMessage = useMessagingAccess();
   const fetchBoard = useDevBoardStore((s) => s.fetchBoard);
   const devUnread = useDevBoardStore(selectDevUnread);
-  const msgUnread = useMessagingStore((s) => s.unreadTotal);
+  const msgUnread = useMessagingStore((s) => s.unreadTotal + s.pendingRequests);
   const fetchUnread = useMessagingStore((s) => s.fetchUnread);
   const startInboxPolling = useMessagingStore((s) => s.startInboxPolling);
   const stopInboxPolling = useMessagingStore((s) => s.stopInboxPolling);

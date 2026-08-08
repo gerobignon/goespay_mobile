@@ -16,7 +16,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenBackground } from '../ScreenBackground';
 import { Reveal, Bounce } from '../anim';
-import { Colors, type ColorPalette, Spacing, FontSize, Fonts, BorderRadius } from '../../constants/theme';
+import { Colors, type ColorPalette, Spacing, FontSize, Fonts, BorderRadius, withAlpha } from '../../constants/theme';
 import { CustomAlert } from '../CustomAlert';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
@@ -54,6 +54,7 @@ export function MessagesInbox() {
   const { t } = useTranslation();
 
   const conversations = useMessagingStore((s) => s.conversations);
+  const pendingRequests = useMessagingStore((s) => s.pendingRequests);
   const isLoading = useMessagingStore((s) => s.isLoading);
   const fetchConversations = useMessagingStore((s) => s.fetchConversations);
   const openSupport = useMessagingStore((s) => s.openSupport);
@@ -158,6 +159,13 @@ export function MessagesInbox() {
           <View style={styles.headerActions}>
             <Bounce style={styles.headerBtn} onPress={() => router.push('/messages/requests')}>
               <FontAwesome6 name="user-plus" size={15} color={colors.text} />
+              {pendingRequests > 0 && (
+                <View style={[styles.iconBadge, { backgroundColor: colors.error, borderColor: colors.background }]}>
+                  <Text style={styles.iconBadgeText}>
+                    {pendingRequests > 9 ? '9+' : pendingRequests}
+                  </Text>
+                </View>
+              )}
             </Bounce>
             <Bounce style={styles.headerBtn} onPress={() => router.push('/messages/settings')}>
               <FontAwesome6 name="sliders" size={15} color={colors.text} />
@@ -170,6 +178,37 @@ export function MessagesInbox() {
             </Bounce>
           </View>
         </View>
+
+        {/* Invitations en attente : la carte n'existe que tant qu'il y en a. */}
+        {pendingRequests > 0 && (
+          <Reveal offset={12}>
+            <Bounce
+              style={[
+                styles.requestsCard,
+                { backgroundColor: withAlpha(colors.primary, isDark ? 0.16 : 0.08), borderColor: withAlpha(colors.primary, 0.35) },
+              ]}
+              scaleTo={0.985}
+              onPress={() => router.push('/messages/requests')}
+            >
+              <View style={[styles.requestsIcon, { backgroundColor: colors.primary }]}>
+                <FontAwesome6 name="user-plus" size={16} color={colors.white} />
+              </View>
+              <View style={styles.requestsBody}>
+                <Text style={styles.requestsTitle}>
+                  {t('messages.pendingRequestsTitle', 'Invitations en attente')}
+                </Text>
+                <Text style={styles.requestsSub} numberOfLines={1}>
+                  {t('messages.pendingRequestsSub', { count: pendingRequests })}
+                </Text>
+              </View>
+              <View style={[styles.requestsCount, { backgroundColor: colors.primary }]}>
+                <Text style={styles.requestsCountText}>
+                  {pendingRequests > 99 ? '99+' : pendingRequests}
+                </Text>
+              </View>
+            </Bounce>
+          </Reveal>
+        )}
 
         {/* Support */}
         <Reveal offset={12}>
@@ -295,6 +334,66 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.border,
+  },
+  iconBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    borderWidth: 2,
+    paddingHorizontal: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconBadgeText: {
+    color: '#fff',
+    fontFamily: Fonts.bold,
+    fontSize: 9,
+    lineHeight: 12,
+  },
+  requestsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  requestsIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  requestsBody: { flex: 1, minWidth: 0 },
+  requestsTitle: {
+    fontFamily: Fonts.bold,
+    fontSize: FontSize.md,
+    color: Colors.text,
+  },
+  requestsSub: {
+    fontFamily: Fonts.regular,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    marginTop: 1,
+  },
+  requestsCount: {
+    minWidth: 26,
+    height: 26,
+    borderRadius: 13,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  requestsCountText: {
+    color: '#fff',
+    fontFamily: Fonts.bold,
+    fontSize: FontSize.sm,
   },
   supportCard: {
     flexDirection: 'row',

@@ -17,11 +17,6 @@ import type { WelcomeBonus } from '../types';
 
 const celebratedKey = (userId: number | string) => `welcome_bonus_celebrated_${userId}`;
 
-// Rappel « bonus bloqué » quand le KYC est déjà validé : plus de carte à l'accueil,
-// juste la lightbox ouverte automatiquement UNE fois par session (mémoire du module,
-// remise à zéro au redémarrage de l'app / rechargement de la PWA).
-const blockedModalShown = new Set<string>();
-
 const HERO_GRADIENT = ['#FBBF24', '#F59E0B', '#B45309'] as const;
 const CTA_GRADIENT = ['#F59E0B', '#D97706'] as const;
 const DONE_GRADIENT = ['#10B981', '#34D399'] as const;
@@ -30,10 +25,11 @@ const BAR_GRADIENT = ['#F59E0B', '#FBBF24'] as const;
 /**
  * Carte « bonus de bienvenue » affichée au-dessus du solde à l'accueil :
  *   - KYC non soumis (validate=0) → incite à faire le KYC pour recevoir le bonus ;
- *   - KYC soumis (validate=2) → teaser « bonus à venir après validation ».
+ *   - KYC soumis (validate=2) → teaser « bonus à venir après validation » ;
+ *   - KYC validé (validate=1) + bonus bloqué → rappel des conditions.
  * Le bouton ouvre un modal premium détaillant montant + conditions/progression.
- * KYC déjà validé (validate=1) : pas de carte, le modal s'ouvre seul une fois par session
- * tant que le bonus reste bloqué. Rien du tout quand le bonus est débloqué.
+ * Le modal ne s'ouvre JAMAIS tout seul. Rien du tout quand le bonus est débloqué,
+ * hormis la célébration qui, elle, ne se joue qu'une fois (drapeau serveur).
  */
 export function WelcomeBonusCard() {
   const styles = useThemedStyles(createStyles);
@@ -61,14 +57,9 @@ export function WelcomeBonusCard() {
         .then(async (b) => {
           if (!alive) return;
           setBonus(b);
-          // KYC validé + bonus encore bloqué → rappel en lightbox, 1 fois par session.
-          if (b?.state === 'blocked' && validate === 1 && user?.id != null) {
-            const key = String(user.id);
-            if (!blockedModalShown.has(key)) {
-              blockedModalShown.add(key);
-              if (alive) setModal(true);
-            }
-          }
+          // Aucun modal ouvert automatiquement pour l'état « bloqué » : l'user
+          // le rouvrait à chaque lancement de l'app / rechargement de la PWA.
+          // Il reste accessible depuis la carte (« Voir les conditions »).
           // Bonus fraîchement crédité → célébration UNE SEULE FOIS, jamais
           // rejouée. C'est le SERVEUR qui s'en souvient (`celebrated`) : le
           // drapeau local ne vaut que pour l'appareil, et il repartait à zéro
@@ -99,7 +90,8 @@ export function WelcomeBonusCard() {
 
   const notSubmitted = validate === 0;
   const pending = validate === 2;
-  const showCard = notSubmitted || pending;
+  const blocked = validate === 1 && bonus?.state === 'blocked';
+  const showCard = notSubmitted || pending || blocked;
 
   const amount = bonus?.amount ?? 5000;
   const amountLabel = fmtXof(amount);

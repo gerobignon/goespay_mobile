@@ -127,8 +127,10 @@ export function RichBody({ html, color, linkColor }: Props) {
 
   const open = (href: string) => {
     // Un lien d'annonce vient de l'équipe, mais on n'ouvre que ce qui ressemble
-    // à une adresse : jamais un schéma exotique.
-    if (/^https?:\/\//i.test(href) || /^mailto:/i.test(href)) {
+    // à une adresse : jamais un schéma exotique. Les mêmes schémas que ceux
+    // acceptés à la rédaction côté serveur — sans quoi un numéro d'assistance
+    // s'afficherait en lien et ne ferait rien au toucher.
+    if (/^https?:\/\//i.test(href) || /^mailto:/i.test(href) || /^tel:/i.test(href)) {
       Linking.openURL(href).catch(() => {});
     }
   };

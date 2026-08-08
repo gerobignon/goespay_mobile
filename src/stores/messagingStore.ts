@@ -51,6 +51,8 @@ function lastServerId(messages: ChatMessage[]): number {
 interface MessagingState {
   conversations: Conversation[];
   unreadTotal: number;
+  /** Invitations reçues non traitées : elles alimentent les mêmes badges que les non-lus. */
+  pendingRequests: number;
   prefs: ChatPrefs;
 
   /** Messages par conversation. */
@@ -65,6 +67,7 @@ interface MessagingState {
 
   fetchConversations: (silent?: boolean) => Promise<void>;
   fetchUnread: () => Promise<void>;
+  setPendingRequests: (count: number) => void;
   openSupport: () => Promise<number | null>;
   openDirect: (userId: number) => Promise<number>;
 
@@ -97,6 +100,7 @@ interface MessagingState {
 export const useMessagingStore = create<MessagingState>((set, get) => ({
   conversations: [],
   unreadTotal: 0,
+  pendingRequests: 0,
   prefs: { discoverable: true, allow_unknown: true, show_presence: true },
   threads: {},
   hasMore: {},
@@ -113,6 +117,7 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
       set({
         conversations: data.conversations ?? [],
         unreadTotal: data.unread_total ?? 0,
+        pendingRequests: data.pending_requests ?? 0,
         prefs: data.prefs ?? get().prefs,
         isLoading: false,
         error: null,
@@ -127,11 +132,15 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
 
   fetchUnread: async () => {
     try {
-      set({ unreadTotal: await messagingService.getUnread() });
+      const { unread, pendingRequests } = await messagingService.getUnread();
+      set({ unreadTotal: unread, pendingRequests });
     } catch {
       // Silencieux : c'est un badge, pas une opération.
     }
   },
+
+  /** Répercussion immédiate d'un traitement d'invitation, sans attendre le sondage. */
+  setPendingRequests: (count) => set({ pendingRequests: Math.max(0, count) }),
 
   openSupport: async () => {
     try {
@@ -351,6 +360,7 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
     set({
       conversations: [],
       unreadTotal: 0,
+      pendingRequests: 0,
       threads: {},
       hasMore: {},
       activeId: null,

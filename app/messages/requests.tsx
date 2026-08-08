@@ -13,6 +13,7 @@ import { useColors } from '../../src/components/ThemeProvider';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { BorderRadius, FontSize, Fonts, Spacing, withAlpha, type ColorPalette } from '../../src/constants/theme';
 import { messagingService } from '../../src/services/messagingService';
+import { useMessagingStore } from '../../src/stores/messagingStore';
 import { ChatAvatar } from '../../src/components/chat/ChatAvatar';
 import { shortAgo } from '../../src/components/chat/chatFormat';
 import type { ContactRequest } from '../../src/types';
@@ -44,18 +45,22 @@ export default function RequestsScreen() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
 
+  const setPendingRequests = useMessagingStore((s) => s.setPendingRequests);
+
   const load = useCallback(async () => {
     try {
       const data = await messagingService.getRequests();
       setIncoming(data.incoming);
       setOutgoing(data.outgoing);
       setDeclined(data.declined);
+      // Les badges (onglet, icône de l'app) suivent la liste réellement affichée.
+      setPendingRequests(data.incoming.length);
     } catch {
       // Liste vide plutôt qu'un écran d'erreur : rechargeable en revenant.
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setPendingRequests]);
 
   useFocusEffect(
     useCallback(() => {
@@ -63,11 +68,18 @@ export default function RequestsScreen() {
     }, [load]),
   );
 
+  /** Retire une invitation reçue de la liste, badges compris. */
+  const dropIncoming = (id: number) => {
+    const remaining = incoming.filter((r) => r.id !== id);
+    setIncoming(remaining);
+    setPendingRequests(remaining.length);
+  };
+
   const accept = async (request: ContactRequest) => {
     setBusyId(request.id);
     try {
       const conversation = await messagingService.acceptRequest(request.id);
-      setIncoming((list) => list.filter((r) => r.id !== request.id));
+      dropIncoming(request.id);
       setDeclined((list) => list.filter((r) => r.id !== request.id));
       router.push(`/messages/${conversation.id}`);
     } catch (e: any) {
@@ -90,7 +102,9 @@ export default function RequestsScreen() {
             setBusyId(request.id);
             try {
               await messagingService.declineRequest(request.id);
-              setIncoming((list) => list.filter((r) => r.id !== request.id));
+              dropIncoming(request.id);
+              // Elle rejoint la section « Refusées » sans attendre un rechargement.
+              setDeclined((list) => [{ ...request, direction: 'declined' }, ...list]);
             } catch {
               // Reste en liste : réessayable.
             } finally {

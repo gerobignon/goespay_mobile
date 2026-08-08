@@ -42,6 +42,7 @@ export const messagingService = {
   getConversations: async (): Promise<{
     conversations: Conversation[];
     unread_total: number;
+    pending_requests: number;
     prefs: ChatPrefs;
   }> => {
     const { data } = await api.get('/messaging/conversations', {
@@ -50,12 +51,13 @@ export const messagingService = {
     return data;
   },
 
-  /** Sondage de fond : le strict minimum pour le badge. */
-  getUnread: async (): Promise<number> => {
-    const { data } = await api.get<{ unread_total: number }>('/messaging/unread', {
-      params: { platform: Platform.OS },
-    });
-    return data.unread_total ?? 0;
+  /** Sondage de fond : le strict minimum pour les badges (non-lus + invitations). */
+  getUnread: async (): Promise<{ unread: number; pendingRequests: number }> => {
+    const { data } = await api.get<{ unread_total: number; pending_requests: number }>(
+      '/messaging/unread',
+      { params: { platform: Platform.OS } },
+    );
+    return { unread: data.unread_total ?? 0, pendingRequests: data.pending_requests ?? 0 };
   },
 
   openSupport: async (): Promise<Conversation> => {
