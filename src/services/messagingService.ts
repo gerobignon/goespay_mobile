@@ -175,6 +175,24 @@ export const messagingService = {
     await api.post(`/messaging/requests/${id}/decline`);
   },
 
+  /**
+   * Envoi d'argent depuis la conversation. Une seule route côté serveur pour
+   * le transfert ET le message : l'argent ne peut pas partir sans laisser de
+   * trace dans le fil.
+   */
+  sendMoney: async (
+    conversationId: number,
+    amount: number,
+    note = '',
+  ): Promise<{ message: ChatMessage | null; conversation: Conversation; balance: number | null }> => {
+    const { data } = await api.post(
+      `/messaging/conversations/${conversationId}/send-money`,
+      { amount, note },
+      { timeout: 60000 },
+    );
+    return data;
+  },
+
   /** Types joignables dans ce fil, et objets d'un type donné. */
   getAttachables: async (
     conversationId: number,

@@ -1282,6 +1282,12 @@
     "status_wait": "Pending",
     "status_fail": "Failed",
     "status_active": "Active",
-    "status_pending": "In progress"
+    "status_pending": "In progress",
+    "sendMoney": "Send money",
+    "confirmSend": "Confirm transfer",
+    "balanceIs": "Balance",
+    "notEnough": "Insufficient balance.",
+    "sendNote": "A word with the transfer (optional)",
+    "toPerson": "to"
   }
 }

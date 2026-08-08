@@ -1282,6 +1282,12 @@
     "status_wait": "En attente",
     "status_fail": "Échoué",
     "status_active": "Active",
-    "status_pending": "En cours"
+    "status_pending": "En cours",
+    "sendMoney": "Envoyer de l’argent",
+    "confirmSend": "Confirmer l’envoi",
+    "balanceIs": "Solde",
+    "notEnough": "Solde insuffisant.",
+    "sendNote": "Un mot avec l’envoi (facultatif)",
+    "toPerson": "à"
   }
 }

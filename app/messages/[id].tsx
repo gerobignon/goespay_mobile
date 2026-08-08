@@ -23,11 +23,14 @@ import { useResponsive } from '../../src/hooks/useResponsive';
 import { useKeyboardInset, useLockDocumentScroll } from '../../src/hooks/useKeyboardInset';
 import { BorderRadius, FontSize, Fonts, Spacing, type ColorPalette } from '../../src/constants/theme';
 import { useMessagingStore } from '../../src/stores/messagingStore';
+import { useWalletStore } from '../../src/stores/walletStore';
 import { ChatAvatar } from '../../src/components/chat/ChatAvatar';
 import { ChatComposer, type ChatComposerHandle, type ComposerQuote } from '../../src/components/chat/ChatComposer';
 import { MessageBubble } from '../../src/components/chat/MessageBubble';
 import { ImageLightbox } from '../../src/components/chat/ImageLightbox';
 import { AttachSheet } from '../../src/components/chat/AttachSheet';
+import { SendMoneySheet } from '../../src/components/chat/SendMoneySheet';
+import { messagingService } from '../../src/services/messagingService';
 import { dayLabel, isNewDay, presenceLabel } from '../../src/components/chat/chatFormat';
 import type { ChatMessage, MessageItemType } from '../../src/types';
 
@@ -78,6 +81,8 @@ export default function ConversationScreen() {
   const [quote, setQuote] = useState<ComposerQuote | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [attachOpen, setAttachOpen] = useState(false);
+  const [sendMoneyOpen, setSendMoneyOpen] = useState(false);
+  const [sendingMoney, setSendingMoney] = useState(false);
   /** Objet choisi dans le menu, envoyé avec le prochain message. */
   const [pendingItem, setPendingItem] = useState<{ type: MessageItemType; ref: string; label: string; icon: string } | null>(null);
   const [highlightId, setHighlightId] = useState<number | null>(null);
@@ -380,6 +385,7 @@ export default function ConversationScreen() {
         conversationId={conversationId}
         onClose={() => setAttachOpen(false)}
         onPickPhoto={() => composerRef.current?.pickImage()}
+        onPickSendMoney={() => setSendMoneyOpen(true)}
         onPick={(type, ref) =>
           setPendingItem({
             type,
@@ -388,6 +394,31 @@ export default function ConversationScreen() {
             icon: ATTACH_LABEL[type]?.icon ?? 'paperclip',
           })
         }
+      />
+
+      <SendMoneySheet
+        visible={sendMoneyOpen}
+        peer={peer}
+        sending={sendingMoney}
+        onClose={() => setSendMoneyOpen(false)}
+        onSend={async (amount, note) => {
+          setSendingMoney(true);
+          try {
+            await messagingService.sendMoney(conversationId, amount, note);
+            setSendMoneyOpen(false);
+            // Le message est créé côté serveur : on recharge plutôt que de le
+            // reconstruire ici, et le solde se rafraîchit avec.
+            await loadThread(conversationId, true);
+            useWalletStore.getState().fetchBalance?.();
+          } catch (e: any) {
+            showAlert(
+              t('common.error', 'Erreur'),
+              e?.response?.data?.error || t('messages.actionFailed', 'Action impossible.'),
+            );
+          } finally {
+            setSendingMoney(false);
+          }
+        }}
       />
 
       <ActionSheet

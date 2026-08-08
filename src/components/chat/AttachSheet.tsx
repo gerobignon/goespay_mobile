@@ -36,6 +36,8 @@ interface AttachSheetProps {
   onClose: () => void;
   onPickPhoto: () => void;
   onPick: (type: MessageItemType, ref: string) => void;
+  /** « Envoyer de l'argent » n'est pas un objet à choisir mais une action. */
+  onPickSendMoney?: () => void;
 }
 
 /**
@@ -46,7 +48,14 @@ interface AttachSheetProps {
  * entre clients), et cette règle n'a pas à être répétée ici pour être
  * contredite plus tard.
  */
-export function AttachSheet({ visible, conversationId, onClose, onPickPhoto, onPick }: AttachSheetProps) {
+export function AttachSheet({
+  visible,
+  conversationId,
+  onClose,
+  onPickPhoto,
+  onPick,
+  onPickSendMoney,
+}: AttachSheetProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -133,7 +142,20 @@ export function AttachSheet({ visible, conversationId, onClose, onPickPhoto, onP
               </TouchableOpacity>
 
               {types.map((type) => (
-                <TouchableOpacity key={type} style={styles.row} onPress={() => openList(type)}>
+                <TouchableOpacity
+                  key={type}
+                  style={styles.row}
+                  onPress={() => {
+                    // Envoyer de l'argent se fait, ne se choisit pas : on ouvre
+                    // le formulaire au lieu de lister des transferts passés.
+                    if (type === 'transfer' && onPickSendMoney) {
+                      onClose();
+                      onPickSendMoney();
+                      return;
+                    }
+                    openList(type);
+                  }}
+                >
                   <View style={[styles.rowIcon, { backgroundColor: withAlpha(colors.secondary, 0.15) }]}>
                     <FontAwesome6
                       name={(TYPE_META[type]?.icon ?? 'paperclip') as any}
