@@ -1288,6 +1288,8 @@
     "balanceIs": "Balance",
     "notEnough": "Insufficient balance.",
     "sendNote": "A word with the transfer (optional)",
-    "toPerson": "to"
+    "toPerson": "to",
+    "broadcastReadOnly": "Announcement channel — replies are not read.",
+    "inviteHintFound": "Your invitation goes to this identifier, along with the note you write here."
   }
 }

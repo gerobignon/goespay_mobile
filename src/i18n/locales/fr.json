@@ -1288,6 +1288,8 @@
     "balanceIs": "Solde",
     "notEnough": "Solde insuffisant.",
     "sendNote": "Un mot avec l’envoi (facultatif)",
-    "toPerson": "à"
+    "toPerson": "à",
+    "broadcastReadOnly": "Canal d'information — les réponses ne sont pas lues.",
+    "inviteHintFound": "Votre invitation part vers cet identifiant, avec le mot que vous écrivez ici."
   }
 }
