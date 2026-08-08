@@ -40,6 +40,11 @@ const FILTER_KEYS = [
   { key: undefined, labelKey: 'history.filterAll' },
   { key: 'deposit', labelKey: 'history.filterDeposit' },
   { key: 'withdraw', labelKey: 'history.filterWithdraw' },
+  // Encaissements par lien et échanges entre clients : ils figuraient déjà dans
+  // « Tout » — l'un comme un dépôt, l'autre comme un transfert — mais rien ne
+  // permettait de les isoler.
+  { key: 'paylink', labelKey: 'history.filterPaylink' },
+  { key: 'p2p', labelKey: 'history.filterP2p' },
   { key: 'crypto', labelKey: 'history.filterCrypto' },
 ] as const;
 

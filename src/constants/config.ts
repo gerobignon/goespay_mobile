@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 //   → retrouve-la avec : ipconfig getifaddr en0
 // En prod : PROD_API est utilisé automatiquement
 const DEV_API = Platform.select({
-  android: 'http://10.133.207.177:8001/api/mobile/v1',
+  android: 'http://10.0.2.2:8001/api/mobile/v1',
   ios: 'http://localhost:8001/api/mobile/v1',
   default: 'http://localhost:8001/api/mobile/v1',
 });

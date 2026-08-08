@@ -269,7 +269,7 @@ export interface DevTaskInput {
 
 // ─── Messagerie in-app ───────────────────────────────────────────────────────
 
-export type ConversationType = 'support' | 'direct';
+export type ConversationType = 'support' | 'direct' | 'broadcast';
 export type ConversationStatus = 'open' | 'pending' | 'closed';
 export type ContactSource = 'transfer' | 'referral' | 'sponsor';
 export type ReportReason = 'scam' | 'spam' | 'harassment' | 'other';
@@ -344,6 +344,8 @@ export interface Conversation {
   /** Dernier message lu par l'interlocuteur → accusé de lecture sur mes bulles. */
   peer_read_id: number;
   peer_typing: boolean;
+  /** Canal de diffusion : on y lit, on n'y répond pas. */
+  read_only?: boolean;
 }
 
 export interface ChatAuthor {
@@ -402,6 +404,8 @@ export interface ChatMessage {
   mine: boolean;
   is_system: boolean;
   body: string;
+  /** « html » uniquement sur une annonce du canal GoesPay ; sinon texte brut. */
+  format?: 'text' | 'html';
   attachment: ChatAttachment | null;
   author: ChatAuthor | null;
   reply_to: ChatReplyPreview | null;

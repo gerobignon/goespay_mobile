@@ -121,12 +121,14 @@ export function WalletStack({ children }: Props) {
       style={styles.panelCard}
       imageStyle={styles.panelCardImage}
     >
-      <TouchableOpacity
-        style={styles.panelInner}
-        activeOpacity={0.9}
-        onPress={() => router.push('/cards')}
-      >
-        <Text style={styles.panelLabel}>{t('cards.title')}</Text>
+      {/* Conteneur NON tactile : un Touchable enveloppant tout le panneau se
+          disputait chaque geste avec le défilement des cartes — le doigt
+          déclenchait tantôt le glissement, tantôt la navigation, d'où des
+          sauts. Les zones qui ouvrent l'écran cartes sont désignées une à une. */}
+      <View style={styles.panelInner}>
+        <TouchableOpacity activeOpacity={0.7} onPress={() => router.push('/cards')}>
+          <Text style={styles.panelLabel}>{t('cards.title')}</Text>
+        </TouchableOpacity>
 
         {/* Plusieurs cartes : elles défilent sur place. Le glissement reste
             capté par ce défilement, jamais par la pile — on change de panneau
@@ -147,9 +149,14 @@ export function WalletStack({ children }: Props) {
               }}
             >
               {liveCards.map((c) => (
-                <View key={c.id} style={pagerWidth > 0 ? { width: pagerWidth, alignItems: 'center' } : undefined}>
+                <TouchableOpacity
+                  key={c.id}
+                  activeOpacity={0.9}
+                  onPress={() => router.push('/cards')}
+                  style={pagerWidth > 0 ? { width: pagerWidth, alignItems: 'center' } : undefined}
+                >
                   <VirtualCardVisual card={c} holder={holder} maxWidth={CARD_PREVIEW_WIDTH} />
-                </View>
+                </TouchableOpacity>
               ))}
             </ScrollView>
 
@@ -160,11 +167,13 @@ export function WalletStack({ children }: Props) {
             </View>
           </View>
         ) : (
-          <VirtualCardVisual card={activeCard} holder={holder} maxWidth={CARD_PREVIEW_WIDTH} />
+          <TouchableOpacity activeOpacity={0.9} onPress={() => router.push('/cards')}>
+            <VirtualCardVisual card={activeCard} holder={holder} maxWidth={CARD_PREVIEW_WIDTH} />
+          </TouchableOpacity>
         )}
 
         {activeCard ? (
-          <View style={styles.panelFooter}>
+          <TouchableOpacity style={styles.panelFooter} activeOpacity={0.7} onPress={() => router.push('/cards')}>
             <Text style={styles.panelBalance}>
               {activeCard.balance.toFixed(2)} {activeCard.currency}
             </Text>
@@ -177,14 +186,14 @@ export function WalletStack({ children }: Props) {
               <Text style={styles.panelActionText}>{t('cards.manage')}</Text>
               <FontAwesome6 name="chevron-right" size={12} color={DarkColors.textSecondary} />
             </View>
-          </View>
+          </TouchableOpacity>
         ) : (
-          <View style={styles.panelAction}>
+          <TouchableOpacity style={styles.panelAction} activeOpacity={0.7} onPress={() => router.push('/cards')}>
             <Text style={styles.panelActionText}>{t('cards.order')}</Text>
             <FontAwesome6 name="chevron-right" size={12} color={DarkColors.textSecondary} />
-          </View>
+          </TouchableOpacity>
         )}
-      </TouchableOpacity>
+      </View>
     </ImageBackground>
   );
 

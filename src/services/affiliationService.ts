@@ -41,4 +41,9 @@ export const affiliationService = {
     const { data } = await api.get<WelcomeBonus>('/me/welcome-bonus');
     return data;
   },
+
+  /** L'annonce du déblocage a été vue : mémorisé au compte, pas à l'appareil. */
+  markBonusCelebrated: async (): Promise<void> => {
+    await api.post('/me/welcome-bonus/celebrated', {});
+  },
 };

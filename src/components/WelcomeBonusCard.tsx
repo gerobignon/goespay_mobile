@@ -69,9 +69,14 @@ export function WelcomeBonusCard() {
               if (alive) setModal(true);
             }
           }
-          // Bonus fraîchement crédité → célébration UNE fois (persistée par user).
-          // Si l'user était hors-ligne au déblocage, ça se joue à sa 1re connexion.
-          if (b?.state === 'unlocked' && user?.id != null) {
+          // Bonus fraîchement crédité → célébration UNE SEULE FOIS, jamais
+          // rejouée. C'est le SERVEUR qui s'en souvient (`celebrated`) : le
+          // drapeau local ne vaut que pour l'appareil, et il repartait à zéro
+          // sur un nouveau téléphone, une PWA réinstallée ou un cache vidé —
+          // le client revoyait l'annonce d'un bonus reçu depuis longtemps. Le
+          // drapeau local reste consulté en second : il évite que l'annonce ne
+          // reparaisse entre la fermeture et la prise en compte du serveur.
+          if (b?.state === 'unlocked' && !b?.celebrated && user?.id != null) {
             const seen = await AsyncStorage.getItem(celebratedKey(user.id));
             if (!seen && alive) setCelebrate(true);
           }
@@ -83,9 +88,13 @@ export function WelcomeBonusCard() {
 
   const dismissCelebration = async () => {
     setCelebrate(false);
+    setBonus((b) => (b ? { ...b, celebrated: true } : b));
     if (user?.id != null) {
       await AsyncStorage.setItem(celebratedKey(user.id), '1');
     }
+    // Mémoire durable, valable sur tous les appareils. Sans conséquence si
+    // l'appel échoue : le drapeau local tient jusqu'à la prochaine occasion.
+    affiliationService.markBonusCelebrated().catch(() => {});
   };
 
   const notSubmitted = validate === 0;

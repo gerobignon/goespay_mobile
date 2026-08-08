@@ -17,6 +17,7 @@ import { useColors } from '../ThemeProvider';
 import { useResponsive } from '../../hooks/useResponsive';
 import type { ChatMessage } from '../../types';
 import { messageTime } from './chatFormat';
+import { RichBody } from './RichBody';
 import { MessageItemCard } from './MessageItemCard';
 
 /** Distance de balayage au-delà de laquelle la citation se déclenche. */
@@ -167,7 +168,17 @@ export function MessageBubble({
         )}
 
         {!!message.body && (
-          <Text style={[styles.text, { color: mine ? colors.white : colors.text }]}>{message.body}</Text>
+          message.format === 'html' ? (
+            // Annonce du canal GoesPay : mise en forme rédigée par l'équipe.
+            // Le drapeau vient du serveur — jamais deviné à partir du contenu.
+            <RichBody
+              html={message.body}
+              color={mine ? colors.white : colors.text}
+              linkColor={mine ? colors.white : colors.primary}
+            />
+          ) : (
+            <Text style={[styles.text, { color: mine ? colors.white : colors.text }]}>{message.body}</Text>
+          )
         )}
 
         <View style={styles.meta}>
