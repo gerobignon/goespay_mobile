@@ -31,6 +31,16 @@ import type { ContactRequest } from '../../src/types';
  * est le seul moyen de revenir dessus — accepter, ou effacer pour rouvrir la
  * porte à l'expéditeur.
  */
+/**
+ * Ligne secondaire d'une carte. L'identifiant n'y figure pas quand le nom est
+ * masqué : il tient déjà lieu de nom, l'écrire deux fois ressemblerait à un bug.
+ */
+function metaOf(peer: ContactRequest['peer'], tail: string): string {
+  return [peer && !peer.name_hidden ? `#${peer.id}` : null, peer?.country || null, tail]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 export default function RequestsScreen() {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
@@ -178,18 +188,24 @@ export default function RequestsScreen() {
                         activeOpacity={0.7}
                         onPress={() => r.peer && router.push(`/messages/profile/${r.peer.id}`)}
                       >
-                        <ChatAvatar name={r.peer?.name || ''} uri={r.peer?.avatar} size={46} />
+                        <ChatAvatar
+                          name={r.peer?.name || ''}
+                          uri={r.peer?.avatar}
+                          size={46}
+                          hidden={!!r.peer?.name_hidden}
+                        />
                         <View style={styles.cardBody}>
                           <View style={styles.cardTop}>
+                            {r.peer?.name_hidden && (
+                              <FontAwesome6 name="eye-slash" size={11} color={colors.textMuted} />
+                            )}
                             <Text style={styles.cardName} numberOfLines={1}>{r.peer?.name}</Text>
                             {r.peer?.verified && (
                               <FontAwesome6 name="circle-check" size={12} color={colors.positive} />
                             )}
                           </View>
                           <Text style={styles.cardMeta} numberOfLines={1}>
-                            #{r.peer?.id}
-                            {r.peer?.country ? ` · ${r.peer.country}` : ''}
-                            {` · ${shortAgo(r.created_at, t)}`}
+                            {metaOf(r.peer, shortAgo(r.created_at, t))}
                           </Text>
                         </View>
                         <FontAwesome6 name="chevron-right" size={12} color={colors.textMuted} />
@@ -231,7 +247,12 @@ export default function RequestsScreen() {
                 {outgoing.map((r) => (
                   <View key={r.id} style={[styles.card, styles.cardMuted]}>
                     <View style={styles.cardHead}>
-                      <ChatAvatar name={r.peer?.name || '?'} uri={r.peer?.avatar} size={40} />
+                      <ChatAvatar
+                        name={r.peer?.name || '?'}
+                        uri={r.peer?.avatar}
+                        size={40}
+                        hidden={!!r.peer?.name_hidden}
+                      />
                       <View style={styles.cardBody}>
                         <Text style={styles.cardName} numberOfLines={1}>{r.peer?.name}</Text>
                         <Text style={styles.cardMeta}>
@@ -275,18 +296,24 @@ export default function RequestsScreen() {
                             activeOpacity={0.7}
                             onPress={() => r.peer && router.push(`/messages/profile/${r.peer.id}`)}
                           >
-                            <ChatAvatar name={r.peer?.name || ''} uri={r.peer?.avatar} size={46} />
+                            <ChatAvatar
+                              name={r.peer?.name || ''}
+                              uri={r.peer?.avatar}
+                              size={46}
+                              hidden={!!r.peer?.name_hidden}
+                            />
                             <View style={styles.cardBody}>
                               <View style={styles.cardTop}>
+                                {r.peer?.name_hidden && (
+                                  <FontAwesome6 name="eye-slash" size={11} color={colors.textMuted} />
+                                )}
                                 <Text style={styles.cardName} numberOfLines={1}>{r.peer?.name}</Text>
                                 {r.peer?.verified && (
                                   <FontAwesome6 name="circle-check" size={12} color={colors.positive} />
                                 )}
                               </View>
                               <Text style={styles.cardMeta} numberOfLines={1}>
-                                #{r.peer?.id}
-                                {r.peer?.country ? ` · ${r.peer.country}` : ''}
-                                {` · ${shortAgo(r.responded_at || r.created_at, t)}`}
+                                {metaOf(r.peer, shortAgo(r.responded_at || r.created_at, t))}
                               </Text>
                             </View>
                             <FontAwesome6 name="chevron-right" size={12} color={colors.textMuted} />

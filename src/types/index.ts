@@ -301,7 +301,11 @@ export interface ChatVisibility {
  */
 export interface PeerCard {
   id: number;
+  /** Vaut « #id » quand le nom est masqué — cf. name_hidden. */
   name: string;
+  /** Le compte réserve son nom / sa photo : caché, et non simplement absent. */
+  name_hidden?: boolean;
+  avatar_hidden?: boolean;
   avatar: string | null;
   country: string;
   verified: boolean;

@@ -14,10 +14,15 @@ interface ChatAvatarProps {
   online?: boolean;
   /** Support : casque sur fond de marque plutôt que des initiales. */
   isSupport?: boolean;
+  /**
+   * Le compte cache son identité : œil barré plutôt que des initiales, qui ne
+   * seraient de toute façon que son identifiant réaffiché.
+   */
+  hidden?: boolean;
 }
 
 /** Avatar rond : photo si elle existe, sinon initiales sur fond de marque. */
-export function ChatAvatar({ name, uri, size = 48, online, isSupport }: ChatAvatarProps) {
+export function ChatAvatar({ name, uri, size = 48, online, isSupport, hidden }: ChatAvatarProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const dotSize = Math.max(9, Math.round(size * 0.26));
@@ -34,12 +39,16 @@ export function ChatAvatar({ name, uri, size = 48, online, isSupport }: ChatAvat
               width: size,
               height: size,
               borderRadius: size / 2,
-              backgroundColor: isSupport ? colors.primary : withAlpha(colors.secondary, 0.22),
+              backgroundColor: isSupport
+                ? colors.primary
+                : withAlpha(hidden ? colors.textMuted : colors.secondary, 0.22),
             },
           ]}
         >
           {isSupport ? (
             <FontAwesome6 name="headset" size={size * 0.42} color={colors.white} />
+          ) : hidden ? (
+            <FontAwesome6 name="eye-slash" size={size * 0.36} color={colors.textMuted} />
           ) : (
             <Text style={[styles.initials, { fontSize: size * 0.36, color: colors.secondary }]}>
               {initialsOf(name)}

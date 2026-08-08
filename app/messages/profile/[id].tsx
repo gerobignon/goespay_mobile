@@ -129,6 +129,10 @@ export default function PeerProfileScreen() {
     }
   };
 
+  const metaLine = [profile?.name_hidden ? null : profile ? `#${profile.id}` : null, profile?.country]
+    .filter(Boolean)
+    .join(' · ');
+
   const memberSince = profile?.member_since
     ? new Date(profile.member_since).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
     : '';
@@ -156,12 +160,24 @@ export default function PeerProfileScreen() {
         ) : (
           <>
             <View style={styles.card}>
-              <ChatAvatar name={profile.name} uri={profile.avatar} online={profile.online} size={84} />
-              <Text style={styles.name}>{profile.name}</Text>
-              <Text style={styles.meta}>
-                #{profile.id}
-                {profile.country ? ` · ${profile.country}` : ''}
-              </Text>
+              <ChatAvatar
+                name={profile.name}
+                uri={profile.avatar}
+                online={profile.online}
+                size={84}
+                hidden={!!profile.name_hidden}
+              />
+              <View style={styles.nameRow}>
+                {profile.name_hidden && (
+                  <FontAwesome6 name="eye-slash" size={13} color={colors.textMuted} />
+                )}
+                <Text style={styles.name}>
+                  {profile.name_hidden ? `#${profile.id}` : profile.name}
+                </Text>
+              </View>
+              {/* Nom masqué : l'identifiant tient déjà lieu de titre, le répéter
+                  ici donnerait trois fois la même chose. */}
+              {!!metaLine && <Text style={styles.meta}>{metaLine}</Text>}
               {!!presenceLabel(profile.online, profile.last_seen_at, t) && (
                 <Text style={[styles.presence, profile.online && { color: colors.positive }]}>
                   {presenceLabel(profile.online, profile.last_seen_at, t)}
@@ -308,11 +324,16 @@ const createStyles = (Colors: ColorPalette) =>
       padding: Spacing.lg,
       gap: 4,
     },
+    nameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.xs,
+      marginTop: Spacing.sm,
+    },
     name: {
       fontFamily: Fonts.bold,
       fontSize: FontSize.lg,
       color: Colors.text,
-      marginTop: Spacing.sm,
       textAlign: 'center',
     },
     meta: {
