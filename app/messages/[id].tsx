@@ -20,7 +20,7 @@ import { ActionSheet, type SheetAction } from '../../src/components/ActionSheet'
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useColors } from '../../src/components/ThemeProvider';
 import { useResponsive } from '../../src/hooks/useResponsive';
-import { useKeyboardInset, useLockDocumentScroll } from '../../src/hooks/useKeyboardInset';
+import { useKeyboardInset } from '../../src/hooks/useKeyboardInset';
 import { BorderRadius, FontSize, Fonts, Spacing, type ColorPalette } from '../../src/constants/theme';
 import { useMessagingStore } from '../../src/stores/messagingStore';
 import { useWalletStore } from '../../src/stores/walletStore';
@@ -90,7 +90,6 @@ export default function ConversationScreen() {
   const composerRef = useRef<ChatComposerHandle>(null);
   const { keyboard: keyboardInset, viewportHeight } = useKeyboardInset();
   const insets = useSafeAreaInsets();
-  useLockDocumentScroll();
   // Ouvrir les emojis ferme le clavier : sa hauteur est déjà retombée à zéro
   // quand le panneau s'affiche. On garde la dernière mesure pour lui donner
   // exactement la place que le clavier occupait — pas de saut de mise en page.
@@ -156,6 +155,9 @@ export default function ConversationScreen() {
   }, [error]);
 
   const isSupport = conversation?.type === 'support';
+  // Canal GoesPay : on y lit une annonce, on n'y répond pas. Le serveur refuse
+  // de toute façon tout message ; masquer la saisie évite d'en proposer une.
+  const isBroadcast = conversation?.type === 'broadcast' || !!conversation?.read_only;
   const peer = conversation?.peer || null;
 
   // Liste inversée : le message le plus récent en tête de données.
@@ -352,6 +354,14 @@ export default function ConversationScreen() {
           />
         )}
 
+        {isBroadcast ? (
+          <View style={styles.readOnlyNote}>
+            <FontAwesome6 name="bullhorn" size={13} color={colors.textMuted} />
+            <Text style={styles.readOnlyText}>
+              {t('messages.broadcastReadOnly', 'Canal d\'information — les réponses ne sont pas lues.')}
+            </Text>
+          </View>
+        ) : (
         <ChatComposer
           ref={composerRef}
           onSend={(body, imageUri) => {
@@ -378,6 +388,7 @@ export default function ConversationScreen() {
           pendingItem={pendingItem ? { label: pendingItem.label, icon: pendingItem.icon } : null}
           onCancelItem={() => setPendingItem(null)}
         />
+        )}
       </View>
 
       <AttachSheet
@@ -529,5 +540,23 @@ const createStyles = (Colors: ColorPalette) =>
       color: Colors.textMuted,
       textAlign: 'center',
       maxWidth: 280,
+    },
+    // Remplace la zone de saisie sur un canal de diffusion : la place reste
+    // occupée, pour que l'absence de champ se lise comme un choix.
+    readOnlyNote: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: Spacing.sm,
+      paddingVertical: Spacing.md,
+      paddingHorizontal: Spacing.lg,
+      borderTopWidth: 1,
+      borderTopColor: Colors.border,
+      backgroundColor: Colors.card,
+    },
+    readOnlyText: {
+      fontFamily: Fonts.regular,
+      fontSize: FontSize.sm,
+      color: Colors.textMuted,
     },
   });

@@ -65,22 +65,3 @@ export function useKeyboardInset(): KeyboardViewport {
 
   return { keyboard, viewportHeight };
 }
-
-/**
- * Verrouille le défilement du document pendant qu'un écran plein cadre est
- * affiché (web). Sans lui, la page continue de défiler derrière l'écran calé
- * sur le viewport visuel.
- */
-export function useLockDocumentScroll(active = true): void {
-  useEffect(() => {
-    if (Platform.OS !== 'web' || !active || typeof document === 'undefined') return;
-
-    const body = document.body;
-    const previous = body.style.overflow;
-    body.style.overflow = 'hidden';
-
-    return () => {
-      body.style.overflow = previous;
-    };
-  }, [active]);
-}
