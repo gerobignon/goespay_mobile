@@ -250,19 +250,15 @@ export default function NewConversationScreen() {
                     d'un compte de la présence ou non d'un bouton. */}
                 <View style={styles.inviteCard}>
                   <Text style={styles.inviteTitle}>{t('messages.inviteTitle', 'Inviter à discuter')}</Text>
-                  {/* Le texte dépend de ce que l'écran montre déjà : annoncer
-                      qu'on ignore si le compte existe n'a aucun sens quand il
-                      est affiché juste au-dessus. */}
+                  {/* Texte purement factuel. La réserve sur l'existence du
+                      compte est déjà dite par le bloc « aucun résultat » quand
+                      il s'affiche — la répéter ici la diluait, et elle n'a
+                      aucun sens quand un compte est listé juste au-dessus. */}
                   <Text style={styles.inviteHint}>
-                    {results.length > 0
-                      ? t(
-                          'messages.inviteHintFound',
-                          'Votre invitation part vers cet identifiant, avec le mot que vous écrivez ici.',
-                        )
-                      : t(
-                          'messages.inviteHint',
-                          'Votre invitation part vers cet identifiant. Vous ne saurez pas s’il correspond à un compte tant que la personne n’a pas accepté.',
-                        )}
+                    {t(
+                      'messages.inviteHintFound',
+                      'Votre invitation part vers cet identifiant, avec le mot que vous écrivez ici.',
+                    )}
                   </Text>
                   <TextInput
                     style={styles.noteInput}
