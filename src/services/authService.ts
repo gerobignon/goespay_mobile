@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import api from './api';
 import type {
+  LoginMethod,
   LoginRequest,
   LoginResponse,
   RegisterRequest,
@@ -10,6 +11,18 @@ import type {
 export const authService = {
   login: async (data: LoginRequest): Promise<LoginResponse> => {
     const response = await api.post<LoginResponse>('/auth/login', data);
+    return response.data;
+  },
+
+  /** Demande le code de connexion à 6 chiffres envoyé par email (méthode par défaut). */
+  requestLoginCode: async (email: string): Promise<{ message: string }> => {
+    const response = await api.post('/auth/request-code', { email, hp_field: '' });
+    return response.data;
+  },
+
+  /** Valide le code reçu par email — équivalent d'un mot de passe correct. */
+  verifyLoginCode: async (email: string, code: string): Promise<LoginResponse> => {
+    const response = await api.post<LoginResponse>('/auth/verify-code', { email, code });
     return response.data;
   },
 
@@ -69,6 +82,24 @@ export const authService = {
     password_confirmation: string;
   }): Promise<{ message: string }> => {
     const response = await api.put('/me/password', data);
+    return response.data;
+  },
+
+  /** Choisit la porte d'entrée du compte : code par email ou mot de passe. */
+  setLoginMethod: async (method: LoginMethod): Promise<{ message: string; login_method: LoginMethod; has_password: boolean }> => {
+    const response = await api.put('/me/login-method', { method });
+    return response.data;
+  },
+
+  /** Envoie un code de vérification au client déjà connecté (preuve d'identité). */
+  requestIdentityCode: async (): Promise<{ message: string }> => {
+    const response = await api.post('/me/request-code', {});
+    return response.data;
+  },
+
+  /** Re-prouve son identité avant une action sensible : mot de passe ou code email. */
+  verifyIdentity: async (proof: { password?: string; code?: string }): Promise<{ valid: boolean }> => {
+    const response = await api.post('/me/verify-identity', proof);
     return response.data;
   },
 
@@ -172,8 +203,9 @@ export const authService = {
     return response.data;
   },
 
-  disable2fa: async (password: string): Promise<{ message: string }> => {
-    const response = await api.post('/2fa/disable', { password });
+  /** Preuve d'identité : mot de passe, ou code email pour un compte qui n'en a pas. */
+  disable2fa: async (proof: { password?: string; code?: string }): Promise<{ message: string }> => {
+    const response = await api.post('/2fa/disable', proof);
     return response.data;
   },
 

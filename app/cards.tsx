@@ -23,7 +23,7 @@ import {
 } from '../src/services/cardService';
 import { Button } from '../src/components/Button';
 import { CustomAlert } from '../src/components/CustomAlert';
-import { CardSecretsModal } from '../src/components/CardSecretsModal';
+import { LocalAuthModal } from '../src/components/LocalAuthModal';
 import { CardFundModal } from '../src/components/CardFundModal';
 import { CardOrderModal } from '../src/components/CardOrderModal';
 import { VirtualCardVisual, type CardCopyField } from '../src/components/VirtualCardVisual';
@@ -38,8 +38,16 @@ import { useAuthStore } from '../src/stores/authStore';
 import { showAlert } from '../src/stores/alertStore';
 import { useFormatXof } from '../src/utils/format';
 import { getApiErrorMessage } from '../src/utils/apiError';
+import { requireLocalLock } from '../src/utils/localAuth';
 
-/** Rythme et durée du suivi d'émission (l'émetteur crée la carte de son côté). */
+/**
+ * Rythme et durée du suivi d'émission. Le serveur va lui-même chercher la carte
+ * chez l'émetteur dès la première interrogation : elle aboutit le plus souvent
+ * en quelques secondes, d'où une cadence serrée au début — c'est le moment où le
+ * client regarde l'écran — puis relâchée pour les cas qui traînent.
+ */
+const POLL_FAST_INTERVAL = 2000;
+const POLL_FAST_ATTEMPTS = 15;
 const POLL_INTERVAL = 5000;
 const POLL_MAX_ATTEMPTS = 60;
 /** Les données réelles restent lisibles sur la carte ce nombre de secondes. */
@@ -64,7 +72,7 @@ export default function CardsScreen() {
   const [showFees, setShowFees] = useState(false);
   const [openId, setOpenId] = useState<number | null>(null);
   const [transactions, setTransactions] = useState<Record<number, CardTransaction[]>>({});
-  /** Carte pour laquelle on demande le mot de passe. */
+  /** Carte pour laquelle on demande la confirmation par le verrou de l'appareil. */
   const [authFor, setAuthFor] = useState<VirtualCard | null>(null);
   /** Champ à copier dès que les secrets arrivent (copie déclenchée sur la carte). */
   const [copyAfterAuth, setCopyAfterAuth] = useState<'pan' | 'cvv' | null>(null);
@@ -75,7 +83,7 @@ export default function CardsScreen() {
   const [fundFor, setFundFor] = useState<{ card: VirtualCard; direction: 'fund' | 'withdraw' } | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
 
-  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollAttempts = useRef(0);
 
   // Fonctionnalité interne : un accès direct à l'URL par un compte ordinaire
@@ -96,7 +104,7 @@ export default function CardsScreen() {
 
   const stopPolling = () => {
     if (pollTimer.current) {
-      clearInterval(pollTimer.current);
+      clearTimeout(pollTimer.current);
       pollTimer.current = null;
     }
     pollAttempts.current = 0;
@@ -110,22 +118,32 @@ export default function CardsScreen() {
     stopPolling();
     pollAttempts.current = 0;
 
+    // Chaîne de setTimeout plutôt qu'un setInterval : la cadence change en cours
+    // de route, et une lecture lente ne doit pas déclencher la suivante par-dessus.
     const tick = async () => {
       pollAttempts.current += 1;
+      let done = false;
       try {
         const card = await cardService.get(cardId);
         setData((prev) => prev
           ? { ...prev, cards: prev.cards.map((c) => (c.id === card.id ? card : c)) }
           : prev);
-        if (!card.pending) stopPolling();
+        done = !card.pending;
       } catch (_) {
         // Une lecture ratée n'interrompt pas le suivi.
       }
-      if (pollAttempts.current >= POLL_MAX_ATTEMPTS) stopPolling();
+
+      if (done || pollAttempts.current >= POLL_MAX_ATTEMPTS) {
+        stopPolling();
+        return;
+      }
+      pollTimer.current = setTimeout(
+        tick,
+        pollAttempts.current < POLL_FAST_ATTEMPTS ? POLL_FAST_INTERVAL : POLL_INTERVAL,
+      );
     };
 
     tick();
-    pollTimer.current = setInterval(tick, POLL_INTERVAL);
   }, []);
 
   useEffect(() => {
@@ -287,8 +305,31 @@ export default function CardsScreen() {
       return;
     }
 
-    setCopyAfterAuth(field);
+    askSecrets(card, field);
+  };
+
+  /**
+   * Demande d'accès aux données réelles. Le verrou de l'appareil est la seule
+   * preuve exigée — beaucoup de comptes n'ont pas de mot de passe, la connexion
+   * se faisant par code reçu par mail.
+   */
+  const askSecrets = (card: VirtualCard, field: CardCopyField | null) => {
+    if (!requireLocalLock(t, (route) => router.push(route as any))) return;
+    setCopyAfterAuth(field === 'expiry' ? null : field);
     setAuthFor(card);
+  };
+
+  /** Verrou franchi : on va chercher les secrets, puis on les pose sur la carte. */
+  const fetchSecrets = async (card: VirtualCard) => {
+    setAuthFor(null);
+    try {
+      const secrets = await cardService.secrets(card.id);
+      await onRevealed(card, secrets);
+    } catch (e: any) {
+      showAlert(t('common.error'), getApiErrorMessage(e, t, t('cards.revealError')));
+    } finally {
+      setCopyAfterAuth(null);
+    }
   };
 
   /** Secrets obtenus : ils s'écrivent sur la carte, et la copie en cours aboutit. */
@@ -463,8 +504,7 @@ export default function CardsScreen() {
               style={styles.action}
               onPress={() => {
                 if (secrets) { hideSecrets(); return; }
-                setCopyAfterAuth(null);
-                setAuthFor(card);
+                askSecrets(card, null);
               }}
             >
               <View style={styles.actionIcon}>
@@ -563,9 +603,15 @@ export default function CardsScreen() {
 
     const usd = (v: number) => (v > 0 ? `${v.toFixed(2)} USD` : t('cards.free'));
     const rate = grid.rate_usd_xof > 0 ? grid.rate_usd_xof : pricing?.rate;
+    // Le rachat du dollar se fait plus bas que la vente ; à zéro, le même taux
+    // vaut dans les deux sens et la ligne de retrait n'apprend rien.
+    const withdrawRate = grid.withdraw_rate_usd_xof > 0 ? grid.withdraw_rate_usd_xof : rate;
 
     const rows: Array<[string, string]> = [
-      [t('cards.rate'), rate ? `1 USD = ${fmtXof(rate)}` : '—'],
+      [t('cards.rateFund'), rate ? `1 USD = ${fmtXof(rate)}` : '—'],
+      ...(withdrawRate && withdrawRate !== rate
+        ? ([[t('cards.rateWithdraw'), `1 USD = ${fmtXof(withdrawRate)}`]] as Array<[string, string]>)
+        : []),
       [t('cards.issueFee'), usd(grid.issue_fee_usd)],
       [
         t('cards.feeFundLow', { threshold: grid.fund_threshold_usd }),
@@ -683,7 +729,10 @@ export default function CardsScreen() {
           {eligibility?.can_order && (
             <Button
               title={liveCards.length > 0 ? t('cards.orderAnother') : t('cards.order')}
-              onPress={() => setOrderOpen(true)}
+              onPress={() => {
+                if (!requireLocalLock(t, (route) => router.push(route as any), t('security.cardLockMessage'))) return;
+                setOrderOpen(true);
+              }}
               icon="credit-card"
               style={{ marginTop: Spacing.md }}
             />
@@ -695,10 +744,10 @@ export default function CardsScreen() {
 
   const modals = (
     <>
-      <CardSecretsModal
+      <LocalAuthModal
         visible={!!authFor}
-        card={authFor}
-        onRevealed={(secrets) => { if (authFor) onRevealed(authFor, secrets); }}
+        title={t('security.confirmCardTitle')}
+        onSuccess={() => { if (authFor) fetchSecrets(authFor); }}
         onClose={() => { setAuthFor(null); setCopyAfterAuth(null); }}
       />
       <CardOrderModal

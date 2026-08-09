@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,7 @@ import { ConversationRow } from './ConversationRow';
 import { ChatAvatar } from './ChatAvatar';
 import { ImageLightbox } from './ImageLightbox';
 import { ActionSheet, type SheetAction } from '../ActionSheet';
+import { Coachmarks, TourSpot, useCoachmarks, type CoachStep } from '../Coachmarks';
 import type { Conversation } from '../../types';
 
 const open = (url: string) => Linking.openURL(url).catch(() => {});
@@ -62,6 +63,10 @@ export function MessagesInbox() {
   const setMuted = useMessagingStore((s) => s.setMuted);
   const archiveConversation = useMessagingStore((s) => s.archiveConversation);
 
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollY = useRef(0);
+  const tour = useCoachmarks('messages.v1');
+
   const [refreshing, setRefreshing] = useState(false);
   const [openingSupport, setOpeningSupport] = useState(false);
   const [showChannels, setShowChannels] = useState(false);
@@ -81,6 +86,7 @@ export function MessagesInbox() {
   useFocusEffect(
     useCallback(() => {
       fetchConversations(useMessagingStore.getState().conversations.length > 0);
+      tour.check();
       const timer = setInterval(() => {
         if (AppState.currentState === 'active') fetchConversations(true);
       }, 30000);
@@ -147,9 +153,65 @@ export function MessagesInbox() {
     { icon: 'youtube' as const, brand: true, color: '#FF0000', url: 'https://youtube.com/channel/UCxooykyhvHYo_zAI1yckRsw/?sub_confirmation=1' },
   ];
 
+  /**
+   * Visite guidée du premier passage : six étapes fixes, dans l'ordre de
+   * lecture de l'écran.
+   */
+  const tourSteps: CoachStep[] = useMemo(() => {
+    const steps: CoachStep[] = [
+      {
+        icon: 'comments',
+        title: t('messages.tourWelcomeTitle', 'Bienvenue dans les messages'),
+        text: t(
+          'messages.tourWelcomeText',
+          'Écrivez au support et discutez avec les autres comptes GoesPay.',
+        ),
+      },
+      {
+        target: 'support',
+        icon: 'headset',
+        title: t('messages.tourSupportTitle', 'Support GoesPay'),
+        text: t('messages.tourSupportText', 'Une question sur une transaction ? La réponse arrive ici.'),
+      },
+      {
+        target: 'compose',
+        icon: 'pen',
+        title: t('messages.tourComposeTitle', 'Nouvelle conversation'),
+        text: t(
+          'messages.tourComposeText',
+          'Cherchez et lancez une discussion avec un compte GoesPay facilement.',
+        ),
+      },
+      {
+        target: 'requests',
+        icon: 'user-plus',
+        title: t('messages.tourRequestsTitle', 'Invitations'),
+        text: t('messages.tourRequestsText', 'Les premiers messages d’inconnus attendent votre accord ici.'),
+      },
+      {
+        target: 'settings',
+        icon: 'sliders',
+        title: t('messages.tourSettingsTitle', 'Réglages'),
+        text: t('messages.tourSettingsText', 'Qui peut vous écrire, ce que votre profil montre, les comptes bloqués.'),
+      },
+      {
+        target: 'list',
+        icon: 'list',
+        title: t('messages.tourListTitle', 'Vos conversations'),
+        text: t('messages.tourListText', 'Appui long sur une conversation pour la couper ou la masquer.'),
+      },
+    ];
+    return steps;
+  }, [t]);
+
   return (
     <ScreenBackground edges={['top']}>
       <ScrollView
+        ref={scrollRef}
+        onScroll={(e) => {
+          scrollY.current = e.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
         contentContainerStyle={[
           styles.scroll,
           isWide && { alignSelf: 'center', width: '100%', maxWidth: 800 },
@@ -161,25 +223,31 @@ export function MessagesInbox() {
         <View style={styles.header}>
           <Text style={styles.title}>{t('messages.title', 'Messages')}</Text>
           <View style={styles.headerActions}>
-            <Bounce style={styles.headerBtn} onPress={() => router.push('/messages/requests')}>
-              <FontAwesome6 name="user-plus" size={15} color={colors.text} />
-              {pendingRequests > 0 && (
-                <View style={[styles.iconBadge, { backgroundColor: colors.error, borderColor: colors.background }]}>
-                  <Text style={styles.iconBadgeText}>
-                    {pendingRequests > 9 ? '9+' : pendingRequests}
-                  </Text>
-                </View>
-              )}
-            </Bounce>
-            <Bounce style={styles.headerBtn} onPress={() => router.push('/messages/settings')}>
-              <FontAwesome6 name="sliders" size={15} color={colors.text} />
-            </Bounce>
-            <Bounce
-              style={[styles.headerBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}
-              onPress={() => router.push('/messages/new')}
-            >
-              <FontAwesome6 name="pen" size={14} color={colors.white} />
-            </Bounce>
+            <TourSpot id="requests" tour={tour}>
+              <Bounce style={styles.headerBtn} onPress={() => router.push('/messages/requests')}>
+                <FontAwesome6 name="user-plus" size={15} color={colors.text} />
+                {pendingRequests > 0 && (
+                  <View style={[styles.iconBadge, { backgroundColor: colors.error, borderColor: colors.background }]}>
+                    <Text style={styles.iconBadgeText}>
+                      {pendingRequests > 9 ? '9+' : pendingRequests}
+                    </Text>
+                  </View>
+                )}
+              </Bounce>
+            </TourSpot>
+            <TourSpot id="settings" tour={tour}>
+              <Bounce style={styles.headerBtn} onPress={() => router.push('/messages/settings')}>
+                <FontAwesome6 name="sliders" size={15} color={colors.text} />
+              </Bounce>
+            </TourSpot>
+            <TourSpot id="compose" tour={tour}>
+              <Bounce
+                style={[styles.headerBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                onPress={() => router.push('/messages/new')}
+              >
+                <FontAwesome6 name="pen" size={14} color={colors.white} />
+              </Bounce>
+            </TourSpot>
           </View>
         </View>
 
@@ -215,6 +283,7 @@ export function MessagesInbox() {
         )}
 
         {/* Support */}
+        <TourSpot id="support" tour={tour}>
         <Reveal offset={12}>
           <Bounce style={styles.supportCard} scaleTo={0.985} onPress={goSupport}>
             <ChatAvatar name="Support" isSupport size={50} />
@@ -235,6 +304,7 @@ export function MessagesInbox() {
             )}
           </Bounce>
         </Reveal>
+        </TourSpot>
 
         {/* Canal d'annonces GoesPay */}
         {channel && (
@@ -290,6 +360,7 @@ export function MessagesInbox() {
         {/* Conversations */}
         <Text style={styles.sectionTitle}>{t('messages.conversations', 'Conversations')}</Text>
 
+        <TourSpot id="list" tour={tour}>
         {isLoading && conversations.length === 0 ? (
           <ActivityIndicator style={{ marginTop: Spacing.lg }} color={colors.text} />
         ) : directs.length === 0 ? (
@@ -317,6 +388,7 @@ export function MessagesInbox() {
             ))}
           </View>
         )}
+        </TourSpot>
 
         {/* Canaux externes */}
         <TouchableOpacity style={styles.channelsToggle} onPress={() => setShowChannels((v) => !v)}>
@@ -355,6 +427,15 @@ export function MessagesInbox() {
         onClose={() => setSheetFor(null)}
       />
       <ImageLightbox uri={viewerUri} onClose={() => setViewerUri(null)} />
+      <Coachmarks
+        tour={tour}
+        steps={tourSteps}
+        onScrollBy={(delta) => {
+          const y = Math.max(scrollY.current + delta, 0);
+          scrollY.current = y;
+          scrollRef.current?.scrollTo({ y, animated: true });
+        }}
+      />
       <CustomAlert />
     </ScreenBackground>
   );

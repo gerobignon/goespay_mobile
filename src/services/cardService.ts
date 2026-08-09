@@ -7,8 +7,10 @@ import api from './api';
  * `pending`, et c'est `get()` (interrogé en boucle) ou une notification qui
  * confirme le passage à `active`.
  *
- * Les secrets (numéro complet, CVV) ont leur propre appel, protégé par
- * ré-authentification serveur. Ils ne doivent JAMAIS être stockés : ni state
+ * Les secrets (numéro complet, CVV) ont leur propre appel, précédé d'une
+ * confirmation par le verrou de l'appareil (code ou biométrie) : le mot de passe
+ * du compte n'y a plus sa part — beaucoup de comptes n'en ont pas, la connexion
+ * se faisant par code reçu par mail. Ils ne doivent JAMAIS être stockés : ni state
  * persistant, ni AsyncStorage, ni SafeStorage — sur le web ce dernier est du
  * localStorage en clair.
  */
@@ -90,6 +92,8 @@ export interface CardEligibility {
 /** Grille affichée au client, en USD. Pilotée depuis le back-office. */
 export interface CardFeeGrid {
   rate_usd_xof: number;
+  /** Taux du retrait carte → wallet. 0 = même taux qu'au rechargement. */
+  withdraw_rate_usd_xof: number;
   issue_fee_usd: number;
   fund_percent_low: number;
   fund_fee_min_usd: number;
@@ -149,12 +153,6 @@ export interface CardQuote {
   direction: 'fund' | 'withdraw';
 }
 
-/** Ré-authentification exigée par le serveur pour révéler les secrets. */
-export interface RevealCredentials {
-  password?: string;
-  otp?: string;
-}
-
 export const cardService = {
   list: async (): Promise<CardsResponse> => {
     const response = await api.get('/maplerad/cards');
@@ -208,9 +206,12 @@ export const cardService = {
   /**
    * Numéro complet et CVV. Le résultat ne doit jamais quitter la mémoire du
    * composant appelant : pas de cache, pas de store, pas de journalisation.
+   *
+   * L'appel est précédé, côté app, d'une confirmation par le verrou de
+   * l'appareil (code ou biométrie) : c'est elle qui autorise le geste.
    */
-  secrets: async (id: number, credentials: RevealCredentials): Promise<CardSecrets> => {
-    const response = await api.post(`/maplerad/cards/${id}/secrets`, credentials, { timeout: 30000 });
+  secrets: async (id: number): Promise<CardSecrets> => {
+    const response = await api.post(`/maplerad/cards/${id}/secrets`, {}, { timeout: 30000 });
     return response.data;
   },
 

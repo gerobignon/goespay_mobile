@@ -7,6 +7,7 @@ import { useMessagingAccess } from '../../src/hooks/useMessagingAccess';
 import { useAuthStore } from '../../src/stores/authStore';
 import { DesktopHeader } from '../../src/components/DesktopHeader';
 import { DesktopFooter } from '../../src/components/DesktopFooter';
+import { MessagingGate } from '../../src/components/MessagingGate';
 
 /**
  * Section messagerie : chaque écran porte son propre en-tête.
@@ -34,7 +35,11 @@ export default function MessagesLayout() {
     return <View style={{ flex: 1, backgroundColor: colors.background }} />;
   }
 
-  const stack = <Stack screenOptions={{ headerShown: false }} />;
+  const stack = (
+    <MessagingGate>
+      <Stack screenOptions={{ headerShown: false }} />
+    </MessagingGate>
+  );
 
   if (!isDesktop) return stack;
 

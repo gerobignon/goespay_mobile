@@ -8,6 +8,7 @@ import {
   ScrollView,
   Modal,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
@@ -15,6 +16,7 @@ import { GlassCard } from '../../src/components/GlassCard';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { PinPad } from '../../src/components/PinPad';
 import { Input } from '../../src/components/Input';
+import { OtpInput } from '../../src/components/OtpInput';
 import { usePinStore } from '../../src/stores/pinStore';
 import {
   verifyPin,
@@ -23,6 +25,7 @@ import {
   getCredentials,
   clearAllSecureData,
 } from '../../src/services/secureAuthService';
+import { verifyWebauthn } from '../../src/services/webauthnService';
 import { authService } from '../../src/services/authService';
 import { Image } from 'react-native';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -31,6 +34,7 @@ import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
 import { showAlert } from '../../src/stores/alertStore';
+import { getApiErrorMessage } from '../../src/utils/apiError';
 
 export default function UnlockScreen() {
   const router = useRouter();
@@ -49,12 +53,21 @@ export default function UnlockScreen() {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetPassword, setResetPassword] = useState('');
   const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
+  const [resetCodeSent, setResetCodeSent] = useState(false);
+
+  // Un compte créé par la nouvelle inscription n'a pas de mot de passe : sa
+  // preuve d'identité est un code envoyé par email (même mécanique que la 2FA).
+  // On ne peut pas se contenter de la session ouverte — c'est précisément ce
+  // que le verrou protège.
+  const usesCodeProof = user?.has_password === false;
 
   useEffect(() => {
     isBiometricAvailable().then(setBioAvailable);
   }, []);
 
-  // Tenter la biométrie automatiquement au montage si c'est la méthode configurée
+  // Tenter la biométrie automatiquement au montage si c'est la méthode
+  // configurée. Pas pour WebAuthn : Safari/iOS exige un geste utilisateur,
+  // une invite automatique serait rejetée — l'utilisateur appuie sur la carte.
   useEffect(() => {
     if (lockMethod === 'biometric') {
       handleBiometric();
@@ -63,6 +76,17 @@ export default function UnlockScreen() {
 
   const handleBiometric = async () => {
     const success = await authenticateWithBiometric();
+    if (success) {
+      unlock();
+      router.replace('/(tabs)');
+    } else {
+      setError(t('auth.pin.biometricFailedShort'));
+    }
+  };
+
+  const handleWebauthn = async () => {
+    setError(null);
+    const success = await verifyWebauthn();
     if (success) {
       unlock();
       router.replace('/(tabs)');
@@ -92,23 +116,41 @@ export default function UnlockScreen() {
     }
   };
 
+  const handleOpenResetModal = async () => {
+    setResetModalVisible(true);
+    if (!usesCodeProof || resetCodeSent) return;
+    try {
+      await authService.requestIdentityCode();
+      setResetCodeSent(true);
+    } catch (err: any) {
+      showAlert(t('common.error'), getApiErrorMessage(err, t, t('auth.login.codeSendError')));
+    }
+  };
+
   const handleForgotPin = async () => {
     if (!resetPassword.trim()) {
-      setResetPasswordError(t('account.pinPasswordError'));
+      setResetPasswordError(usesCodeProof ? t('auth.login.enter6digits') : t('account.pinPasswordError'));
       return;
     }
     setResetLoading(true);
     setResetPasswordError(null);
     try {
-      await authService.login({ email: user!.email, password: resetPassword });
+      await authService.verifyIdentity(
+        usesCodeProof ? { code: resetPassword } : { password: resetPassword },
+      );
       await authService.resetPin();
       await clearPin();
       setResetModalVisible(false);
-      router.replace('/(auth)/setup-pin');
+      // Sur web le verrou est optionnel : après réinitialisation on rend la
+      // main à l'app, l'utilisateur reconfigure un PIN s'il le veut depuis
+      // Réglages › Sécurité. Sur natif il reste obligatoire.
+      router.replace(Platform.OS === 'web' ? '/(tabs)' : '/(auth)/setup-pin');
     } catch (err: any) {
       const status = err?.response?.status;
       if (status === 401 || status === 422) {
-        setResetPasswordError(t('account.pinPasswordIncorrect'));
+        setResetPasswordError(
+          usesCodeProof ? t('auth.login.incorrectCode') : t('account.pinPasswordIncorrect'),
+        );
       } else {
         showAlert(t('common.error'), err.response?.data?.message || 'Erreur lors de la réinitialisation du PIN');
       }
@@ -121,6 +163,7 @@ export default function UnlockScreen() {
     setResetModalVisible(false);
     setResetPassword('');
     setResetPasswordError(null);
+    setResetCodeSent(false);
   };
 
   const handleLogout = async () => {
@@ -145,7 +188,11 @@ export default function UnlockScreen() {
 
         <GlassCard style={{ alignItems: 'center', gap: Spacing.lg }}>
         <Text style={styles.title}>
-          {lockMethod === 'biometric' ? t('auth.pin.unlockBiometric', 'Déverrouillez avec Face ID / Touch ID') : t('auth.pin.enterPin', 'Entrez votre PIN')}
+          {lockMethod === 'biometric'
+            ? t('auth.pin.unlockBiometric', 'Déverrouillez avec Face ID / Touch ID')
+            : lockMethod === 'webauthn'
+              ? t('auth.pin.unlockWebauthn')
+              : t('auth.pin.enterPin', 'Entrez votre PIN')}
         </Text>
 
         {lockMethod === 'pin' && (
@@ -158,10 +205,13 @@ export default function UnlockScreen() {
           />
         )}
 
-        {lockMethod === 'biometric' && (
+        {(lockMethod === 'biometric' || lockMethod === 'webauthn') && (
           <View style={styles.bioContainer}>
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            <TouchableOpacity style={styles.bioBtn} onPress={handleBiometric}>
+            <TouchableOpacity
+              style={styles.bioBtn}
+              onPress={lockMethod === 'webauthn' ? handleWebauthn : handleBiometric}
+            >
               <FontAwesome6 name="fingerprint" size={48} color={Colors.secondary} />
               <Text style={styles.bioText}>{t('auth.pin.tapToUnlock', 'Appuyer pour déverrouiller')}</Text>
             </TouchableOpacity>
@@ -170,8 +220,12 @@ export default function UnlockScreen() {
         </GlassCard>
 
         <View style={styles.buttonsContainer}>
-          <TouchableOpacity onPress={() => setResetModalVisible(true)} style={styles.forgotBtn}>
-            <Text style={styles.forgotText}>🔑 {t('auth.pin.forgotPin', 'PIN oublié ?')}</Text>
+          <TouchableOpacity onPress={handleOpenResetModal} style={styles.forgotBtn}>
+            <Text style={styles.forgotText}>
+              <FontAwesome6 name="key" size={14} style={styles.forgotIcon} />
+              {'  '}
+              {lockMethod === 'webauthn' ? t('auth.pin.cantUnlock') : t('auth.pin.forgotPin', 'PIN oublié ?')}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
@@ -194,14 +248,28 @@ export default function UnlockScreen() {
               {t('auth.pin.resetWarning', 'Cette action vous reconectera à votre compte. Vous devrez configurer un nouveau PIN.')}
             </Text>
 
-            <Input
-              label={t('account.currentPassword')}
-              value={resetPassword}
-              onChangeText={(v) => { setResetPassword(v); setResetPasswordError(null); }}
-              secureTextEntry
-              placeholder="••••••••"
-              error={resetPasswordError || undefined}
-            />
+            {usesCodeProof ? (
+              <>
+                <Text style={styles.modalMessage}>
+                  {t('auth.login.codeHint', { email: user?.email })}
+                </Text>
+                <OtpInput
+                  value={resetPassword}
+                  onChange={(v) => { setResetPassword(v); setResetPasswordError(null); }}
+                  onComplete={handleForgotPin}
+                />
+                {resetPasswordError ? <Text style={styles.error}>{resetPasswordError}</Text> : null}
+              </>
+            ) : (
+              <Input
+                label={t('account.currentPassword')}
+                value={resetPassword}
+                onChangeText={(v) => { setResetPassword(v); setResetPasswordError(null); }}
+                secureTextEntry
+                placeholder="••••••••"
+                error={resetPasswordError || undefined}
+              />
+            )}
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
@@ -294,6 +362,10 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontFamily: Fonts.medium,
     textDecoration: 'underline',
   } as any,
+  // Même couleur que le libellé, mais sans le soulignement.
+  forgotIcon: {
+    color: Colors.primary,
+  },
   logoutBtn: {
     paddingVertical: Spacing.sm,
   },

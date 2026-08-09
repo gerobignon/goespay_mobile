@@ -16,6 +16,7 @@ import {
 } from '../src/services/notificationService';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../src/constants/theme';
 import { useThemedStyles } from '../src/hooks/useThemedStyles';
+import { useWebAutoLock } from '../src/hooks/useWebAutoLock';
 import { API_BASE_URL } from '../src/constants/config';
 import { CustomAlert } from '../src/components/CustomAlert';
 import { PwaInstallBanner } from '../src/components/PwaInstallBanner';
@@ -53,6 +54,9 @@ function RootInner() {
   const notifListenerRef = useRef<Notifications.Subscription | null>(null);
   const responseListenerRef = useRef<Notifications.Subscription | null>(null);
   const coldStartHandledRef = useRef(false);
+
+  // Web/PWA : re-verrouiller après un passage prolongé en arrière-plan.
+  useWebAutoLock(isAuthenticated && isSetupDone);
 
   /**
    * Destination d'une notification. Partagée par les trois chemins d'arrivée :
@@ -423,23 +427,28 @@ function RootInner() {
     const currentRoute = segments[segments.length - 1];
 
     const isWeb = Platform.OS === 'web';
+    // Le verrou est obligatoire sur natif : tant qu'il n'est pas configuré, on
+    // pousse vers setup-pin. Sur web il reste OPTIONNEL (activé depuis Réglages
+    // › Sécurité) — on ne force personne, mais s'il est configuré il est
+    // demandé comme sur mobile.
+    const needsSetup = !isWeb && !isSetupDone;
+    const needsUnlock = isSetupDone && isLocked;
 
     if (!isAuthenticated && !inAuth) {
       router.replace('/(auth)/login');
     } else if (isAuthenticated && inAuth && currentRoute !== 'setup-pin' && currentRoute !== 'unlock') {
-      // Authentifié mais pas encore configuré PIN → setup obligatoire (sauf web)
-      if (!isWeb && !isSetupDone) {
+      if (needsSetup) {
         router.replace('/(auth)/setup-pin');
-      } else if (!isWeb && isLocked) {
+      } else if (needsUnlock) {
         router.replace('/(auth)/unlock');
       } else {
         router.replace('/(tabs)');
       }
     } else if (isAuthenticated && !inAuth) {
-      // Dans l'app : vérifier si locked (sauf web)
-      if (!isWeb && !isSetupDone) {
+      // Dans l'app : vérifier si locked
+      if (needsSetup) {
         router.replace('/(auth)/setup-pin');
-      } else if (!isWeb && isLocked) {
+      } else if (needsUnlock) {
         router.replace('/(auth)/unlock');
       }
     }

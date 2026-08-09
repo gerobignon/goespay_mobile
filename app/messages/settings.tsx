@@ -15,6 +15,7 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { API_BASE_URL } from '../../src/constants/config';
 import { messagingService } from '../../src/services/messagingService';
 import { ChatAvatar } from '../../src/components/chat/ChatAvatar';
+import { resetCoachmarks } from '../../src/components/Coachmarks';
 import type { BlockedUser, ChatPrefs, ChatVisibility, VisibilityLevel } from '../../src/types';
 
 /** Réglages de la messagerie : visibilité, premiers contacts, comptes bloqués. */
@@ -180,6 +181,19 @@ export default function MessagingSettingsScreen() {
           ))}
         </View>
 
+        {/* Rejoue la visite guidée de la boîte de réception. */}
+        <TouchableOpacity
+          style={[styles.card, styles.guideRow]}
+          onPress={async () => {
+            await resetCoachmarks('messages.v1');
+            router.back();
+          }}
+        >
+          <FontAwesome6 name="circle-question" size={16} color={colors.primary} />
+          <Text style={[styles.rowLabel, { flex: 1 }]}>{t('messages.replayTour', 'Revoir le guide')}</Text>
+          <FontAwesome6 name="chevron-right" size={12} color={colors.textMuted} />
+        </TouchableOpacity>
+
         {/* Qui voit quoi de mon profil */}
         <Text style={styles.sectionTitle}>{t('messages.visibilityTitle', 'Qui voit mes informations')}</Text>
 
@@ -267,6 +281,13 @@ const createStyles = (Colors: ColorPalette) =>
       borderColor: Colors.border,
       borderRadius: BorderRadius.xl,
       paddingHorizontal: Spacing.md,
+    },
+    guideRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.md,
+      paddingVertical: Spacing.md,
+      marginTop: Spacing.sm,
     },
     row: {
       flexDirection: 'row',

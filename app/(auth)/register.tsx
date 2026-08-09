@@ -30,8 +30,6 @@ export default function RegisterScreen() {
   const [surname, setSurname] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [parrainCode, setParrainCode] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -44,22 +42,18 @@ export default function RegisterScreen() {
   const surnameRef = useRef<TextInput>(null);
   const nameRef = useRef<TextInput>(null);
   const emailRef = useRef<TextInput>(null);
-  const passwordRef = useRef<TextInput>(null);
-  const passwordConfirmationRef = useRef<TextInput>(null);
   const parrainRef = useRef<TextInput>(null);
 
   const fieldRefs: Record<string, React.RefObject<TextInput | null>> = {
     surname: surnameRef,
     name: nameRef,
     email: emailRef,
-    password: passwordRef,
-    password_confirmation: passwordConfirmationRef,
     parrain_code: parrainRef,
   };
 
   const handleRegister = async () => {
     setFieldErrors({});
-    if (!surname.trim() || !name.trim() || !email.trim() || !password.trim()) {
+    if (!surname.trim() || !name.trim() || !email.trim()) {
       showAlert(t('common.error'), t('auth.register.fillAllFields', 'Veuillez remplir tous les champs.'));
       return;
     }
@@ -69,20 +63,15 @@ export default function RegisterScreen() {
       emailRef.current?.focus();
       return;
     }
-    if (password !== passwordConfirmation) {
-      setFieldErrors({ password_confirmation: t('auth.register.passwordMismatch', 'Les mots de passe ne correspondent pas.') });
-      passwordConfirmationRef.current?.focus();
-      return;
-    }
 
     setLoading(true);
     try {
+      // Pas de mot de passe à l'inscription : la connexion se fait par code
+      // reçu par email, et un mot de passe se définit plus tard si on le veut.
       await authService.register({
         surname: surname.trim(),
         name: name.trim(),
         email: email.trim(),
-        password,
-        password_confirmation: passwordConfirmation,
         parrain_code: parrainCode.trim() || undefined,
         hp_field: '',
       } as any);
@@ -162,27 +151,6 @@ export default function RegisterScreen() {
               autoCapitalize="none"
               autoComplete="email"
               error={fieldErrors.email}
-            />
-
-            <Input
-              ref={passwordRef}
-              label={t('auth.register.password')}
-              placeholder={t('auth.register.passwordPlaceholder')}
-              value={password}
-              onChangeText={(v) => { setPassword(v); setFieldErrors((e) => ({ ...e, password: '' })); }}
-              secureTextEntry
-              autoComplete="new-password"
-              error={fieldErrors.password}
-            />
-
-            <Input
-              ref={passwordConfirmationRef}
-              label={t('auth.register.confirmPassword')}
-              placeholder="••••••••"
-              value={passwordConfirmation}
-              onChangeText={(v) => { setPasswordConfirmation(v); setFieldErrors((e) => ({ ...e, password_confirmation: '' })); }}
-              secureTextEntry
-              error={fieldErrors.password_confirmation}
             />
 
             <Input

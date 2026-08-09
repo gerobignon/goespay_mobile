@@ -25,6 +25,11 @@ import {
   getLockMethod,
   type LockMethod,
 } from '../../src/services/secureAuthService';
+import {
+  isWebauthnAvailable,
+  registerWebauthn,
+  clearWebauthn,
+} from '../../src/services/webauthnService';
 import { Input } from '../../src/components/Input';
 import { OtpInput } from '../../src/components/OtpInput';
 import { Button } from '../../src/components/Button';
@@ -45,11 +50,12 @@ export default function SecurityScreen() {
   const { isDesktop } = useResponsive();
   const styles = useThemedStyles(createStyles);
   const { isDark } = useTheme();
-  const { user } = useAuthStore();
+  const { user, refreshProfile } = useAuthStore();
   const { setMethod } = usePinStore();
   const { t } = useTranslation();
 
   const [bioAvailable, setBioAvailable] = useState(false);
+  const [webauthnAvailable, setWebauthnAvailable] = useState(false);
   const [currentLockMethod, setCurrentLockMethod] = useState<LockMethod>(null);
 
   // PIN modal
@@ -61,6 +67,11 @@ export default function SecurityScreen() {
   const [firstPin, setFirstPin] = useState('');
   const [pinError, setPinError] = useState<string | null>(null);
   const [pinReset, setPinReset] = useState(false);
+
+  // Méthode de connexion : code reçu par email (défaut) ou mot de passe.
+  const hasPassword = user?.has_password !== false;
+  const loginMethod = user?.login_method ?? 'otp';
+  const [loginMethodLoading, setLoginMethodLoading] = useState(false);
 
   // Password modal
   const [pwModalVisible, setPwModalVisible] = useState(false);
@@ -83,9 +94,45 @@ export default function SecurityScreen() {
 
   useEffect(() => {
     isBiometricAvailable().then(setBioAvailable);
+    isWebauthnAvailable().then(setWebauthnAvailable);
     getLockMethod().then(setCurrentLockMethod);
     authService.get2faStatus().then((s) => setTwoFaEnabled(s.enabled)).catch(() => {});
   }, []);
+
+  // Web : Face ID / Touch ID / Hello / clé de sécurité via WebAuthn — le
+  // pendant de la biométrie native. L'enregistrement DOIT partir d'un geste
+  // utilisateur, on l'appelle donc directement depuis le onPress.
+  const handleEnableWebauthn = async () => {
+    const registered = await registerWebauthn(user?.id ?? 'user', user?.email ?? 'GoesPay');
+    if (!registered) {
+      showAlert(t('common.error'), t('account.webauthnError'));
+      return;
+    }
+    await clearPin();
+    await setLockMethod('webauthn');
+    await setMethod('webauthn');
+    setCurrentLockMethod('webauthn');
+    showAlert(t('common.success'), t('account.webauthnEnabled'));
+  };
+
+  const handleDisableWebauthn = async () => {
+    await clearWebauthn();
+    await setLockMethod(null);
+    await setMethod(null);
+    setCurrentLockMethod(null);
+    showAlert(t('common.success'), t('account.webauthnDisabled'));
+  };
+
+  const handleWebauthnRow = () => {
+    if (currentLockMethod === 'webauthn') {
+      showAlert(t('account.webauthn'), '', [
+        { text: t('account.pinDisable'), style: 'destructive', onPress: handleDisableWebauthn },
+        { text: t('common.cancel') },
+      ]);
+      return;
+    }
+    handleEnableWebauthn();
+  };
 
   const handleSwitchToBio = async () => {
     await setLockMethod('biometric');
@@ -95,8 +142,31 @@ export default function SecurityScreen() {
     showAlert(t('common.success'), t('account.biometricEnabled'));
   };
 
+  // Le verrou est obligatoire sur natif, optionnel sur web : là seulement on
+  // propose de le retirer.
+  const handleDisablePin = async () => {
+    await clearPin();
+    await setLockMethod(null);
+    await setMethod(null);
+    setCurrentLockMethod(null);
+    showAlert(t('common.success'), t('account.pinDisabled'));
+  };
+
+  const handlePinRow = () => {
+    if (Platform.OS === 'web' && currentLockMethod === 'pin') {
+      showAlert(t('account.pin'), '', [
+        { text: t('account.pinChange'), onPress: handleSwitchToPin },
+        { text: t('account.pinDisable'), style: 'destructive', onPress: handleDisablePin },
+      ]);
+      return;
+    }
+    handleSwitchToPin();
+  };
+
   const handleSwitchToPin = () => {
-    setPinStep('password');
+    // Un compte qui se connecte par code email n'a pas de mot de passe à
+    // redonner : sa session est déjà la preuve, on va droit au PIN.
+    setPinStep(user?.has_password === false ? 'enter' : 'password');
     setPinPasswordCheck('');
     setPinPasswordError(null);
     setFirstPin('');
@@ -111,7 +181,7 @@ export default function SecurityScreen() {
     }
     setPinPasswordLoading(true);
     try {
-      await authService.login({ email: user!.email, password: pinPasswordCheck });
+      await authService.verifyIdentity({ password: pinPasswordCheck });
       setPinPasswordError(null);
       setPinStep('enter');
     } catch {
@@ -163,8 +233,35 @@ export default function SecurityScreen() {
     }
   };
 
+  const applyLoginMethod = async (method: 'otp' | 'password') => {
+    if (loginMethodLoading || method === loginMethod) return;
+    // Choisir le mot de passe suppose d'en avoir un : sinon on l'ouvre d'abord.
+    if (method === 'password' && !hasPassword) {
+      setPwModalVisible(true);
+      return;
+    }
+    setLoginMethodLoading(true);
+    try {
+      await authService.setLoginMethod(method);
+      await refreshProfile();
+    } catch (error: any) {
+      showAlert(t('common.error'), getApiErrorMessage(error, t, t('account.loginMethodError')));
+    } finally {
+      setLoginMethodLoading(false);
+    }
+  };
+
+  const handleLoginMethodRow = () => {
+    showAlert(t('account.loginMethod'), '', [
+      { text: t('account.loginMethodOtp'), onPress: () => applyLoginMethod('otp') },
+      { text: t('account.loginMethodPassword'), onPress: () => applyLoginMethod('password') },
+    ]);
+  };
+
   const handleChangePassword = async () => {
-    if (!currentPassword.trim()) {
+    // Premier mot de passe d'un compte « code email » : rien à confirmer,
+    // il n'en a pas encore.
+    if (hasPassword && !currentPassword.trim()) {
       showAlert(t('common.error'), t('account.enterCurrentPassword'));
       return;
     }
@@ -183,11 +280,12 @@ export default function SecurityScreen() {
         password: newPassword,
         password_confirmation: confirmPassword,
       });
-      showAlert(t('common.success'), t('account.passwordChanged'));
+      showAlert(t('common.success'), hasPassword ? t('account.passwordChanged') : t('account.passwordCreated'));
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setPwModalVisible(false);
+      await refreshProfile();
     } catch (error: any) {
       showAlert(
         t('common.error'),
@@ -235,14 +333,27 @@ export default function SecurityScreen() {
     }
   };
 
+  /** Envoie un code par email pour prouver son identité (compte sans mot de passe). */
+  const handleSendIdentityCode = async () => {
+    setTwoFaLoading(true);
+    try {
+      await authService.requestIdentityCode();
+      showAlert(t('auth.login.codeSentTitle'), t('auth.login.codeSentMessage', { email: user?.email ?? '' }));
+    } catch (error: any) {
+      showAlert(t('common.error'), getApiErrorMessage(error, t, t('auth.login.codeSendError')));
+    } finally {
+      setTwoFaLoading(false);
+    }
+  };
+
   const handleDisable2fa = async () => {
     if (!twoFaDisablePassword.trim()) {
-      showAlert(t('common.error'), t('account.twoFaEnterPassword'));
+      showAlert(t('common.error'), hasPassword ? t('account.twoFaEnterPassword') : t('account.twoFaEnterCode'));
       return;
     }
     setTwoFaLoading(true);
     try {
-      await authService.disable2fa(twoFaDisablePassword);
+      await authService.disable2fa(hasPassword ? { password: twoFaDisablePassword } : { code: twoFaDisablePassword });
       setTwoFaEnabled(false);
       setTwoFaModalVisible(false);
       setTwoFaDisablePassword('');
@@ -296,12 +407,32 @@ export default function SecurityScreen() {
           icon="hashtag"
           iconColor={currentLockMethod === 'pin' ? Colors.primary : Colors.textMuted}
           label={t('account.pin')}
-          description={currentLockMethod === 'pin' ? t('account.pinActive') : t('account.pinInactive')}
-          onPress={handleSwitchToPin}
+          description={
+            currentLockMethod === 'pin'
+              ? Platform.OS === 'web'
+                ? t('account.pinActiveWeb')
+                : t('account.pinActive')
+              : t('account.pinInactive')
+          }
+          onPress={handlePinRow}
           trailing={currentLockMethod === 'pin' ? (
             <FontAwesome6 name="circle-check" size={16} color={Colors.primary} />
           ) : undefined}
         />
+
+        {/* Face ID / Touch ID / Hello / clé de sécurité (web) */}
+        {webauthnAvailable && (
+          <SettingsRow
+            icon="fingerprint"
+            iconColor={currentLockMethod === 'webauthn' ? Colors.secondary : Colors.textMuted}
+            label={t('account.webauthn')}
+            description={currentLockMethod === 'webauthn' ? t('account.pinActiveWeb') : t('account.pinInactive')}
+            onPress={handleWebauthnRow}
+            trailing={currentLockMethod === 'webauthn' ? (
+              <FontAwesome6 name="circle-check" size={16} color={Colors.secondary} />
+            ) : undefined}
+          />
+        )}
 
         {/* Biométrie */}
         {bioAvailable && (
@@ -317,11 +448,21 @@ export default function SecurityScreen() {
           />
         )}
 
+        {/* Méthode de connexion */}
+        <SettingsRow
+          icon={loginMethod === 'password' ? 'key' : 'envelope'}
+          iconColor={Colors.secondary}
+          label={t('account.loginMethod')}
+          description={loginMethod === 'password' ? t('account.loginMethodPassword') : t('account.loginMethodOtp')}
+          onPress={handleLoginMethodRow}
+          trailing={<FontAwesome6 name="chevron-right" size={14} color={Colors.textMuted} />}
+        />
+
         {/* Mot de passe */}
         <SettingsRow
           icon="lock"
           label={t('account.password')}
-          description={t('account.changePassword')}
+          description={hasPassword ? t('account.changePassword') : t('account.setPassword')}
           onPress={() => setPwModalVisible(true)}
           trailing={<FontAwesome6 name="chevron-right" size={14} color={Colors.textMuted} />}
         />
@@ -411,14 +552,28 @@ export default function SecurityScreen() {
 
           {twoFaStep === 'disable' && (
             <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: Spacing.xl }}>
-              <Text style={styles.twoFaInstruction}>{t('account.twoFaDisableHint')}</Text>
-              <Input
-                label={t('account.password')}
-                value={twoFaDisablePassword}
-                onChangeText={setTwoFaDisablePassword}
-                secureTextEntry
-                placeholder="••••••••"
-              />
+              <Text style={styles.twoFaInstruction}>
+                {hasPassword ? t('account.twoFaDisableHint') : t('account.twoFaDisableHintCode')}
+              </Text>
+              {hasPassword ? (
+                <Input
+                  label={t('account.password')}
+                  value={twoFaDisablePassword}
+                  onChangeText={setTwoFaDisablePassword}
+                  secureTextEntry
+                  placeholder="••••••••"
+                />
+              ) : (
+                <>
+                  <OtpInput value={twoFaDisablePassword} onChange={setTwoFaDisablePassword} onComplete={handleDisable2fa} />
+                  <Button
+                    title={t('auth.login.sendCode')}
+                    onPress={handleSendIdentityCode}
+                    variant="outline"
+                    style={{ marginTop: Spacing.md }}
+                  />
+                </>
+              )}
               <Button
                 title={t('account.twoFaDisableSubmit')}
                 onPress={handleDisable2fa}
@@ -511,19 +666,21 @@ export default function SecurityScreen() {
       <ResponsiveModal visible={pwModalVisible} onClose={handleClosePwModal}>
         <View style={styles.modalSheet}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{t('account.changePasswordTitle')}</Text>
+            <Text style={styles.modalTitle}>{hasPassword ? t('account.changePasswordTitle') : t('account.setPasswordTitle')}</Text>
             <TouchableOpacity onPress={handleClosePwModal}>
               <FontAwesome6 name="xmark" size={20} color={Colors.textMuted} />
             </TouchableOpacity>
           </View>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            <Input
-              label={t('account.currentPassword')}
-              placeholder="••••••••"
-              value={currentPassword}
-              onChangeText={setCurrentPassword}
-              secureTextEntry
-            />
+            {hasPassword && (
+              <Input
+                label={t('account.currentPassword')}
+                placeholder="••••••••"
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                secureTextEntry
+              />
+            )}
             <Input
               label={t('account.newPassword')}
               placeholder={t('account.passwordMinPlaceholder')}
@@ -539,7 +696,7 @@ export default function SecurityScreen() {
               secureTextEntry
             />
             <Button
-              title={t('account.changePasswordSubmit')}
+              title={hasPassword ? t('account.changePasswordSubmit') : t('account.setPasswordSubmit')}
               onPress={handleChangePassword}
               icon="lock"
               loading={pwLoading}

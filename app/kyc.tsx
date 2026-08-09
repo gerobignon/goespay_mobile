@@ -27,7 +27,6 @@ import { Input } from '../src/components/Input';
 import { Button } from '../src/components/Button';
 import { Card } from '../src/components/Card';
 import { GlassCard } from '../src/components/GlassCard';
-import { ActionSheet } from '../src/components/ActionSheet';
 import { Reveal, Bounce } from '../src/components/anim';
 import { useColors } from '../src/components/ThemeProvider';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -96,7 +95,6 @@ export default function KycScreen() {
   const [fileUri, setFileUri] = useState<string | null>(null);
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [photoTarget, setPhotoTarget] = useState<PhotoTarget>(null);
 
   // Assistant : étape courante + erreurs affichées (elles n'apparaissent qu'après
   // une tentative de passage à l'étape suivante, jamais pendant la frappe).
@@ -226,27 +224,13 @@ export default function KycScreen() {
     setErrors((prev) => ({ ...prev, [target === 'id' ? 'idPhoto' : 'selfie']: '' }));
   };
 
-  // Caméra et galerie : la galerie est le seul recours quand la caméra n'est pas
-  // disponible (web de bureau, permission refusée durablement).
-  const pickFrom = async (source: 'camera' | 'gallery') => {
-    const target = photoTarget;
-    setPhotoTarget(null);
-    if (!target) return;
+  // Caméra exclusivement : aucune photo issue de la galerie n'est acceptée pour
+  // le KYC (la prise de vue en direct est ce qui rend la pièce vérifiable).
+  const capturePhoto = async (target: Exclude<PhotoTarget, null>) => {
     try {
-      if (source === 'camera') {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') { showAlert(t('common.error'), t('kyc.cameraPermission')); return; }
-        const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.8 });
-        if (!result.canceled && result.assets[0]) await applyPhoto(result.assets[0].uri, target);
-        return;
-      }
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') { showAlert(t('common.error'), t('kyc.galleryPermission')); return; }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        quality: 0.8,
-      });
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') { showAlert(t('common.error'), t('kyc.cameraPermission')); return; }
+      const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.8 });
       if (!result.canceled && result.assets[0]) await applyPhoto(result.assets[0].uri, target);
     } catch {
       showAlert(t('common.error'), t('kyc.cameraUnavailable'));
@@ -339,7 +323,7 @@ export default function KycScreen() {
       <Bounce
         style={[styles.imagePicker, preview ? styles.imagePickerFilled : null, !!error && styles.imagePickerError] as any}
         scaleTo={0.98}
-        onPress={() => setPhotoTarget(target)}
+        onPress={() => capturePhoto(target)}
       >
         {preview ? (
           <>
@@ -807,18 +791,6 @@ export default function KycScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
-
-      {/* Source de la photo : caméra ou galerie */}
-      <ActionSheet
-        visible={photoTarget !== null}
-        title={t('kyc.addPhoto')}
-        subtitle={photoTarget === 'selfie' ? t('kyc.selfieWithId') : t('kyc.idPhoto')}
-        onClose={() => setPhotoTarget(null)}
-        actions={[
-          { label: t('kyc.takePhoto'), icon: 'camera', onPress: () => pickFrom('camera') },
-          { label: t('kyc.fromGallery'), icon: 'images', onPress: () => pickFrom('gallery') },
-        ]}
-      />
 
       {/* Country picker modal */}
       <ResponsiveModal visible={countryModalVisible} onClose={() => { setCountryModalVisible(false); setCountrySearch(''); }} width={420}>

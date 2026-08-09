@@ -3,9 +3,10 @@ import { SafeStorage } from '../services/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User } from '../types';
 import { authService } from '../services/authService';
-import { clearPin, setLockMethod } from '../services/secureAuthService';
+import { setLockMethod } from '../services/secureAuthService';
 import { clearCredentials } from '../services/secureAuthService';
 import { useCurrencyStore } from './currencyStore';
+import { usePinStore } from './pinStore';
 
 const REMEMBER_KEY = 'remember_me';
 const CACHED_USER_KEY = 'cached_user';
@@ -67,7 +68,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     await SafeStorage.removeItem('auth_token');
     await AsyncStorage.multiRemove([REMEMBER_KEY, CACHED_USER_KEY, CACHED_BALANCE_KEY]);
-    await clearPin();
+    // Passer par l'ACTION du store, pas seulement par le service : elle efface
+    // le PIN, la clé WebAuthn ET remet l'état en mémoire à zéro. Sur natif le
+    // process redémarre et masque l'oubli ; sur web l'onglet survit, et un
+    // `isSetupDone` périmé renverrait vers l'écran de déverrouillage après une
+    // reconnexion alors que plus aucun secret n'existe pour en sortir.
+    await usePinStore.getState().clearPin();
     await setLockMethod(null);
     await clearCredentials();
     set({ user: null, token: null, isAuthenticated: false, rememberMe: false });

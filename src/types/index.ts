@@ -30,7 +30,13 @@ export interface User {
   currency_source?: 'auto' | 'manual';
   /** Droit d'accès à la messagerie in-app, accordé par le serveur. */
   messaging_enabled?: boolean;
+  /** Porte d'entrée du compte : code reçu par email (défaut) ou mot de passe. */
+  login_method?: LoginMethod;
+  /** Le compte a-t-il un mot de passe utilisable ? */
+  has_password?: boolean;
 }
+
+export type LoginMethod = 'otp' | 'password';
 
 export interface Transaction {
   id: number;
@@ -107,8 +113,6 @@ export interface RegisterRequest {
   name: string;
   surname: string;
   email: string;
-  password: string;
-  password_confirmation: string;
   parrain_code?: string;
 }
 

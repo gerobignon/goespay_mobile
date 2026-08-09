@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { Platform } from 'react-native';
 import {
   getLockMethod,
   setLockMethod,
@@ -6,6 +7,7 @@ import {
   clearPin as clearPinSecure,
   type LockMethod,
 } from '../services/secureAuthService';
+import { isWebauthnSet, clearWebauthn } from '../services/webauthnService';
 
 interface PinState {
   // État courant
@@ -22,6 +24,21 @@ interface PinState {
   clearPin: () => Promise<void>;
 }
 
+const isWeb = Platform.OS === 'web';
+
+/**
+ * Le verrou n'est réputé configuré que si le secret correspondant existe
+ * VRAIMENT : un `pin_method` orphelin (PIN effacé, clé WebAuthn révoquée depuis
+ * les réglages du navigateur…) verrouillerait sinon l'app sans issue.
+ * `biometric` est natif-only, `webauthn` web-only.
+ */
+async function resolveSetupDone(method: LockMethod): Promise<boolean> {
+  if (method === null) return false;
+  if (method === 'biometric') return !isWeb;
+  if (method === 'webauthn') return isWeb && (await isWebauthnSet());
+  return isPinSet();
+}
+
 export const usePinStore = create<PinState>((set, get) => ({
   lockMethod: null,
   isLocked: false,
@@ -30,9 +47,7 @@ export const usePinStore = create<PinState>((set, get) => ({
 
   initialize: async () => {
     const method = await getLockMethod();
-    const pinSet = await isPinSet();
-    // Setup fait si méthode définie ET (pin configuré OU biométrie)
-    const isSetupDone = method !== null && (method === 'biometric' || pinSet);
+    const isSetupDone = await resolveSetupDone(method);
     set({
       lockMethod: method,
       isSetupDone,
@@ -47,13 +62,13 @@ export const usePinStore = create<PinState>((set, get) => ({
 
   setMethod: async (method) => {
     await setLockMethod(method);
-    const pinSet = await isPinSet();
-    const isSetupDone = method !== null && (method === 'biometric' || pinSet);
-    set({ lockMethod: method, isSetupDone });
+    set({ lockMethod: method, isSetupDone: await resolveSetupDone(method) });
   },
 
+  // Désarme le verrou quelle que soit la méthode (PIN oublié, déconnexion).
   clearPin: async () => {
     await clearPinSecure();
+    await clearWebauthn();
     set({ lockMethod: null, isSetupDone: false, isLocked: false });
   },
 }));

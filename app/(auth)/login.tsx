@@ -7,7 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
-  Switch,
+  TouchableOpacity,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
@@ -24,79 +24,151 @@ import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
 
+/**
+ * Étapes de connexion. Par défaut on saisit son email et on reçoit un code à
+ * 6 chiffres ('email' → 'code'). Le mot de passe reste possible pour les comptes
+ * qui l'ont choisi ('password'). La 2FA TOTP, quand elle est active, s'ajoute
+ * par-dessus l'une comme l'autre ('2fa').
+ */
+type Step = 'email' | 'code' | 'password' | '2fa';
+
 export default function LoginScreen() {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();
+  const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [twoFaRequired, setTwoFaRequired] = useState(false);
   const [tempToken, setTempToken] = useState('');
   const [twoFaCode, setTwoFaCode] = useState('');
-  const [twoFaLoading, setTwoFaLoading] = useState(false);
-  const twoFaSubmittingRef = useRef(false);
-  const login = useAuthStore((s) => s.login);
+  const submittingRef = useRef(false);
   const loginWithToken = useAuthStore((s) => s.loginWithToken);
 
-  const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
+  /** Un compte non vérifié n'a rien à faire ici : on l'envoie sur l'activation. */
+  const handleActivationRedirect = (error: any): boolean => {
+    if (error?.response?.status === 403 && error?.response?.data?.requires_activation) {
+      showAlert(
+        t('auth.login.emailNotVerified', 'Email non vérifié'),
+        t('auth.login.verifyEmail', 'Veuillez vérifier votre adresse email pour activer votre compte.'),
+        [{
+          text: t('auth.login.verify', 'Vérifier'),
+          onPress: () => router.push({ pathname: '/(auth)/activation', params: { email: error.response.data.email || email.trim() } }),
+        }]
+      );
+      return true;
+    }
+    return false;
+  };
+
+  const errorMessage = (error: any, fallback: string) =>
+    error?.response?.data?.message || error?.response?.data?.error || fallback;
+
+  /** Une session ouverte (avec ou sans 2FA) : on entre dans l'app. */
+  const openSession = async (response: { token?: string; user?: any; two_factor_required?: boolean; temp_token?: string }) => {
+    if (response.two_factor_required && response.temp_token) {
+      setTempToken(response.temp_token);
+      setStep('2fa');
+      return;
+    }
+    await loginWithToken(response.token!, response.user!, true);
+  };
+
+  const handleRequestCode = async (silent = false) => {
+    if (!emailValid) {
+      showAlert(t('common.error'), t('auth.login.invalidEmail', "L'adresse email n'est pas valide."));
+      return;
+    }
+    setLoading(true);
+    try {
+      await authService.requestLoginCode(email.trim());
+      setCode('');
+      setStep('code');
+      if (!silent) {
+        showAlert(t('auth.login.codeSentTitle'), t('auth.login.codeSentMessage', { email: email.trim() }));
+      }
+    } catch (error: any) {
+      if (handleActivationRedirect(error)) return;
+      showAlert(t('common.error'), errorMessage(error, t('auth.login.codeSendError')));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (submittingRef.current) return;
+    if (code.length !== 6) {
+      showAlert(t('common.error'), t('auth.login.enter6digits', 'Entrez un code à 6 chiffres.'));
+      return;
+    }
+    submittingRef.current = true;
+    setLoading(true);
+    try {
+      await openSession(await authService.verifyLoginCode(email.trim(), code));
+    } catch (error: any) {
+      if (handleActivationRedirect(error)) return;
+      setCode('');
+      showAlert(t('common.error'), errorMessage(error, t('auth.login.incorrectCode', 'Code incorrect.')));
+    } finally {
+      submittingRef.current = false;
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordLogin = async () => {
+    if (!emailValid || !password.trim()) {
       showAlert(t('common.error'), t('auth.login.fillAllFields', 'Veuillez remplir tous les champs.'));
       return;
     }
     setLoading(true);
     try {
       const response = await authService.login({ email: email.trim(), password });
-      if (response.two_factor_required && response.temp_token) {
-        setTwoFaRequired(true);
-        setTempToken(response.temp_token);
-        setLoading(false);
-        return;
-      }
-      // Login direct (sans 2FA) — utiliser le token reçu directement
-      await loginWithToken(response.token!, response.user!, rememberMe);
+      await openSession(response);
       await saveCredentials(email.trim(), password);
     } catch (error: any) {
-      if (__DEV__) {
-      }
-      // If account requires email activation, redirect to activation screen
-      if (error?.response?.status === 403 && error?.response?.data?.requires_activation) {
-        showAlert(
-          t('auth.login.emailNotVerified', 'Email non vérifié'),
-          t('auth.login.verifyEmail', 'Veuillez vérifier votre adresse email pour activer votre compte.'),
-          [{ text: t('auth.login.verify', 'Vérifier'), onPress: () => router.push({ pathname: '/(auth)/activation', params: { email: error.response.data.email } }) }]
-        );
+      if (handleActivationRedirect(error)) return;
+      // Le compte a choisi le code par email : on l'y emmène directement.
+      if (error?.response?.data?.otp_required) {
+        setPassword('');
+        setLoading(false);
+        await handleRequestCode();
         return;
       }
-      const message =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        t('auth.login.incorrectCredentials');
-      showAlert(t('auth.login.loginError', 'Erreur de connexion'), message);
+      showAlert(t('auth.login.loginError', 'Erreur de connexion'), errorMessage(error, t('auth.login.incorrectCredentials')));
     } finally {
       setLoading(false);
     }
   };
 
   const handleVerify2fa = async () => {
-    if (twoFaSubmittingRef.current) return; // bloquer les appels simultanés
+    if (submittingRef.current) return;
     if (twoFaCode.length !== 6) {
       showAlert(t('common.error'), t('auth.login.enter6digits', 'Entrez un code à 6 chiffres.'));
       return;
     }
-    twoFaSubmittingRef.current = true;
-    setTwoFaLoading(true);
+    submittingRef.current = true;
+    setLoading(true);
     try {
       const response = await authService.verify2faLogin(tempToken, twoFaCode);
-      await loginWithToken(response.token!, response.user!, rememberMe);
-      await saveCredentials(email.trim(), password);
+      await loginWithToken(response.token!, response.user!, true);
+      if (password) await saveCredentials(email.trim(), password);
     } catch (error: any) {
-      showAlert(t('common.error'), error?.response?.data?.error || t('auth.login.incorrectCode', 'Code incorrect.'));
+      showAlert(t('common.error'), errorMessage(error, t('auth.login.incorrectCode', 'Code incorrect.')));
     } finally {
-      twoFaSubmittingRef.current = false;
-      setTwoFaLoading(false);
+      submittingRef.current = false;
+      setLoading(false);
     }
+  };
+
+  const backToEmail = () => {
+    setStep('email');
+    setCode('');
+    setTwoFaCode('');
+    setTempToken('');
+    setPassword('');
   };
 
   return (
@@ -117,77 +189,125 @@ export default function LoginScreen() {
           </View>
 
           <GlassCard>
-            {twoFaRequired ? (
+            {step === 'email' && (
               <>
-                <Text style={{ color: Colors.text, fontFamily: Fonts.semiBold, fontSize: FontSize.lg, marginBottom: Spacing.sm, textAlign: 'center' }}>
-                  {t('auth.login.twoFaTitle')}
-                </Text>
-                <Text style={{ color: Colors.textMuted, fontSize: FontSize.sm, marginBottom: Spacing.md, textAlign: 'center' }}>
-                  {t('auth.login.twoFaHint')}
-                </Text>
+                <Input
+                  label={t('auth.login.email')}
+                  placeholder={t('auth.login.emailPlaceholder')}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                />
+
+                <Button
+                  title={t('auth.login.sendCode')}
+                  onPress={() => handleRequestCode()}
+                  icon="envelope"
+                  loading={loading}
+                  style={{ marginTop: Spacing.sm }}
+                />
+
+                <TouchableOpacity onPress={() => setStep('password')} style={styles.switchLink}>
+                  <Text style={styles.link}>{t('auth.login.usePassword')}</Text>
+                </TouchableOpacity>
+
+                <View style={[styles.links, { justifyContent: 'center' }]}>
+                  <Link href="/(auth)/register" style={styles.link}>
+                    {t('auth.login.createAccount')}
+                  </Link>
+                </View>
+              </>
+            )}
+
+            {step === 'code' && (
+              <>
+                <Text style={styles.stepTitle}>{t('auth.login.codeTitle')}</Text>
+                <Text style={styles.stepHint}>{t('auth.login.codeHint', { email: email.trim() })}</Text>
+                <OtpInput value={code} onChange={setCode} onComplete={handleVerifyCode} />
+                <Button
+                  title={t('auth.login.submit')}
+                  onPress={handleVerifyCode}
+                  icon="right-to-bracket"
+                  loading={loading}
+                  style={{ marginTop: Spacing.md }}
+                />
+                <TouchableOpacity onPress={() => handleRequestCode(true)} style={styles.switchLink}>
+                  <Text style={styles.link}>{t('auth.login.resendCode')}</Text>
+                </TouchableOpacity>
+                <Button
+                  title={t('common.cancel')}
+                  onPress={backToEmail}
+                  variant="outline"
+                  style={{ marginTop: Spacing.sm }}
+                />
+              </>
+            )}
+
+            {step === 'password' && (
+              <>
+                <Input
+                  label={t('auth.login.email')}
+                  placeholder={t('auth.login.emailPlaceholder')}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                />
+
+                <Input
+                  label={t('auth.login.password')}
+                  placeholder={t('auth.login.passwordPlaceholder')}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  autoComplete="password"
+                />
+
+                <Button
+                  title={t('auth.login.submit')}
+                  onPress={handlePasswordLogin}
+                  icon="right-to-bracket"
+                  loading={loading}
+                  style={{ marginTop: Spacing.sm }}
+                />
+
+                <TouchableOpacity onPress={() => setStep('email')} style={styles.switchLink}>
+                  <Text style={styles.link}>{t('auth.login.useCode')}</Text>
+                </TouchableOpacity>
+
+                <View style={styles.links}>
+                  <Link href="/(auth)/forgot-password" style={styles.link}>
+                    {t('auth.login.forgotPassword')}
+                  </Link>
+                  <Link href="/(auth)/register" style={styles.link}>
+                    {t('auth.login.createAccount')}
+                  </Link>
+                </View>
+              </>
+            )}
+
+            {step === '2fa' && (
+              <>
+                <Text style={styles.stepTitle}>{t('auth.login.twoFaTitle')}</Text>
+                <Text style={styles.stepHint}>{t('auth.login.twoFaHint')}</Text>
                 <OtpInput value={twoFaCode} onChange={setTwoFaCode} onComplete={handleVerify2fa} />
                 <Button
                   title={t('auth.login.twoFaVerify')}
                   onPress={handleVerify2fa}
                   icon="shield-halved"
-                  loading={twoFaLoading}
+                  loading={loading}
                   style={{ marginTop: Spacing.md }}
                 />
                 <Button
                   title={t('common.cancel')}
-                  onPress={() => { setTwoFaRequired(false); setTempToken(''); setTwoFaCode(''); }}
+                  onPress={backToEmail}
                   variant="outline"
                   style={{ marginTop: Spacing.sm }}
                 />
               </>
-            ) : (
-              <>
-            <Input
-              label={t('auth.login.email')}
-              placeholder={t('auth.login.emailPlaceholder')}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-            />
-
-            <Input
-              label={t('auth.login.password')}
-              placeholder={t('auth.login.passwordPlaceholder')}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoComplete="password"
-            />
-
-            <View style={styles.rememberRow}>
-              <Text style={styles.rememberText}>{t('auth.login.rememberMe')}</Text>
-              <Switch
-                value={rememberMe}
-                onValueChange={setRememberMe}
-                trackColor={{ false: Colors.border, true: Colors.secondary }}
-                thumbColor={Colors.white}
-              />
-            </View>
-
-            <Button
-              title={t('auth.login.submit')}
-              onPress={handleLogin}
-              icon="right-to-bracket"
-              loading={loading}
-              style={{ marginTop: Spacing.sm }}
-            />
-
-            <View style={styles.links}>
-              <Link href="/(auth)/forgot-password" style={styles.link}>
-                {t('auth.login.forgotPassword')}
-              </Link>
-              <Link href="/(auth)/register" style={styles.link}>
-                {t('auth.login.createAccount')}
-              </Link>
-            </View>
-            </>
             )}
           </GlassCard>
         </ScrollView>
@@ -229,22 +349,27 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontFamily: Fonts.semiBold,
     marginTop: -Spacing.sm,
   },
+  stepTitle: {
+    color: Colors.text,
+    fontFamily: Fonts.semiBold,
+    fontSize: FontSize.lg,
+    marginBottom: Spacing.sm,
+    textAlign: 'center',
+  },
+  stepHint: {
+    color: Colors.textMuted,
+    fontSize: FontSize.sm,
+    marginBottom: Spacing.md,
+    textAlign: 'center',
+  },
+  switchLink: {
+    alignItems: 'center',
+    marginTop: Spacing.md,
+  },
   links: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: Spacing.lg,
-  },
-  rememberRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.xs,
-  },
-  rememberText: {
-    color: Colors.textSecondary,
-    fontSize: FontSize.sm,
-    fontFamily: Fonts.semiBold,
   },
   link: {
     color: Colors.secondary,

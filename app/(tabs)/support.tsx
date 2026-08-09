@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MessagesInbox } from '../../src/components/chat/MessagesInbox';
 import { SupportChannels } from '../../src/components/support/SupportChannels';
 import { useMessagingAccess } from '../../src/hooks/useMessagingAccess';
+import { MessagingGate } from '../../src/components/MessagingGate';
 
 /**
  * Onglet Support.
@@ -17,6 +18,14 @@ import { useMessagingAccess } from '../../src/hooks/useMessagingAccess';
  */
 export default function SupportScreen() {
   const canMessage = useMessagingAccess();
+  /** Confirmation refusée : on retombe sur les canaux de contact, pas sur du vide. */
+  const [denied, setDenied] = useState(false);
 
-  return canMessage ? <MessagesInbox /> : <SupportChannels />;
+  if (!canMessage || denied) return <SupportChannels />;
+
+  return (
+    <MessagingGate onDeny={() => setDenied(true)}>
+      <MessagesInbox />
+    </MessagingGate>
+  );
 }

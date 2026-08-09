@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Vibration,
+  Platform,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../constants/theme';
@@ -36,6 +37,29 @@ export function PinPad({ length = 4, onComplete, onBiometric, error, label, rese
       onComplete(pin);
     }
   }, [pin]);
+
+  // Web : saisie au clavier physique en plus du pavé (desktop surtout).
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      // Ne pas voler la frappe d'un champ de saisie (ex. le mot de passe de la
+      // modale « PIN oublié », affichée au-dessus du pavé).
+      const el = document.activeElement as HTMLElement | null;
+      const tag = el?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || el?.isContentEditable) return;
+
+      if (e.key >= '0' && e.key <= '9') {
+        setPin((p) => (p.length < length ? p + e.key : p));
+      } else if (e.key === 'Backspace') {
+        setPin((p) => p.slice(0, -1));
+      } else {
+        return;
+      }
+      e.preventDefault();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [length]);
 
   const press = (key: string) => {
     if (key === '⌫') {
