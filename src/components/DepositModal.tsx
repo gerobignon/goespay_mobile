@@ -53,8 +53,8 @@ import { useCryptoSearch } from '../hooks/useCryptoSearch';
 // Combinaison USSD Orange Money pour générer le code OTP de paiement, par
 // opérateur (Softpay orange-money-* ET AfribaPay orange-*-afp). Codes officiels
 // AfribaPay (/v1/countries → ussd_code). « montant » = montant saisi.
-/** Au-delà, les cryptos passent sous un groupe « Crypto » au lieu d'être listées. */
-const FLATTEN_CRYPTO_MAX = 8;
+/** Au-delà, les cryptos passent sous un groupe « Crypto-monnaies » au lieu d'être listées. */
+const FLATTEN_CRYPTO_MAX = 4;
 
 const ORANGE_OTP_USSD: Record<string, string> = {
   'orange-money-ci':      '#144*82#',

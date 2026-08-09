@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Linking,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
@@ -103,6 +104,20 @@ export default function ProfileScreen() {
               </TouchableOpacity>
 
               <View style={styles.formCard}>
+                {user?.id ? (
+                  <Input
+                    label={t('account.clientId')}
+                    value={String(user.id)}
+                    editable={false}
+                    rightAction={{
+                      icon: 'copy',
+                      onPress: async () => {
+                        await Clipboard.setStringAsync(String(user.id));
+                        showAlert(t('common.copied'), t('account.clientIdCopied'));
+                      },
+                    }}
+                  />
+                ) : null}
                 <Input
                   label={t('account.firstName')}
                   value={form.name}

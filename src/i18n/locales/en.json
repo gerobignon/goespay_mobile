@@ -332,6 +332,8 @@
     "logout": "Sign out",
     "logoutConfirm": "Sign out",
     "personalInfo": "Personal information",
+    "clientId": "Client ID",
+    "clientIdCopied": "Client ID copied",
     "referral": "Affiliate",
     "firstName": "First name",
     "lastName": "Last name",
