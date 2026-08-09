@@ -427,8 +427,10 @@ export default function KycScreen() {
 
   const docLabel = DOC_TYPES.find((d) => d.value === docType)?.label;
 
+  // edges={['top']} : la barre d'action gère elle-même l'inset bas — sinon
+  // double comptage avec ScreenBackground → bande vide sous le footer (PWA / notch).
   return (
-    <ScreenBackground style={{ overflow: 'hidden' }}>
+    <ScreenBackground edges={['top']} style={{ overflow: 'hidden' }}>
       <KeyboardAvoidingView
         style={{ flex: 1, width: '100%' }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -846,7 +848,9 @@ export default function KycScreen() {
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   scroll: {
     padding: Spacing.lg,
-    paddingBottom: 120,
+    // La barre d'action est dans le flux (sous le ScrollView) : pas besoin de
+    // réserver sa hauteur ici, sinon vide en fin de défilement.
+    paddingBottom: Spacing.xl,
   },
   contentWrapper: {
     width: '100%',
