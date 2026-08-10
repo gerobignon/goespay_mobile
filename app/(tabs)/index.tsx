@@ -267,8 +267,7 @@ export default function DashboardScreen() {
       label: t('home.paylink'),
       onPress: () => router.push('/paylinks'),
     },
-    // Cartes virtuelles : ouvertes en interne pour l'instant.
-    isAdmin && {
+    {
       key: 'cards',
       icon: 'credit-card' as const,
       color: DarkColors.secondary,

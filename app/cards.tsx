@@ -86,13 +86,6 @@ export default function CardsScreen() {
   const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollAttempts = useRef(0);
 
-  // Fonctionnalité interne : un accès direct à l'URL par un compte ordinaire
-  // repart à l'accueil (le serveur répondrait 404 de toute façon).
-  const isAdmin = user?.group === 'admin';
-  useEffect(() => {
-    if (user && !isAdmin) router.replace('/(tabs)');
-  }, [user, isAdmin, router]);
-
   const load = useCallback(() => {
     cardService.list()
       .then((res) => { setData(res); setLoadError(null); })
@@ -100,7 +93,7 @@ export default function CardsScreen() {
       .finally(() => setLoading(false));
   }, [t]);
 
-  useEffect(() => { if (isAdmin) load(); }, [load, isAdmin]);
+  useEffect(() => { load(); }, [load]);
 
   const stopPolling = () => {
     if (pollTimer.current) {

@@ -77,12 +77,7 @@ export function WalletStack({ children }: Props) {
   /** Position de chaque panneau dans la pile : 0 = devant, 1 = dessous. */
   const depth = useRef([new Animated.Value(0), new Animated.Value(1)]).current;
 
-  const isAdmin = user?.group === 'admin';
-
   useEffect(() => {
-    // Fonctionnalité interne : inutile d'interroger le serveur pour un compte
-    // qui n'y a pas droit (il répondrait 404 de toute façon).
-    if (!isAdmin) { setCardsReady(true); return; }
     let alive = true;
     cardService.list()
       .then((res) => { if (alive) setCards(res.cards); })
@@ -90,7 +85,7 @@ export function WalletStack({ children }: Props) {
       .catch(() => { if (alive) setCards(null); })
       .finally(() => { if (alive) setCardsReady(true); });
     return () => { alive = false; };
-  }, [isAdmin]);
+  }, []);
 
   const holder = `${user?.name ?? ''} ${user?.surname ?? ''}`.trim();
   const hasStack = cardsReady && cards !== null;
