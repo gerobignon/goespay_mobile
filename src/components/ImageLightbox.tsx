@@ -10,12 +10,15 @@ import {
   useWindowDimensions,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 
 const MIN_SCALE = 1;
 const MAX_SCALE = 5;
 const DOUBLE_TAP_SCALE = 2.5;
 const DOUBLE_TAP_MS = 280;
+/** Distance verticale à parcourir, image non zoomée, pour fermer. */
+const DISMISS_DY = 110;
 
 /**
  * Visionneuse plein écran : pincement, déplacement, double tap.
@@ -35,7 +38,13 @@ const DOUBLE_TAP_MS = 280;
  */
 export function ImageLightbox({ uri, onClose }: { uri: string | null; onClose: () => void }) {
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+
+  // Le PanResponder est construit une seule fois : il doit fermer via une ref,
+  // sinon il garderait la toute première closure de `onClose`.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
 
   const scale = useRef(new Animated.Value(1)).current;
   const tx = useRef(new Animated.Value(0)).current;
@@ -47,6 +56,12 @@ export function ImageLightbox({ uri, onClose }: { uri: string | null; onClose: (
   const view = useRef({ scale: 1, x: 0, y: 0 });
   const gesture = useRef({ startScale: 1, startX: 0, startY: 0, startDist: 0, fx: 0, fy: 0, startMidX: 0, startMidY: 0 });
   const lastTap = useRef(0);
+  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelPendingTap = () => {
+    if (tapTimer.current) clearTimeout(tapTimer.current);
+    tapTimer.current = null;
+  };
 
   // Taille réellement affichée (resizeMode contain), base des bornes.
   const shown = (() => {
@@ -92,6 +107,7 @@ export function ImageLightbox({ uri, onClose }: { uri: string | null; onClose: (
 
   // Nouvelle image : on repart d'une vue neuve et on mesure le fichier.
   useEffect(() => {
+    cancelPendingTap();
     if (!uri) return;
     view.current = { scale: 1, x: 0, y: 0 };
     scale.setValue(1);
@@ -99,6 +115,17 @@ export function ImageLightbox({ uri, onClose }: { uri: string | null; onClose: (
     ty.setValue(0);
     setSize(null);
     Image.getSize(uri, (w, h) => setSize({ w, h }), () => setSize(null));
+    return cancelPendingTap;
+  }, [uri]);
+
+  // Web : Échap ferme, comme n'importe quelle visionneuse de bureau.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !uri) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeRef.current();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [uri]);
 
   const pan = useRef(
@@ -155,7 +182,14 @@ export function ImageLightbox({ uri, onClose }: { uri: string | null; onClose: (
         // Un doigt : déplacement, seulement s'il y a de quoi déplacer.
         if (view.current.scale > 1) {
           apply(view.current.scale, gesture.current.startX + g.dx, gesture.current.startY + g.dy);
+          return;
         }
+
+        // Image non zoomée : le glissement vertical suit le doigt et sert à
+        // refermer la vue — le geste attendu partout ailleurs.
+        cancelPendingTap();
+        tx.setValue(g.dx * 0.4);
+        ty.setValue(g.dy);
       },
 
       onPanResponderRelease: (e, g) => {
@@ -167,6 +201,7 @@ export function ImageLightbox({ uri, onClose }: { uri: string | null; onClose: (
           const now = Date.now();
           if (now - lastTap.current < DOUBLE_TAP_MS) {
             lastTap.current = 0;
+            cancelPendingTap();
             if (view.current.scale > 1.05) {
               reset();
             } else {
@@ -178,12 +213,23 @@ export function ImageLightbox({ uri, onClose }: { uri: string | null; onClose: (
             return;
           }
           lastTap.current = now;
+          // Tap simple sur l'image non zoomée : on ferme, une fois passé le
+          // délai laissé au second tap. C'est la sortie principale ; le bouton
+          // ✕ n'en est que le doublon visible.
+          cancelPendingTap();
+          tapTimer.current = setTimeout(() => {
+            tapTimer.current = null;
+            if (view.current.scale <= MIN_SCALE + 0.05) closeRef.current();
+          }, DOUBLE_TAP_MS);
           return;
         }
 
-        // Sous l'échelle 1, l'image se recentre d'elle-même ; au-dessus, on la
-        // ramène dans ses bornes si le geste l'a poussée trop loin.
+        // Glissement franc, image non zoomée : on ferme.
         if (view.current.scale <= MIN_SCALE + 0.02) {
+          if (Math.abs(g.dy) > DISMISS_DY) {
+            closeRef.current();
+            return;
+          }
           reset();
         } else {
           animateTo(view.current.scale, view.current.x, view.current.y);
@@ -250,7 +296,11 @@ export function ImageLightbox({ uri, onClose }: { uri: string | null; onClose: (
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.close} onPress={onClose} hitSlop={12}>
+        <TouchableOpacity
+          style={[styles.close, { top: Math.max(insets.top, 12) + 8 }]}
+          onPress={onClose}
+          hitSlop={16}
+        >
           <FontAwesome6 name="xmark" size={18} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -262,18 +312,21 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: 'rgba(0,0,0,0.96)', overflow: 'hidden' },
   close: {
     position: 'absolute',
-    top: 44,
     right: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    zIndex: 2,
+    elevation: 2,
   },
   toolbar: {
     position: 'absolute',
     bottom: 40,
+    zIndex: 2,
+    elevation: 2,
     alignSelf: 'center',
     flexDirection: 'row',
     gap: 10,

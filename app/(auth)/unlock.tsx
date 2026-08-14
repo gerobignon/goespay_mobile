@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { GlassCard } from '../../src/components/GlassCard';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { PinPad } from '../../src/components/PinPad';
 import { Input } from '../../src/components/Input';
+import { Button } from '../../src/components/Button';
 import { OtpInput } from '../../src/components/OtpInput';
 import { usePinStore } from '../../src/stores/pinStore';
 import {
@@ -54,6 +55,7 @@ export default function UnlockScreen() {
   const [resetPassword, setResetPassword] = useState('');
   const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
   const [resetCodeSent, setResetCodeSent] = useState(false);
+  const autoWebauthnTried = useRef(false);
 
   // Un compte créé par la nouvelle inscription n'a pas de mot de passe : sa
   // preuve d'identité est un code envoyé par email (même mécanique que la 2FA).
@@ -65,12 +67,23 @@ export default function UnlockScreen() {
     isBiometricAvailable().then(setBioAvailable);
   }, []);
 
-  // Tenter la biométrie automatiquement au montage si c'est la méthode
-  // configurée. Pas pour WebAuthn : Safari/iOS exige un geste utilisateur,
-  // une invite automatique serait rejetée — l'utilisateur appuie sur la carte.
+  // Tenter le déverrouillage automatiquement au montage, pour éviter un appui
+  // inutile avant l'invite système. Sur WebAuthn, les navigateurs qui exigent
+  // un geste utilisateur (Safari/iOS) rejettent l'appel sans rien afficher :
+  // on retombe alors sur le bouton, sans message d'erreur.
   useEffect(() => {
     if (lockMethod === 'biometric') {
       handleBiometric();
+      return;
+    }
+    if (lockMethod === 'webauthn' && !autoWebauthnTried.current) {
+      autoWebauthnTried.current = true;
+      verifyWebauthn().then((success) => {
+        if (success) {
+          unlock();
+          router.replace('/(tabs)');
+        }
+      });
     }
   }, [lockMethod]);
 
@@ -220,17 +233,20 @@ export default function UnlockScreen() {
         </GlassCard>
 
         <View style={styles.buttonsContainer}>
-          <TouchableOpacity onPress={handleOpenResetModal} style={styles.forgotBtn}>
-            <Text style={styles.forgotText}>
-              <FontAwesome6 name="key" size={14} style={styles.forgotIcon} />
-              {'  '}
-              {lockMethod === 'webauthn' ? t('auth.pin.cantUnlock') : t('auth.pin.forgotPin', 'PIN oublié ?')}
-            </Text>
-          </TouchableOpacity>
+          <Button
+            title={lockMethod === 'webauthn' ? t('auth.pin.cantUnlock') : t('auth.pin.forgotPin', 'PIN oublié ?')}
+            onPress={handleOpenResetModal}
+            icon="key"
+            variant="outline"
+          />
 
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-            <Text style={styles.logoutText}>{t('account.logout')}</Text>
-          </TouchableOpacity>
+          <Button
+            title={t('account.logout')}
+            onPress={handleLogout}
+            variant="outline"
+            style={styles.logoutBtn}
+            textStyle={styles.logoutText}
+          />
         </View>
       </ScrollView>
 
@@ -351,30 +367,17 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   buttonsContainer: {
     marginTop: Spacing.lg,
     gap: Spacing.md,
-    alignItems: 'center',
+    alignSelf: 'stretch',
+    width: '100%',
+    maxWidth: 400,
   },
-  forgotBtn: {
-    paddingVertical: Spacing.sm,
-  },
-  forgotText: {
-    color: Colors.primary,
-    fontSize: FontSize.sm,
-    fontFamily: Fonts.medium,
-    textDecoration: 'underline',
-  } as any,
-  // Même couleur que le libellé, mais sans le soulignement.
-  forgotIcon: {
-    color: Colors.primary,
-  },
+  // Action secondaire : même forme que les autres boutons, teinte neutre.
   logoutBtn: {
-    paddingVertical: Spacing.sm,
+    borderColor: Colors.surfaceBorder,
   },
   logoutText: {
     color: Colors.textMuted,
-    fontSize: FontSize.sm,
-    fontFamily: Fonts.medium,
-    textDecoration: 'underline',
-  } as any,
+  },
   // Modal styles
   modalOverlay: {
     flex: 1,

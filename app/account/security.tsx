@@ -40,6 +40,9 @@ import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { showAlert } from '../../src/stores/alertStore';
 import { CustomAlert } from '../../src/components/CustomAlert';
 import SettingsRow from '../../src/components/SettingsRow';
+import { LocalAuthModal } from '../../src/components/LocalAuthModal';
+import { useMessagingLock } from '../../src/hooks/useMessagingLock';
+import { useMessagingAccess } from '../../src/hooks/useMessagingAccess';
 import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 import { useResponsive } from '../../src/hooks/useResponsive';
@@ -53,6 +56,8 @@ export default function SecurityScreen() {
   const { user, refreshProfile } = useAuthStore();
   const { setMethod } = usePinStore();
   const { t } = useTranslation();
+  const canMessage = useMessagingAccess();
+  const messagingLock = useMessagingLock();
 
   const [bioAvailable, setBioAvailable] = useState(false);
   const [webauthnAvailable, setWebauthnAvailable] = useState(false);
@@ -448,6 +453,20 @@ export default function SecurityScreen() {
           />
         )}
 
+        {/* Verrou de la messagerie (optionnel) */}
+        {canMessage && (
+          <SettingsRow
+            icon="comments"
+            iconColor={messagingLock.enabled ? Colors.secondary : Colors.textMuted}
+            label={t('account.messagesLock')}
+            description={messagingLock.enabled ? t('account.messagesLockActive') : t('account.messagesLockInactive')}
+            onPress={messagingLock.toggle}
+            trailing={messagingLock.enabled ? (
+              <FontAwesome6 name="circle-check" size={16} color={Colors.secondary} />
+            ) : undefined}
+          />
+        )}
+
         {/* Méthode de connexion */}
         <SettingsRow
           icon={loginMethod === 'password' ? 'key' : 'envelope'}
@@ -705,6 +724,14 @@ export default function SecurityScreen() {
           </ScrollView>
         </View>
       </ResponsiveModal>
+
+      {/* Lever le verrou de la messagerie demande la même preuve que l'ouvrir. */}
+      <LocalAuthModal
+        visible={messagingLock.askConfirm}
+        title={t('security.messagesLockDisableTitle')}
+        onSuccess={messagingLock.confirmDisable}
+        onClose={messagingLock.cancelConfirm}
+      />
     </>
   );
 

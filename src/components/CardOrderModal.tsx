@@ -188,6 +188,13 @@ export function CardOrderModal({ visible, pricing, onClose, onOrdered, onIneligi
 
         {!!error && <Text style={styles.error}>{error}</Text>}
 
+        {/* Règle des paiements refusés : elle se lit AVANT de commander, pas
+            après le premier refus facturé. */}
+        <View style={styles.warn}>
+          <FontAwesome6 name="triangle-exclamation" size={13} color={Colors.warning} iconStyle="solid" />
+          <Text style={styles.warnText}>{t('cards.declineWarning')}</Text>
+        </View>
+
         <Button
           title={t('cards.order')}
           onPress={submit}
@@ -241,4 +248,15 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   quoteTotal: { fontSize: FontSize.md, color: Colors.text, fontFamily: Fonts.bold },
   rateNote: { fontSize: FontSize.xs, color: Colors.textMuted, textAlign: 'right' },
   error: { fontSize: FontSize.sm, color: Colors.error },
+  warn: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    alignItems: 'flex-start',
+    backgroundColor: Colors.warning + '1a',
+    borderWidth: 1,
+    borderColor: Colors.warning + '55',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+  },
+  warnText: { flex: 1, fontSize: FontSize.sm, lineHeight: 19, color: Colors.text, fontFamily: Fonts.regular },
 });

@@ -27,7 +27,7 @@ import { useWalletStore } from '../../src/stores/walletStore';
 import { ChatAvatar } from '../../src/components/chat/ChatAvatar';
 import { ChatComposer, type ChatComposerHandle, type ComposerQuote } from '../../src/components/chat/ChatComposer';
 import { MessageBubble } from '../../src/components/chat/MessageBubble';
-import { ImageLightbox } from '../../src/components/chat/ImageLightbox';
+import { ImageLightbox } from '../../src/components/ImageLightbox';
 import { AttachSheet } from '../../src/components/chat/AttachSheet';
 import { SendMoneySheet } from '../../src/components/chat/SendMoneySheet';
 import { messagingService } from '../../src/services/messagingService';

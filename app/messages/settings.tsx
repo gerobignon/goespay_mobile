@@ -15,6 +15,8 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { API_BASE_URL } from '../../src/constants/config';
 import { messagingService } from '../../src/services/messagingService';
 import { ChatAvatar } from '../../src/components/chat/ChatAvatar';
+import { LocalAuthModal } from '../../src/components/LocalAuthModal';
+import { useMessagingLock } from '../../src/hooks/useMessagingLock';
 import { resetCoachmarks } from '../../src/components/Coachmarks';
 import type { BlockedUser, ChatPrefs, ChatVisibility, VisibilityLevel } from '../../src/types';
 
@@ -29,6 +31,7 @@ export default function MessagingSettingsScreen() {
   const user = useAuthStore((s) => s.user);
   const prefs = useMessagingStore((s) => s.prefs);
   const savePrefs = useMessagingStore((s) => s.savePrefs);
+  const messagingLock = useMessagingLock();
 
   const [blocked, setBlocked] = useState<BlockedUser[]>([]);
   const [visibility, setVisibility] = useState<ChatVisibility | null>(null);
@@ -179,6 +182,22 @@ export default function MessagingSettingsScreen() {
               />
             </View>
           ))}
+
+          {/* Verrou d'entrée — éteint par défaut. */}
+          <View style={[styles.row, styles.rowDivider]}>
+            <View style={styles.rowBody}>
+              <Text style={styles.rowLabel}>{t('messages.prefLock', 'Demander le code à l’ouverture')}</Text>
+              <Text style={styles.rowHint}>
+                {t('messages.prefLockHint', 'Protège les conversations par le verrou de l’appareil.')}
+              </Text>
+            </View>
+            <Switch
+              value={messagingLock.enabled}
+              onValueChange={messagingLock.toggle}
+              trackColor={{ true: colors.primary, false: colors.border }}
+              thumbColor={colors.white}
+            />
+          </View>
         </View>
 
         {/* Rejoue la visite guidée de la boîte de réception. */}
@@ -252,6 +271,12 @@ export default function MessagingSettingsScreen() {
           </View>
         )}
       </ScrollView>
+      <LocalAuthModal
+        visible={messagingLock.askConfirm}
+        title={t('security.messagesLockDisableTitle')}
+        onSuccess={messagingLock.confirmDisable}
+        onClose={messagingLock.cancelConfirm}
+      />
       <CustomAlert />
     </ScreenBackground>
   );

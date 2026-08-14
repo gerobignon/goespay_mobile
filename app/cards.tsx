@@ -26,6 +26,7 @@ import { CustomAlert } from '../src/components/CustomAlert';
 import { LocalAuthModal } from '../src/components/LocalAuthModal';
 import { CardFundModal } from '../src/components/CardFundModal';
 import { CardOrderModal } from '../src/components/CardOrderModal';
+import { CardTerminateModal } from '../src/components/CardTerminateModal';
 import { VirtualCardVisual, type CardCopyField } from '../src/components/VirtualCardVisual';
 import { CardBrandLogo } from '../src/components/CardBrandLogo';
 import { DesktopHeader } from '../src/components/DesktopHeader';
@@ -74,6 +75,10 @@ export default function CardsScreen() {
   const [transactions, setTransactions] = useState<Record<number, CardTransaction[]>>({});
   /** Carte pour laquelle on demande la confirmation par le verrou de l'appareil. */
   const [authFor, setAuthFor] = useState<VirtualCard | null>(null);
+  /** Ce que le verrou est en train d'autoriser : voir la carte, ou la fermer. */
+  const [authAction, setAuthAction] = useState<'secrets' | 'terminate'>('secrets');
+  /** Carte dont la fermeture définitive est en cours de confirmation. */
+  const [terminateFor, setTerminateFor] = useState<VirtualCard | null>(null);
   /** Champ à copier dès que les secrets arrivent (copie déclenchée sur la carte). */
   const [copyAfterAuth, setCopyAfterAuth] = useState<'pan' | 'cvv' | null>(null);
   /** Données réelles affichées sur la carte, et pour combien de temps encore. */
@@ -226,24 +231,36 @@ export default function CardsScreen() {
     }
   };
 
-  const terminate = (card: VirtualCard) => {
-    showAlert(t('cards.terminateTitle'), t('cards.terminateMessage'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('cards.terminate'),
-        style: 'destructive',
-        onPress: async () => {
-          setBusyId(card.id);
-          try {
-            applyCard(await cardService.terminate(card.id));
-          } catch (e: any) {
-            showAlert(t('common.error'), getApiErrorMessage(e, t, t('cards.actionError')));
-          } finally {
-            setBusyId(null);
-          }
-        },
-      },
-    ]);
+  /**
+   * Fermeture définitive : fenêtre dédiée (conséquences + case à cocher), puis
+   * verrou de l'appareil. Une alerte à deux boutons ne suffisait pas — le mot
+   * « Résilier » ne dit pas au client ce qu'il perd, et le bouton rouge se
+   * tapait aussi vite que « Annuler ».
+   */
+  const terminate = (card: VirtualCard) => setTerminateFor(card);
+
+  /** Case cochée : on ne ferme rien avant d'avoir la preuve du porteur. */
+  const askTerminate = () => {
+    const card = terminateFor;
+    if (!card) return;
+    if (!requireLocalLock(t, (route) => router.push(route as any))) return;
+    setTerminateFor(null);
+    setAuthAction('terminate');
+    setAuthFor(card);
+  };
+
+  /** Verrou franchi : la carte est fermée chez l'émetteur. */
+  const doTerminate = async (card: VirtualCard) => {
+    setAuthFor(null);
+    setAuthAction('secrets');
+    setBusyId(card.id);
+    try {
+      applyCard(await cardService.terminate(card.id));
+    } catch (e: any) {
+      showAlert(t('common.error'), getApiErrorMessage(e, t, t('cards.actionError')));
+    } finally {
+      setBusyId(null);
+    }
   };
 
   const statusLabel = (card: VirtualCard) => ({
@@ -426,9 +443,10 @@ export default function CardsScreen() {
           <Text style={styles.revealCountdown}>{t('cards.autoHide', { seconds: revealLeft })}</Text>
         )}
 
-        {/* Gel et résiliation touchent la carte elle-même : ils restent contre
-            elle, avant le solde et les opérations, plutôt que relégués en bas
-            d'écran où ils semblaient se rapporter à toute la page. */}
+        {/* Le gel touche la carte elle-même : il reste contre elle, avant le
+            solde et les opérations. La fermeture définitive, elle, n'est plus
+            ici : réversible et irréversible côte à côte, même taille, invitaient
+            à la confondre — elle descend en bas du bloc. */}
         {(card.status === 'active' || card.status === 'frozen') && (
           <View style={styles.secondaryRow}>
             <TouchableOpacity
@@ -441,15 +459,6 @@ export default function CardsScreen() {
               <Text style={[styles.secondaryText, { color: Colors.pending }]}>
                 {card.status === 'frozen' ? t('cards.unfreeze') : t('cards.freeze')}
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.secondaryBtn, { borderColor: Colors.error + '66', backgroundColor: Colors.error + '12' }]}
-              onPress={() => terminate(card)}
-              disabled={busyId === card.id}
-              activeOpacity={0.8}
-            >
-              <FontAwesome6 name="trash" size={13} color={Colors.error} iconStyle="solid" />
-              <Text style={[styles.secondaryText, { color: Colors.error }]}>{t('cards.terminate')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -473,6 +482,13 @@ export default function CardsScreen() {
             <View style={[styles.statusDot, { backgroundColor: statusColor(card) }]} />
             <Text style={[styles.statusText, { color: statusColor(card) }]}>{statusLabel(card)}</Text>
           </View>
+        </View>
+
+        {/* Rappel de la règle des refus, sous le solde : c'est en le regardant
+            qu'on décide de payer ou de recharger d'abord. */}
+        <View style={styles.warn}>
+          <FontAwesome6 name="triangle-exclamation" size={12} color={Colors.warning} iconStyle="solid" />
+          <Text style={styles.warnText}>{t('cards.declineWarningShort')}</Text>
         </View>
 
         {card.pending && (
@@ -536,6 +552,20 @@ export default function CardsScreen() {
               ))
             )}
           </View>
+        )}
+
+        {/* Fermeture définitive : en bas, sans surface ni couleur d'alerte, et
+            dite en toutes lettres — « Résilier » ne disait pas au client ce
+            qu'il perdait. Tout l'avertissement vit dans la fenêtre qui suit. */}
+        {(card.status === 'active' || card.status === 'frozen') && (
+          <TouchableOpacity
+            style={styles.terminateLink}
+            onPress={() => terminate(card)}
+            disabled={busyId === card.id}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.terminateLinkText}>{t('cards.terminateEntry')}</Text>
+          </TouchableOpacity>
         )}
       </View>
     );
@@ -739,9 +769,20 @@ export default function CardsScreen() {
     <>
       <LocalAuthModal
         visible={!!authFor}
-        title={t('security.confirmCardTitle')}
-        onSuccess={() => { if (authFor) fetchSecrets(authFor); }}
-        onClose={() => { setAuthFor(null); setCopyAfterAuth(null); }}
+        title={authAction === 'terminate' ? t('cards.terminateAuthTitle') : t('security.confirmCardTitle')}
+        onSuccess={() => {
+          if (!authFor) return;
+          if (authAction === 'terminate') { doTerminate(authFor); return; }
+          fetchSecrets(authFor);
+        }}
+        onClose={() => { setAuthFor(null); setCopyAfterAuth(null); setAuthAction('secrets'); }}
+      />
+      <CardTerminateModal
+        visible={!!terminateFor}
+        card={terminateFor}
+        busy={busyId === terminateFor?.id}
+        onClose={() => setTerminateFor(null)}
+        onConfirm={askTerminate}
       />
       <CardOrderModal
         visible={orderOpen}
@@ -995,6 +1036,18 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   deadRowDate: { fontSize: FontSize.sm, color: Colors.textMuted },
   statusText: { fontSize: FontSize.sm, fontFamily: Fonts.medium },
 
+  warn: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    backgroundColor: Colors.warning + '1a',
+    borderWidth: 1,
+    borderColor: Colors.warning + '55',
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+  },
+  warnText: { flex: 1, fontSize: FontSize.sm, lineHeight: 18, color: Colors.text },
   pendingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   pendingText: { fontSize: FontSize.sm, color: Colors.textMuted },
 
@@ -1033,6 +1086,11 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderWidth: 1,
   },
   secondaryText: { fontSize: FontSize.md, fontFamily: Fonts.semiBold },
+
+  // Sortie de secours, pas une action courante : ni surface, ni bordure, ni
+  // rouge vif — la gravité est dite par le mot, pas par la couleur.
+  terminateLink: { alignSelf: 'center', paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md },
+  terminateLinkText: { fontSize: FontSize.sm, color: Colors.textMuted, fontFamily: Fonts.medium },
 
   history: {
     backgroundColor: Colors.card,

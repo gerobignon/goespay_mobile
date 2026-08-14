@@ -25,7 +25,7 @@ import { useTheme } from '../ThemeProvider';
 import { useMessagingStore } from '../../stores/messagingStore';
 import { ConversationRow } from './ConversationRow';
 import { ChatAvatar } from './ChatAvatar';
-import { ImageLightbox } from './ImageLightbox';
+import { ImageLightbox } from '../ImageLightbox';
 import { ActionSheet, type SheetAction } from '../ActionSheet';
 import { Coachmarks, TourSpot, useCoachmarks, type CoachStep } from '../Coachmarks';
 import type { Conversation } from '../../types';

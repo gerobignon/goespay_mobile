@@ -5,16 +5,19 @@ import { useTranslation } from 'react-i18next';
 import { LocalAuthModal } from './LocalAuthModal';
 import { useColors } from './ThemeProvider';
 import { usePinStore } from '../stores/pinStore';
-import { requireLocalLock } from '../utils/localAuth';
+import { useMessagingLockStore } from '../stores/messagingLockStore';
+import { hasLocalLock } from '../utils/localAuth';
 
 /**
- * Verrou d'entrée de la messagerie.
+ * Verrou d'entrée de la messagerie — OPTIONNEL.
  *
- * Les conversations sont des données personnelles : on les protège comme les
- * données d'une carte, par le verrou de l'appareil. La confirmation vaut pour
- * toute la session — la redemander à chaque aller-retour entre l'onglet et une
- * conversation rendrait la messagerie inutilisable — et tombe dès que l'app se
- * verrouille, c'est-à-dire dès qu'elle passe en arrière-plan.
+ * Par défaut la messagerie s'ouvre comme n'importe quel onglet. Qui veut la
+ * protéger arme le verrou depuis Réglages › Sécurité ou les réglages des
+ * messages ; on demande alors la même preuve que pour ouvrir l'app. La
+ * confirmation vaut pour toute la session — la redemander à chaque aller-retour
+ * entre l'onglet et une conversation rendrait la messagerie inutilisable — et
+ * tombe dès que l'app se verrouille, c'est-à-dire dès qu'elle passe en
+ * arrière-plan.
  */
 let confirmedForSession = false;
 
@@ -31,8 +34,17 @@ export function MessagingGate({ children, onDeny }: Props) {
   const isLocked = usePinStore((s) => s.isLocked);
   const isInitialized = usePinStore((s) => s.isInitialized);
 
+  const lockEnabled = useMessagingLockStore((s) => s.enabled);
+  const lockLoaded = useMessagingLockStore((s) => s.isLoaded);
+  const loadLock = useMessagingLockStore((s) => s.load);
+  const setLockEnabled = useMessagingLockStore((s) => s.setEnabled);
+
   const [confirmed, setConfirmed] = useState(confirmedForSession);
   const [asking, setAsking] = useState(false);
+
+  useEffect(() => {
+    if (!lockLoaded) loadLock();
+  }, [lockLoaded]);
 
   // L'app s'est reverrouillée : la messagerie redemande sa confirmation.
   useEffect(() => {
@@ -43,14 +55,17 @@ export function MessagingGate({ children, onDeny }: Props) {
   }, [isLocked]);
 
   useEffect(() => {
-    if (confirmed || asking || !isInitialized || isLocked) return;
+    if (confirmed || asking || !isInitialized || isLocked || !lockLoaded || !lockEnabled) return;
 
-    if (!requireLocalLock(t, (route) => router.replace(route as any))) {
-      deny();
+    // Le verrou de l'appareil a été désarmé depuis (PIN effacé, clé révoquée) :
+    // il n'y a plus rien à demander. On ne barre pas l'entrée pour autant — on
+    // retire le réglage, qui ne veut plus rien dire.
+    if (!hasLocalLock()) {
+      setLockEnabled(false);
       return;
     }
     setAsking(true);
-  }, [confirmed, asking, isInitialized, isLocked]);
+  }, [confirmed, asking, isInitialized, isLocked, lockLoaded, lockEnabled]);
 
   const deny = () => {
     setAsking(false);
@@ -62,6 +77,11 @@ export function MessagingGate({ children, onDeny }: Props) {
     setConfirmed(true);
     setAsking(false);
   };
+
+  // Verrou non demandé (réglage éteint, ou pas encore lu) : la messagerie
+  // s'ouvre directement. `lockLoaded` évite l'écran vide d'un instant au
+  // premier rendu.
+  if (lockLoaded && !lockEnabled) return <>{children}</>;
 
   if (!confirmed) {
     return (

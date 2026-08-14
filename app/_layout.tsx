@@ -6,6 +6,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';import * as Notifications from 'expo-notifications';
 import { useAuthStore } from '../src/stores/authStore';
 import { usePinStore } from '../src/stores/pinStore';
+import { useMessagingLockStore } from '../src/stores/messagingLockStore';
 import { saveCredentials } from '../src/services/secureAuthService';
 import { checkApiConnection } from '../src/services/api';
 import {
@@ -124,6 +125,9 @@ function RootInner() {
     setIsMounted(true);
     loadToken();
     initialize();
+    // Réglage local du verrou messagerie : lu au démarrage pour que l'onglet
+    // Messages s'ouvre sans temps mort, verrou armé ou non.
+    useMessagingLockStore.getState().load();
     initLanguage();
     // Patch viewport meta on web pour activer env(safe-area-inset-*) sur iOS notch/PWA
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
@@ -144,10 +148,20 @@ function RootInner() {
       //   jusqu'au bas physique et la bande disparaît. (Vérifié en live sur le
       //   simulateur : innerHeight=812 vs screen=874 → 62pt non couverts.)
       //   Marche avec overflow:hidden (pas d'effet de bord clavier).
+      // • PWA standalone Android : SURTOUT PAS. Là `screen.height` est PLUS GRAND
+      //   que la viewport (il compte la barre de statut et la barre de navigation
+      //   système). Caler le document dessus le rend plus haut que l'écran visible
+      //   et, sans scroll, la tabbar du bas sort du cadre → menu invisible.
+      //   → hack réservé à iOS, 100dvh partout ailleurs.
       const isStandalone =
         window.matchMedia?.('(display-mode: standalone)').matches ||
         (window.navigator as any).standalone === true;
-      if (isStandalone) {
+      const ua = window.navigator.userAgent || '';
+      const isIOS =
+        /iPad|iPhone|iPod/.test(ua) ||
+        // iPadOS 13+ se présente comme un Mac : on le distingue au tactile.
+        (/Macintosh/.test(ua) && (navigator as any).maxTouchPoints > 1);
+      if (isStandalone && isIOS) {
         // On cale le document sur l'écran physique : le contenu remplit alors
         // jusqu'en bas et la zone home indicator n'est plus une bande de fond.
         const root = document.getElementById('root');

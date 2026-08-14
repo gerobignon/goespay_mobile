@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -41,20 +41,33 @@ export function LocalAuthModal({ visible, title, onClose, onSuccess }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [attempts, setAttempts] = useState(0);
   const [resetTrigger, setResetTrigger] = useState(false);
+  const autoTried = useRef(false);
 
   // Rien ne survit à une fermeture : la fenêtre suivante repart de zéro.
   useEffect(() => {
     if (!visible) {
       setError(null);
       setAttempts(0);
+      autoTried.current = false;
     }
   }, [visible]);
 
-  // Biométrie : l'invite système est la fenêtre, autant la lancer d'emblée.
-  // Pas pour WebAuthn — Safari exige un geste de l'utilisateur.
+  // L'invite système EST la fenêtre : on la lance d'emblée, biométrie native
+  // comme WebAuthn, pour éviter un appui inutile. Les navigateurs qui exigent
+  // un geste utilisateur (Safari/iOS) rejettent l'appel WebAuthn sans rien
+  // afficher — on retombe alors sur le bouton, sans message d'erreur.
   useEffect(() => {
-    if (visible && lockMethod === 'biometric') {
+    if (!visible || autoTried.current) return;
+    if (lockMethod === 'biometric') {
+      autoTried.current = true;
       runBiometric();
+      return;
+    }
+    if (lockMethod === 'webauthn') {
+      autoTried.current = true;
+      verifyWebauthn().then((ok) => {
+        if (ok) onSuccess();
+      });
     }
   }, [visible, lockMethod]);
 
@@ -119,9 +132,16 @@ export function LocalAuthModal({ visible, title, onClose, onSuccess }: Props) {
             </View>
             {!!error && <Text style={styles.error}>{error}</Text>}
             <Button
-              title={t('security.confirmRetry')}
+              title={error ? t('security.confirmRetry') : t('auth.pin.tapToUnlock')}
               onPress={lockMethod === 'webauthn' ? runWebauthn : runBiometric}
               icon="unlock"
+            />
+            <Button
+              title={t('common.cancel')}
+              onPress={onClose}
+              variant="outline"
+              style={styles.cancelBtn}
+              textStyle={styles.cancelText}
             />
           </View>
         )}
@@ -145,4 +165,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     backgroundColor: Colors.primary + '18',
   },
   error: { fontSize: FontSize.sm, color: Colors.error, textAlign: 'center' },
+  // Action secondaire : même forme que le bouton principal, teinte neutre.
+  cancelBtn: { borderColor: Colors.surfaceBorder },
+  cancelText: { color: Colors.textMuted },
 });

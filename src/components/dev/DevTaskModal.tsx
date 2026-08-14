@@ -24,7 +24,7 @@ import { useDevBoardStore } from '../../stores/devBoardStore';
 import type { DevBoard, DevPriority, DevStatus, DevSubtask, DevTask } from '../../types';
 import { DevSelect, DevDateSelect, type DevOption } from './DevSelect';
 import { DevCommentsPanel } from './DevCommentsPanel';
-import { DevImageViewer } from './DevImageViewer';
+import { ImageLightbox } from '../ImageLightbox';
 import { useSheetViewport, sheetHeight } from './devSheet';
 
 type Tab = 'details' | 'comments';
@@ -394,7 +394,7 @@ export function DevTaskModal({ visible, task, initialStatus, initialTab, board, 
           </KeyboardAvoidingView>
         </SafeAreaView>
 
-        <DevImageViewer uri={zoomUri} onClose={() => setZoomUri(null)} />
+        <ImageLightbox uri={zoomUri} onClose={() => setZoomUri(null)} />
         {/* Rendu dans la modale pour s'afficher au-dessus (modals frères masqués sur iOS). */}
         <CustomAlert />
       </View>
