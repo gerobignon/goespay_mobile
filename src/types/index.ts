@@ -317,6 +317,8 @@ export interface PeerCard {
   online: boolean;
   last_seen_at: string | null;
   relation: ChatRelation;
+  /** Vrai si JE l'ai signalé — visible de moi seul, jamais du signalé. */
+  reported_by_me?: boolean;
   /** null quand le serveur ne l'a pas calculé (listes, pour rester léger). */
   is_contact: boolean | null;
   /** Présent dans la liste des personnes connues : peut-on déjà écrire ? */

@@ -55,6 +55,11 @@ export function ConversationRow({
           <Text style={[styles.title, unread > 0 && styles.titleUnread]} numberOfLines={1}>
             {isSupport ? t('messages.supportTitle', 'Support GoesPay') : conversation.title}
           </Text>
+          {/* Signalé par moi : le drapeau reste tant que le fil existe, pour
+              qu'on sache à qui on parle sans rouvrir la fiche. */}
+          {conversation.peer?.reported_by_me && (
+            <FontAwesome6 name="flag" size={11} color={colors.error} />
+          )}
           <Text style={styles.time}>{shortAgo(conversation.last_message_at, t)}</Text>
         </View>
 

@@ -118,6 +118,9 @@ export default function PeerProfileScreen() {
       const msg = await messagingService.report(profile.id, reason, details, profile.conversation_id);
       setReportOpen(false);
       setDetails('');
+      setProfile({ ...profile, reported_by_me: true });
+      // Le drapeau apparaît aussi dans la liste des fils.
+      fetchConversations(true);
       showAlert(t('messages.reportSentTitle', 'Signalement envoyé'), msg);
     } catch (e: any) {
       showAlert(
@@ -190,6 +193,14 @@ export default function PeerProfileScreen() {
                     <FontAwesome6 name="circle-check" size={11} color={colors.positive} />
                     <Text style={[styles.tagText, { color: colors.positive }]}>
                       {t('messages.verified', 'Identité vérifiée')}
+                    </Text>
+                  </View>
+                )}
+                {profile.reported_by_me && (
+                  <View style={[styles.tag, { backgroundColor: withAlpha(colors.error, 0.15) }]}>
+                    <FontAwesome6 name="flag" size={11} color={colors.error} />
+                    <Text style={[styles.tagText, { color: colors.error }]}>
+                      {t('messages.reported', 'Signalé')}
                     </Text>
                   </View>
                 )}

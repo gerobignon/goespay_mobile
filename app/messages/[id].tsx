@@ -295,9 +295,16 @@ export default function ConversationScreen() {
               size={38}
             />
             <View style={styles.headerText}>
-              <Text style={styles.headerTitle} numberOfLines={1}>
-                {isSupport ? t('messages.supportTitle', 'Support GoesPay') : conversation?.title || ''}
-              </Text>
+              <View style={styles.headerNameRow}>
+                <Text style={styles.headerTitle} numberOfLines={1}>
+                  {isSupport ? t('messages.supportTitle', 'Support GoesPay') : conversation?.title || ''}
+                </Text>
+                {/* Compte signalé par moi : le rappel reste sous les yeux
+                    pendant l'échange, pas seulement sur la fiche. */}
+                {peer?.reported_by_me && (
+                  <FontAwesome6 name="flag" size={11} color={colors.error} />
+                )}
+              </View>
               {!!subtitle && (
                 <Text
                   style={[styles.headerSub, conversation?.peer_typing && { color: colors.positive }]}
@@ -477,7 +484,14 @@ const createStyles = (Colors: ColorPalette) =>
       flex: 1,
       minWidth: 0,
     },
+    headerNameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      minWidth: 0,
+    },
     headerTitle: {
+      flexShrink: 1,
       fontFamily: Fonts.bold,
       fontSize: FontSize.md,
       color: Colors.text,
