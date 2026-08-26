@@ -303,6 +303,13 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // Le rail est porté directement par l'opérateur Fincra (cf. config.ts).
   // Plus de sélecteur dynamique ; chaque opérateur Fincra = 1 rail.
   const aggRail: FincraRail | '' = isAggOp ? (((selectedOp as any)?.rail as FincraRail) || '') : '';
+  // AfribaPay hors zone CFA (RDC CDF, Guinée GNF…) : la saisie reste en XOF et
+  // AfribaPay convertit lui-même à l'exécution (taux statique backend). On
+  // demande un devis informatif au serveur pour montrer le montant reçu en
+  // devise locale, comme pour le Nigeria — sans toucher aux frais ni au total.
+  const isAfpOp = !!(selectedOp as any)?.afribapay;
+  const afpCurrency = isAfpOp ? (((selectedOp as any)?.currency as string) || '').toUpperCase() : '';
+  const afpForeign = !!afpCurrency && afpCurrency !== 'XOF' && afpCurrency !== 'XAF';
   // Chine : Klasha exige tout le senderAddress (date de naissance + province/état +
   // code postal) en plus de l'identité. Si l'un manque dans le profil KYC, on bloque
   // tout le formulaire de retrait et on demande de compléter le KYC.
@@ -383,6 +390,24 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       }
     : null;
   const { quote, loading: quoteLoading, error: quoteError, refresh: refreshQuote } = useTransferQuote(quoteParams, quotable);
+
+  // Devis informatif AfribaPay (montant reçu en CDF/GNF…). Jamais bloquant :
+  // en cas d'échec, l'envoi reste possible et les frais/total sont inchangés.
+  const afpQuotable = afpForeign && numAmountInput > 0;
+  const afpQuoteState = useTransferQuote(
+    afpQuotable
+      ? {
+          aggregator: 'afribapay',
+          rail: 'mobile_money',
+          currency: afpCurrency,
+          amount_xof: numAmountInput,
+          country: destCountry || undefined,
+        }
+      : null,
+    afpQuotable
+  );
+  const fmtAfp = (n: number) =>
+    `${n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${afpCurrency}`;
 
   // Valeur XOF de l'envoi. Chine : elle vient du devis (le client a saisi des
   // yuans, le serveur dit ce qu'ils coûtent, marge comprise dans le taux).
@@ -1614,6 +1639,18 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               />
             )}
 
+            {/* AfribaPay hors zone CFA (RDC, Guinée…) : montant reçu en devise
+                locale, même présentation que les envois Fincra/Klasha. */}
+            {afpForeign && numAmountInput > 0 && (
+              <FincraConversionHint
+                loading={afpQuoteState.loading}
+                error={!!afpQuoteState.error && !afpQuoteState.loading}
+                label={t('transferModal.fincraReceives')}
+                amount={afpQuoteState.quote ? afpQuoteState.quote.send_amount : null}
+                currency={afpCurrency}
+              />
+            )}
+
             {/* Minimum imposé par le moyen (devise destination) — affiché dès le choix
                 du moyen, en rouge dès que le montant reçu passe dessous. */}
             {isAggOp && aggMinAmount !== null && (
@@ -2301,6 +2338,12 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 <View style={styles.confirmBreakdownRow}>
                   <Text style={styles.confirmBreakdownLabel}>{t('transferModal.fincraReceives')}</Text>
                   <Text style={styles.confirmBreakdownValue}>{fmtAgg(numAmount)}</Text>
+                </View>
+              )}
+              {afpForeign && afpQuoteState.quote && (
+                <View style={styles.confirmBreakdownRow}>
+                  <Text style={styles.confirmBreakdownLabel}>{t('transferModal.fincraReceives')}</Text>
+                  <Text style={styles.confirmBreakdownValue}>{fmtAfp(afpQuoteState.quote.send_amount)}</Text>
                 </View>
               )}
               {fees > 0 && (

@@ -50,8 +50,8 @@ export const OPERATORS = [
   // Niger (XOF) — AfribaPay ne supporte qu'Airtel au Niger
   { id: 'airtel-ne', name: 'Airtel Money', flag: '🇳🇪', country: 'NE', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_airtel.png') },
   // Guinée Conakry (GNF)
-  { id: 'orange-gn', name: 'Orange Money', flag: '🇬🇳', country: 'GN', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
-  { id: 'mtn-gn', name: 'MTN Mobile Money', flag: '🇬🇳', country: 'GN', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_mtn.png') },
+  { id: 'orange-gn', name: 'Orange Money', flag: '🇬🇳', country: 'GN', withdraw: true, afribapay: true, currency: 'GNF', logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'mtn-gn', name: 'MTN Mobile Money', flag: '🇬🇳', country: 'GN', withdraw: true, afribapay: true, currency: 'GNF', logo: require('../../assets/operators/pay_mtn.png') },
   // Tchad (XAF)
   { id: 'airtel-td', name: 'Airtel Money', flag: '🇹🇩', country: 'TD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_airtel.png') },
   { id: 'moov-td', name: 'Moov Money', flag: '🇹🇩', country: 'TD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_moov.png') },
@@ -65,10 +65,10 @@ export const OPERATORS = [
   { id: 'orange-cf', name: 'Orange Money', flag: '🇨🇫', country: 'CF', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
   { id: 'telecel-cf', name: 'Telecel', flag: '🇨🇫', country: 'CF', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_telecel.png') },
   // RDC (CDF)
-  { id: 'mpesa-cd', name: 'M-Pesa', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_mpesa.jpg') },
-  { id: 'orange-cd', name: 'Orange Money', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
-  { id: 'airtel-cd', name: 'Airtel Money', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_airtel.png') },
-  { id: 'africell-cd', name: 'Africell Money', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_africell.png') },
+  { id: 'mpesa-cd', name: 'M-Pesa', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, currency: 'CDF', logo: require('../../assets/operators/pay_mpesa.jpg') },
+  { id: 'orange-cd', name: 'Orange Money', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, currency: 'CDF', logo: require('../../assets/operators/pay_orange.jpg') },
+  { id: 'airtel-cd', name: 'Airtel Money', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, currency: 'CDF', logo: require('../../assets/operators/pay_airtel.png') },
+  { id: 'africell-cd', name: 'Africell Money', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, currency: 'CDF', logo: require('../../assets/operators/pay_africell.png') },
   // Cameroun (XAF, AfribaPay — coexiste avec mtn-cameroun PayDunya)
   { id: 'mtn-cm', name: 'MTN Mobile Money', flag: '🇨🇲', country: 'CM', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_mtn.png') },
   { id: 'orange-cm', name: 'Orange Money', flag: '🇨🇲', country: 'CM', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
