@@ -10,7 +10,7 @@ const bgDark = require('../../assets/bg_page.jpg');
 const bgLight = require('../../assets/bg_page_light.jpg');
 
 const SOCIALS = [
-  { icon: 'facebook', url: 'https://fb.me/goespaay', darkColor: '#1877F2', lightColor: '#1877F2' },
+  { icon: 'facebook', url: 'https://www.facebook.com/goespay', darkColor: '#1877F2', lightColor: '#1877F2' },
   { icon: 'instagram', url: 'https://instagram.com/goespaay', darkColor: '#E4405F', lightColor: '#E4405F' },
   { icon: 'x-twitter', url: 'https://twitter.com/goespaay', darkColor: '#fff', lightColor: '#000' },
   { icon: 'linkedin-in', url: 'https://linkedin.com/company/goespay', darkColor: '#0A66C2', lightColor: '#0A66C2' },

@@ -83,7 +83,7 @@ export function SupportChannels() {
     { icon: 'telegram' as const, brand: true, color: Colors.primary, url: 'https://t.me/goespay' },
     { icon: 'whatsapp' as const, brand: true, color: '#25D366', url: 'https://wa.me/237659939340' },
     { icon: 'whatsapp' as const, brand: true, color: '#25D366', url: 'https://whatsapp.com/channel/0029Vb7k55BI7Be5dTCpti2v' },
-    { icon: 'facebook-f' as const, brand: true, color: Colors.primary, url: 'http://fb.me/goespaay' },
+    { icon: 'facebook-f' as const, brand: true, color: Colors.primary, url: 'https://www.facebook.com/goespay' },
     { icon: 'instagram' as const, brand: true, color: '#E1306C', url: 'http://instagram.com/goespaay' },
     { icon: 'x-twitter' as const, brand: true, color: isDark ? '#fff' : '#000', url: 'http://twitter.com/goespaay' },
     { icon: 'youtube' as const, brand: true, color: '#FF0000', url: 'https://youtube.com/channel/UCxooykyhvHYo_zAI1yckRsw/?sub_confirmation=1' },
