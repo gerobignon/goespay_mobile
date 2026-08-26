@@ -24,6 +24,7 @@ import { CustomAlert } from '../../src/components/CustomAlert';
 import { KycBanner } from '../../src/components/KycBanner';
 import { WelcomeBonusCard } from '../../src/components/WelcomeBonusCard';
 import { WalletStack } from '../../src/components/home/WalletStack';
+import { SiteMessageTicker } from '../../src/components/home/SiteMessageTicker';
 import { formatAmount } from '../../src/utils/format';
 import { useFormatXof, useCurrencyCode } from '../../src/utils/format';
 import {
@@ -350,6 +351,9 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Message défilant piloté depuis /admin/settings */}
+        <SiteMessageTicker />
 
         {/* KYC Banner */}
         {user?.validate !== 1 && (

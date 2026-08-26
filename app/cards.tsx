@@ -539,7 +539,9 @@ export default function CardsScreen() {
                 <View key={tx.id} style={styles.txRow}>
                   <View style={styles.txLeft}>
                     <Text style={styles.txMerchant} numberOfLines={1}>
-                      {tx.merchant || tx.description || tx.type}
+                      {/* Le backend vide le marchand des mouvements internes
+                          (marque émetteur) : le type traduit prend le relais. */}
+                      {tx.merchant || tx.description || t([`cards.txTypes.${tx.type}`, 'cards.txTypes.default'])}
                     </Text>
                     <Text style={styles.txDate}>
                       {tx.date ? new Date(tx.date).toLocaleDateString('fr-FR') : ''}

@@ -60,6 +60,8 @@ export interface AppConfig {
   mobile_money_countries: string[];
   // Bandeaux d'alerte par type de transaction (configurés via /admin/settings)
   transaction_alerts: TransactionAlerts;
+  // Message défilant en haut de l'accueil (configuré via /admin/settings). Vide = masqué.
+  site_message: string;
   // Carrousel promo de l'accueil (configuré via /admin/settings). Liste ordonnée.
   promo_slides: PromoSlideConfig[];
   // Rails internationaux disponibles pour CE user (codes corridor), par sens.
@@ -127,6 +129,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
     crypto_buy:  { message: '', level: 'info' },
     crypto_sell: { message: '', level: 'info' },
   },
+  site_message: '',
   promo_slides: [],
   intl_rails: { payin: [], payout: [] },
   vapid_public_key: '',
