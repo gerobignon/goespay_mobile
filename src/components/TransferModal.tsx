@@ -212,8 +212,16 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // Corridors server-driven (aggregator_routing) : masquage temps réel + badge.
   const corridorsLoaded = useCorridorStore((s) => s.isLoaded);
   const isCodeEnabled = useCorridorStore((s) => s.isCodeEnabled);
+  const isCodeIntlEnabled = useCorridorStore((s) => s.isCodeIntlEnabled);
+  const isCountryListed = useCorridorStore((s) => s.isCountryListed);
   const isPayoutAvailable = useCorridorStore((s) => s.isPayoutAvailable);
   const audienceFor = useCorridorStore((s) => s.audienceFor);
+  // Audience « International » (pays du user non listé dans Marchés) : la
+  // visibilité payout se lit sur les flags intl_* — mêmes règles que le backend,
+  // sinon on affiche des moyens que l'API refusera (« retraits désactivés »).
+  const intlAudience = corridorsLoaded && !!user?.country && !isCountryListed(user.country);
+  const payoutEnabled = (id: string) =>
+    intlAudience ? isCodeIntlEnabled(id, 'payout') : isCodeEnabled(id, 'payout');
   // Moyen réservé VIP : masqué aux non-VIP (le backend bloque déjà la transaction).
   const isVip = isAdmin || user?.group === 'vip';
   const audienceOk = (id: string) => isVip || audienceFor(id) !== 'vip';
@@ -253,7 +261,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     ? displayOperators.filter(
         (op) =>
           operatorServesCountry(op as any, selectedCountry) &&
-          (isAdmin || isCodeEnabled(op.id, 'payout')) &&
+          (isAdmin || payoutEnabled(op.id)) &&
           audienceOk(op.id)
       )
     : [];
@@ -272,9 +280,11 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // operatorsForStep (robuste) et non sur payout_countries seul : un pays de zone
   // (DE/IT…) servi par un rail de zone n'affiche pas de bannière parasite même si
   // payout_countries ne le liste pas encore individuellement.
+  // Pour l'audience International, payout_countries (calculé sur les toggles pays)
+  // ne fait pas foi : liste vide = destination fermée pour CE user → bannière.
   const showCorridorBanner =
     !isAdmin && corridorsLoaded && !!selectedCountry
-    && !isPayoutAvailable(selectedCountry) && operatorsForStep.length === 0;
+    && (intlAudience || !isPayoutAvailable(selectedCountry)) && operatorsForStep.length === 0;
 
   const selectedOp = OPERATORS_SRC.find((op) => op.id === operator);
   const isAggOp = !!(selectedOp as any)?.fincra;
@@ -549,7 +559,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     if (!op || !canPayout(op) || !audienceOk(op.id)) return;
     // Même condition que operatorsForStep : sinon on sélectionnerait un opérateur
     // que la liste n'affiche pas. L'effet retente une fois les corridors chargés.
-    if (!isAdmin && !isCodeEnabled(op.id, 'payout')) return;
+    if (!isAdmin && !payoutEnabled(op.id)) return;
     const country = String(op.country || (op.countries || [])[0] || '').toUpperCase();
     if (!country) return;
     prefillOpAppliedRef.current = true;

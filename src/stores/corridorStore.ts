@@ -29,6 +29,9 @@ interface CorridorState {
   isCodeEnabled: (code: string, dir: 'payin' | 'payout') => boolean;
   // Audience « International » (pays non listés) : toggles intl_* indépendants.
   isCodeIntlEnabled: (code: string, dir: 'payin' | 'payout') => boolean;
+  // Pays présent dans Marchés ? Non listé = audience « International » (mêmes
+  // règles que le backend : référentiel vide → tout le monde est considéré listé).
+  isCountryListed: (country: string) => boolean;
   // Audience VIP : 'vip' = réservé aux comptes VIP. 'all' par défaut/inconnu.
   audienceFor: (code: string) => 'all' | 'vip';
   hasEnabledAggregator: (country: string, network: string, dir: 'payin' | 'payout', aggregator: string) => boolean;
@@ -87,6 +90,13 @@ export const useCorridorStore = create<CorridorState>((set, get) => ({
     const row = get().corridors.find((x) => x.code === code);
     if (!row) return false;
     return dir === 'payout' ? !!row.intl_payout : !!row.intl_payin;
+  },
+
+  isCountryListed: (country) => {
+    const c = (country || '').toUpperCase();
+    const list = get().countries;
+    if (!c || !list.length) return true;
+    return list.some((x) => x.code === c);
   },
 
   audienceFor: (code) => {
