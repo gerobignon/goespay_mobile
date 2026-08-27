@@ -43,13 +43,17 @@ export function SiteMessageTicker() {
         style={styles.track}
         onLayout={(e) => setContainerW(Math.round(e.nativeEvent.layout.width))}
       >
-        {/* Position absolue : largeur intrinsèque du texte (non contrainte par le conteneur). */}
-        <Animated.Text
-          style={[styles.text, { transform: [{ translateX }] }]}
-          onLayout={(e) => setTextW(Math.round(e.nativeEvent.layout.width))}
-        >
-          {message}
-        </Animated.Text>
+        {/* Rail très large : le texte garde sa largeur intrinsèque sur une seule ligne
+            (un élément absolu seul serait borné à la largeur du conteneur et se replierait, surtout sur web). */}
+        <Animated.View style={[styles.slider, { transform: [{ translateX }] }]}>
+          <Text
+            style={styles.text}
+            numberOfLines={1}
+            onLayout={(e) => setTextW(Math.round(e.nativeEvent.layout.width))}
+          >
+            {message}
+          </Text>
+        </Animated.View>
       </View>
     </View>
   );
@@ -74,10 +78,14 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     height: 18,
     overflow: 'hidden',
   },
-  text: {
+  slider: {
     position: 'absolute',
     left: 0,
     top: 0,
+    width: 10000,
+    flexDirection: 'row',
+  },
+  text: {
     color: '#fff',
     fontSize: FontSize.xs,
     fontFamily: Fonts.semiBold,
