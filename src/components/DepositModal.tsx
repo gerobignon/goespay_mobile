@@ -74,6 +74,14 @@ const KLASHA_PAYIN_FEE: Record<string, number> = {
   bank_transfer: 0.015,   // 1,5 %
 };
 
+// Frais d'encaissement AfribaPay répercutés au client, par moyen — MIROIR du
+// backend (AfribaPay::PAYIN_FEE_RATES). Même mécanique que Klasha : frais prélevé
+// sur le montant envoyé → total débité = ceil(net / (1 - taux)), le net saisi
+// reste crédité tel quel.
+const AFRIBAPAY_PAYIN_FEE: Record<string, number> = {
+  'orange-bf-afp': 0.03,    // 3 %
+};
+
 interface DepositModalProps {
   visible: boolean;
   onClose: () => void;
@@ -653,6 +661,11 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const klashaFeeRate = isKlasha ? (KLASHA_PAYIN_FEE[fincraMethod ?? ''] ?? 0) : 0;
   const klashaGrossLive = klashaFeeRate > 0 && numInputLive > 0 ? numInputLive / (1 - klashaFeeRate) : null;
   const klashaFeeLive = klashaGrossLive !== null ? klashaGrossLive - numInputLive : null;
+  // Frais AfribaPay (client) : même principe — le montant saisi est le net crédité,
+  // le total débité sur le téléphone est le brut (ceil, miroir du backend).
+  const afpFeeRate = AFRIBAPAY_PAYIN_FEE[operator] ?? 0;
+  const afpGrossLive = afpFeeRate > 0 && numInputLive > 0 ? Math.ceil(numInputLive / (1 - afpFeeRate)) : null;
+  const afpFeeLive = afpGrossLive !== null ? afpGrossLive - numInputLive : null;
   const fincraRateBlocking =
     isForeignRail && numInputLive > 0
     && (depQuoteLoading || !!depQuoteError || depQuote === null);
@@ -671,7 +684,10 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const otpUssd: string | null = (() => {
     const raw = ORANGE_OTP_USSD[operator];
     if (!raw) return null;
-    return numAmountXofLive && numAmountXofLive > 0 ? raw.replace('montant', String(numAmountXofLive)) : raw;
+    // « montant » = montant réellement débité sur le téléphone : le BRUT quand
+    // le corridor porte des frais client (AfribaPay), sinon le net.
+    const debited = afpGrossLive ?? numAmountXofLive;
+    return debited && debited > 0 ? raw.replace('montant', String(debited)) : raw;
   })();
 
   // Charge les numéros enregistrés pour cet opérateur dès qu'un opérateur non-card est sélectionné
@@ -1435,6 +1451,27 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                       label={t('depositModal.fincraToPay')}
                       amount={klashaGrossLive}
                       currency={railCurrency}
+                    />
+                  </>
+                )}
+
+                {/* Frais AfribaPay (client) : même annonce que Klasha — frais + total
+                    débité sur le téléphone ; le net saisi reste crédité tel quel. */}
+                {afpGrossLive !== null && (
+                  <>
+                    <FincraConversionHint
+                      loading={false}
+                      error={false}
+                      label={t('depositModal.fincraFees')}
+                      amount={afpFeeLive}
+                      currency="XOF"
+                    />
+                    <FincraConversionHint
+                      loading={false}
+                      error={false}
+                      label={t('depositModal.fincraToPay')}
+                      amount={afpGrossLive}
+                      currency="XOF"
                     />
                   </>
                 )}
