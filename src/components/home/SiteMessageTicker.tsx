@@ -20,18 +20,27 @@ export function SiteMessageTicker() {
 
   useEffect(() => {
     if (!message || containerW <= 0 || textW <= 0) return;
+    // Relance manuelle à chaque fin de passage : Animated.loop ne reboucle pas
+    // de façon fiable sur react-native-web.
+    let stopped = false;
     const distance = containerW + textW;
-    translateX.setValue(containerW);
-    const anim = Animated.loop(
+    const run = () => {
+      if (stopped) return;
+      translateX.setValue(containerW);
       Animated.timing(translateX, {
         toValue: -textW,
         duration: (distance / SPEED) * 1000,
         easing: Easing.linear,
         useNativeDriver: true,
-      })
-    );
-    anim.start();
-    return () => anim.stop();
+      }).start(({ finished }) => {
+        if (finished) run();
+      });
+    };
+    run();
+    return () => {
+      stopped = true;
+      translateX.stopAnimation();
+    };
   }, [message, containerW, textW, translateX]);
 
   if (!message) return null;
