@@ -307,6 +307,12 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
               <>
                 <TransactionDetailRow label={t('transaction.paylinkTitle')} value={tx.paylink.title || '—'} />
                 <TransactionDetailRow label={t('transaction.payer')} value={tx.paylink.payer || tx.de || '—'} />
+                {/* Seul moyen de rappeler le payeur. Absent quand le moyen de
+                    paiement ne demande pas de numéro : on n'affiche alors rien
+                    plutôt qu'un tiret sans explication. */}
+                {!!tx.paylink.phone && (
+                  <TransactionDetailRow label={t('transaction.payerPhone')} value={tx.paylink.phone} copyable mono />
+                )}
               </>
             )}
             <TransactionDetailRow label={t('transaction.operator')} value={resolveOperatorView(tx.mode)?.name ?? '—'} valueNode={<OperatorValue mode={tx.mode} />} />

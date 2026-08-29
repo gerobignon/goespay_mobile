@@ -50,3 +50,6 @@ yarn-error.*
 .deploy-last*
 .deploy-rev
 deploy.sh
+
+# Clé du compte de service Google Play (soumission EAS) : jamais committée
+google-play-service-account.json

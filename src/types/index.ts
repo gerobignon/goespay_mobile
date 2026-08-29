@@ -14,6 +14,7 @@ export interface User {
   birthdate?: string; // AAAA-MM-JJ (KYC, requis payouts Chine)
   state?: string;     // province / état (KYC, senderAddress Chine)
   postcode?: string;  // code postal (KYC, senderAddress Chine)
+  bvn?: string;       // BVN nigérian (11 chiffres), KYC comptes NG
   kyc_type?: string;            // type de pièce KYC précédemment soumis
   kyc_file_url?: string | null; // document KYC déjà uploadé
   kyc_tof_url?: string | null;  // selfie KYC déjà uploadé
@@ -72,6 +73,8 @@ export interface Transaction {
     title: string;
     payer: string;
     email?: string;
+    /** Numéro du payeur, absent sur les moyens qui ne le demandent pas. */
+    phone?: string;
     fee?: number;
   } | null;
   created_at: string;

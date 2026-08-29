@@ -135,7 +135,8 @@ export const authService = {
       address: string;
       idnumber: string;
       idexp: string;
-      birthdate: string; // AAAA-MM-JJ
+      bvn?: string;      // BVN nigérian (11 chiffres), facultatif
+      birthdate: string; // AAAA-MM-JJ, vide si non renseignée
       state: string;     // province / état
       postcode: string;  // code postal
       phone: string;
@@ -167,9 +168,12 @@ export const authService = {
     formData.append('address', data.address);
     formData.append('idnumber', data.idnumber);
     formData.append('idexp', data.idexp);
-    formData.append('birthdate', data.birthdate);
-    formData.append('state', data.state);
-    formData.append('postcode', data.postcode);
+    // Champs facultatifs : ne rien envoyer plutôt qu'une chaîne vide, pour ne
+    // pas écraser une valeur déjà connue du profil.
+    if (data.bvn) formData.append('bvn', data.bvn);
+    if (data.birthdate) formData.append('birthdate', data.birthdate);
+    if (data.state) formData.append('state', data.state);
+    if (data.postcode) formData.append('postcode', data.postcode);
     formData.append('phone', data.phone);
     if (data.country) formData.append('country', data.country);
     if (data.telegram) formData.append('telegram', data.telegram);

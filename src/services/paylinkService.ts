@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 import api from './api';
 
 /** Qui supporte les frais d'encaissement du paiement. */
@@ -10,6 +12,12 @@ export interface PayLink {
   url: string;
   title: string;
   description: string;
+  /**
+   * Illustration posée par le bénéficiaire, affichée sur la page de paiement.
+   * À ne pas confondre avec l'affiche partageable, que le serveur compose
+   * lui-même (voir posterImageUrl).
+   */
+  image_url: string | null;
   /** null = le payeur saisit le montant. */
   amount: number | null;
   currency: string;
@@ -51,6 +59,28 @@ export interface CreatePayLinkInput {
   max_uses?: number;
   fee_bearer?: FeeBearer;
   expires_at?: string;
+  /** Fichier local choisi par le client ; déclenche l'envoi en multipart. */
+  imageUri?: string;
+  /** Retire l'illustration existante (mise à jour seulement). */
+  removeImage?: boolean;
+}
+
+/**
+ * Ajoute l'image au corps multipart, en tenant les deux plateformes : le web
+ * veut un Blob, le natif un descriptif { uri, name, type }.
+ */
+async function appendImage(form: FormData, uri: string): Promise<void> {
+  const filename = uri.split('/').pop() || 'paylink.jpg';
+  const match = /\.(\w+)$/.exec(filename);
+  const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+  if (Platform.OS === 'web') {
+    const resp = await fetch(uri);
+    const blob = await resp.blob();
+    form.append('image', blob, filename);
+    return;
+  }
+  form.append('image', { uri, name: filename, type } as unknown as Blob);
 }
 
 export interface PayLinkList {
@@ -75,12 +105,54 @@ export const paylinkService = {
   },
 
   create: async (data: CreatePayLinkInput): Promise<PayLink> => {
-    const response = await api.post('/me/paylinks', data);
+    // Sans image, on reste en JSON : le multipart force à sérialiser les
+    // booléens en chaînes, et le serveur les relit moins bien.
+    if (!data.imageUri) {
+      const { imageUri, removeImage, ...json } = data;
+      const response = await api.post('/me/paylinks', json);
+      return response.data.link;
+    }
+
+    const form = new FormData();
+    form.append('title', data.title);
+    form.append('description', data.description ?? '');
+    if (data.amount != null) form.append('amount', String(data.amount));
+    form.append('reusable', data.reusable ? '1' : '0');
+    if (data.max_uses != null) form.append('max_uses', String(data.max_uses));
+    if (data.fee_bearer) form.append('fee_bearer', data.fee_bearer);
+    if (data.expires_at) form.append('expires_at', data.expires_at);
+    await appendImage(form, data.imageUri);
+
+    const response = await api.post('/me/paylinks', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data.link;
   },
 
-  update: async (id: number, data: Partial<Pick<PayLink, 'title' | 'description' | 'is_active' | 'expires_at'>>): Promise<PayLink> => {
-    const response = await api.put(`/me/paylinks/${id}`, data);
+  update: async (
+    id: number,
+    data: Partial<Pick<PayLink, 'title' | 'description' | 'is_active' | 'expires_at'>>
+      & { imageUri?: string; removeImage?: boolean },
+  ): Promise<PayLink> => {
+    if (!data.imageUri && !data.removeImage) {
+      const response = await api.put(`/me/paylinks/${id}`, data);
+      return response.data.link;
+    }
+
+    // October ne lit pas le corps multipart d'un PUT : on passe par POST avec
+    // _method, la surcharge de méthode que Laravel comprend.
+    const form = new FormData();
+    form.append('_method', 'PUT');
+    if (data.title != null) form.append('title', data.title);
+    if (data.description != null) form.append('description', data.description);
+    if (data.is_active != null) form.append('is_active', data.is_active ? '1' : '0');
+    if (data.expires_at != null) form.append('expires_at', data.expires_at);
+    if (data.removeImage) form.append('remove_image', '1');
+    else if (data.imageUri) await appendImage(form, data.imageUri);
+
+    const response = await api.post(`/me/paylinks/${id}`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data.link;
   },
 

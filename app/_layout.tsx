@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, usePathname, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, Image, ActivityIndicator, StyleSheet, TouchableOpacity, Platform, Animated } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
@@ -29,6 +29,12 @@ import { ThemeProvider, useTheme } from '../src/components/ThemeProvider';
 import '../src/i18n';  // initialize i18next
 import { initLanguage } from '../src/i18n';
 import { useTranslation } from 'react-i18next';
+import {
+  isWorthRemembering,
+  setPendingRoute,
+  takePendingRoute,
+  type PendingRoute,
+} from '../src/utils/pendingRoute';
 
 /** Charge utile d'une notification push, telle qu'envoyée par le backend. */
 type NotificationData = Record<string, string | undefined>;
@@ -48,6 +54,7 @@ function RootInner() {
   const { t } = useTranslation();
   const { isLocked, isSetupDone, isInitialized, initialize } = usePinStore();
   const segments = useSegments();
+  const pathname = usePathname();
   const router = useRouter();
   const [apiStatus, setApiStatus] = useState<'checking' | 'ok' | 'error' | 'maintenance'>('checking');
   const [isMounted, setIsMounted] = useState(false);
@@ -55,40 +62,83 @@ function RootInner() {
   const notifListenerRef = useRef<Notifications.Subscription | null>(null);
   const responseListenerRef = useRef<Notifications.Subscription | null>(null);
   const coldStartHandledRef = useRef(false);
+  // L'app est-elle en état d'AFFICHER une destination (authentifiée, verrou
+  // passé, routeur monté) ? Lu depuis les écouteurs de notifications, qui sont
+  // montés une fois pour toutes et ne verraient pas un état capturé.
+  const canNavigateRef = useRef(false);
 
   // Web/PWA : re-verrouiller après un passage prolongé en arrière-plan.
   useWebAutoLock(isAuthenticated && isSetupDone);
 
   /**
+   * Destination d'une notification, sans naviguer : fonction pure, pour que le
+   * même calcul serve au tap immédiat comme à la reprise après déverrouillage.
+   */
+  const notificationTarget = useCallback((data?: NotificationData): PendingRoute | null => {
+    if (!data) return null;
+
+    if (data.transactionId && data.type) {
+      return {
+        pathname: `/transaction/${data.type}/[id]`,
+        params: { id: String(data.transactionId) },
+      };
+    }
+    if (data.screen === 'messages') {
+      // Message reçu → le fil concerné, à défaut la liste.
+      return { pathname: data.conversationId ? `/messages/${data.conversationId}` : '/(tabs)/support' };
+    }
+    if (data.screen === 'messages_requests') {
+      // Invitation reçue → la file des invitations, pas la liste des fils.
+      return { pathname: '/messages/requests' };
+    }
+    if (data.screen === 'admin_dev') {
+      // Board Dev : la tâche commentée, pas seulement le board.
+      return data.taskId
+        ? { pathname: '/admin/kanban', params: { task: String(data.taskId) } }
+        : { pathname: '/admin/kanban' };
+    }
+    // Carte : l'émetteur notifie l'émission et les mouvements. Sans cette
+    // entrée, ces notifications retombaient sur l'accueil.
+    if (data.screen === 'cards') {
+      return { pathname: '/cards' };
+    }
+    if (data.screen === 'history') {
+      return { pathname: '/(tabs)/history' };
+    }
+    if (data.screen === 'home' || data.screen === 'kyc') {
+      return { pathname: '/(tabs)' };
+    }
+    return null;
+  }, []);
+
+  /** Rejoue la destination mise en attente, s'il y en a une. */
+  const flushPendingRoute = useCallback(() => {
+    const target = takePendingRoute();
+    if (!target) return;
+    router.push({ pathname: target.pathname as any, params: target.params });
+  }, [router]);
+
+  /**
    * Destination d'une notification. Partagée par les trois chemins d'arrivée :
    * tap application ouverte, tap application fermée (cold start), et clic sur
    * une notification web relayé par le service worker.
+   *
+   * On RANGE toujours la destination avant de tenter de l'ouvrir : si le verrou
+   * PIN est en travers, la garde de navigation renverrait sur l'écran de
+   * déverrouillage et le fil visé serait perdu. Elle est rejouée dès que l'app
+   * est prête.
    */
   const navigateFromNotification = useCallback(
     (data?: NotificationData) => {
-      if (!data) return;
+      const target = notificationTarget(data);
+      if (!target) return;
 
-      if (data.transactionId && data.type) {
-        router.push({
-          pathname: `/transaction/${data.type}/[id]` as any,
-          params: { id: String(data.transactionId) },
-        });
-      } else if (data.screen === 'messages') {
-        // Message reçu → le fil concerné, à défaut la liste.
-        router.push(data.conversationId ? `/messages/${data.conversationId}` : '/(tabs)/support');
-      } else if (data.screen === 'messages_requests') {
-        // Invitation reçue → la file des invitations, pas la liste des fils.
-        router.push('/messages/requests');
-      } else if (data.screen === 'admin_dev') {
-        // Board Dev : la tâche commentée, pas seulement le board.
-        router.push(data.taskId ? `/admin/kanban?task=${data.taskId}` : '/admin/kanban');
-      } else if (data.screen === 'history') {
-        router.push('/(tabs)/history');
-      } else if (data.screen === 'home' || data.screen === 'kyc') {
-        router.push('/(tabs)');
+      setPendingRoute(target);
+      if (canNavigateRef.current) {
+        flushPendingRoute();
       }
     },
-    [router],
+    [notificationTarget, flushPendingRoute],
   );
 
   const [fontsLoaded] = useFonts({
@@ -435,7 +485,10 @@ function RootInner() {
   };
 
   useEffect(() => {
-    if (!isMounted || isLoading || apiStatus !== 'ok' || !isInitialized) return;
+    if (!isMounted || isLoading || apiStatus !== 'ok' || !isInitialized) {
+      canNavigateRef.current = false;
+      return;
+    }
 
     const inAuth = segments[0] === '(auth)';
     const currentRoute = segments[segments.length - 1];
@@ -448,7 +501,12 @@ function RootInner() {
     const needsSetup = !isWeb && !isSetupDone;
     const needsUnlock = isSetupDone && isLocked;
 
+    canNavigateRef.current = isAuthenticated && !needsSetup && !needsUnlock;
+
     if (!isAuthenticated && !inAuth) {
+      // Déconnexion : une destination en attente appartenait à la session
+      // précédente, elle n'a plus rien à ouvrir.
+      setPendingRoute(null);
       router.replace('/(auth)/login');
     } else if (isAuthenticated && inAuth && currentRoute !== 'setup-pin' && currentRoute !== 'unlock') {
       if (needsSetup) {
@@ -460,13 +518,23 @@ function RootInner() {
       }
     } else if (isAuthenticated && !inAuth) {
       // Dans l'app : vérifier si locked
-      if (needsSetup) {
-        router.replace('/(auth)/setup-pin');
-      } else if (needsUnlock) {
-        router.replace('/(auth)/unlock');
+      if (needsSetup || needsUnlock) {
+        // L'écran demandé est perdu par le `replace` qui suit : on le range pour
+        // le rejouer après déverrouillage. C'est ce qui manquait quand une
+        // notification, ou un lien ouvert dans la PWA, tombait sur un compte
+        // verrouillé : le client arrivait sur l'accueil, jamais sur son fil.
+        if (isWorthRemembering(pathname)) {
+          setPendingRoute({ pathname });
+        }
+        router.replace(needsSetup ? '/(auth)/setup-pin' : '/(auth)/unlock');
+      } else {
+        // Verrou passé : la destination mise de côté peut enfin s'ouvrir.
+        flushPendingRoute();
       }
+    } else if (canNavigateRef.current) {
+      flushPendingRoute();
     }
-  }, [isMounted, isAuthenticated, isLoading, segments, apiStatus, isInitialized, isLocked, isSetupDone]);
+  }, [isMounted, isAuthenticated, isLoading, segments, pathname, apiStatus, isInitialized, isLocked, isSetupDone, flushPendingRoute]);
 
   // Vérification de connexion API
   if (apiStatus === 'checking' || !fontsLoaded) {

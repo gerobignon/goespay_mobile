@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import * as ImagePicker from 'expo-image-picker';
 import { posterImageUrl, downloadPoster } from '../src/utils/posterImage';
 import {
   paylinkService,
@@ -65,6 +66,10 @@ export default function PaymentLinksScreen() {
   // Formulaire de création.
   const [formOpen, setFormOpen] = useState(false);
   const [title, setTitle] = useState('');
+  // Description libre : facultative, elle s'affiche au payeur sous le motif.
+  const [description, setDescription] = useState('');
+  // Illustration facultative du lien (photo du produit, visuel de l'événement).
+  const [imageUri, setImageUri] = useState<string | null>(null);
   const [amount, setAmount] = useState('');
   const [freeAmount, setFreeAmount] = useState(false);
   const [reusable, setReusable] = useState(false);
@@ -82,6 +87,14 @@ export default function PaymentLinksScreen() {
     setFormOpen(false);
     setAccepted(false);
     setTermsOpen(false);
+  };
+
+  /** Choix de l'illustration dans la galerie. Un refus se solde par un no-op. */
+  const pickImage = async () => {
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
+    if (!res.canceled && res.assets[0]) {
+      setImageUri(res.assets[0].uri);
+    }
   };
 
   const load = useCallback(() => {
@@ -115,13 +128,16 @@ export default function PaymentLinksScreen() {
     try {
       const link = await paylinkService.create({
         title: title.trim(),
+        description: description.trim() || undefined,
         amount: freeAmount ? undefined : Number(amount),
         reusable,
         fee_bearer: feeBearer,
+        imageUri: imageUri ?? undefined,
       });
       setLinks((prev) => [link, ...prev]);
       closeForm();
-      setTitle(''); setAmount(''); setFreeAmount(false); setReusable(false); setFeeBearer('payer');
+      setTitle(''); setDescription(''); setImageUri(null);
+      setAmount(''); setFreeAmount(false); setReusable(false); setFeeBearer('payer');
       copy(link);
     } catch (e: any) {
       showAlert(t('common.error'), getApiErrorMessage(e, t, t('paylinks.createError')));
@@ -483,6 +499,40 @@ export default function PaymentLinksScreen() {
           placeholder={t('paylinks.reasonPlaceholder')}
           containerStyle={{ alignSelf: 'stretch', marginBottom: Spacing.md }}
         />
+
+        <Input
+          label={t('paylinks.description')}
+          value={description}
+          onChangeText={setDescription}
+          maxLength={1000}
+          multiline
+          numberOfLines={3}
+          placeholder={t('paylinks.descriptionPlaceholder')}
+          style={{ minHeight: 88, textAlignVertical: 'top' }}
+          containerStyle={{ alignSelf: 'stretch', marginBottom: Spacing.md }}
+        />
+
+        {/* Illustration : ce que le payeur verra en haut de la page de paiement.
+            Distincte de l'affiche partageable, que le serveur compose seul. */}
+        <Text style={styles.groupLabel}>{t('paylinks.image')}</Text>
+        {imageUri ? (
+          <View style={styles.imagePreview}>
+            <Image source={{ uri: imageUri }} style={styles.imageThumb} resizeMode="cover" />
+            <TouchableOpacity
+              style={styles.imageRemove}
+              onPress={() => setImageUri(null)}
+              hitSlop={10}
+              accessibilityLabel={t('paylinks.imageRemove')}
+            >
+              <FontAwesome6 name="xmark" size={14} color={Colors.text} iconStyle="solid" />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.imagePick} onPress={pickImage} activeOpacity={0.8}>
+            <FontAwesome6 name="image" size={16} color={Colors.textSecondary} />
+            <Text style={styles.imagePickText}>{t('paylinks.imageAdd')}</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Montant : le champ disparaît quand le payeur choisit lui-même. */}
         {!freeAmount && (
@@ -861,6 +911,33 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   optionHint: { fontSize: FontSize.sm, fontFamily: Fonts.regular, color: Colors.textSecondary, marginTop: 2 },
 
   groupLabel: { fontSize: FontSize.sm, fontFamily: Fonts.medium, color: Colors.textSecondary, marginBottom: Spacing.sm },
+
+  imagePick: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Colors.border,
+    backgroundColor: Colors.inputBg,
+  },
+  imagePickText: { fontSize: FontSize.sm, fontFamily: Fonts.medium, color: Colors.textSecondary },
+  imagePreview: { position: 'relative', alignSelf: 'stretch' },
+  imageThumb: { width: '100%', height: 140, borderRadius: BorderRadius.md },
+  imageRemove: {
+    position: 'absolute',
+    top: Spacing.sm,
+    right: Spacing.sm,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.card,
+  },
 
   termsCard: {
     marginTop: Spacing.lg,

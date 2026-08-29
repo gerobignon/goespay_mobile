@@ -77,8 +77,14 @@ function targetUrl(data) {
   if (data.screen === 'messages') {
     return data.conversationId ? '/messages/' + data.conversationId : '/support';
   }
+  if (data.screen === 'messages_requests') {
+    return '/messages/requests';
+  }
   if (data.screen === 'admin_dev') {
     return data.taskId ? '/admin/kanban?task=' + data.taskId : '/admin/kanban';
+  }
+  if (data.screen === 'cards') {
+    return '/cards';
   }
   if (data.screen === 'history') {
     return '/history';

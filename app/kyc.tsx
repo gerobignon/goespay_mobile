@@ -77,6 +77,9 @@ export default function KycScreen() {
   const [postcode, setPostcode] = useState(user?.postcode ?? '');
   const [address, setAddress] = useState(user?.address ?? '');
   const [idnumber, setIdnumber] = useState(user?.idnumber ?? '');
+  // BVN (Nigeria) : facultatif ici, exigé plus tard pour les cartes et les
+  // comptes virtuels NGN, qui renvoient vers ce formulaire.
+  const [bvn, setBvn] = useState(user?.bvn ?? '');
   // Date de naissance : 3 cases JJ / MM / AAAA, préremplies depuis le profil (YYYY-MM-DD).
   const bparts = (user?.birthdate ?? '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
   const [birthDay, setBirthDay] = useState(bparts ? bparts[3] : '');
@@ -139,19 +142,24 @@ export default function KycScreen() {
     if (i === 0) {
       if (!country) e.country = req;
       if (!city.trim()) e.city = req;
-      if (!postcode.trim()) e.postcode = req;
-      if (!stateProv.trim()) e.state = req;
       if (!address.trim()) e.address = req;
       if (!phone.trim()) e.phone = req;
+      // Code postal, province et date de naissance : facultatifs à la soumission.
+      // Ils ne sont exigés qu'au moment d'un envoi vers la Chine, qui renvoie
+      // alors vers ce formulaire. Saisis, ils doivent rester cohérents.
       const d = parseInt(birthDay, 10), m = parseInt(birthMonth, 10), y = parseInt(birthYear, 10);
-      if (!birthDay || !birthMonth || birthYear.length !== 4) e.birthdate = req;
-      else if (isNaN(d) || d < 1 || d > 31 || isNaN(m) || m < 1 || m > 12 || y < 1900 || y > new Date().getFullYear()) {
-        e.birthdate = t('kyc.errBirthdate');
+      const birthTouched = !!birthDay || !!birthMonth || !!birthYear;
+      if (birthTouched) {
+        if (!birthDay || !birthMonth || birthYear.length !== 4) e.birthdate = t('kyc.errBirthdate');
+        else if (isNaN(d) || d < 1 || d > 31 || isNaN(m) || m < 1 || m > 12 || y < 1900 || y > new Date().getFullYear()) {
+          e.birthdate = t('kyc.errBirthdate');
+        }
       }
     }
     if (i === 1) {
       if (!docType) e.docType = t('kyc.errDocType');
       if (!idnumber.trim()) e.idnumber = req;
+      if (bvn.trim() && bvn.trim().length !== 11) e.bvn = t('kyc.errBvn');
       const m = parseInt(idexpMonth, 10);
       if (!idexpMonth || !idexpYear) e.idexp = req;
       else if (isNaN(m) || m < 1 || m > 12) e.idexp = t('kyc.errMonth');
@@ -245,7 +253,10 @@ export default function KycScreen() {
       const e = validateStep(i);
       if (Object.keys(e).length > 0) { setStep(i); setErrors(e); scrollTop(); return; }
     }
-    const birthdateIso = `${birthYear}-${birthMonth.padStart(2, '0')}-${birthDay.padStart(2, '0')}`;
+    // Date de naissance facultative : on n'envoie une valeur que si elle est complète.
+    const birthdateIso = (birthDay && birthMonth && birthYear.length === 4)
+      ? `${birthYear}-${birthMonth.padStart(2, '0')}-${birthDay.padStart(2, '0')}`
+      : '';
     // Format « MM/YYYY » conservé tel quel : l'admin (validations.htm) découpe
     // idexp sur « / » et attend exactement deux parties.
     const idexpValue = `${idexpMonth.padStart(2, '0')}/${idexpYear}`;
@@ -260,6 +271,7 @@ export default function KycScreen() {
           postcode: postcode.trim(),
           address: address.trim(),
           idnumber: idnumber.trim(),
+          bvn: bvn.trim(),
           birthdate: birthdateIso,
           idexp: idexpValue,
           phone: phone.trim(),
@@ -354,7 +366,7 @@ export default function KycScreen() {
   const renderSummaryRow = (label: string, value?: string | null) => (
     <View style={styles.sumRow} key={label}>
       <Text style={styles.sumLabel}>{label}</Text>
-      <Text style={styles.sumValue} numberOfLines={1}>{value || '—'}</Text>
+      <Text style={styles.sumValue} numberOfLines={1}>{value || '-'}</Text>
     </View>
   );
 
@@ -526,7 +538,7 @@ export default function KycScreen() {
                       styles.col
                     )}
                     {renderField(
-                      t('kyc.postcode'),
+                      `${t('kyc.postcode')} ${t('kyc.optionalSuffix')}`,
                       <Input placeholder={t('kyc.postcodePlaceholder')} value={postcode} onChangeText={setPostcode} error={errors.postcode} containerStyle={styles.inputFlush} />,
                       undefined,
                       styles.col
@@ -534,7 +546,7 @@ export default function KycScreen() {
                   </View>
 
                   {renderField(
-                    t('kyc.state'),
+                    `${t('kyc.state')} ${t('kyc.optionalSuffix')}`,
                     <Input placeholder={t('kyc.statePlaceholder')} value={stateProv} onChangeText={setStateProv} error={errors.state} containerStyle={styles.inputFlush} />
                   )}
 
@@ -546,7 +558,7 @@ export default function KycScreen() {
                   <View style={styles.divider} />
 
                   {renderField(
-                    t('kyc.birthdate'),
+                    `${t('kyc.birthdate')} ${t('kyc.optionalSuffix')}`,
                     <View style={styles.dateRow}>
                       <Input
                         placeholder="JJ"
@@ -650,6 +662,19 @@ export default function KycScreen() {
                     <Input placeholder={t('kyc.idNumberPlaceholder')} value={idnumber} onChangeText={setIdnumber} error={errors.idnumber} containerStyle={styles.inputFlush} />
                   )}
 
+                  {country === 'NG' && renderField(
+                    `${t('kyc.bvn')} ${t('kyc.optionalSuffix')}`,
+                    <Input
+                      placeholder={t('kyc.bvnPlaceholder')}
+                      value={bvn}
+                      onChangeText={(v) => setBvn(v.replace(/\D/g, '').slice(0, 11))}
+                      keyboardType="number-pad"
+                      maxLength={11}
+                      error={errors.bvn}
+                      containerStyle={styles.inputFlush}
+                    />
+                  )}
+
                   {renderField(
                     t('kyc.expiryDate'),
                     <View style={styles.dateRow}>
@@ -727,7 +752,7 @@ export default function KycScreen() {
                     {renderSummaryRow(t('kyc.postcode'), postcode)}
                     {renderSummaryRow(t('kyc.state'), stateProv)}
                     {renderSummaryRow(t('kyc.address'), address)}
-                    {renderSummaryRow(t('kyc.birthdate'), `${birthDay}/${birthMonth}/${birthYear}`)}
+                    {renderSummaryRow(t('kyc.birthdate'), (birthDay && birthMonth && birthYear) ? `${birthDay}/${birthMonth}/${birthYear}` : '')}
                     {renderSummaryRow(t('kyc.whatsapp'), `${prefix} ${phone}`.trim())}
                     {!!telegram.trim() && renderSummaryRow('Telegram', telegram)}
                   </>
@@ -737,6 +762,7 @@ export default function KycScreen() {
                   <>
                     {renderSummaryRow(t('kyc.documentType'), docLabel)}
                     {renderSummaryRow(t('kyc.idNumber'), idnumber)}
+                    {country === 'NG' && renderSummaryRow(t('kyc.bvn'), bvn)}
                     {renderSummaryRow(t('kyc.expiryDate'), `${idexpMonth}/${idexpYear}`)}
                   </>
                 ))}

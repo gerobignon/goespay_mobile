@@ -190,6 +190,10 @@ export default function DepositDetailScreen() {
             <>
               <TransactionDetailRow label={t('transaction.paylinkTitle')} value={tx.paylink.title || '—'} />
               <TransactionDetailRow label={t('transaction.payer')} value={tx.paylink.payer || tx.de || '—'} />
+              {/* Voir TransactionDetailModal : affiché seulement s'il existe. */}
+              {!!tx.paylink.phone && (
+                <TransactionDetailRow label={t('transaction.payerPhone')} value={tx.paylink.phone} copyable mono />
+              )}
             </>
           )}
           <TransactionDetailRow
