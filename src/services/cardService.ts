@@ -45,6 +45,12 @@ export interface VirtualCard {
   billing_address: BillingAddress | null;
   /** Motif d'échec, à afficher quand status === 'failed'. */
   reason: string;
+  /**
+   * Code de vérification de l'activation sans contact (ajout au portefeuille du
+   * téléphone). L'émetteur ne l'envoie qu'à nous : c'est le seul endroit où le
+   * porteur peut le lire. Null hors de cette fenêtre.
+   */
+  activation_code: string | null;
   created_at: string | null;
 }
 
@@ -235,6 +241,12 @@ export const cardService = {
       params: { page: opts.page ?? 1, reconcile: opts.reconcile ? 1 : undefined },
     });
     return response.data.entries ?? [];
+  },
+
+  /** Le porteur a noté son code d'activation : il disparaît de l'écran. */
+  activationSeen: async (id: number): Promise<VirtualCard> => {
+    const response = await api.post(`/maplerad/cards/${id}/activation-seen`, {});
+    return response.data.card;
   },
 
   rename: async (id: number, nickname: string): Promise<VirtualCard> => {

@@ -93,15 +93,66 @@ function targetUrl(data) {
   return '/';
 }
 
+/* Destination du clic, déposée pour l'application.
+ *
+ * `openWindow` est ignoré par la PWA installée sur iOS : elle se relance sur son
+ * start_url (l'accueil) quelle que soit l'URL demandée, et un onglet gelé peut
+ * rater le postMessage. On range donc la cible dans IndexedDB — seul stockage
+ * accessible depuis un service worker — et l'app la relit au démarrage comme au
+ * retour au premier plan (src/utils/webNotificationTarget.ts). */
+var DB_NAME = 'goespay-push';
+var STORE = 'targets';
+var KEY = 'pending';
+
+function openDb() {
+  return new Promise(function (resolve) {
+    if (typeof indexedDB === 'undefined') return resolve(null);
+    var req;
+    try {
+      req = indexedDB.open(DB_NAME, 1);
+    } catch (e) {
+      return resolve(null);
+    }
+    req.onupgradeneeded = function () {
+      if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE);
+    };
+    req.onsuccess = function () { resolve(req.result); };
+    req.onerror = function () { resolve(null); };
+  });
+}
+
+function storeTarget(url) {
+  return openDb().then(function (db) {
+    if (!db) return;
+    return new Promise(function (resolve) {
+      var tx;
+      try {
+        tx = db.transaction(STORE, 'readwrite');
+      } catch (e) {
+        return resolve();
+      }
+      tx.objectStore(STORE).put({ url: url, at: Date.now() }, KEY);
+      tx.oncomplete = function () { db.close(); resolve(); };
+      tx.onerror = function () { db.close(); resolve(); };
+    });
+  });
+}
+
 // Clic sur la notif : focus l'onglet GoesPay existant (et navigue) ou en ouvre un.
 self.addEventListener('notificationclick', function (event) {
   event.notification.close();
   var url = targetUrl(event.notification.data);
 
   event.waitUntil(
-    syncBadge(0).then(function () {
-      return openTarget(url);
-    })
+    syncBadge(0)
+      .then(function () {
+        // Rangée AVANT d'ouvrir : si la PWA se relance sur l'accueil, elle
+        // retrouvera la destination et s'y rendra elle-même.
+        return storeTarget(url);
+      })
+      .then(function () {
+        return openTarget(url);
+      })
   );
 });
 

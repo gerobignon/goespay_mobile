@@ -18,6 +18,7 @@ import { TransactionDetailRow } from './TransactionDetailRow';
 import { OperatorLogo } from './OperatorLogo';
 import { CustomAlert } from './CustomAlert';
 import { walletService } from '../services/walletService';
+import { paylinkService } from '../services/paylinkService';
 import { showAlert } from '../stores/alertStore';
 import { TRANSACTION_STATUS, getTransactionStatus } from '../constants/config';
 import { resolveOperatorDisplay } from '../utils/operatorDisplay';
@@ -91,6 +92,12 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
   const [claimMessage, setClaimMessage] = useState('');
   const [claimLoading, setClaimLoading] = useState(false);
 
+  // Remboursement d'un paiement reçu par lien (dépôt uniquement), en ligne
+  // comme les autres formulaires : pas de modale dans la modale.
+  const [showRefund, setShowRefund] = useState(false);
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundLoading, setRefundLoading] = useState(false);
+
   // Note form state (deposit only)
   const [showNote, setShowNote] = useState(false);
   const [noteMessage, setNoteMessage] = useState('');
@@ -102,6 +109,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
       setTx(null);
       setShowClaim(false);
       setShowNote(false);
+      setShowRefund(false);
       setClaimMessage('');
       setNoteMessage('');
       return;
@@ -165,6 +173,32 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
     }
   };
 
+  /**
+   * Renvoie au payeur tout ou partie de ce paiement. Envoi ordinaire depuis le
+   * wallet : le solde est débité du montant plus les frais.
+   */
+  const handleRefund = async () => {
+    const info = tx?.paylink?.refund;
+    if (!info) return;
+    const amount = parseFloat(refundAmount.replace(',', '.'));
+    if (!Number.isFinite(amount) || amount <= 0 || amount > info.max) {
+      showAlert('Erreur', t('transaction.refundMax', { amount: fmtXof(info.max) }));
+      return;
+    }
+    setRefundLoading(true);
+    try {
+      const res = await paylinkService.refund(info.payment_id, amount);
+      showAlert(t('transaction.refundDone'), res.message);
+      setShowRefund(false);
+      const data = await walletService.getTransaction(txId!, 'deposit');
+      setTx(data);
+    } catch (error: any) {
+      showAlert('Erreur', error?.response?.data?.error || "Erreur lors de l'envoi.");
+    } finally {
+      setRefundLoading(false);
+    }
+  };
+
   const handleDownloadInvoice = async (type: 'deposit' | 'withdraw' | 'crypto', id: number) => {
     setInvoiceLoading(true);
     try {
@@ -216,6 +250,42 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
               </TouchableOpacity>
             )}
           </View>
+
+          {showRefund && !!tx.paylink?.refund && (
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+              <View style={styles.inlineForm}>
+                <Text style={styles.inlineFormTitle}>{t('transaction.refund')}</Text>
+                <Text style={styles.inlineFormHint}>
+                  {tx.paylink.refund.phone} · {t('transaction.refundMax', { amount: fmtXof(tx.paylink.refund.max) })}
+                </Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={refundAmount}
+                  onChangeText={setRefundAmount}
+                  keyboardType="numeric"
+                  inputMode="numeric"
+                  selectionColor={Colors.secondary}
+                  placeholderTextColor={Colors.textMuted}
+                />
+                <View style={styles.formRow}>
+                  <TouchableOpacity style={styles.formCancelBtn} onPress={() => setShowRefund(false)}>
+                    <Text style={styles.formCancelText}>{t('common.cancel')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.formSubmitBtn, refundLoading && { opacity: 0.6 }]}
+                    onPress={handleRefund}
+                    disabled={refundLoading}
+                    activeOpacity={0.7}
+                  >
+                    <FontAwesome6 name="rotate-left" size={13} color={Colors.white} />
+                    <Text style={styles.formSubmitText}>
+                      {refundLoading ? t('common.sending') : t('transaction.refundConfirm')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          )}
 
           {showClaim && (
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -311,7 +381,37 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
                     paiement ne demande pas de numéro : on n'affiche alors rien
                     plutôt qu'un tiret sans explication. */}
                 {!!tx.paylink.phone && (
-                  <TransactionDetailRow label={t('transaction.payerPhone')} value={tx.paylink.phone} copyable mono />
+                  <TransactionDetailRow
+                    label={t('transaction.payerPhone')}
+                    value={tx.paylink.phone}
+                    copyable
+                    mono
+                    valueNode={
+                      <View style={styles.payerPhoneRow}>
+                        <Text style={styles.payerPhone}>{tx.paylink.phone}</Text>
+                        {!!tx.paylink.refund?.available && (
+                          <TouchableOpacity
+                            style={styles.refundBtn}
+                            onPress={() => {
+                              setRefundAmount(String(Math.round(tx.paylink!.refund!.max)));
+                              setShowRefund((v) => !v);
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <FontAwesome6 name="rotate-left" size={11} color={Colors.white} />
+                            <Text style={styles.refundBtnText}>{t('transaction.refund')}</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    }
+                  />
+                )}
+                {(tx.paylink.refund?.refunded ?? 0) > 0 && (
+                  <TransactionDetailRow
+                    label={t('transaction.refundedAlready')}
+                    value={fmtXof(tx.paylink.refund!.refunded)}
+                    mono
+                  />
                 )}
               </>
             )}
@@ -729,6 +829,32 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.sm,
     marginBottom: Spacing.md,
+  },
+  // Numéro du payeur et son bouton de remboursement, sur la même ligne.
+  payerPhoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    flexShrink: 1,
+  },
+  payerPhone: {
+    color: Colors.text,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+  },
+  refundBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.primary,
+    paddingVertical: 6,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+  },
+  refundBtnText: {
+    color: Colors.white,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
   },
   claimBtn: {
     flexDirection: 'row',

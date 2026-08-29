@@ -18,6 +18,8 @@ import { Card } from '../../../src/components/Card';
 import { TransactionDetailRow } from '../../../src/components/TransactionDetailRow';
 import TransactionHero from '../../../src/components/TransactionHero';
 import ClaimNoteModal from '../../../src/components/ClaimNoteModal';
+import PaylinkRefundModal from '../../../src/components/PaylinkRefundModal';
+import { paylinkService } from '../../../src/services/paylinkService';
 import ActionButtonRow from '../../../src/components/ActionButtonRow';
 import { TRANSACTION_STATUS, getTransactionStatus } from '../../../src/constants/config';
 import { formatCurrency, formatDate, useFormatXof, useCurrencyCode } from '../../../src/utils/format';
@@ -48,6 +50,10 @@ export default function DepositDetailScreen() {
   const [claimVisible, setClaimVisible] = useState(false);
   const [claimMessage, setClaimMessage] = useState('');
   const [claimLoading, setClaimLoading] = useState(false);
+
+  // Remboursement du payeur (paiement reçu par lien)
+  const [refundVisible, setRefundVisible] = useState(false);
+  const [refundLoading, setRefundLoading] = useState(false);
 
   // Note modal
   const [noteVisible, setNoteVisible] = useState(false);
@@ -87,6 +93,28 @@ export default function DepositDetailScreen() {
       showAlert('Erreur', error?.response?.data?.error || "Erreur lors de l'envoi.");
     } finally {
       setClaimLoading(false);
+    }
+  };
+
+  /**
+   * Renvoie au payeur tout ou partie de ce que ce paiement a crédité. C'est un
+   * envoi ordinaire depuis le wallet : le solde est débité du montant plus les
+   * frais, et l'opération se suit dans l'historique comme un envoi.
+   */
+  const handleRefund = async (amount: number) => {
+    const paymentId = tx?.paylink?.refund?.payment_id;
+    if (!paymentId) return;
+    setRefundLoading(true);
+    try {
+      const res = await paylinkService.refund(paymentId, amount);
+      setRefundVisible(false);
+      showAlert(t('transaction.refundDone'), res.message);
+      const data = await walletService.getTransaction(parseInt(id, 10), 'deposit');
+      setTx(data);
+    } catch (error: any) {
+      showAlert('Erreur', error?.response?.data?.error || "Erreur lors de l'envoi.");
+    } finally {
+      setRefundLoading(false);
     }
   };
 
@@ -190,9 +218,39 @@ export default function DepositDetailScreen() {
             <>
               <TransactionDetailRow label={t('transaction.paylinkTitle')} value={tx.paylink.title || '—'} />
               <TransactionDetailRow label={t('transaction.payer')} value={tx.paylink.payer || tx.de || '—'} />
-              {/* Voir TransactionDetailModal : affiché seulement s'il existe. */}
+              {/* Voir TransactionDetailModal : affiché seulement s'il existe.
+                  Le remboursement se déclenche ici, à côté du numéro : c'est le
+                  destinataire de l'envoi, il doit être lu avant d'appuyer. */}
               {!!tx.paylink.phone && (
-                <TransactionDetailRow label={t('transaction.payerPhone')} value={tx.paylink.phone} copyable mono />
+                <TransactionDetailRow
+                  label={t('transaction.payerPhone')}
+                  value={tx.paylink.phone}
+                  copyable
+                  mono
+                  valueNode={
+                    <View style={styles.payerPhoneRow}>
+                      <Text style={styles.payerPhone}>{tx.paylink.phone}</Text>
+                      {!!tx.paylink.refund?.available && (
+                        <TouchableOpacity
+                          style={styles.refundBtn}
+                          onPress={() => setRefundVisible(true)}
+                          activeOpacity={0.7}
+                        >
+                          <FontAwesome6 name="rotate-left" size={12} color={Colors.white} />
+                          <Text style={styles.refundBtnText}>{t('transaction.refund')}</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  }
+                />
+              )}
+              {/* Remboursement déjà parti : on montre le cumul plutôt qu'un bouton. */}
+              {(tx.paylink.refund?.refunded ?? 0) > 0 && (
+                <TransactionDetailRow
+                  label={t('transaction.refundedAlready')}
+                  value={fmtXof(tx.paylink.refund!.refunded)}
+                  mono
+                />
               )}
             </>
           )}
@@ -248,6 +306,17 @@ export default function DepositDetailScreen() {
         loading={noteLoading}
       />
 
+      {!!tx?.paylink?.refund && (
+        <PaylinkRefundModal
+          visible={refundVisible}
+          phone={tx.paylink.refund.phone}
+          max={tx.paylink.refund.max}
+          loading={refundLoading}
+          onClose={() => setRefundVisible(false)}
+          onSubmit={handleRefund}
+        />
+      )}
+
       <DepositModal
         visible={retryVisible}
         onClose={() => setRetryVisible(false)}
@@ -263,6 +332,32 @@ export default function DepositDetailScreen() {
 }
 
 const createStyles = (Colors: ColorPalette) => StyleSheet.create({
+  // Numéro du payeur et son bouton de remboursement, sur la même ligne.
+  payerPhoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    flexShrink: 1,
+  },
+  payerPhone: {
+    color: Colors.text,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+  },
+  refundBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.primary,
+    paddingVertical: 6,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+  },
+  refundBtnText: {
+    color: Colors.white,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+  },
   scroll: {
     padding: Spacing.lg,
     paddingTop: Spacing.xxl,

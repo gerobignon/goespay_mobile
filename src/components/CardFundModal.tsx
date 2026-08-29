@@ -21,6 +21,8 @@ interface Props {
   direction: Direction;
   onClose: () => void;
   onDone: (card?: VirtualCard) => void;
+  /** Dossier KYC à compléter (ex. BVN nigérian) : l'écran parent renvoie au KYC. */
+  onIneligible?: (e: any) => void;
 }
 
 /**
@@ -34,11 +36,12 @@ interface Props {
  * abouti. On ne présente jamais ce cas comme un échec — le rapprochement serveur
  * tranchera, et le solde du wallet est rétabli si la recharge n'a pas eu lieu.
  */
-export function CardFundModal({ visible, card, direction, onClose, onDone }: Props) {
+export function CardFundModal({ visible, card, direction, onClose, onDone, onIneligible }: Props) {
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();
   const fmtXof = useFormatXof();
   const fetchBalance = useWalletStore((s) => s.fetchBalance);
+  const walletBalance = useWalletStore((s) => s.balance);
 
   const [amount, setAmount] = useState('');
   const [step, setStep] = useState<Step>('form');
@@ -71,7 +74,15 @@ export function CardFundModal({ visible, card, direction, onClose, onDone }: Pro
     quoteTimer.current = setTimeout(() => {
       cardService.quote(card.id, value, direction)
         .then((q) => { setQuote(q); setError(null); })
-        .catch((e) => { setQuote(null); setError(getApiErrorMessage(e, t, t('cards.quoteError'))); });
+        .catch((e) => {
+          setQuote(null);
+          if (e?.response?.data?.missing?.length && onIneligible) {
+            onClose();
+            onIneligible(e);
+            return;
+          }
+          setError(getApiErrorMessage(e, t, t('cards.quoteError')));
+        });
     }, 450);
     return () => {
       if (quoteTimer.current) clearTimeout(quoteTimer.current);
@@ -98,6 +109,11 @@ export function CardFundModal({ visible, card, direction, onClose, onDone }: Pro
       }
       fetchBalance().catch(() => {});
     } catch (e: any) {
+      if (e?.response?.data?.missing?.length && onIneligible) {
+        onClose();
+        onIneligible(e);
+        return;
+      }
       setError(getApiErrorMessage(e, t, isFund ? t('cards.fundError') : t('cards.withdrawError')));
       setStep('failed');
       fetchBalance().catch(() => {});
@@ -107,6 +123,20 @@ export function CardFundModal({ visible, card, direction, onClose, onDone }: Pro
   };
 
   const title = isFund ? t('cards.topUp') : t('cards.withdraw');
+
+  /**
+   * Solde disponible, dit de la même façon dans les deux sens : le wallet
+   * finance la recharge, la carte finance le retour vers le wallet. Il passe au
+   * rouge dès que l'opération le dépasse, et le bouton se ferme avec lui — le
+   * serveur refusait déjà, mais après coup.
+   */
+  const typedUsd = parseFloat(amount.replace(',', '.')) || 0;
+  const available = isFund ? walletBalance : (card?.balance ?? 0);
+  const needed = isFund ? (quote?.total_xof ?? 0) : typedUsd;
+  const exceeds = needed > available;
+  const availableLabel = isFund
+    ? fmtXof(walletBalance, { decimals: 2 })
+    : `${(card?.balance ?? 0).toFixed(2)} ${card?.currency ?? 'USD'}`;
 
   return (
     <ResponsiveModal visible={visible} onClose={onClose} disableBackdropClose={step === 'sending'}>
@@ -122,6 +152,19 @@ export function CardFundModal({ visible, card, direction, onClose, onDone }: Pro
 
         {step === 'form' && (
           <>
+            <View style={styles.balanceRow}>
+              <FontAwesome6
+                name={isFund ? 'wallet' : 'credit-card'}
+                size={12}
+                color={exceeds ? Colors.error : Colors.textMuted}
+                iconStyle="solid"
+              />
+              <Text style={[styles.balanceText, exceeds && styles.over]}>
+                {t('cards.availableBalance')} :{' '}
+              </Text>
+              <Text style={[styles.balanceAmount, exceeds && styles.over]}>{availableLabel}</Text>
+            </View>
+
             <Input
               label={t('cards.amountUsd')}
               value={amount}
@@ -130,9 +173,7 @@ export function CardFundModal({ visible, card, direction, onClose, onDone }: Pro
               placeholder="10"
             />
 
-            {!isFund && !!card && (
-              <Text style={styles.hint}>{t('cards.available', { amount: `${card.balance} USD` })}</Text>
-            )}
+            {exceeds && <Text style={styles.error}>{t('cards.insufficientBalance')}</Text>}
 
             {!!quote && (
               <View style={styles.quote}>
@@ -162,7 +203,7 @@ export function CardFundModal({ visible, card, direction, onClose, onDone }: Pro
             <Button
               title={title}
               onPress={submit}
-              disabled={!quote || busy}
+              disabled={!quote || busy || exceeds}
               loading={busy}
               icon={isFund ? 'arrow-up' : 'arrow-down'}
             />
@@ -209,6 +250,11 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: FontSize.lg, fontFamily: Fonts.bold, color: Colors.text },
   hint: { fontSize: FontSize.sm, color: Colors.textMuted },
+  // Même rangée que sur l'envoi d'argent : icône, libellé, montant en gras.
+  balanceRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  balanceText: { fontSize: FontSize.sm, color: Colors.textMuted },
+  balanceAmount: { fontSize: FontSize.sm, fontFamily: Fonts.bold, color: Colors.secondary },
+  over: { color: Colors.error },
   quote: {
     backgroundColor: Colors.card,
     borderRadius: BorderRadius.md,

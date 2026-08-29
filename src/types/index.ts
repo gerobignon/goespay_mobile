@@ -76,6 +76,15 @@ export interface Transaction {
     /** Numéro du payeur, absent sur les moyens qui ne le demandent pas. */
     phone?: string;
     fee?: number;
+    /** Présent seulement si le paiement peut être remboursé (voir PayLinkRefundInfo). */
+    refund?: {
+      payment_id: number;
+      phone: string;
+      max: number;
+      refunded: number;
+      refunded_at: string | null;
+      available: boolean;
+    } | null;
   } | null;
   created_at: string;
   updated_at?: string;

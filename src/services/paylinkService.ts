@@ -40,14 +40,45 @@ export interface PayLink {
   created_at: string | null;
 }
 
+/**
+ * Ce qui reste renvoyable au payeur d'un paiement encaissé. Absent quand le
+ * paiement n'est remboursable en rien : échec, aucun numéro conservé, ou
+ * corridor d'envoi fermé vers l'opérateur du payeur.
+ */
+export interface PayLinkRefundInfo {
+  payment_id: number;
+  /** Numéro du payeur, destinataire du remboursement. */
+  phone: string;
+  /** Plafond du remboursement (XOF) : le net encaissé, moins ce qui a déjà été renvoyé. */
+  max: number;
+  /** Cumul déjà remboursé (XOF). */
+  refunded: number;
+  refunded_at: string | null;
+  /** Faux : plus rien à rembourser, ou aucun envoi ouvert vers ce payeur. */
+  available: boolean;
+}
+
 export interface PayLinkPayment {
   id: number;
   reference: string;
   payer_name: string;
+  payer_phone?: string;
   amount: number;
   fee: number;
   status: 'pending' | 'success' | 'fail';
+  refund?: PayLinkRefundInfo | null;
   created_at: string | null;
+}
+
+export interface PayLinkRefundResult {
+  message: string;
+  withdraw_id: number;
+  reference: string;
+  amount: number;
+  fees: number;
+  total_debited: number;
+  balance_after: number;
+  payment: PayLinkPayment;
 }
 
 export interface CreatePayLinkInput {
@@ -163,5 +194,16 @@ export const paylinkService = {
   payments: async (id: number): Promise<PayLinkPayment[]> => {
     const response = await api.get(`/me/paylinks/${id}/payments`);
     return response.data.payments ?? [];
+  },
+
+  /**
+   * Rembourse un paiement reçu, vers le numéro du payeur.
+   * `amount` omis = tout ce qui reste remboursable. Les frais d'envoi
+   * s'ajoutent au montant et sont débités au bénéficiaire.
+   */
+  refund: async (paymentId: number, amount?: number): Promise<PayLinkRefundResult> => {
+    const response = await api.post(`/me/paylinks/payments/${paymentId}/refund`,
+      amount != null ? { amount } : {});
+    return response.data;
   },
 };

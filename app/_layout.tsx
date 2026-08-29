@@ -35,9 +35,25 @@ import {
   takePendingRoute,
   type PendingRoute,
 } from '../src/utils/pendingRoute';
+import { takeStoredNotificationUrl } from '../src/utils/webNotificationTarget';
 
 /** Charge utile d'une notification push, telle qu'envoyée par le backend. */
 type NotificationData = Record<string, string | undefined>;
+
+/**
+ * URL déposée par le service worker (« /messages/12 », « /admin/kanban?task=4 »)
+ * → destination du routeur. La chaîne de requête est éclatée en paramètres :
+ * poussée telle quelle dans `pathname`, elle serait prise pour un segment.
+ */
+function routeFromUrl(url: string): PendingRoute {
+  const [pathname, query] = url.split('?');
+  if (!query) return { pathname };
+  const params: Record<string, string> = {};
+  new URLSearchParams(query).forEach((value, key) => {
+    params[key] = value;
+  });
+  return { pathname, params };
+}
 
 export default function RootLayout() {
   return (
@@ -66,6 +82,11 @@ function RootInner() {
   // passé, routeur monté) ? Lu depuis les écouteurs de notifications, qui sont
   // montés une fois pour toutes et ne verraient pas un état capturé.
   const canNavigateRef = useRef(false);
+  // Web : le clic sur une notification arrive par deux canaux (postMessage du
+  // service worker, destination rangée en IndexedDB). On garde la dernière
+  // destination ouverte pour ne pas l'empiler deux fois.
+  const lastWebTargetRef = useRef<{ url: string; at: number } | null>(null);
+  const openNotificationUrlRef = useRef<(url: string) => void>(() => {});
 
   // Web/PWA : re-verrouiller après un passage prolongé en arrière-plan.
   useWebAutoLock(isAuthenticated && isSetupDone);
@@ -140,6 +161,28 @@ function RootInner() {
     },
     [notificationTarget, flushPendingRoute],
   );
+
+  /**
+   * Web : ouvre la destination d'une notification cliquée. Comme sur natif, on
+   * la RANGE d'abord : si le verrou PIN est en travers, la garde de navigation
+   * renverrait sur l'écran de déverrouillage et le fil visé serait perdu.
+   */
+  const openNotificationUrl = useCallback(
+    (url: string) => {
+      if (!url) return;
+      const last = lastWebTargetRef.current;
+      if (last && last.url === url && Date.now() - last.at < 5000) return;
+      lastWebTargetRef.current = { url, at: Date.now() };
+
+      setPendingRoute(routeFromUrl(url));
+      if (canNavigateRef.current) flushPendingRoute();
+    },
+    [flushPendingRoute],
+  );
+
+  // L'écouteur du service worker est monté une fois pour toutes : il lit la
+  // fonction dans une ref pour ne pas travailler sur une version périmée.
+  openNotificationUrlRef.current = openNotificationUrl;
 
   const [fontsLoaded] = useFonts({
     Quicksand_400Regular: require('../assets/fonts/Quicksand_400Regular.ttf'),
@@ -248,6 +291,23 @@ function RootInner() {
       // pas avec l'app. La souscription elle-même se fait via l'opt-in Réglages.
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
+
+        // Clic sur une notification alors que l'app était fermée : la PWA
+        // installée sur iOS se relance sur son start_url (l'accueil) en ignorant
+        // l'URL passée à `openWindow`. Le service worker a rangé la destination
+        // avant d'ouvrir — on la relit ici, et à chaque retour au premier plan
+        // pour couvrir l'onglet gelé qui a raté le postMessage.
+        const consumeStoredTarget = () => {
+          takeStoredNotificationUrl()
+            .then((url) => {
+              if (url) openNotificationUrlRef.current(url);
+            })
+            .catch(() => {});
+        };
+        consumeStoredTarget();
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') consumeStoredTarget();
+        });
         // Push reçu pendant que l'onglet est ouvert : le SW prévient la page →
         // on rafraîchit le board Dev (badge d'onglet + pastille d'icône).
         navigator.serviceWorker.addEventListener('message', (event: MessageEvent) => {
@@ -256,7 +316,11 @@ function RootInner() {
           // Clic sur une notification alors que la PWA est ouverte : le service
           // worker demande la navigation plutôt que de recharger l'application.
           if (payload?.type === 'navigate' && payload.url) {
-            router.push(payload.url as any);
+            // La même destination est aussi rangée en IndexedDB par le service
+            // worker : on la consomme ici pour ne pas la rejouer au prochain
+            // retour au premier plan.
+            takeStoredNotificationUrl().catch(() => {});
+            openNotificationUrlRef.current(payload.url);
             return;
           }
 

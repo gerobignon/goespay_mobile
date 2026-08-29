@@ -71,8 +71,13 @@ export default function CardsScreen() {
   const [orderOpen, setOrderOpen] = useState(false);
   const [showDead, setShowDead] = useState(false);
   const [showFees, setShowFees] = useState(false);
+  /** Repli des gestes irréversibles : fermé par défaut, et refermé d'une carte à l'autre. */
+  const [showDanger, setShowDanger] = useState(false);
   const [openId, setOpenId] = useState<number | null>(null);
   const [transactions, setTransactions] = useState<Record<number, CardTransaction[]>>({});
+  /** Carte dont les mouvements sont en cours de lecture, et l'échec éventuel. */
+  const [txLoading, setTxLoading] = useState<number | null>(null);
+  const [txError, setTxError] = useState<string | null>(null);
   /** Carte pour laquelle on demande la confirmation par le verrou de l'appareil. */
   const [authFor, setAuthFor] = useState<VirtualCard | null>(null);
   /** Ce que le verrou est en train d'autoriser : voir la carte, ou la fermer. */
@@ -81,12 +86,23 @@ export default function CardsScreen() {
   const [terminateFor, setTerminateFor] = useState<VirtualCard | null>(null);
   /** Champ à copier dès que les secrets arrivent (copie déclenchée sur la carte). */
   const [copyAfterAuth, setCopyAfterAuth] = useState<'pan' | 'cvv' | null>(null);
-  /** Données réelles affichées sur la carte, et pour combien de temps encore. */
-  const [revealed, setRevealed] = useState<{ id: number; secrets: CardSecrets } | null>(null);
+  /**
+   * Accès accordé aux données réelles d'une carte. Il vaut pour TOUS ses champs
+   * et jusqu'à son échéance : une fois le verrou franchi, ni l'affichage ni la
+   * copie ne le redemandent.
+   */
+  const [unlock, setUnlock] = useState<{ id: number; secrets: CardSecrets; until: number } | null>(null);
+  /**
+   * Écran masqué le temps d'un passage en arrière-plan — un numéro ne doit pas
+   * traîner dans le sélecteur d'applications. L'accès, lui, survit : le porteur
+   * qui va coller son numéro chez un marchand revient sur sa carte lisible.
+   */
+  const [masked, setMasked] = useState(false);
   const [revealLeft, setRevealLeft] = useState(REVEAL_SECONDS);
   const [copiedOn, setCopiedOn] = useState<{ id: number; field: CardCopyField } | null>(null);
   const [fundFor, setFundFor] = useState<{ card: VirtualCard; direction: 'fund' | 'withdraw' } | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [activationCopied, setActivationCopied] = useState(false);
 
   const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollAttempts = useRef(0);
@@ -147,36 +163,44 @@ export default function CardsScreen() {
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
+        setMasked(false);
         const pending = data?.cards.find((c) => c.pending);
         if (pending) pollCard(pending.id);
+        // Le code d'activation sans contact arrive pendant que le porteur est
+        // dans le portefeuille de son téléphone : au retour, on relit.
+        else load();
       } else {
-        // Un numéro affiché ne doit pas survivre dans le sélecteur d'applications.
-        setRevealed(null);
-        setRevealLeft(REVEAL_SECONDS);
+        // Masquage seulement : l'accès reste ouvert jusqu'à son échéance.
+        setMasked(true);
       }
     });
     return () => sub.remove();
-  }, [data, pollCard]);
+  }, [data, pollCard, load]);
 
-  // Les données réelles s'effacent d'elles-mêmes au bout d'une minute.
+  // L'accès s'éteint de lui-même au bout d'une minute.
   useEffect(() => {
-    if (!revealed) return;
-    const id = setInterval(() => {
-      setRevealLeft((left) => {
-        if (left <= 1) {
-          setRevealed(null);
-          return REVEAL_SECONDS;
-        }
-        return left - 1;
-      });
-    }, 1000);
+    if (!unlock) {
+      setRevealLeft(REVEAL_SECONDS);
+      return;
+    }
+    const tick = () => {
+      const left = Math.ceil((unlock.until - Date.now()) / 1000);
+      if (left <= 0) {
+        setUnlock(null);
+        setRevealLeft(REVEAL_SECONDS);
+        return;
+      }
+      setRevealLeft(left);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [revealed]);
+  }, [unlock]);
 
-  // Changement de carte affichée : ce qui était révélé ne l'est plus.
+  // Changement de carte affichée : l'accès accordé à la précédente tombe.
   useEffect(() => {
-    setRevealed(null);
-    setRevealLeft(REVEAL_SECONDS);
+    setUnlock(null);
+    setShowDanger(false);
   }, [selectedId]);
 
   useEffect(() => () => stopPolling(), []);
@@ -201,14 +225,28 @@ export default function CardsScreen() {
     );
   };
 
-  const toggleDetails = async (card: VirtualCard) => {
-    if (openId === card.id) { setOpenId(null); return; }
-    setOpenId(card.id);
-    if (transactions[card.id]) return;
+  /**
+   * Mouvements de la carte. La lecture est refaite à chaque ouverture : une
+   * recharge faite entre-temps doit se voir, et un premier essai infructueux ne
+   * doit pas figer un historique vide pour le reste de la session.
+   */
+  const loadTransactions = useCallback(async (card: VirtualCard) => {
+    setTxLoading(card.id);
+    setTxError(null);
     try {
       const rows = await cardService.transactions(card.id, { reconcile: true });
       setTransactions((prev) => ({ ...prev, [card.id]: rows }));
-    } catch (_) {}
+    } catch (e: any) {
+      setTxError(getApiErrorMessage(e, t, t('cards.historyError')));
+    } finally {
+      setTxLoading((id) => (id === card.id ? null : id));
+    }
+  }, [t]);
+
+  const toggleDetails = (card: VirtualCard) => {
+    if (openId === card.id) { setOpenId(null); return; }
+    setOpenId(card.id);
+    loadTransactions(card);
   };
 
   const applyCard = (card: VirtualCard) => {
@@ -285,9 +323,34 @@ export default function CardsScreen() {
     setTimeout(() => setCopiedOn((c) => (c?.id === id && c.field === field ? null : c)), 1500);
   };
 
-  /** Efface les données réelles de l'écran. */
+  /**
+   * Code d'activation sans contact : copie, puis retrait de l'écran une fois
+   * noté. Le retrait passe par le serveur — le code vit sur la carte, pas dans
+   * cet écran, et le porteur peut avoir plusieurs appareils.
+   */
+  const copyActivationCode = async (card: VirtualCard) => {
+    if (!card.activation_code) return;
+    await Clipboard.setStringAsync(card.activation_code);
+    setActivationCopied(true);
+    setTimeout(() => setActivationCopied(false), 1500);
+  };
+
+  const dismissActivationCode = async (card: VirtualCard) => {
+    setActivationCopied(false);
+    // L'écran ne doit pas attendre le serveur pour se libérer du code.
+    setData((prev) => prev
+      ? { ...prev, cards: prev.cards.map((c) => (c.id === card.id ? { ...c, activation_code: null } : c)) }
+      : prev);
+    try {
+      await cardService.activationSeen(card.id);
+    } catch (_) {
+      // Sans effet visible : le code expire de lui-même côté serveur.
+    }
+  };
+
+  /** Ferme l'accès avant son échéance. */
   const hideSecrets = useCallback(() => {
-    setRevealed(null);
+    setUnlock(null);
     setRevealLeft(REVEAL_SECONDS);
   }, []);
 
@@ -309,8 +372,10 @@ export default function CardsScreen() {
       return;
     }
 
-    if (revealed?.id === card.id) {
-      await Clipboard.setStringAsync(field === 'pan' ? revealed.secrets.pan : revealed.secrets.cvv);
+    // Un accès en cours suffit, même si l'écran est momentanément masqué.
+    if (unlock?.id === card.id) {
+      await Clipboard.setStringAsync(field === 'pan' ? unlock.secrets.pan : unlock.secrets.cvv);
+      setMasked(false);
       flagCopied(card.id, field);
       return;
     }
@@ -336,6 +401,10 @@ export default function CardsScreen() {
       const secrets = await cardService.secrets(card.id);
       await onRevealed(card, secrets);
     } catch (e: any) {
+      if (e?.response?.data?.missing?.length) {
+        onIneligible(e);
+        return;
+      }
       showAlert(t('common.error'), getApiErrorMessage(e, t, t('cards.revealError')));
     } finally {
       setCopyAfterAuth(null);
@@ -344,7 +413,8 @@ export default function CardsScreen() {
 
   /** Secrets obtenus : ils s'écrivent sur la carte, et la copie en cours aboutit. */
   const onRevealed = async (card: VirtualCard, secrets: CardSecrets) => {
-    setRevealed({ id: card.id, secrets });
+    setUnlock({ id: card.id, secrets, until: Date.now() + REVEAL_SECONDS * 1000 });
+    setMasked(false);
     setRevealLeft(REVEAL_SECONDS);
     if (copyAfterAuth) {
       await Clipboard.setStringAsync(copyAfterAuth === 'pan' ? secrets.pan : secrets.cvv);
@@ -426,7 +496,9 @@ export default function CardsScreen() {
   const renderCard = (card: VirtualCard) => {
     const open = openId === card.id;
     const rows = transactions[card.id] ?? [];
-    const secrets = revealed?.id === card.id ? revealed.secrets : null;
+    const unlocked = unlock?.id === card.id;
+    // L'accès reste ouvert derrière le masque : ce qui suit ne pilote QUE l'affichage.
+    const secrets = unlocked && !masked ? unlock!.secrets : null;
 
     return (
       <View key={card.id} style={styles.cardBlock}>
@@ -441,26 +513,6 @@ export default function CardsScreen() {
         {/* Le porteur voit combien de temps ses données restent lisibles. */}
         {!!secrets && (
           <Text style={styles.revealCountdown}>{t('cards.autoHide', { seconds: revealLeft })}</Text>
-        )}
-
-        {/* Le gel touche la carte elle-même : il reste contre elle, avant le
-            solde et les opérations. La fermeture définitive, elle, n'est plus
-            ici : réversible et irréversible côte à côte, même taille, invitaient
-            à la confondre — elle descend en bas du bloc. */}
-        {(card.status === 'active' || card.status === 'frozen') && (
-          <View style={styles.secondaryRow}>
-            <TouchableOpacity
-              style={[styles.secondaryBtn, { borderColor: Colors.pending + '66', backgroundColor: Colors.pending + '14' }]}
-              onPress={() => toggleFreeze(card)}
-              disabled={busyId === card.id}
-              activeOpacity={0.8}
-            >
-              <FontAwesome6 name={card.status === 'frozen' ? 'lock-open' : 'lock'} size={13} color={Colors.pending} iconStyle="solid" />
-              <Text style={[styles.secondaryText, { color: Colors.pending }]}>
-                {card.status === 'frozen' ? t('cards.unfreeze') : t('cards.freeze')}
-              </Text>
-            </TouchableOpacity>
-          </View>
         )}
 
         {/* Le solde de la carte est l'information principale de l'écran : il a
@@ -484,6 +536,41 @@ export default function CardsScreen() {
           </View>
         </View>
 
+        {/* Activation sans contact : ce code n'existe nulle part ailleurs —
+            l'émetteur ne le transmet qu'à nous, et le porteur en a besoin dans
+            la seconde, depuis le portefeuille de son téléphone. Il passe donc
+            devant tout le reste de la carte. */}
+        {!!card.activation_code && (
+          <View style={styles.activation}>
+            <View style={styles.activationHead}>
+              <FontAwesome6 name="mobile-screen-button" size={12} color={Colors.primary} iconStyle="solid" />
+              <Text style={styles.activationTitle}>{t('cards.activationTitle')}</Text>
+            </View>
+            <Text style={styles.activationHint}>{t('cards.activationHint')}</Text>
+            <View style={styles.activationRow}>
+              <Text style={styles.activationCode} selectable>{card.activation_code}</Text>
+              <TouchableOpacity
+                style={styles.activationCopy}
+                onPress={() => copyActivationCode(card)}
+                activeOpacity={0.7}
+              >
+                <FontAwesome6
+                  name={activationCopied ? 'check' : 'copy'}
+                  size={14}
+                  color={Colors.primary}
+                  iconStyle={activationCopied ? 'solid' : 'regular'}
+                />
+                <Text style={styles.activationCopyText}>
+                  {activationCopied ? t('common.copied') : t('cards.copy')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity onPress={() => dismissActivationCode(card)} activeOpacity={0.7}>
+              <Text style={styles.activationDone}>{t('cards.activationDone')}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Rappel de la règle des refus, sous le solde : c'est en le regardant
             qu'on décide de payer ou de recharger d'abord. */}
         <View style={styles.warn}>
@@ -499,29 +586,50 @@ export default function CardsScreen() {
         )}
 
 
+        {/* Quatre tuiles pleines plutôt que quatre icônes flottantes : chacune
+            porte sa surface et sa bordure, et la recharge — le geste attendu —
+            se distingue des trois autres par sa couleur pleine. */}
         {card.usable && (
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.action} onPress={() => setFundFor({ card, direction: 'fund' })}>
-              <View style={styles.actionIcon}><FontAwesome6 name="plus" size={15} color={Colors.primary} iconStyle="solid" /></View>
-              <Text style={styles.actionText}>{t('cards.topUp')}</Text>
+            <TouchableOpacity
+              style={[styles.actionTile, styles.actionTilePrimary]}
+              onPress={() => setFundFor({ card, direction: 'fund' })}
+              activeOpacity={0.85}
+            >
+              <View style={[styles.actionIcon, styles.actionIconPrimary]}>
+                <FontAwesome6 name="plus" size={15} color={Colors.white} iconStyle="solid" />
+              </View>
+              <Text style={[styles.actionText, styles.actionTextPrimary]}>{t('cards.topUp')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.action} onPress={() => setFundFor({ card, direction: 'withdraw' })}>
-              <View style={styles.actionIcon}><FontAwesome6 name="arrow-down" size={15} color={Colors.primary} iconStyle="solid" /></View>
+
+            <TouchableOpacity
+              style={styles.actionTile}
+              onPress={() => setFundFor({ card, direction: 'withdraw' })}
+              activeOpacity={0.85}
+            >
+              <View style={styles.actionIcon}>
+                <FontAwesome6 name="arrow-down" size={15} color={Colors.primary} iconStyle="solid" />
+              </View>
               <Text style={styles.actionText}>{t('cards.withdraw')}</Text>
             </TouchableOpacity>
+
             <TouchableOpacity
-              style={styles.action}
+              style={styles.actionTile}
               onPress={() => {
                 if (secrets) { hideSecrets(); return; }
+                // Accès encore valide : le masque tombe sans redemander le code.
+                if (unlocked) { setMasked(false); return; }
                 askSecrets(card, null);
               }}
+              activeOpacity={0.85}
             >
               <View style={styles.actionIcon}>
                 <FontAwesome6 name={secrets ? 'eye-slash' : 'eye'} size={15} color={Colors.primary} iconStyle="solid" />
               </View>
               <Text style={styles.actionText}>{secrets ? t('cards.hide') : t('cards.reveal')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.action} onPress={() => toggleDetails(card)}>
+
+            <TouchableOpacity style={styles.actionTile} onPress={() => toggleDetails(card)} activeOpacity={0.85}>
               <View style={styles.actionIcon}>
                 <FontAwesome6 name={open ? 'chevron-up' : 'clock-rotate-left'} size={15} color={Colors.primary} iconStyle="solid" />
               </View>
@@ -532,7 +640,27 @@ export default function CardsScreen() {
 
         {open && (
           <View style={styles.history}>
-            {rows.length === 0 ? (
+            <View style={styles.historyHead}>
+              <Text style={styles.historyTitle}>{t('cards.history')}</Text>
+              <TouchableOpacity
+                onPress={() => loadTransactions(card)}
+                disabled={txLoading === card.id}
+                hitSlop={10}
+              >
+                <FontAwesome6 name="rotate-right" size={13} color={Colors.textMuted} iconStyle="solid" />
+              </TouchableOpacity>
+            </View>
+
+            {txLoading === card.id ? (
+              <ActivityIndicator color={Colors.primary} style={{ marginVertical: Spacing.md }} />
+            ) : txError ? (
+              <>
+                <Text style={styles.txError}>{txError}</Text>
+                <TouchableOpacity onPress={() => loadTransactions(card)} style={styles.retryLink}>
+                  <Text style={styles.retryText}>{t('common.retry')}</Text>
+                </TouchableOpacity>
+              </>
+            ) : rows.length === 0 ? (
               <Text style={styles.emptySmall}>{t('cards.noTransactions')}</Text>
             ) : (
               rows.map((tx) => (
@@ -556,18 +684,53 @@ export default function CardsScreen() {
           </View>
         )}
 
-        {/* Fermeture définitive : en bas, sans surface ni couleur d'alerte, et
-            dite en toutes lettres — « Résilier » ne disait pas au client ce
-            qu'il perdait. Tout l'avertissement vit dans la fenêtre qui suit. */}
+        {/* Zone dangereuse : gel et suppression y sont enfermés ensemble, sous un
+            repli fermé par défaut. Le gel est réversible mais coupe les paiements
+            en cours ; la suppression est définitive. Ni l'un ni l'autre n'a sa
+            place à portée de pouce, entre le solde et l'historique. */}
         {(card.status === 'active' || card.status === 'frozen') && (
-          <TouchableOpacity
-            style={styles.terminateLink}
-            onPress={() => terminate(card)}
-            disabled={busyId === card.id}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.terminateLinkText}>{t('cards.terminateEntry')}</Text>
-          </TouchableOpacity>
+          <View style={styles.dangerBlock}>
+            <TouchableOpacity
+              style={styles.dangerHead}
+              onPress={() => setShowDanger((v) => !v)}
+              activeOpacity={0.7}
+            >
+              <FontAwesome6 name="triangle-exclamation" size={13} color={Colors.error} iconStyle="solid" />
+              <Text style={styles.dangerTitle}>{t('cards.dangerZone')}</Text>
+              <FontAwesome6 name={showDanger ? 'chevron-up' : 'chevron-down'} size={12} color={Colors.error} />
+            </TouchableOpacity>
+
+            {showDanger && (
+              <View style={styles.dangerBody}>
+                <TouchableOpacity
+                  style={[styles.dangerBtn, { borderColor: Colors.pending + '66', backgroundColor: Colors.pending + '14' }]}
+                  onPress={() => toggleFreeze(card)}
+                  disabled={busyId === card.id}
+                  activeOpacity={0.8}
+                >
+                  <FontAwesome6
+                    name={card.status === 'frozen' ? 'lock-open' : 'lock'}
+                    size={13}
+                    color={Colors.pending}
+                    iconStyle="solid"
+                  />
+                  <Text style={[styles.dangerBtnText, { color: Colors.pending }]}>
+                    {card.status === 'frozen' ? t('cards.unfreeze') : t('cards.freeze')}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.dangerBtn, { borderColor: Colors.error + '66', backgroundColor: Colors.error + '14' }]}
+                  onPress={() => terminate(card)}
+                  disabled={busyId === card.id}
+                  activeOpacity={0.8}
+                >
+                  <FontAwesome6 name="trash-can" size={13} color={Colors.error} iconStyle="solid" />
+                  <Text style={[styles.dangerBtnText, { color: Colors.error }]}>{t('cards.terminateEntry')}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         )}
       </View>
     );
@@ -799,6 +962,7 @@ export default function CardsScreen() {
         direction={fundFor?.direction ?? 'fund'}
         onClose={() => setFundFor(null)}
         onDone={(card) => { if (card) applyCard(card); }}
+        onIneligible={onIneligible}
       />
       <CustomAlert />
     </>
@@ -1050,49 +1214,96 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     paddingVertical: Spacing.sm + 2,
   },
   warnText: { flex: 1, fontSize: FontSize.sm, lineHeight: 18, color: Colors.text },
+
+  // Code d'activation sans contact : surface propre, contour sur les quatre
+  // côtés, et le code assez gros pour être recopié d'un coup d'œil.
+  activation: {
+    gap: Spacing.sm,
+    backgroundColor: Colors.primary + '14',
+    borderWidth: 1,
+    borderColor: Colors.primary + '55',
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+  },
+  activationHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  activationTitle: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.text },
+  activationHint: { fontSize: FontSize.sm, lineHeight: 18, color: Colors.textMuted },
+  activationRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  activationCode: {
+    flex: 1,
+    fontSize: FontSize.xxl,
+    fontWeight: '700',
+    letterSpacing: 4,
+    color: Colors.text,
+  },
+  activationCopy: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  activationCopyText: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.primary },
+  activationDone: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.primary },
   pendingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   pendingText: { fontSize: FontSize.sm, color: Colors.textMuted },
 
-  actions: {
+  // Quatre tuiles de même taille, deux par ligne : chacune a sa surface, sa
+  // bordure sur les quatre côtés et de quoi respirer sous le pouce.
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  actionTile: {
+    flexGrow: 1,
+    flexBasis: '47%',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    minHeight: 58,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
     backgroundColor: Colors.card,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     borderColor: Colors.surfaceBorder,
-    paddingVertical: Spacing.md,
   },
-  action: { alignItems: 'center', gap: 6, flex: 1 },
+  /** La recharge est le geste attendu : elle porte la couleur pleine. */
+  actionTilePrimary: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   actionIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: Colors.primary + '18',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionText: { fontSize: FontSize.sm, color: Colors.text, fontFamily: Fonts.medium },
+  actionIconPrimary: { backgroundColor: 'rgba(255,255,255,0.22)' },
+  actionText: { flex: 1, fontSize: FontSize.md, color: Colors.text, fontFamily: Fonts.semiBold },
+  actionTextPrimary: { color: Colors.white },
 
-  // Gel et résiliation sont des actions, pas des liens : chacune est un bouton
-  // à part entière, teinté de sa couleur d'état et bordé sur ses quatre côtés.
-  secondaryRow: { flexDirection: 'row', gap: Spacing.sm },
-  secondaryBtn: {
-    flex: 1,
+  // Zone dangereuse : gel et suppression, sous un repli fermé par défaut, dans
+  // un cadre rouge qui dit d'un coup d'œil ce qui s'y trouve.
+  dangerBlock: {
+    marginTop: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.error + '44',
+    overflow: 'hidden',
+  },
+  dangerHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    backgroundColor: Colors.error + '0f',
+  },
+  dangerTitle: { flex: 1, fontSize: FontSize.md, color: Colors.error, fontFamily: Fonts.semiBold },
+  dangerBody: { padding: Spacing.md, gap: Spacing.sm },
+  dangerBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    minHeight: 42,
+    minHeight: 44,
     paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
   },
-  secondaryText: { fontSize: FontSize.md, fontFamily: Fonts.semiBold },
-
-  // Sortie de secours, pas une action courante : ni surface, ni bordure, ni
-  // rouge vif — la gravité est dite par le mot, pas par la couleur.
-  terminateLink: { alignSelf: 'center', paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md },
-  terminateLinkText: { fontSize: FontSize.sm, color: Colors.textMuted, fontFamily: Fonts.medium },
+  dangerBtnText: { fontSize: FontSize.md, fontFamily: Fonts.semiBold },
 
   history: {
     backgroundColor: Colors.card,
@@ -1102,6 +1313,17 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     padding: Spacing.md,
     gap: Spacing.sm,
   },
+  historyHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  historyTitle: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
+    fontFamily: Fonts.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  txError: { fontSize: FontSize.sm, color: Colors.error, textAlign: 'center' },
+  retryLink: { alignSelf: 'center', paddingVertical: Spacing.xs, paddingHorizontal: Spacing.md },
+  retryText: { fontSize: FontSize.sm, color: Colors.primary, fontFamily: Fonts.semiBold },
   txRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.md },
   txLeft: { flex: 1 },
   txMerchant: { fontSize: FontSize.sm, color: Colors.text, fontFamily: Fonts.medium },
