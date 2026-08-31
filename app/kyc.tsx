@@ -20,7 +20,7 @@ import { ResponsiveModal } from '../src/components/ResponsiveModal';
 import { useResponsive } from '../src/hooks/useResponsive';
 import { FontAwesome6 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import * as ImageManipulator from 'expo-image-manipulator';
+import { compressImage, MAX_EDGE_DOCUMENT } from '../src/utils/imageCompress';
 import { authService } from '../src/services/authService';
 import { useAuthStore } from '../src/stores/authStore';
 import { Input } from '../src/components/Input';
@@ -223,12 +223,8 @@ export default function KycScreen() {
   /* ─────────────────────────── Photos ──────────────────────────────────── */
 
   const applyPhoto = async (uri: string, target: Exclude<PhotoTarget, null>) => {
-    const compressed = await ImageManipulator.manipulateAsync(
-      uri,
-      [{ resize: { width: 1600 } }],
-      { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
-    );
-    (target === 'id' ? setFileUri : setSelfieUri)(compressed.uri);
+    const compressed = await compressImage(uri, { maxEdge: MAX_EDGE_DOCUMENT });
+    (target === 'id' ? setFileUri : setSelfieUri)(compressed);
     setErrors((prev) => ({ ...prev, [target === 'id' ? 'idPhoto' : 'selfie']: '' }));
   };
 

@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { compressImage } from '../../utils/imageCompress';
 import { useTranslation } from 'react-i18next';
 import type { ColorPalette } from '../../constants/theme';
 import { Spacing, FontSize, BorderRadius, Fonts, withAlpha } from '../../constants/theme';
@@ -96,7 +97,8 @@ export function DevTaskModal({ visible, task, initialStatus, initialTab, board, 
     if (perm !== 'granted') return;
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
     if (!res.canceled && res.assets[0]) {
-      setImageUri(res.assets[0].uri);
+      const asset = res.assets[0];
+      setImageUri(await compressImage(asset.uri, { width: asset.width, height: asset.height }));
       setRemoveImage(false);
     }
   };

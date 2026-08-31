@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
+import { compressImage } from '../src/utils/imageCompress';
 import { posterImageUrl, downloadPoster } from '../src/utils/posterImage';
 import {
   paylinkService,
@@ -70,6 +71,7 @@ export default function PaymentLinksScreen() {
   const [description, setDescription] = useState('');
   // Illustration facultative du lien (photo du produit, visuel de l'événement).
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageBusy, setImageBusy] = useState(false);
   const [amount, setAmount] = useState('');
   const [freeAmount, setFreeAmount] = useState(false);
   const [reusable, setReusable] = useState(false);
@@ -91,9 +93,16 @@ export default function PaymentLinksScreen() {
 
   /** Choix de l'illustration dans la galerie. Un refus se solde par un no-op. */
   const pickImage = async () => {
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
     if (!res.canceled && res.assets[0]) {
-      setImageUri(res.assets[0].uri);
+      const asset = res.assets[0];
+      // Les photos brutes dépassent la limite de l'API : on les ramène en 720p.
+      setImageBusy(true);
+      try {
+        setImageUri(await compressImage(asset.uri, { width: asset.width, height: asset.height }));
+      } finally {
+        setImageBusy(false);
+      }
     }
   };
 
@@ -528,9 +537,20 @@ export default function PaymentLinksScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          <TouchableOpacity style={styles.imagePick} onPress={pickImage} activeOpacity={0.8}>
-            <FontAwesome6 name="image" size={16} color={Colors.textSecondary} />
-            <Text style={styles.imagePickText}>{t('paylinks.imageAdd')}</Text>
+          <TouchableOpacity
+            style={styles.imagePick}
+            onPress={pickImage}
+            activeOpacity={0.8}
+            disabled={imageBusy}
+          >
+            {imageBusy ? (
+              <ActivityIndicator color={Colors.textSecondary} />
+            ) : (
+              <>
+                <FontAwesome6 name="image" size={16} color={Colors.textSecondary} />
+                <Text style={styles.imagePickText}>{t('paylinks.imageAdd')}</Text>
+              </>
+            )}
           </TouchableOpacity>
         )}
 

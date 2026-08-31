@@ -36,6 +36,7 @@ import { useThemedStyles } from '../src/hooks/useThemedStyles';
 import { useTheme } from '../src/components/ThemeProvider';
 import { useResponsive } from '../src/hooks/useResponsive';
 import { useAuthStore } from '../src/stores/authStore';
+import { useWalletStore } from '../src/stores/walletStore';
 import { showAlert } from '../src/stores/alertStore';
 import { useFormatXof } from '../src/utils/format';
 import { getApiErrorMessage } from '../src/utils/apiError';
@@ -212,12 +213,19 @@ export default function CardsScreen() {
     pollCard(card.id);
   };
 
+  /**
+   * Libellé d'un champ réclamé par l'émetteur. Le seuil d'âge vient du serveur :
+   * il est réglable là-bas, l'écrire en dur ici mentirait le jour où il bouge.
+   */
+  const fieldLabel = (f: string) =>
+    t(`cards.field_${f}`, { defaultValue: f, min: eligibility?.min_age ?? 18 });
+
   /** Refus pour dossier incomplet : on renvoie au KYC plutôt qu'un refus sec. */
   const onIneligible = (e: any) => {
     const missing = (e?.response?.data?.missing ?? []) as string[];
     showAlert(
       t('cards.kycUpdateTitle'),
-      t('cards.kycUpdateMessage', { fields: missing.map((f) => t(`cards.field_${f}`, f)).join(', ') }),
+      t('cards.kycUpdateMessage', { fields: missing.map((f) => fieldLabel(f)).join(', ') }),
       [
         { text: t('common.cancel'), style: 'cancel' },
         { text: t('cards.completeKyc'), onPress: () => router.push('/kyc?edit=1') },
@@ -287,13 +295,25 @@ export default function CardsScreen() {
     setAuthFor(card);
   };
 
-  /** Verrou franchi : la carte est fermée chez l'émetteur. */
+  /**
+   * Verrou franchi : le serveur rend d'abord le solde restant au wallet, puis
+   * ferme la carte chez l'émetteur. On annonce le rapatriement, sinon le
+   * porteur ne verrait qu'une carte disparue.
+   */
   const doTerminate = async (card: VirtualCard) => {
     setAuthFor(null);
     setAuthAction('secrets');
     setBusyId(card.id);
     try {
-      applyCard(await cardService.terminate(card.id));
+      const res = await cardService.terminate(card.id);
+      applyCard(res.card);
+      if (res.returned) {
+        useWalletStore.getState().fetchBalance().catch(() => {});
+        showAlert(
+          t('cards.terminateDone'),
+          t('cards.terminateReturned', { amount: fmtXof(res.returned.amount_xof) }),
+        );
+      }
     } catch (e: any) {
       showAlert(t('common.error'), getApiErrorMessage(e, t, t('cards.actionError')));
     } finally {
@@ -842,7 +862,7 @@ export default function CardsScreen() {
       <Text style={styles.gateTitle}>{t('cards.kycUpdateTitle')}</Text>
       <Text style={styles.gateText}>
         {t('cards.kycUpdateMessage', {
-          fields: (eligibility?.missing ?? []).map((f) => t(`cards.field_${f}`, f)).join(', '),
+          fields: (eligibility?.missing ?? []).map((f) => fieldLabel(f)).join(', '),
         })}
       </Text>
       <Button

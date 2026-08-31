@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { compressImage, MAX_EDGE_AVATAR } from '../../src/utils/imageCompress';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useConfigStore } from '../../src/stores/configStore';
 import { usePinStore } from '../../src/stores/pinStore';
@@ -62,7 +63,13 @@ export default function AccountScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
     if (!result.canceled && result.assets[0]) {
       try {
-        const result2 = await authService.uploadAvatar(result.assets[0].uri);
+        const asset = result.assets[0];
+        const uri = await compressImage(asset.uri, {
+          width: asset.width,
+          height: asset.height,
+          maxEdge: MAX_EDGE_AVATAR,
+        });
+        const result2 = await authService.uploadAvatar(uri);
         const currentUser = useAuthStore.getState().user;
         if (currentUser) useAuthStore.setState({ user: { ...currentUser, avatar: result2.avatar } });
       } catch {

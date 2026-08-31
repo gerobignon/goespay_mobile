@@ -93,6 +93,8 @@ export interface CardEligibility {
   missing: string[];
   /** Le dossier doit être re-soumis, puis validé à nouveau. */
   needs_kyc_update: boolean;
+  /** Âge minimum exigé par l'émetteur. Piloté côté serveur, jamais écrit en dur. */
+  min_age?: number;
 }
 
 /** Grille affichée au client, en USD. Pilotée depuis le back-office. */
@@ -231,9 +233,18 @@ export const cardService = {
     return response.data.card;
   },
 
-  terminate: async (id: number): Promise<VirtualCard> => {
-    const response = await api.post(`/maplerad/cards/${id}/terminate`, { confirm: true }, { timeout: 45000 });
-    return response.data.card;
+  /**
+   * Suppression définitive. Le serveur rapatrie d'abord le solde restant vers
+   * le wallet : `returned` décrit ce mouvement quand il y en a eu un, d'où le
+   * délai plus long que pour un simple gel.
+   */
+  terminate: async (id: number): Promise<{
+    card: VirtualCard;
+    returned?: { amount_usd: number; amount_xof: number; reference: string };
+    wallet?: number;
+  }> => {
+    const response = await api.post(`/maplerad/cards/${id}/terminate`, { confirm: true }, { timeout: 70000 });
+    return response.data;
   },
 
   transactions: async (id: number, opts: { page?: number; reconcile?: boolean } = {}): Promise<CardTransaction[]> => {

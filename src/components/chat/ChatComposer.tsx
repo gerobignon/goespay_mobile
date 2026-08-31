@@ -13,6 +13,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { compressImage } from '../../utils/imageCompress';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -122,7 +123,8 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
       allowsMultipleSelection: false,
     });
     if (!result.canceled && result.assets?.[0]?.uri) {
-      setImageUri(result.assets[0].uri);
+      const asset = result.assets[0];
+      setImageUri(await compressImage(asset.uri, { width: asset.width, height: asset.height }));
       setEmojiOpen(false);
     }
   };
