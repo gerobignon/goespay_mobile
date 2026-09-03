@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Linking,
-  RefreshControl,
   ActivityIndicator,
   AppState,
 } from 'react-native';
@@ -16,6 +15,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenBackground } from '../ScreenBackground';
+import { RefreshableScrollView } from '../Refreshable';
 import { Reveal, Bounce } from '../anim';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts, BorderRadius, withAlpha } from '../../constants/theme';
 import { CustomAlert } from '../CustomAlert';
@@ -206,7 +206,7 @@ export function MessagesInbox() {
 
   return (
     <ScreenBackground edges={['top']}>
-      <ScrollView
+      <RefreshableScrollView
         ref={scrollRef}
         onScroll={(e) => {
           scrollY.current = e.nativeEvent.contentOffset.y;
@@ -217,7 +217,9 @@ export function MessagesInbox() {
           isWide && { alignSelf: 'center', width: '100%', maxWidth: 800 },
         ]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.text} />}
+        refreshing={refreshing}
+        onRefresh={refresh}
+        tintColor={colors.text}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -418,7 +420,7 @@ export function MessagesInbox() {
             ))}
           </View>
         </View>
-      </ScrollView>
+      </RefreshableScrollView>
       <ActionSheet
         visible={!!sheetFor}
         title={sheetFor?.title}

@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { RefreshableScrollView } from '../../src/components/Refreshable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import {
@@ -60,14 +61,21 @@ export default function VirtualAccountsScreen() {
   const [openId, setOpenId] = useState<number | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
-  const load = useCallback(() => {
-    setLoading(true);
-    walletService.getVirtualAccounts()
+  // `silent` : rechargement sans écran de chargement (pull-to-refresh).
+  const load = useCallback((silent = false) => {
+    if (!silent) setLoading(true);
+    return walletService.getVirtualAccounts()
       .then((res) => { setData(res); setLoadError(null); })
       .catch((e) => setLoadError(getApiErrorMessage(e, t, t('account.vaLoadError'))))
       .finally(() => setLoading(false));
   }, [t]);
   useEffect(() => { load(); }, [load]);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await load(true); } finally { setRefreshing(false); }
+  }, [load]);
 
   const copy = (key: string, value: string) => {
     try {
@@ -316,9 +324,12 @@ export default function VirtualAccountsScreen() {
   if (isDesktop) {
     return (
       <View style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: 0 }]} keyboardShouldPersistTaps="handled">
+        <RefreshableScrollView contentContainerStyle={[styles.scroll, { paddingTop: 0 }]} keyboardShouldPersistTaps="handled"
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          >
           {content}
-        </ScrollView>
+        </RefreshableScrollView>
         <CustomAlert />
       </View>
     );
@@ -331,9 +342,12 @@ export default function VirtualAccountsScreen() {
         style={styles.background}
       >
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-          <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <RefreshableScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled"
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          >
             {content}
-          </ScrollView>
+          </RefreshableScrollView>
         </SafeAreaView>
         <CustomAlert />
       </ImageBackground>

@@ -10,6 +10,7 @@ import {
   AppState,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { RefreshableScrollView } from '../src/components/Refreshable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { FontAwesome6 } from '@expo/vector-icons';
@@ -109,13 +110,19 @@ export default function CardsScreen() {
   const pollAttempts = useRef(0);
 
   const load = useCallback(() => {
-    cardService.list()
+    return cardService.list()
       .then((res) => { setData(res); setLoadError(null); })
       .catch((e) => setLoadError(getApiErrorMessage(e, t, t('cards.loadError'))))
       .finally(() => setLoading(false));
   }, [t]);
 
   useEffect(() => { load(); }, [load]);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }, [load]);
 
   const stopPolling = () => {
     if (pollTimer.current) {
@@ -996,9 +1003,14 @@ export default function CardsScreen() {
           source={isDark ? require('../assets/bg_page.jpg') : require('../assets/bg_page_light.jpg')}
           style={styles.background}
         >
-          <ScrollView contentContainerStyle={styles.scrollDesktop} keyboardShouldPersistTaps="handled">
+          <RefreshableScrollView
+            contentContainerStyle={styles.scrollDesktop}
+            keyboardShouldPersistTaps="handled"
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          >
             {content}
-          </ScrollView>
+          </RefreshableScrollView>
         </ImageBackground>
         <DesktopFooter />
         {modals}
@@ -1013,9 +1025,14 @@ export default function CardsScreen() {
         style={styles.background}
       >
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-          <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <RefreshableScrollView
+            contentContainerStyle={styles.scroll}
+            keyboardShouldPersistTaps="handled"
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          >
             {content}
-          </ScrollView>
+          </RefreshableScrollView>
         </SafeAreaView>
         {modals}
       </ImageBackground>

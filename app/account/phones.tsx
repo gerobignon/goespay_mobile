@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { RefreshableScrollView } from '../../src/components/Refreshable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { walletService } from '../../src/services/walletService';
@@ -79,13 +80,19 @@ export default function PhonesScreen() {
     }
   }, [phoneModalOpen, phoneForm.type, modalOperators.length]);
 
-  useEffect(() => {
-    walletService.getSavedPhones()
+  const loadPhones = useCallback(
+    () => walletService.getSavedPhones()
       .then((data) => { setSavedPhones(data); setLoadError(null); })
-      .catch((error) => {
-        setLoadError(t('account.phonesLoadError'));
-      });
-  }, []);
+      .catch(() => setLoadError(t('account.phonesLoadError'))),
+    [t]
+  );
+  useEffect(() => { loadPhones(); }, []);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await loadPhones(); } finally { setRefreshing(false); }
+  }, [loadPhones]);
 
   const resetPhoneForm = () => {
     setPhoneForm({ id: 0, name: '', tel: '', type: 'transfer', operator: '' });
@@ -289,9 +296,12 @@ export default function PhonesScreen() {
   if (isDesktop) {
     return (
       <View style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: 0 }]} keyboardShouldPersistTaps="handled">
+        <RefreshableScrollView contentContainerStyle={[styles.scroll, { paddingTop: 0 }]} keyboardShouldPersistTaps="handled"
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          >
           {content}
-        </ScrollView>
+        </RefreshableScrollView>
         {phoneModal}
         <CustomAlert />
       </View>
@@ -306,9 +316,12 @@ export default function PhonesScreen() {
       >
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <RefreshableScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled"
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          >
             {content}
-          </ScrollView>
+          </RefreshableScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
         {phoneModal}

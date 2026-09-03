@@ -90,7 +90,8 @@ export function CardFundModal({ visible, card, direction, onClose, onDone, onIne
   }, [amount, visible, card, direction, step, t]);
 
   const submit = async () => {
-    if (!card || !quote) return;
+    // Deuxième appui avant le re-render : la garde d'état ne suffit pas.
+    if (!card || !quote || busy) return;
     setBusy(true);
     setStep('sending');
     setError(null);

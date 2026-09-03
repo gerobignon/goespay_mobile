@@ -10,6 +10,7 @@ import {
   ImageBackground,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { RefreshableScrollView } from '../../src/components/Refreshable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -96,6 +97,12 @@ export default function StatementScreen() {
   }, [t]);
 
   useEffect(() => { load(range.from, range.to); }, [range.from, range.to, load]);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await load(range.from, range.to); } finally { setRefreshing(false); }
+  }, [load, range.from, range.to]);
 
   const selectPreset = (key: PresetKey) => {
     setPreset(key);
@@ -244,7 +251,10 @@ export default function StatementScreen() {
   if (isDesktop) {
     return (
       <View style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: 0 }]}>{content}</ScrollView>
+        <RefreshableScrollView contentContainerStyle={[styles.scroll, { paddingTop: 0 }]}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          >{content}</RefreshableScrollView>
         <CustomAlert />
       </View>
     );
@@ -257,7 +267,10 @@ export default function StatementScreen() {
         style={styles.background}
       >
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-          <ScrollView contentContainerStyle={styles.scroll}>{content}</ScrollView>
+          <RefreshableScrollView contentContainerStyle={styles.scroll}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          >{content}</RefreshableScrollView>
         </SafeAreaView>
         <CustomAlert />
       </ImageBackground>

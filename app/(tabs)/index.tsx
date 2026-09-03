@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  RefreshControl,
   Image,
   ImageBackground,
   Modal,
@@ -16,6 +15,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { compressImage, MAX_EDGE_AVATAR } from '../../src/utils/imageCompress';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
+import { RefreshableScrollView } from '../../src/components/Refreshable';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useWalletStore } from '../../src/stores/walletStore';
 import { usePinStore } from '../../src/stores/pinStore';
@@ -325,18 +325,13 @@ export default function DashboardScreen() {
 
   return (
     <ScreenBackground edges={['top']}>
-      <ScrollView
+      <RefreshableScrollView
         contentContainerStyle={[
           styles.scroll,
           isWide && { alignSelf: 'center', width: '100%', maxWidth: contentMaxWidth, paddingHorizontal: Spacing.xl, paddingTop: Spacing.xxl },
         ]}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={Colors.secondary}
-          />
-        }
+        refreshing={refreshing}
+        onRefresh={onRefresh}
       >
         {/* Header - hidden on desktop (shown in DesktopHeader) */}
         {!isWide && (
@@ -547,7 +542,7 @@ export default function DashboardScreen() {
             )}
           </>
         )}
-      </ScrollView>
+      </RefreshableScrollView>
 
       {showDeposit && (
       <DepositModal

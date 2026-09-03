@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { RefreshableScrollView } from '../../src/components/Refreshable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { walletService } from '../../src/services/walletService';
@@ -50,13 +51,19 @@ export default function WalletsScreen() {
   const [walletModalOpen, setWalletModalOpen] = useState(false);
   const [walletForm, setWalletForm] = useState({ id: 0, name: '', currency: '', address: '' });
 
-  useEffect(() => {
-    walletService.getSavedWallets()
+  const loadWallets = useCallback(
+    () => walletService.getSavedWallets()
       .then((data) => { setSavedWallets(data); setLoadError(null); })
-      .catch((error) => {
-        setLoadError(t('account.walletsLoadError'));
-      });
-  }, []);
+      .catch(() => setLoadError(t('account.walletsLoadError'))),
+    [t]
+  );
+  useEffect(() => { loadWallets(); }, []);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await loadWallets(); } finally { setRefreshing(false); }
+  }, [loadWallets]);
 
   const resetWalletForm = () => {
     setWalletForm({ id: 0, name: '', currency: '', address: '' });
@@ -223,9 +230,12 @@ export default function WalletsScreen() {
   if (isDesktop) {
     return (
       <View style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: 0 }]} keyboardShouldPersistTaps="handled">
+        <RefreshableScrollView contentContainerStyle={[styles.scroll, { paddingTop: 0 }]} keyboardShouldPersistTaps="handled"
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          >
           {content}
-        </ScrollView>
+        </RefreshableScrollView>
         {walletModal}
         <CustomAlert />
       </View>
@@ -240,9 +250,12 @@ export default function WalletsScreen() {
       >
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <RefreshableScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled"
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          >
             {content}
-          </ScrollView>
+          </RefreshableScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
         {walletModal}

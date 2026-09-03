@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { RefreshableScrollView } from '../../src/components/Refreshable';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
@@ -77,6 +78,12 @@ export default function RequestsScreen() {
       load();
     }, [load]),
   );
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }, [load]);
 
   /** Retire une invitation reçue de la liste, badges compris. */
   const dropIncoming = (id: number) => {
@@ -157,12 +164,15 @@ export default function RequestsScreen() {
 
   return (
     <ScreenBackground edges={['top']}>
-      <ScrollView
+      <RefreshableScrollView
         contentContainerStyle={[
           styles.scroll,
           isWide && { alignSelf: 'center', width: '100%', maxWidth: 700 },
         ]}
         showsVerticalScrollIndicator={false}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        tintColor={colors.text}
       >
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
@@ -350,7 +360,7 @@ export default function RequestsScreen() {
             )}
           </>
         )}
-      </ScrollView>
+      </RefreshableScrollView>
       <CustomAlert />
     </ScreenBackground>
   );

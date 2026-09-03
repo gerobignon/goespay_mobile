@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
   Image,
@@ -12,6 +11,7 @@ import {
 import { useFocusEffect, useRouter } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
+import { RefreshableFlatList } from '../../src/components/Refreshable';
 import { useWalletStore } from '../../src/stores/walletStore';
 import { TransactionItem, getTransactionLogo, getModeName } from '../../src/components/TransactionItem';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -152,7 +152,7 @@ export default function HistoryScreen() {
         ))}
       </View>
 
-      <FlatList
+      <RefreshableFlatList
         data={transactions}
         keyExtractor={(item) => `${item.type}-${item.id}`}
         renderItem={({ item, index }) =>
@@ -181,13 +181,8 @@ export default function HistoryScreen() {
             />
           ) : null
         }
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={Colors.secondary}
-          />
-        }
+        refreshing={refreshing}
+        onRefresh={onRefresh}
         onEndReached={() => loadMoreTransactions(activeFilter)}
         onEndReachedThreshold={0.3}
         ListFooterComponent={

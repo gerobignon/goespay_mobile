@@ -8,7 +8,6 @@ import {
   Platform,
   ImageBackground,
   Share,
-  RefreshControl,
   TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -17,6 +16,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Clipboard from 'expo-clipboard';
 import { Button } from '../../src/components/Button';
+import { RefreshableScrollView } from '../../src/components/Refreshable';
 import { Reveal, Bounce } from '../../src/components/anim';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
@@ -486,22 +486,20 @@ export default function AffiliationScreen() {
     </>
   );
 
-  const refreshControl = (
-    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
-  );
-
   if (isDesktop) {
     return (
       <View style={{ flex: 1 }}>
         <View style={styles.desktopWrap}>
           {headerBlock}
-          <ScrollView
+          <RefreshableScrollView
             contentContainerStyle={[styles.scroll, { paddingTop: 0 }]}
             keyboardShouldPersistTaps="handled"
-            refreshControl={refreshControl}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.primary}
           >
             {content}
-          </ScrollView>
+          </RefreshableScrollView>
         </View>
         <CustomAlert />
       </View>
@@ -516,13 +514,15 @@ export default function AffiliationScreen() {
       >
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
           {headerBlock}
-          <ScrollView
+          <RefreshableScrollView
             contentContainerStyle={[styles.scroll, { paddingTop: 0 }]}
             keyboardShouldPersistTaps="handled"
-            refreshControl={refreshControl}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.primary}
           >
             {content}
-          </ScrollView>
+          </RefreshableScrollView>
         </SafeAreaView>
         <CustomAlert />
       </ImageBackground>

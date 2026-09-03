@@ -9,6 +9,7 @@ import {
   ImageBackground,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { RefreshableScrollView } from '../../src/components/Refreshable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -37,6 +38,7 @@ export default function AccountScreen() {
   const styles = useThemedStyles(createStyles);
   const { isWide, isDesktop, contentMaxWidth } = useResponsive();
   const { user, logout } = useAuthStore();
+  const refreshProfile = useAuthStore((s) => s.refreshProfile);
   const { isDark } = useTheme();
   const { t } = useTranslation();
 
@@ -44,6 +46,12 @@ export default function AccountScreen() {
   React.useEffect(() => {
     if (isDesktop) router.replace('/account/profile');
   }, [isDesktop]);
+
+  const [refreshing, setRefreshing] = React.useState(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try { await refreshProfile(); } finally { setRefreshing(false); }
+  };
 
   const handleLogout = () => {
     showAlert(t('account.logoutTitle'), t('account.logoutMessage'), [
@@ -98,11 +106,13 @@ export default function AccountScreen() {
         style={styles.background}
       >
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-          <ScrollView
+          <RefreshableScrollView
             contentContainerStyle={[
               styles.scroll,
               isWide && { alignSelf: 'center', width: '100%', maxWidth: contentMaxWidth },
             ]}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
           >
             {/* Header */}
             <View style={styles.header}>
@@ -180,7 +190,7 @@ export default function AccountScreen() {
                 </Bounce>
               </Reveal>
             </View>
-          </ScrollView>
+          </RefreshableScrollView>
         </SafeAreaView>
 
         <CustomAlert />

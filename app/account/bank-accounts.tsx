@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { RefreshableScrollView } from '../../src/components/Refreshable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { walletService, type SavedBank } from '../../src/services/walletService';
@@ -36,12 +37,16 @@ export default function BankAccountsScreen() {
   const [editName, setEditName] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const load = () => {
-    walletService.getSavedBanks()
-      .then((list) => { setBanks(list); setLoadError(null); })
-      .catch(() => setLoadError(t('account.banksLoadError')));
-  };
+  const load = () => walletService.getSavedBanks()
+    .then((list) => { setBanks(list); setLoadError(null); })
+    .catch(() => setLoadError(t('account.banksLoadError')));
   useEffect(() => { load(); }, []);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  };
 
   const handleSaveName = async () => {
     if (!editing) return;
@@ -148,9 +153,12 @@ export default function BankAccountsScreen() {
   if (isDesktop) {
     return (
       <View style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: 0 }]} keyboardShouldPersistTaps="handled">
+        <RefreshableScrollView contentContainerStyle={[styles.scroll, { paddingTop: 0 }]} keyboardShouldPersistTaps="handled"
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          >
           {content}
-        </ScrollView>
+        </RefreshableScrollView>
         {editModal}
         <CustomAlert />
       </View>
@@ -164,9 +172,12 @@ export default function BankAccountsScreen() {
         style={styles.background}
       >
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-          <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <RefreshableScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled"
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          >
             {content}
-          </ScrollView>
+          </RefreshableScrollView>
         </SafeAreaView>
         {editModal}
         <CustomAlert />

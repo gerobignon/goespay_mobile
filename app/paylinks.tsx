@@ -12,6 +12,7 @@ import {
   Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { RefreshableScrollView } from '../src/components/Refreshable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -106,9 +107,10 @@ export default function PaymentLinksScreen() {
     }
   };
 
-  const load = useCallback(() => {
-    setLoading(true);
-    paylinkService.list(showArchived)
+  // `silent` : rechargement sans écran de chargement (pull-to-refresh).
+  const load = useCallback((silent = false) => {
+    if (!silent) setLoading(true);
+    return paylinkService.list(showArchived)
       .then((res) => {
         setLinks(res.links);
         setArchivedCount(res.archived_count);
@@ -118,6 +120,12 @@ export default function PaymentLinksScreen() {
       .finally(() => setLoading(false));
   }, [t, showArchived]);
   useEffect(() => { load(); }, [load]);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await load(true); } finally { setRefreshing(false); }
+  }, [load]);
 
   const copy = async (link: PayLink) => {
     await Clipboard.setStringAsync(link.url);
@@ -683,9 +691,14 @@ export default function PaymentLinksScreen() {
           source={isDark ? require('../assets/bg_page.jpg') : require('../assets/bg_page_light.jpg')}
           style={styles.background}
         >
-          <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <RefreshableScrollView
+            contentContainerStyle={styles.scroll}
+            keyboardShouldPersistTaps="handled"
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          >
             {content}
-          </ScrollView>
+          </RefreshableScrollView>
         </ImageBackground>
         <DesktopFooter />
         {form}
@@ -701,9 +714,14 @@ export default function PaymentLinksScreen() {
         style={styles.background}
       >
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-          <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <RefreshableScrollView
+            contentContainerStyle={styles.scroll}
+            keyboardShouldPersistTaps="handled"
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          >
             {content}
-          </ScrollView>
+          </RefreshableScrollView>
         </SafeAreaView>
         {form}
         <CustomAlert />
