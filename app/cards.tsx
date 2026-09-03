@@ -919,7 +919,9 @@ export default function CardsScreen() {
 
           {!!loadError && <Text style={styles.empty}>{loadError}</Text>}
 
-          {eligibility?.reason === 'country' && (
+          {/* Le pays vient du dossier KYC : tant qu'il n'est pas validé, il est
+              inconnu et ne dit rien de la couverture réelle. */}
+          {eligibility?.reason === 'country' && eligibility?.kyc_ok && (
             <View style={styles.gateCard}>
               <FontAwesome6 name="circle-info" size={22} color={Colors.textMuted} iconStyle="solid" />
               <Text style={styles.gateTitle}>{t('cards.countryUnavailable')}</Text>

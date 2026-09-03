@@ -99,6 +99,20 @@ export function resolveOperatorDisplay(
     return { name: i18n.t('p2p.internal'), flag: '', op: { logo: require('../../assets/picto.png') } };
   }
 
+  // Carte virtuelle USD : mouvements entre le portefeuille et la carte. Sans ce
+  // cas, le repli générique ne lit que « card » et affiche « Carte bancaire »,
+  // soit un moyen de paiement au lieu de l'opération.
+  const vcard = mode.toLowerCase().match(/^maplerad-card-(fund|withdraw|issue|fee)$/);
+  if (vcard) {
+    const VCARD_LABEL: Record<string, string> = {
+      fund: 'Recharge de carte',
+      withdraw: 'Retrait de carte',
+      issue: 'Création de carte',
+      fee: 'Frais de carte',
+    };
+    return { name: VCARD_LABEL[vcard[1]], flag: '', op: null };
+  }
+
   const found =
     useCatalogStore.getState().operators.find((o) => o.id === mode) ||
     (OPERATORS as unknown as any[]).find((o) => o.id === mode);

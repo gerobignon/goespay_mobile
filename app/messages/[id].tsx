@@ -236,9 +236,7 @@ export default function ConversationScreen() {
   const renderItem = ({ item, index }: { item: ChatMessage; index: number }) => {
     // `data` est inversée : l'élément suivant est le message précédent dans le temps.
     const previous = data[index + 1];
-    // Le canal n'est pas une discussion : les annonces s'y suivent sans
-    // séparateur de jour.
-    const showDay = !isBroadcast && isNewDay(previous?.created_at ?? null, item.created_at);
+    const showDay = isNewDay(previous?.created_at ?? null, item.created_at);
 
     return (
       <View>

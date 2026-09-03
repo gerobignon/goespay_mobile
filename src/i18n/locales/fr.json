@@ -1254,7 +1254,7 @@
     "loadError": "Impossible de charger vos cartes.",
     "issueError": "La création de la carte a échoué.",
     "actionError": "L'opération a échoué.",
-    "kycRequired": "Vérifiez votre identité pour commander une carte.",
+    "kycRequired": "Finalisez votre KYC pour générer votre carte virtuelle.",
     "countryUnavailable": "La carte virtuelle n'est pas disponible dans votre pays.",
     "profileIncomplete": "Profil incomplet",
     "completeProfile": "Compléter",

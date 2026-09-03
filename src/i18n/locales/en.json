@@ -1254,7 +1254,7 @@
     "loadError": "Unable to load your cards.",
     "issueError": "The card could not be created.",
     "actionError": "The operation failed.",
-    "kycRequired": "Verify your identity to order a card.",
+    "kycRequired": "Complete your KYC to generate your virtual card.",
     "countryUnavailable": "Virtual cards are not available in your country.",
     "profileIncomplete": "Incomplete profile",
     "completeProfile": "Complete",
