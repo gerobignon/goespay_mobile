@@ -5,12 +5,14 @@ const PAYDUNYA = require('../../assets/operators/paydunya.png');
 const AFRIBAPAY = require('../../assets/operators/afribapay.png');
 const FINCRA = require('../../assets/operators/pay_fincra.png');
 const KLASHA = require('../../assets/operators/pay_klasha.png');
+const KKIAPAY = require('../../assets/operators/kkiapay.png');
 
 interface OperatorLike {
   id: string;
   afribapay?: true;
   fincra?: true;
   klasha?: true;
+  kkiapay?: true;
 }
 
 interface Props {
@@ -23,15 +25,16 @@ interface Props {
 /**
  * Small badge showing the payment gateway that handles a given operator.
  * Only rendered for admin users so they can quickly identify which provider
- * (PayDunya / AfribaPay / Fincra) is wired behind each card.
+ * (PayDunya / AfribaPay / Fincra / Klasha / KkiaPay) is wired behind each card.
  *
  * Note : le rail `card` (Carte bancaire) est routé via PayDunya Checkout
- * (cf. api_mobile.php). KKiapay n'est plus utilisé.
+ * (cf. api_mobile.php). KkiaPay a ses propres corridors (kkiapay-mm-… et kkiapay-card).
  */
 export function GatewayBadge({ op, visible, size = 16, style }: Props) {
   if (!visible) return null;
   const source = op.klasha    ? KLASHA
                : op.fincra    ? FINCRA
+               : op.kkiapay   ? KKIAPAY
                : op.afribapay ? AFRIBAPAY
                : PAYDUNYA;
   const imgStyle: ImageStyle = { width: size, height: size, borderRadius: size / 2 };

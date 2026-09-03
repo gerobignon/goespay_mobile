@@ -67,6 +67,7 @@ export interface CatalogOperator {
   withdraw: boolean;
   payin: boolean;
   afribapay?: boolean;
+  kkiapay?: boolean;
   fincra?: boolean;
   // Code opérateur Fincra (ORANGE, MTN…) pour les corridors fincra-mm-<pays>-<op>.
   fincraOperator?: string;
@@ -272,6 +273,7 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
           supportsPayin:  (r as any).supports_payin  !== false,
           supportsPayout: (r as any).supports_payout !== false,
           afribapay: r.aggregator === 'afribapay' || undefined,
+          kkiapay: r.aggregator === 'kkiapay' || undefined,
           // Klasha réutilise l'UI Fincra → fincra:true aussi pour les corridors klasha.
           fincra: (r.aggregator === 'fincra' || r.aggregator === 'fincra_checkout' || r.aggregator === 'klasha' || r.aggregator === 'klasha_checkout') || undefined,
           klasha: (r.aggregator === 'klasha' || r.aggregator === 'klasha_checkout') || undefined,
