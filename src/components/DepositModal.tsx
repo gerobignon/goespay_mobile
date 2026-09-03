@@ -357,9 +357,8 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // qu'un seul agrégateur par (pays, réseau), donc un seul moyen visible par opérateur.
   // Fallback statique tant que les corridors ne sont pas chargés (évite un écran vide).
   // Reconnaît la carte PayDunya : 'card' (legacy/INTL) OU 'card-<cc>' (per-country
-  // → admin opt-in), ET la carte KkiaPay ('kkiapay-card'). Affecte filtrage
-  // opérateurs + UI dépôt (pas de champ phone, etc.).
-  const isCardOp = (op: any) => !!op?.id && (op.id === 'card' || op.id === 'kkiapay-card' || (typeof op.id === 'string' && op.id.startsWith('card-')));
+  // → admin opt-in). Affecte filtrage opérateurs + UI dépôt (pas de champ phone, etc.).
+  const isCardOp = (op: any) => !!op?.id && (op.id === 'card' || (typeof op.id === 'string' && op.id.startsWith('card-')));
   const operatorsBase = OPERATORS_SRC.filter((op) => {
     if (!corridorsLoaded && !afribapayEnabled && !isAdmin && (op as any).afribapay) return false;
     // Exclure les corridors PAYOUT-ONLY du modal de DÉPÔT — via la CAPACITÉ
