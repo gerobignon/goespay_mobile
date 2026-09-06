@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useIdempotencyKey, withIdempotency } from '../utils/idempotency';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Modal,
@@ -90,6 +91,11 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
   const [selectedCurrency, setSelectedCurrency] = useState('');
   const [amount, setAmount] = useState('');
   const [walletAddress, setWalletAddress] = useState('');
+  // Clé de soumission : rejouée à l'identique si l'on retente après une erreur
+  // réseau, renouvelée dès que l'opération saisie change.
+  const cryptoIdempotencyKey = useIdempotencyKey(
+    `${tab}|${selectedCurrency}|${amount}|${walletAddress}`,
+  );
   const [loading, setLoading] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
@@ -104,7 +110,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
 
   const country = user?.country ?? '';
   // Vente bloquée si le corridor de vente crypto n'est pas actif pour ce user
-  // (piloté par Marchés via crypto_sell_enabled / sellAvailable) — plus de liste
+  // (piloté par Marchés via crypto_sell_enabled / sellAvailable), plus de liste
   // de pays codée en dur. L'admin garde l'accès (bandeau d'avertissement).
   const isSellBlocked = !sellAvailable;
 
@@ -211,7 +217,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
     (w) => normalizeCurrencyCode(w.currency) === normalizedCurrency && w.address === normalizedWalletAddress,
   );
 
-  // Auto-fill only when currency or tab changes — NOT when user manually clears the address
+  // Auto-fill only when currency or tab changes, NOT when user manually clears the address
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (tab !== 'buy') return;
@@ -382,6 +388,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
   };
 
   const handleConfirm = async () => {
+    const idemKey = cryptoIdempotencyKey();
     setConfirmVisible(false);
     const numAmount = parseFloat(amount);
     if (!numAmount || isNaN(numAmount)) return;
@@ -395,7 +402,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
           currency: selectedCurrency,
           give: giveXof,
           address: normalizedAddress,
-        });
+        }, withIdempotency(idemKey));
         if (normalizedCurrency && normalizedAddress) {
           const existing = savedWallets.find((item) => item.currency === normalizedCurrency && item.address === normalizedAddress);
           if (!existing) {
@@ -423,7 +430,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
         const response = await api.post('/crypto/sell', {
           sell_currency: selectedCurrency,
           sell_give: numAmount,
-        });
+        }, withIdempotency(idemKey));
         const result = response.data;
 
         if (result?.status === 'deposit_required' && result?.deposit_address) {
@@ -484,7 +491,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                 </TouchableOpacity>
               </View>
 
-          {/* Tabs — masqués quand l'action est forcée (lancé depuis Dépôt/Retrait) */}
+          {/* Tabs, masqués quand l'action est forcée (lancé depuis Dépôt/Retrait) */}
           {!forceTab && (
           <View style={styles.tabs}>
             {buyAvailable && (
@@ -689,7 +696,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                       if (sellRate > 0 && Number.isFinite(liveRate) && liveRate > 0) {
                         // Deux planchers : le minimum commercial (XOF, admin) et
                         // le minimum technique de l'agrégateur (min_crypto, via
-                        // /crypto/estimate). Le plus contraignant fait foi — sinon
+                        // /crypto/estimate). Le plus contraignant fait foi, sinon
                         // l'utilisateur découvre le refus après l'envoi.
                         const npMin = Number(selectedRate.min_crypto) || 0;
                         const minCrypto = Math.max(minXof / (sellRate * liveRate), npMin);

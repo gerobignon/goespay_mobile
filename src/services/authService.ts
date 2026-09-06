@@ -20,7 +20,7 @@ export const authService = {
     return response.data;
   },
 
-  /** Valide le code reçu par email — équivalent d'un mot de passe correct. */
+  /** Valide le code reçu par email, équivalent d'un mot de passe correct. */
   verifyLoginCode: async (email: string, code: string): Promise<LoginResponse> => {
     const response = await api.post<LoginResponse>('/auth/verify-code', { email, code });
     return response.data;
@@ -197,7 +197,7 @@ export const authService = {
     return response.data;
   },
 
-  enable2fa: async (): Promise<{ qr_url: string; qr_svg?: string; secret: string; recovery_codes: string[] }> => {
+  enable2fa: async (): Promise<{ qr_url: string; qr_svg?: string; otpauth_url?: string; secret: string; recovery_codes: string[] }> => {
     const response = await api.post('/2fa/enable');
     return response.data;
   },

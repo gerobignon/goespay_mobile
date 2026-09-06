@@ -23,10 +23,11 @@ import {
   verifyPin,
   authenticateWithBiometric,
   isBiometricAvailable,
-  getCredentials,
   clearAllSecureData,
 } from '../../src/services/secureAuthService';
 import { verifyWebauthn } from '../../src/services/webauthnService';
+import { usePinLock } from '../../src/hooks/usePinLock';
+import { useScreenCaptureProtection } from '../../src/hooks/useScreenCaptureProtection';
 import { authService } from '../../src/services/authService';
 import { Image } from 'react-native';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -37,7 +38,12 @@ import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
 import { showAlert } from '../../src/stores/alertStore';
 import { getApiErrorMessage } from '../../src/utils/apiError';
 
+/** Échecs tolérés avant la déconnexion complète (les 3 derniers temporisés). */
+const MAX_PIN_ATTEMPTS = 5;
+
 export default function UnlockScreen() {
+  // Le pavé du PIN n'a rien à faire dans une capture d'écran.
+  useScreenCaptureProtection();
   const router = useRouter();
   const { lockMethod, unlock, clearPin } = usePinStore();
   const { logout, user } = useAuthStore();
@@ -48,7 +54,10 @@ export default function UnlockScreen() {
 
   const [error, setError] = useState<string | null>(null);
   const [resetTrigger, setResetTrigger] = useState(false);
-  const [attempts, setAttempts] = useState(0);
+  // Compteur persistant, partagé avec la fenêtre de confirmation : recharger la
+  // page ne le remet plus à zéro, et les échecs déclenchent une attente
+  // croissante (30 s, 1 min, 5 min) avant la déconnexion.
+  const pinLock = usePinLock(lockMethod === 'pin');
   const [bioAvailable, setBioAvailable] = useState(false);
   const [resetModalVisible, setResetModalVisible] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
@@ -59,7 +68,7 @@ export default function UnlockScreen() {
 
   // Un compte créé par la nouvelle inscription n'a pas de mot de passe : sa
   // preuve d'identité est un code envoyé par email (même mécanique que la 2FA).
-  // On ne peut pas se contenter de la session ouverte — c'est précisément ce
+  // On ne peut pas se contenter de la session ouverte, c'est précisément ce
   // que le verrou protège.
   const usesCodeProof = user?.has_password === false;
 
@@ -109,24 +118,33 @@ export default function UnlockScreen() {
   };
 
   const handlePin = async (pin: string) => {
+    if (pinLock.locked) {
+      setError(t('auth.pin.lockedFor', { delay: pinLock.delayLabel }));
+      setResetTrigger((v) => !v);
+      return;
+    }
     const valid = await verifyPin(pin);
     if (valid) {
       setError(null);
+      await pinLock.reset();
       unlock();
       router.replace('/(tabs)');
-    } else {
-      const newAttempts = attempts + 1;
-      setAttempts(newAttempts);
-      if (newAttempts >= 5) {
-        // 5 erreurs → déconnexion complète
-        await clearAllSecureData();
-        await logout();
-        router.replace('/(auth)/login');
-        return;
-      }
-      setError(t('auth.pin.incorrectPin', { remaining: 5 - newAttempts }));
-      setResetTrigger((v) => !v);
+      return;
     }
+    const state = await pinLock.noteFailure();
+    if (state.attempts > MAX_PIN_ATTEMPTS) {
+      // Au-delà de la dernière temporisation → déconnexion complète.
+      await clearAllSecureData();
+      await logout();
+      router.replace('/(auth)/login');
+      return;
+    }
+    setResetTrigger((v) => !v);
+    if (state.lockedUntil > Date.now()) {
+      setError(null);
+      return;
+    }
+    setError(t('auth.pin.incorrectPin', { remaining: MAX_PIN_ATTEMPTS - state.attempts }));
   };
 
   const handleOpenResetModal = async () => {
@@ -153,6 +171,7 @@ export default function UnlockScreen() {
       );
       await authService.resetPin();
       await clearPin();
+      await pinLock.reset();
       setResetModalVisible(false);
       // Sur web le verrou est optionnel : après réinitialisation on rend la
       // main à l'app, l'utilisateur reconfigure un PIN s'il le veut depuis
@@ -180,6 +199,7 @@ export default function UnlockScreen() {
   };
 
   const handleLogout = async () => {
+    await pinLock.reset();
     await clearAllSecureData();
     await logout();
     router.replace('/(auth)/login');
@@ -208,7 +228,13 @@ export default function UnlockScreen() {
               : t('auth.pin.enterPin', 'Entrez votre PIN')}
         </Text>
 
-        {lockMethod === 'pin' && (
+        {lockMethod === 'pin' && pinLock.locked && (
+          <Text style={styles.error}>
+            {t('auth.pin.lockedFor', { delay: pinLock.delayLabel })}
+          </Text>
+        )}
+
+        {lockMethod === 'pin' && !pinLock.locked && (
           <PinPad
             length={4}
             onComplete={handlePin}

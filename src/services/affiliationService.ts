@@ -1,4 +1,5 @@
 import api from './api';
+import { withIdempotency } from '../utils/idempotency';
 import type {
   AffiliationStats,
   AffiliationChild,
@@ -27,8 +28,8 @@ export const affiliationService = {
     return data;
   },
 
-  claim: async (): Promise<{ message: string; claimed: number; balance_after: number }> => {
-    const { data } = await api.post('/me/affiliation/claim');
+  claim: async (idempotencyKey?: string): Promise<{ message: string; claimed: number; balance_after: number }> => {
+    const { data } = await api.post('/me/affiliation/claim', undefined, withIdempotency(idempotencyKey));
     return data;
   },
 

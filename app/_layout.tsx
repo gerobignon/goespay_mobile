@@ -7,7 +7,6 @@ import { useFonts } from 'expo-font';import * as Notifications from 'expo-notifi
 import { useAuthStore } from '../src/stores/authStore';
 import { usePinStore } from '../src/stores/pinStore';
 import { useMessagingLockStore } from '../src/stores/messagingLockStore';
-import { saveCredentials } from '../src/services/secureAuthService';
 import { checkApiConnection } from '../src/services/api';
 import {
   registerForPushNotifications,
@@ -234,7 +233,7 @@ function RootInner() {
       // Hauteur plein écran :
       // • Navigateur : 100dvh suit la barre d'URL mobile.
       // • PWA standalone iOS : la webview de layout (window.innerHeight) est plus
-      //   COURTE que l'écran physique (window.screen.height) — la zone du home
+      //   COURTE que l'écran physique (window.screen.height), la zone du home
       //   indicator en bas n'est pas couverte et iOS la peint avec le fond de
       //   page, d'où une bande sombre sous la tabbar. En calant la hauteur du
       //   document sur screen.height, le contenu (dégradé, tabbar…) remplit
@@ -295,7 +294,7 @@ function RootInner() {
         // Clic sur une notification alors que l'app était fermée : la PWA
         // installée sur iOS se relance sur son start_url (l'accueil) en ignorant
         // l'URL passée à `openWindow`. Le service worker a rangé la destination
-        // avant d'ouvrir — on la relit ici, et à chaque retour au premier plan
+        // avant d'ouvrir, on la relit ici, et à chaque retour au premier plan
         // pour couvrir l'onglet gelé qui a raté le postMessage.
         const consumeStoredTarget = () => {
           takeStoredNotificationUrl()
@@ -496,7 +495,7 @@ function RootInner() {
 
     // Tap sur une notification alors que l'app était FERMÉE : le listener
     // ci-dessus n'est monté qu'après le démarrage, donc il ne voit jamais la
-    // notification qui a lancé l'app — celle-ci s'ouvrait sur l'accueil. On
+    // notification qui a lancé l'app, celle-ci s'ouvrait sur l'accueil. On
     // rejoue la dernière réponse une fois le routeur prêt.
     Notifications.getLastNotificationResponseAsync()
       .then((response) => {
@@ -560,7 +559,7 @@ function RootInner() {
     const isWeb = Platform.OS === 'web';
     // Le verrou est obligatoire sur natif : tant qu'il n'est pas configuré, on
     // pousse vers setup-pin. Sur web il reste OPTIONNEL (activé depuis Réglages
-    // › Sécurité) — on ne force personne, mais s'il est configuré il est
+    // › Sécurité), on ne force personne, mais s'il est configuré il est
     // demandé comme sur mobile.
     const needsSetup = !isWeb && !isSetupDone;
     const needsUnlock = isSetupDone && isLocked;
@@ -663,7 +662,7 @@ function OfflineAdminBanner() {
     <View style={bannerStyles.container}>
       <FontAwesome6 name="screwdriver-wrench" size={14} color="#fff" style={{ marginRight: 8 }} />
       <Text style={bannerStyles.text}>
-        Site en maintenance — accès admin actif. Les utilisateurs standards sont redirigés.
+        Site en maintenance, accès admin actif. Les utilisateurs standards sont redirigés.
       </Text>
     </View>
   );

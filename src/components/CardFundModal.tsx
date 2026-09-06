@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useIdempotencyKey } from '../utils/idempotency';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -28,12 +29,12 @@ interface Props {
 /**
  * Recharge d'une carte depuis le wallet, et opération inverse.
  *
- * Le client raisonne en dollars — c'est la devise de la carte et celle du minimum
+ * Le client raisonne en dollars, c'est la devise de la carte et celle du minimum
  * imposé par l'émetteur. Le total en francs est calculé par le serveur et affiché
  * avant confirmation, pour que le montant débité soit exactement celui annoncé.
  *
  * L'état `unknown` traduit un délai d'attente dépassé : l'opération a peut-être
- * abouti. On ne présente jamais ce cas comme un échec — le rapprochement serveur
+ * abouti. On ne présente jamais ce cas comme un échec, le rapprochement serveur
  * tranchera, et le solde du wallet est rétabli si la recharge n'a pas eu lieu.
  */
 export function CardFundModal({ visible, card, direction, onClose, onDone, onIneligible }: Props) {
@@ -51,6 +52,9 @@ export function CardFundModal({ visible, card, direction, onClose, onDone, onIne
   const quoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isFund = direction === 'fund';
+  // Clé de soumission : rejouée telle quelle si l'on retente après une erreur
+  // réseau, renouvelée dès que le montant ou le sens change.
+  const cardIdempotencyKey = useIdempotencyKey(`${card?.id ?? ''}|${direction}|${amount}`);
 
   useEffect(() => {
     if (!visible) {
@@ -92,14 +96,15 @@ export function CardFundModal({ visible, card, direction, onClose, onDone, onIne
   const submit = async () => {
     // Deuxième appui avant le re-render : la garde d'état ne suffit pas.
     if (!card || !quote || busy) return;
+    const idemKey = cardIdempotencyKey();
     setBusy(true);
     setStep('sending');
     setError(null);
 
     try {
       const res = isFund
-        ? await cardService.fund(card.id, quote.amount_usd)
-        : await cardService.withdraw(card.id, quote.amount_usd);
+        ? await cardService.fund(card.id, quote.amount_usd, idemKey)
+        : await cardService.withdraw(card.id, quote.amount_usd, idemKey);
 
       // Le serveur répond « wait » quand l'issue lui est inconnue.
       if (res.status === 'wait') {
@@ -128,7 +133,7 @@ export function CardFundModal({ visible, card, direction, onClose, onDone, onIne
   /**
    * Solde disponible, dit de la même façon dans les deux sens : le wallet
    * finance la recharge, la carte finance le retour vers le wallet. Il passe au
-   * rouge dès que l'opération le dépasse, et le bouton se ferme avec lui — le
+   * rouge dès que l'opération le dépasse, et le bouton se ferme avec lui, le
    * serveur refusait déjà, mais après coup.
    */
   const typedUsd = parseFloat(amount.replace(',', '.')) || 0;

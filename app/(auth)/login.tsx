@@ -127,7 +127,7 @@ export default function LoginScreen() {
     try {
       const response = await authService.login({ email: email.trim(), password });
       await openSession(response);
-      await saveCredentials(email.trim(), password);
+      await saveCredentials(email.trim());
     } catch (error: any) {
       if (handleActivationRedirect(error)) return;
       // Le compte a choisi le code par email : on l'y emmène directement.
@@ -154,7 +154,7 @@ export default function LoginScreen() {
     try {
       const response = await authService.verify2faLogin(tempToken, twoFaCode);
       await loginWithToken(response.token!, response.user!, true);
-      if (password) await saveCredentials(email.trim(), password);
+      await saveCredentials(email.trim());
     } catch (error: any) {
       showAlert(t('common.error'), errorMessage(error, t('auth.login.incorrectCode', 'Code incorrect.')));
     } finally {

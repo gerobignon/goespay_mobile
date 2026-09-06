@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -34,7 +34,7 @@ export default function ProfileScreen() {
   const { isDesktop } = useResponsive();
   const styles = useThemedStyles(createStyles);
   const { isDark } = useTheme();
-  const { user, setUser } = useAuthStore();
+  const { user, setUser, profileComplete, refreshProfile } = useAuthStore();
   const { t } = useTranslation();
 
   const isReadonly = user?.validate === 1;
@@ -53,6 +53,29 @@ export default function ProfileScreen() {
 
   const setField = (key: string, value: string) =>
     setFormState((prev) => ({ ...prev, [key]: value }));
+
+  // Le cache local ne contient plus les champs d'identite (telephone, adresse,
+  // etc.) : tant que le profil complet n'est pas revenu du serveur, le
+  // formulaire serait prerempli a vide. On le redemande, puis on reinjecte les
+  // valeurs une seule fois, sans ecraser une saisie deja commencee.
+  const prefilled = useRef(profileComplete);
+  useEffect(() => {
+    if (!profileComplete) refreshProfile();
+  }, [profileComplete]);
+  useEffect(() => {
+    if (!profileComplete || prefilled.current || !user) return;
+    prefilled.current = true;
+    setFormState((prev) => ({
+      name: prev.name || user.name || '',
+      surname: prev.surname || user.surname || '',
+      phone: prev.phone || user.phone || '',
+      city: prev.city || user.city || '',
+      state: prev.state || user.state || '',
+      postcode: prev.postcode || user.postcode || '',
+      address: prev.address || user.address || '',
+      telegram: prev.telegram || user.telegram || '',
+    }));
+  }, [profileComplete, user]);
 
   const handleSave = async () => {
     setLoading(true);

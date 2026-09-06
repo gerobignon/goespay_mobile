@@ -8,6 +8,23 @@ import { useConfigStore } from '../stores/configStore';
 // ── Web Push (PWA) ───────────────────────────────────────────────────────────
 
 /** true si le navigateur supporte le Web Push (SW + PushManager + Notification). */
+
+/**
+ * Résumé d'erreur destiné à un `console.warn` qui SURVIT au build de
+ * production (babel ne retire que `console.log`).
+ *
+ * Passer l'erreur axios entière déverse dans la console du navigateur la
+ * requête complète : URL, corps, et surtout l'en-tête `Authorization` avec le
+ * jeton de session. Un statut et un message suffisent à diagnostiquer.
+ */
+function briefError(error: unknown): string {
+  const err = error as any;
+  const status = err?.response?.status;
+  const code = err?.code;
+  const message = err?.response?.data?.message || err?.message || 'erreur inconnue';
+  return [status ? `HTTP ${status}` : null, code, message].filter(Boolean).join(' · ');
+}
+
 export function isWebPushSupported(): boolean {
   return (
     Platform.OS === 'web' &&
@@ -126,7 +143,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
     return null;
   }
 
-  // Canal Android — doit être créé AVANT d'obtenir le token
+  // Canal Android, doit être créé AVANT d'obtenir le token
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'GoesPay',
@@ -141,7 +158,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
     const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
     pushToken = tokenData.data;
   } catch (e) {
-    console.warn('[Notifications] Impossible d\'obtenir le token push:', e);
+    console.warn('[Notifications] Impossible d\'obtenir le token push:', briefError(e));
     return null;
   }
 
@@ -158,7 +175,7 @@ export async function sendPushTokenToServer(pushToken: string): Promise<void> {
       platform: Platform.OS,
     });
   } catch (error) {
-    console.warn('[Notifications] Erreur envoi token:', error);
+    console.warn('[Notifications] Erreur envoi token:', briefError(error));
   }
 }
 

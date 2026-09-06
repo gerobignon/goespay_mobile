@@ -5,7 +5,8 @@ import { clearWebauthn } from './webauthnService';
 
 const KEYS = {
   EMAIL: 'pin_email',
-  PASSWORD: 'pin_password',
+  /** Ancienne clef du mot de passe du compte : purgee, plus jamais ecrite. */
+  LEGACY_PASSWORD: 'pin_password',
   PIN: 'pin_code',
   METHOD: 'pin_method', // 'pin' | 'biometric'
   PIN_SET: 'pin_is_set',
@@ -15,28 +16,29 @@ const isWeb = Platform.OS === 'web';
 
 // ─── Credentials ──────────────────────────────────────────────────────────────
 
-export async function saveCredentials(email: string, password: string) {
+/**
+ * Retient l'identifiant de la derniere session, et rien d'autre.
+ *
+ * Le mot de passe du compte n'est plus jamais stocke : la session vit par son
+ * jeton, le verrou local par son PIN derive ou la biometrie. Un mot de passe au
+ * repos n'apportait aucune capacite que le jeton ne donne deja, et il vaut pour
+ * tous les autres services ou l'utilisateur l'a reutilise. On efface au passage
+ * la valeur laissee par les versions precedentes.
+ */
+export async function saveCredentials(email: string, _password?: string) {
   await SafeStorage.setItem(KEYS.EMAIL, email);
-  // Sur web, SafeStorage = localStorage : lisible par n'importe quel script de
-  // la page. Le mot de passe n'y est donc jamais écrit — il ne sert de toute
-  // façon qu'au repli de la biométrie, absente du web.
-  if (isWeb) {
-    await SafeStorage.removeItem(KEYS.PASSWORD);
-    return;
-  }
-  await SafeStorage.setItem(KEYS.PASSWORD, password);
+  await SafeStorage.removeItem(KEYS.LEGACY_PASSWORD);
 }
 
-export async function getCredentials(): Promise<{ email: string; password: string } | null> {
+export async function getCredentials(): Promise<{ email: string } | null> {
   const email = await SafeStorage.getItem(KEYS.EMAIL);
-  const password = await SafeStorage.getItem(KEYS.PASSWORD);
-  if (!email || !password) return null;
-  return { email, password };
+  if (!email) return null;
+  return { email };
 }
 
 export async function clearCredentials() {
   await SafeStorage.removeItem(KEYS.EMAIL);
-  await SafeStorage.removeItem(KEYS.PASSWORD);
+  await SafeStorage.removeItem(KEYS.LEGACY_PASSWORD);
 }
 
 // ─── PIN ──────────────────────────────────────────────────────────────────────
@@ -50,7 +52,7 @@ export async function clearCredentials() {
 // lecture, ce qui rend la migration transparente.
 //
 // PORTÉE : un PIN à 4 chiffres n'a que 10 000 combinaisons. PBKDF2 rend un
-// bruteforce hors-ligne coûteux, il ne le rend pas impossible — face à un
+// bruteforce hors-ligne coûteux, il ne le rend pas impossible, face à un
 // script qui lit déjà le stockage, c'est un ralentisseur, pas une garantie.
 const PIN_HASH_V1 = 'v1$';
 const PIN_HASH_V2 = 'v2$';
@@ -67,7 +69,7 @@ function toHex(bytes: Uint8Array): string {
     .join('');
 }
 
-/** v1 — SHA-256 en un tour. Conservé pour relire les PIN déjà enregistrés. */
+/** v1, SHA-256 en un tour. Conservé pour relire les PIN déjà enregistrés. */
 async function digestPinV1(pin: string, saltHex: string): Promise<string | null> {
   const subtle = subtleCrypto();
   if (!subtle) return null;
@@ -202,7 +204,7 @@ export async function authenticateWithBiometric(): Promise<boolean> {
 export async function clearAllSecureData() {
   await Promise.all([
     SafeStorage.removeItem(KEYS.EMAIL),
-    SafeStorage.removeItem(KEYS.PASSWORD),
+    SafeStorage.removeItem(KEYS.LEGACY_PASSWORD),
     SafeStorage.removeItem(KEYS.PIN),
     SafeStorage.removeItem(KEYS.METHOD),
     SafeStorage.removeItem(KEYS.PIN_SET),

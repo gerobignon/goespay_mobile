@@ -37,6 +37,7 @@ import { useThemedStyles } from '../src/hooks/useThemedStyles';
 import { useTheme } from '../src/components/ThemeProvider';
 import { useResponsive } from '../src/hooks/useResponsive';
 import { useAuthStore } from '../src/stores/authStore';
+import { useScreenCaptureProtection } from '../src/hooks/useScreenCaptureProtection';
 import { useWalletStore } from '../src/stores/walletStore';
 import { showAlert } from '../src/stores/alertStore';
 import { useFormatXof } from '../src/utils/format';
@@ -46,8 +47,8 @@ import { requireLocalLock } from '../src/utils/localAuth';
 /**
  * Rythme et durée du suivi d'émission. Le serveur va lui-même chercher la carte
  * chez l'émetteur dès la première interrogation : elle aboutit le plus souvent
- * en quelques secondes, d'où une cadence serrée au début — c'est le moment où le
- * client regarde l'écran — puis relâchée pour les cas qui traînent.
+ * en quelques secondes, d'où une cadence serrée au début, c'est le moment où le
+ * client regarde l'écran, puis relâchée pour les cas qui traînent.
  */
 const POLL_FAST_INTERVAL = 2000;
 const POLL_FAST_ATTEMPTS = 15;
@@ -57,6 +58,9 @@ const POLL_MAX_ATTEMPTS = 60;
 const REVEAL_SECONDS = 60;
 
 export default function CardsScreen() {
+  // Numéro, cryptogramme, expiration : rien de tout cela ne doit partir dans
+  // une capture d'écran ni dans l'aperçu du multitâche.
+  useScreenCaptureProtection();
   const router = useRouter();
   const { isDesktop } = useResponsive();
   const styles = useThemedStyles(createStyles);
@@ -95,7 +99,7 @@ export default function CardsScreen() {
    */
   const [unlock, setUnlock] = useState<{ id: number; secrets: CardSecrets; until: number } | null>(null);
   /**
-   * Écran masqué le temps d'un passage en arrière-plan — un numéro ne doit pas
+   * Écran masqué le temps d'un passage en arrière-plan, un numéro ne doit pas
    * traîner dans le sélecteur d'applications. L'accès, lui, survit : le porteur
    * qui va coller son numéro chez un marchand revient sur sa carte lisible.
    */
@@ -286,7 +290,7 @@ export default function CardsScreen() {
 
   /**
    * Fermeture définitive : fenêtre dédiée (conséquences + case à cocher), puis
-   * verrou de l'appareil. Une alerte à deux boutons ne suffisait pas — le mot
+   * verrou de l'appareil. Une alerte à deux boutons ne suffisait pas, le mot
    * « Résilier » ne dit pas au client ce qu'il perd, et le bouton rouge se
    * tapait aussi vite que « Annuler ».
    */
@@ -352,9 +356,31 @@ export default function CardsScreen() {
 
   /**
    * Code d'activation sans contact : copie, puis retrait de l'écran une fois
-   * noté. Le retrait passe par le serveur — le code vit sur la carte, pas dans
+   * noté. Le retrait passe par le serveur, le code vit sur la carte, pas dans
    * cet écran, et le porteur peut avoir plusieurs appareils.
    */
+  /**
+   * Copie d'un secret de carte, effacée du presse-papiers au bout de 30 s.
+   *
+   * Le presse-papiers est lisible par n'importe quelle autre application (et,
+   * sur iOS, recopié sur les appareils du même compte). Un numéro de carte qui
+   * y reste indéfiniment finit collé n'importe où. On efface donc après le
+   * délai, mais SEULEMENT si le contenu est toujours celui qu'on a posé : sans
+   * cette vérification on effacerait ce que l'utilisateur a copié entre-temps.
+   */
+  const CLIPBOARD_CLEAR_MS = 30000;
+  const copySecretToClipboard = async (value: string) => {
+    await Clipboard.setStringAsync(value);
+    setTimeout(async () => {
+      try {
+        const current = await Clipboard.getStringAsync();
+        if (current === value) await Clipboard.setStringAsync('');
+      } catch {
+        // Presse-papiers illisible (permission refusée sur web) : on n'insiste pas.
+      }
+    }, CLIPBOARD_CLEAR_MS);
+  };
+
   const copyActivationCode = async (card: VirtualCard) => {
     if (!card.activation_code) return;
     await Clipboard.setStringAsync(card.activation_code);
@@ -384,7 +410,7 @@ export default function CardsScreen() {
   /**
    * Copie depuis la carte. L'expiration n'est pas un secret : elle part
    * directement. Le numéro et le cryptogramme se copient sans rien redemander
-   * une fois la carte révélée ; sinon, le mot de passe est exigé — et la
+   * une fois la carte révélée ; sinon, le mot de passe est exigé, et la
    * révélation qui s'ensuit affiche TOUS les champs, pour que la copie du
    * suivant ne repasse pas par la case authentification.
    */
@@ -401,7 +427,7 @@ export default function CardsScreen() {
 
     // Un accès en cours suffit, même si l'écran est momentanément masqué.
     if (unlock?.id === card.id) {
-      await Clipboard.setStringAsync(field === 'pan' ? unlock.secrets.pan : unlock.secrets.cvv);
+      await copySecretToClipboard(field === 'pan' ? unlock.secrets.pan : unlock.secrets.cvv);
       setMasked(false);
       flagCopied(card.id, field);
       return;
@@ -412,7 +438,7 @@ export default function CardsScreen() {
 
   /**
    * Demande d'accès aux données réelles. Le verrou de l'appareil est la seule
-   * preuve exigée — beaucoup de comptes n'ont pas de mot de passe, la connexion
+   * preuve exigée, beaucoup de comptes n'ont pas de mot de passe, la connexion
    * se faisant par code reçu par mail.
    */
   const askSecrets = (card: VirtualCard, field: CardCopyField | null) => {
@@ -444,7 +470,7 @@ export default function CardsScreen() {
     setMasked(false);
     setRevealLeft(REVEAL_SECONDS);
     if (copyAfterAuth) {
-      await Clipboard.setStringAsync(copyAfterAuth === 'pan' ? secrets.pan : secrets.cvv);
+      await copySecretToClipboard(copyAfterAuth === 'pan' ? secrets.pan : secrets.cvv);
       flagCopied(card.id, copyAfterAuth);
     }
   };
@@ -452,7 +478,7 @@ export default function CardsScreen() {
   /**
    * Sélecteur de carte : n'apparaît qu'à partir de deux cartes vivantes. Une
    * pastille par carte (réseau + 4 derniers chiffres) plutôt qu'un défilement
-   * masqué — le nombre de cartes reste petit, et rien ne doit se deviner.
+   * masqué, le nombre de cartes reste petit, et rien ne doit se deviner.
    */
   const renderPicker = (list: VirtualCard[], current: VirtualCard) => {
     if (list.length < 2) return null;
@@ -563,7 +589,7 @@ export default function CardsScreen() {
           </View>
         </View>
 
-        {/* Activation sans contact : ce code n'existe nulle part ailleurs —
+        {/* Activation sans contact : ce code n'existe nulle part ailleurs , 
             l'émetteur ne le transmet qu'à nous, et le porteur en a besoin dans
             la seconde, depuis le portefeuille de son téléphone. Il passe donc
             devant tout le reste de la carte. */}
@@ -614,7 +640,7 @@ export default function CardsScreen() {
 
 
         {/* Quatre tuiles pleines plutôt que quatre icônes flottantes : chacune
-            porte sa surface et sa bordure, et la recharge — le geste attendu —
+            porte sa surface et sa bordure, et la recharge, le geste attendu , 
             se distingue des trois autres par sa couleur pleine. */}
         {card.usable && (
           <View style={styles.actions}>
@@ -782,7 +808,7 @@ export default function CardsScreen() {
 
       {/* Trois tuiles plutôt que trois lignes : l'argument produit se lit d'un
           coup d'œil, et l'icône a la place d'exister.
-          `iconStyle="solid"` est OBLIGATOIRE — seules les fontes Regular et
+          `iconStyle="solid"` est OBLIGATOIRE, seules les fontes Regular et
           Brands sont chargées, et un glyphe solide non résolu retombe sur
           l'emoji du système : c'est ce qui donnait 🌐💳🔒 sur le web. */}
       <View style={styles.perks}>
@@ -823,7 +849,7 @@ export default function CardsScreen() {
     const withdrawRate = grid.withdraw_rate_usd_xof > 0 ? grid.withdraw_rate_usd_xof : rate;
 
     const rows: Array<[string, string]> = [
-      [t('cards.rateFund'), rate ? `1 USD = ${fmtXof(rate)}` : '—'],
+      [t('cards.rateFund'), rate ? `1 USD = ${fmtXof(rate)}` : ', '],
       ...(withdrawRate && withdrawRate !== rate
         ? ([[t('cards.rateWithdraw'), `1 USD = ${fmtXof(withdrawRate)}`]] as Array<[string, string]>)
         : []),
