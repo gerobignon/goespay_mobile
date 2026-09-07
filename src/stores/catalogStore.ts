@@ -36,6 +36,7 @@ const LOGO_BY_KEY: Record<string, any> = {
   pay_celtiis:    require('../../assets/operators/pay_celtiis.png'),
   pay_djamo:      require('../../assets/operators/pay_djamo.png'),
   pay_coris:      require('../../assets/operators/pay_coris.webp'),
+  pay_idmoney:    require('../../assets/operators/pay_idmoney.png'),
   pay_emoney:     require('../../assets/operators/pay_emoney.jpg'),
   pay_mobicash:   require('../../assets/operators/pay_mobicash.webp'),
   pay_equitel:    require('../../assets/operators/pay_equitel.png'),
@@ -68,6 +69,12 @@ export interface CatalogOperator {
   payin: boolean;
   afribapay?: boolean;
   kkiapay?: boolean;
+  // Réseau du corridor (mtn, moov, card, wave…) : sert à savoir si un moyen
+  // encaisse par numéro de téléphone ou non, quelle que soit la forme du code.
+  network?: string;
+  // KkiaPay : moyen joué par la page de paiement hébergée (carte, wallets,
+  // Orange) → l'app ouvre une page au lieu de demander un numéro.
+  kkiapayHosted?: boolean;
   fincra?: boolean;
   // Code opérateur Fincra (ORANGE, MTN…) pour les corridors fincra-mm-<pays>-<op>.
   fincraOperator?: string;
@@ -274,6 +281,13 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
           supportsPayout: (r as any).supports_payout !== false,
           afribapay: r.aggregator === 'afribapay' || undefined,
           kkiapay: r.aggregator === 'kkiapay' || undefined,
+          network: r.network,
+          // Carte, wallets et Orange chez KkiaPay : le paiement se fait sur la
+          // page hébergée (widget), qui recueille elle-même ce qu'il lui faut.
+          kkiapayHosted: (r.aggregator === 'kkiapay'
+            && (r.code.startsWith('kkiapay-card-')
+              || r.code.startsWith('kkiapay-wallet-')
+              || r.code.endsWith('-orange'))) || undefined,
           // Klasha réutilise l'UI Fincra → fincra:true aussi pour les corridors klasha.
           fincra: (r.aggregator === 'fincra' || r.aggregator === 'fincra_checkout' || r.aggregator === 'klasha' || r.aggregator === 'klasha_checkout') || undefined,
           klasha: (r.aggregator === 'klasha' || r.aggregator === 'klasha_checkout') || undefined,

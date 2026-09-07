@@ -382,8 +382,10 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // qu'un seul agrégateur par (pays, réseau), donc un seul moyen visible par opérateur.
   // Fallback statique tant que les corridors ne sont pas chargés (évite un écran vide).
   // Reconnaît la carte PayDunya : 'card' (legacy/INTL) OU 'card-<cc>' (per-country
-  // → admin opt-in). Affecte filtrage opérateurs + UI dépôt (pas de champ phone, etc.).
-  const isCardOp = (op: any) => !!op?.id && (op.id === 'card' || (typeof op.id === 'string' && op.id.startsWith('card-')));
+  // → admin opt-in), et la carte KkiaPay ('kkiapay-card-<cc>', page hébergée).
+  // Affecte filtrage opérateurs + UI dépôt (pas de champ phone, etc.).
+  const isCardOp = (op: any) => !!op?.id && typeof op.id === 'string'
+    && (op.id === 'card' || op.id.startsWith('card-') || op.id.startsWith('kkiapay-card-'));
   const operatorsBase = OPERATORS_SRC.filter((op) => {
     if (!corridorsLoaded && !afribapayEnabled && !isAdmin && (op as any).afribapay) return false;
     // Exclure les corridors PAYOUT-ONLY du modal de DÉPÔT, via la CAPACITÉ
@@ -643,7 +645,10 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const opRail = String((selectedOp as any)?.rail || '').toLowerCase();
   const isCardLike = isCardOp(selectedOp)
     || ['card', 'bank', 'checkout'].includes(opNet)
-    || ['checkout', 'bank_transfer', 'swift', 'sepa'].includes(opRail);
+    || ['checkout', 'bank_transfer', 'swift', 'sepa'].includes(opRail)
+    // KkiaPay hébergé (carte, wallets, Orange) : la page de paiement demande
+    // elle-même le numéro ou les coordonnées, l'app n'a rien à saisir.
+    || !!(selectedOp as any)?.kkiapayHosted;
   const showPhoneField = isFincraMM || (!isFincra && !!selectedOp && !isCardLike);
 
   const normalizedPhone = phone.replace(/\s+/g, '').trim();
