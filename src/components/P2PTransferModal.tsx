@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useIdempotencyKey } from '../utils/idempotency';
 import {
   View,
   Text,
@@ -50,7 +51,7 @@ const initialsOf = (name: string): string =>
 /**
  * Transfert compte à compte : identifiant du destinataire → montant → confirmation.
  * Interne au wallet (instantané, sans frais). Le serveur refuse les destinataires
- * hors zone monétaire de l'émetteur — l'app affiche simplement son message.
+ * hors zone monétaire de l'émetteur, l'app affiche simplement son message.
  */
 export function P2PTransferModal({ visible, onClose }: P2PTransferModalProps) {
   const { t } = useTranslation();
@@ -77,6 +78,9 @@ export function P2PTransferModal({ visible, onClose }: P2PTransferModalProps) {
   const p2pBlocked = useConfigStore((s) => s.p2p_blocked);
   const p2pBlockMessage = useConfigStore((s) => s.p2p_block_message);
   const numericAmount = Number(amount.replace(/[^0-9.]/g, '')) || 0;
+  // Clé de soumission : la même sur une nouvelle tentative après erreur réseau,
+  // renouvelée si le destinataire ou le montant change.
+  const p2pIdempotencyKey = useIdempotencyKey(`${recipient?.id ?? ''}|${numericAmount}`);
 
   useEffect(() => {
     if (!visible) return;
@@ -110,10 +114,11 @@ export function P2PTransferModal({ visible, onClose }: P2PTransferModalProps) {
 
   const send = async () => {
     if (!recipient) return;
+    const idemKey = p2pIdempotencyKey();
     setLoading(true);
     setError(null);
     try {
-      const res = await walletService.sendP2P({ recipient_id: recipient.id, amount: numericAmount });
+      const res = await walletService.sendP2P({ recipient_id: recipient.id, amount: numericAmount }, idemKey);
       setResult({ amount: res.amount, balance_after: res.balance_after, reference: res.reference });
       setStep('done');
       fetchBalance().catch(() => {});

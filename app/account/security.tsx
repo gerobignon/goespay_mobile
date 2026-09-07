@@ -47,6 +47,7 @@ import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { getApiErrorMessage } from '../../src/utils/apiError';
+import QRCode from 'react-native-qrcode-svg';
 
 export default function SecurityScreen() {
   const router = useRouter();
@@ -91,6 +92,10 @@ export default function SecurityScreen() {
   const [twoFaStep, setTwoFaStep] = useState<'qr' | 'code' | 'disable' | 'recovery'>('qr');
   const [twoFaSecret, setTwoFaSecret] = useState('');
   const [twoFaQrUrl, setTwoFaQrUrl] = useState('');
+  // URL otpauth:// brute : on dessine le QR nous-mêmes, c'est le seul rendu qui
+  // marche à la fois sur mobile et sur le web (une image SVG en data URI n'est
+  // pas affichable par le composant Image de React Native).
+  const [twoFaOtpAuth, setTwoFaOtpAuth] = useState('');
   const [twoFaCode, setTwoFaCode] = useState('');
   const [twoFaDisablePassword, setTwoFaDisablePassword] = useState('');
   const [twoFaLoading, setTwoFaLoading] = useState(false);
@@ -104,7 +109,7 @@ export default function SecurityScreen() {
     authService.get2faStatus().then((s) => setTwoFaEnabled(s.enabled)).catch(() => {});
   }, []);
 
-  // Web : Face ID / Touch ID / Hello / clé de sécurité via WebAuthn — le
+  // Web : Face ID / Touch ID / Hello / clé de sécurité via WebAuthn, le
   // pendant de la biométrie native. L'enregistrement DOIT partir d'un geste
   // utilisateur, on l'appelle donc directement depuis le onPress.
   const handleEnableWebauthn = async () => {
@@ -307,6 +312,7 @@ export default function SecurityScreen() {
       const data = await authService.enable2fa();
       setTwoFaSecret(data.secret);
       setTwoFaQrUrl(data.qr_url || data.qr_svg || '');
+      setTwoFaOtpAuth(data.otpauth_url || '');
       setTwoFaStep('qr');
       setTwoFaModalVisible(true);
     } catch (e: any) {
@@ -527,7 +533,11 @@ export default function SecurityScreen() {
               <Text style={styles.twoFaInstruction}>
                 {t('account.twoFaStep1')}{' '}{t('account.twoFaStep2')}
               </Text>
-              {twoFaQrUrl ? (
+              {twoFaOtpAuth ? (
+                <View style={{ alignSelf: 'center', marginVertical: Spacing.md, backgroundColor: '#ffffff', borderRadius: 12, padding: 10 }}>
+                  <QRCode value={twoFaOtpAuth} size={150} backgroundColor="#ffffff" color="#000000" />
+                </View>
+              ) : twoFaQrUrl ? (
                 <View style={{ alignSelf: 'center', marginVertical: Spacing.md, backgroundColor: '#ffffff', borderRadius: 12, padding: 10 }}>
                   {Platform.OS === 'web' ? (
                     <img

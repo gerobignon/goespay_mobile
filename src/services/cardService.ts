@@ -1,4 +1,5 @@
 import api from './api';
+import { withIdempotency } from '../utils/idempotency';
 
 /**
  * Cartes virtuelles USD.
@@ -9,9 +10,9 @@ import api from './api';
  *
  * Les secrets (numéro complet, CVV) ont leur propre appel, précédé d'une
  * confirmation par le verrou de l'appareil (code ou biométrie) : le mot de passe
- * du compte n'y a plus sa part — beaucoup de comptes n'en ont pas, la connexion
+ * du compte n'y a plus sa part, beaucoup de comptes n'en ont pas, la connexion
  * se faisant par code reçu par mail. Ils ne doivent JAMAIS être stockés : ni state
- * persistant, ni AsyncStorage, ni SafeStorage — sur le web ce dernier est du
+ * persistant, ni AsyncStorage, ni SafeStorage, sur le web ce dernier est du
  * localStorage en clair.
  */
 
@@ -149,7 +150,7 @@ export interface CardQuote {
   /** Frais de l'opération (recharge ou retrait). */
   fee_usd?: number;
   fee_xof: number;
-  /** Frais de création — présents uniquement sur le devis d'une commande. */
+  /** Frais de création, présents uniquement sur le devis d'une commande. */
   issue_fee_usd?: number;
   issue_fee_xof?: number;
   /**
@@ -201,13 +202,13 @@ export const cardService = {
     return response.data;
   },
 
-  fund: async (id: number, amountUsd: number): Promise<{ status: string; card?: VirtualCard; wallet?: number }> => {
-    const response = await api.post(`/maplerad/cards/${id}/fund`, { amount_usd: amountUsd }, { timeout: 70000 });
+  fund: async (id: number, amountUsd: number, idempotencyKey?: string): Promise<{ status: string; card?: VirtualCard; wallet?: number }> => {
+    const response = await api.post(`/maplerad/cards/${id}/fund`, { amount_usd: amountUsd }, withIdempotency(idempotencyKey, { timeout: 70000 }));
     return response.data;
   },
 
-  withdraw: async (id: number, amountUsd: number): Promise<{ status: string; card?: VirtualCard; wallet?: number }> => {
-    const response = await api.post(`/maplerad/cards/${id}/withdraw`, { amount_usd: amountUsd }, { timeout: 70000 });
+  withdraw: async (id: number, amountUsd: number, idempotencyKey?: string): Promise<{ status: string; card?: VirtualCard; wallet?: number }> => {
+    const response = await api.post(`/maplerad/cards/${id}/withdraw`, { amount_usd: amountUsd }, withIdempotency(idempotencyKey, { timeout: 70000 }));
     return response.data;
   },
 

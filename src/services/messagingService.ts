@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import api from './api';
+import { withIdempotency } from '../utils/idempotency';
 import type {
   AttachableItem,
   BlockedUser,
@@ -153,7 +154,7 @@ export const messagingService = {
 
   /**
    * Envoie une invitation. La réponse est identique que le compte existe ou
-   * non — c'est voulu : l'écran ne peut donc pas afficher « compte trouvé ».
+   * non, c'est voulu : l'écran ne peut donc pas afficher « compte trouvé ».
    */
   invite: async (identifier: string, note = ''): Promise<string> => {
     const { data } = await api.post<{ message: string }>('/messaging/requests', {
@@ -199,11 +200,12 @@ export const messagingService = {
     conversationId: number,
     amount: number,
     note = '',
+    idempotencyKey?: string,
   ): Promise<{ message: ChatMessage | null; conversation: Conversation; balance: number | null }> => {
     const { data } = await api.post(
       `/messaging/conversations/${conversationId}/send-money`,
       { amount, note },
-      { timeout: 60000 },
+      withIdempotency(idempotencyKey, { timeout: 60000 }),
     );
     return data;
   },
@@ -212,7 +214,7 @@ export const messagingService = {
    * Types joignables dans ce fil, et objets d'un type donné.
    *
    * `scope: 'all'` cherche dans tout l'historique au lieu des seules opérations
-   * liées à l'interlocuteur — c'est ce que fait la recherche de transaction.
+   * liées à l'interlocuteur, c'est ce que fait la recherche de transaction.
    */
   getAttachables: async (
     conversationId: number,

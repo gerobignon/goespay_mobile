@@ -8,12 +8,14 @@ import { Button } from './Button';
 import { usePinStore } from '../stores/pinStore';
 import { verifyPin, authenticateWithBiometric } from '../services/secureAuthService';
 import { verifyWebauthn } from '../services/webauthnService';
+import { usePinLock } from '../hooks/usePinLock';
+import { formatPinLockDelay } from '../services/pinAttemptGuard';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 
 interface Props {
   visible: boolean;
-  /** Titre de la demande — ce que l'utilisateur s'apprête à faire. */
+  /** Titre de la demande, ce que l'utilisateur s'apprête à faire. */
   title?: string;
   onClose: () => void;
   onSuccess: () => void;
@@ -26,8 +28,8 @@ const MAX_ATTEMPTS = 5;
  *
  * C'est la même preuve que celle qui ouvre l'app, redemandée devant un geste
  * sensible (données d'une carte, entrée dans la messagerie). Le mot de passe du
- * compte n'a pas sa place ici : beaucoup de comptes n'en ont pas — la connexion
- * se fait par code reçu par mail — et le verrou local est ce que l'utilisateur
+ * compte n'a pas sa place ici : beaucoup de comptes n'en ont pas, la connexion
+ * se fait par code reçu par mail, et le verrou local est ce que l'utilisateur
  * a déjà en mémoire.
  *
  * Cette fenêtre suppose un verrou DÉJÀ configuré ; l'appelant s'en assure
@@ -39,15 +41,19 @@ export function LocalAuthModal({ visible, title, onClose, onSuccess }: Props) {
   const { lockMethod } = usePinStore();
 
   const [error, setError] = useState<string | null>(null);
-  const [attempts, setAttempts] = useState(0);
   const [resetTrigger, setResetTrigger] = useState(false);
   const autoTried = useRef(false);
+  // Compteur persistant, partagé avec l'écran de déverrouillage : fermer et
+  // rouvrir cette fenêtre ne rend pas d'essais, et l'attente imposée après
+  // plusieurs erreurs survit au rechargement.
+  const pinLock = usePinLock(visible && lockMethod === 'pin');
 
-  // Rien ne survit à une fermeture : la fenêtre suivante repart de zéro.
+  // Le message et l'invite repartent de zéro à la fermeture ; le compteur
+  // d'essais, lui, est persistant et ne se réinitialise que sur une saisie
+  // correcte.
   useEffect(() => {
     if (!visible) {
       setError(null);
-      setAttempts(0);
       autoTried.current = false;
     }
   }, [visible]);
@@ -55,7 +61,7 @@ export function LocalAuthModal({ visible, title, onClose, onSuccess }: Props) {
   // L'invite système EST la fenêtre : on la lance d'emblée, biométrie native
   // comme WebAuthn, pour éviter un appui inutile. Les navigateurs qui exigent
   // un geste utilisateur (Safari/iOS) rejettent l'appel WebAuthn sans rien
-  // afficher — on retombe alors sur le bouton, sans message d'erreur.
+  // afficher, on retombe alors sur le bouton, sans message d'erreur.
   useEffect(() => {
     if (!visible || autoTried.current) return;
     if (lockMethod === 'biometric') {
@@ -84,21 +90,30 @@ export function LocalAuthModal({ visible, title, onClose, onSuccess }: Props) {
   };
 
   const runPin = async (pin: string) => {
+    if (pinLock.locked) {
+      setError(t('auth.pin.lockedFor', { delay: pinLock.delayLabel }));
+      setResetTrigger((v) => !v);
+      return;
+    }
     if (await verifyPin(pin)) {
       setError(null);
+      await pinLock.reset();
       onSuccess();
       return;
     }
     // Contrairement à l'écran de déverrouillage, un échec répété ne déconnecte
     // pas : on referme, la session reste ouverte, le geste est simplement refusé.
-    const next = attempts + 1;
-    setAttempts(next);
+    const state = await pinLock.noteFailure();
     setResetTrigger((v) => !v);
-    if (next >= MAX_ATTEMPTS) {
+    if (state.lockedUntil > Date.now()) {
+      setError(t('auth.pin.lockedFor', { delay: formatPinLockDelay(state.lockedUntil - Date.now()) }));
+      return;
+    }
+    if (state.attempts >= MAX_ATTEMPTS) {
       onClose();
       return;
     }
-    setError(t('auth.pin.incorrectPin', { remaining: MAX_ATTEMPTS - next }));
+    setError(t('auth.pin.incorrectPin', { remaining: MAX_ATTEMPTS - state.attempts }));
   };
 
   const heading = title ?? t('security.confirmTitle');
@@ -113,7 +128,11 @@ export function LocalAuthModal({ visible, title, onClose, onSuccess }: Props) {
           </TouchableOpacity>
         </View>
 
-        {lockMethod === 'pin' ? (
+        {lockMethod === 'pin' && pinLock.locked ? (
+          <Text style={styles.error}>
+            {t('auth.pin.lockedFor', { delay: pinLock.delayLabel })}
+          </Text>
+        ) : lockMethod === 'pin' ? (
           <PinPad
             onComplete={runPin}
             error={error}

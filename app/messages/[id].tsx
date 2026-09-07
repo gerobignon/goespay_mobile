@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useKeyedIdempotency } from '../../src/utils/idempotency';
 import {
   View,
   Text,
@@ -83,6 +84,7 @@ export default function ConversationScreen() {
   const [attachOpen, setAttachOpen] = useState(false);
   const [sendMoneyOpen, setSendMoneyOpen] = useState(false);
   const [sendingMoney, setSendingMoney] = useState(false);
+  const sendMoneyIdempotencyKey = useKeyedIdempotency();
   /** Objet choisi dans le menu, envoyé avec le prochain message. */
   const [pendingItem, setPendingItem] = useState<{ type: MessageItemType; ref: string; label: string; icon: string } | null>(null);
   const [highlightId, setHighlightId] = useState<number | null>(null);
@@ -92,7 +94,7 @@ export default function ConversationScreen() {
   const insets = useSafeAreaInsets();
   // Ouvrir les emojis ferme le clavier : sa hauteur est déjà retombée à zéro
   // quand le panneau s'affiche. On garde la dernière mesure pour lui donner
-  // exactement la place que le clavier occupait — pas de saut de mise en page.
+  // exactement la place que le clavier occupait, pas de saut de mise en page.
   const lastKeyboardRef = useRef(0);
   if (keyboardInset > 180) lastKeyboardRef.current = keyboardInset;
 
@@ -101,7 +103,7 @@ export default function ConversationScreen() {
   // verrouillé, la saisie reste en bas de l'écran quoi qu'il arrive.
   //
   // Surtout pas `position: fixed` : il se cale sur le premier ancêtre porteur
-  // d'une transform — et ScreenBackground en a une — au lieu du viewport, ce
+  // d'une transform, et ScreenBackground en a une, au lieu du viewport, ce
   // qui décalait tout l'écran vers le bas et poussait la saisie hors champ.
   // Calage sur le viewport visible : utile UNIQUEMENT sur mobile web, où le
   // clavier virtuel réduit la zone visible sans réduire le document.
@@ -113,7 +115,7 @@ export default function ConversationScreen() {
   //
   // `flexBasis: 'auto'` est indispensable : le conteneur porte déjà `flex: 1`,
   // qui vaut flexBasis 0%. Poser une hauteur sans corriger la base laissait
-  // l'élément s'effondrer — la liste disparaissait et la saisie remontait
+  // l'élément s'effondrer, la liste disparaissait et la saisie remontait
   // contre l'en-tête.
   const webViewportStyle =
     Platform.OS === 'web' && viewportHeight && !isDesktop
@@ -210,7 +212,7 @@ export default function ConversationScreen() {
 
   /**
    * Signet : remonter au message cité. S'il n'est pas encore chargé, on tire
-   * une page d'historique et on réessaie — sans quoi le lien serait mort dès
+   * une page d'historique et on réessaie, sans quoi le lien serait mort dès
    * qu'on cite un message ancien.
    */
   const jumpToMessage = async (messageId: number) => {
@@ -264,8 +266,8 @@ export default function ConversationScreen() {
     <ScreenBackground edges={['top']} animateEntrance={false}>
       {/* Sur le web, l'écran est calé sur le viewport VISIBLE et posé en position
           fixe : le clavier virtuel ne réduit pas le document, si bien qu'une
-          simple réserve en bas laissait la saisie au bas de la page — donc
-          sous le clavier — et la faisait suivre le défilement. En natif, il
+          simple réserve en bas laissait la saisie au bas de la page, donc
+          sous le clavier, et la faisait suivre le défilement. En natif, il
           suffit de réserver la place du clavier. */}
       <View
         style={[
@@ -274,7 +276,7 @@ export default function ConversationScreen() {
           !webViewportStyle && { paddingBottom: keyboardInset },
         ]}
       >
-        {/* En-tête — aligné sur la colonne de lecture en grand écran. */}
+        {/* En-tête, aligné sur la colonne de lecture en grand écran. */}
         <View style={[styles.header, isWide && styles.headerWide]}>
           <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
             <FontAwesome6 name="arrow-left" size={19} color={colors.text} />
@@ -363,7 +365,7 @@ export default function ConversationScreen() {
           />
         )}
 
-        {/* Canal en lecture seule : ni saisie, ni mention — l'absence de champ
+        {/* Canal en lecture seule : ni saisie, ni mention, l'absence de champ
             de réponse le dit déjà. */}
         {isBroadcast ? null : (
         <ChatComposer
@@ -417,9 +419,12 @@ export default function ConversationScreen() {
         sending={sendingMoney}
         onClose={() => setSendMoneyOpen(false)}
         onSend={async (amount, note) => {
+          // Clé d'idempotence de l'envoi : rejouée à l'identique si l'utilisateur
+          // retente le même montant après une erreur réseau.
+          const idemKey = sendMoneyIdempotencyKey(`${conversationId}|${amount}|${note}`);
           setSendingMoney(true);
           try {
-            await messagingService.sendMoney(conversationId, amount, note);
+            await messagingService.sendMoney(conversationId, amount, note, idemKey);
             setSendMoneyOpen(false);
             // Le message est créé côté serveur : on recharge plutôt que de le
             // reconstruire ici, et le solde se rafraîchit avec.

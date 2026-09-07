@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
+import { useAuthImage } from './AuthImage';
 
 const MIN_SCALE = 1;
 const MAX_SCALE = 5;
@@ -26,7 +27,7 @@ const DISMISS_DY = 110;
  * Pourquoi ne pas garder l'ancienne : elle empilait deux ScrollView à zoom
  * natif et redimensionnait l'image elle-même (`width * scale`). Le zoom du
  * ScrollView et celui du style se cumulaient, la taille de contenu changeait
- * sous le doigt, et rien ne bornait le déplacement — l'image partait hors
+ * sous le doigt, et rien ne bornait le déplacement, l'image partait hors
  * cadre dès qu'on agrandissait, d'où la sensation d'instabilité. Le zoom natif
  * des ScrollView n'existe d'ailleurs ni sur Android ni sur le web.
  *
@@ -40,6 +41,10 @@ export function ImageLightbox({ uri, onClose }: { uri: string | null; onClose: (
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  // Une pièce jointe est servie par une route API sous jeton : on affiche la
+  // source résolue (en-tête sur natif, object URL sur web), pas l'URL brute.
+  const { source } = useAuthImage(uri);
+  const displayUri = source?.uri ?? null;
 
   // Le PanResponder est construit une seule fois : il doit fermer via une ref,
   // sinon il garderait la toute première closure de `onClose`.
@@ -51,7 +56,7 @@ export function ImageLightbox({ uri, onClose }: { uri: string | null; onClose: (
   const ty = useRef(new Animated.Value(0)).current;
 
   // État courant suivi hors rendu : un Animated.Value ne se lit pas de façon
-  // synchrone, et chaque geste doit repartir d'où le précédent s'est arrêté —
+  // synchrone, et chaque geste doit repartir d'où le précédent s'est arrêté , 
   // c'est ce qui évite le saut au début de chaque nouveau pincement.
   const view = useRef({ scale: 1, x: 0, y: 0 });
   const gesture = useRef({ startScale: 1, startX: 0, startY: 0, startDist: 0, fx: 0, fy: 0, startMidX: 0, startMidY: 0 });
@@ -108,15 +113,20 @@ export function ImageLightbox({ uri, onClose }: { uri: string | null; onClose: (
   // Nouvelle image : on repart d'une vue neuve et on mesure le fichier.
   useEffect(() => {
     cancelPendingTap();
-    if (!uri) return;
+    if (!displayUri) return;
     view.current = { scale: 1, x: 0, y: 0 };
     scale.setValue(1);
     tx.setValue(0);
     ty.setValue(0);
     setSize(null);
-    Image.getSize(uri, (w, h) => setSize({ w, h }), () => setSize(null));
+    const headers = source?.headers;
+    if (headers) {
+      Image.getSizeWithHeaders(displayUri, headers, (w, h) => setSize({ w, h }), () => setSize(null));
+    } else {
+      Image.getSize(displayUri, (w, h) => setSize({ w, h }), () => setSize(null));
+    }
     return cancelPendingTap;
-  }, [uri]);
+  }, [displayUri]);
 
   // Web : Échap ferme, comme n'importe quelle visionneuse de bureau.
   useEffect(() => {
@@ -186,7 +196,7 @@ export function ImageLightbox({ uri, onClose }: { uri: string | null; onClose: (
         }
 
         // Image non zoomée : le glissement vertical suit le doigt et sert à
-        // refermer la vue — le geste attendu partout ailleurs.
+        // refermer la vue, le geste attendu partout ailleurs.
         cancelPendingTap();
         tx.setValue(g.dx * 0.4);
         ty.setValue(g.dy);
@@ -275,7 +285,7 @@ export function ImageLightbox({ uri, onClose }: { uri: string | null; onClose: (
           ]}
           {...pan.panHandlers}
         >
-          <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="contain" />
+          {source && <Image source={source} style={StyleSheet.absoluteFill} resizeMode="contain" />}
         </Animated.View>
 
         <View style={styles.toolbar}>

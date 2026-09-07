@@ -21,6 +21,7 @@ import { walletService, type VirtualAccount, type VirtualAccountsResponse } from
 import api from '../services/api';
 import { useWalletStore } from '../stores/walletStore';
 import { useAuthStore } from '../stores/authStore';
+import { useIdempotencyKey, withIdempotency } from '../utils/idempotency';
 import { OPERATORS, FINCRA_ZONES, operatorServesCountry, walletZone } from '../constants/config';
 import { useCatalogStore } from '../stores/catalogStore';
 import { ALL_COUNTRIES } from '../constants/countries';
@@ -66,7 +67,7 @@ const ORANGE_OTP_USSD: Record<string, string> = {
   'orange-gn':            '*144*4*2*1#',
 };
 
-// Frais d'encaissement Klasha (feeBearer = client), hardcodés — MIROIR du backend
+// Frais d'encaissement Klasha (feeBearer = client), hardcodés, MIROIR du backend
 // (Klasha::PAYIN_FEE_RATES). Klasha prélève son frais SUR LE MONTANT ENVOYÉ → le
 // total à payer se calcule par DIVISION : total = net / (1 - taux) (≠ net×(1+taux)).
 const KLASHA_PAYIN_FEE: Record<string, number> = {
@@ -74,7 +75,7 @@ const KLASHA_PAYIN_FEE: Record<string, number> = {
   bank_transfer: 0.015,   // 1,5 %
 };
 
-// Frais d'encaissement AfribaPay répercutés au client, par moyen — MIROIR du
+// Frais d'encaissement AfribaPay répercutés au client, par moyen, MIROIR du
 // backend (AfribaPay::PAYIN_FEE_RATES). Même mécanique que Klasha : frais prélevé
 // sur le montant envoyé → total débité = ceil(net / (1 - taux)), le net saisi
 // reste crédité tel quel.
@@ -115,7 +116,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const [pollingState, setPollingState] = useState<'idle' | 'pending' | 'success' | 'failed' | 'timeout'>('idle');
   const [pollingMessage, setPollingMessage] = useState('');
   // Si Safari bloque window.open malgré le user-gesture (cas connu avec RN Web),
-  // on expose un vrai <a target="_blank"> dans la modal — cliquable manuellement.
+  // on expose un vrai <a target="_blank"> dans la modal, cliquable manuellement.
   const [manualPaymentUrl, setManualPaymentUrl] = useState<string | null>(null);
   // Fincra direct-charge bank_transfer : virtual account à afficher en attendant le virement.
   const [bankTransferInfo, setBankTransferInfo] = useState<{
@@ -135,6 +136,12 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const consecutiveErrorsRef = useRef(0);
   const fetchBalance = useWalletStore((s) => s.fetchBalance);
   const user = useAuthStore((s) => s.user);
+  const profileComplete = useAuthStore((s) => s.profileComplete);
+  const refreshProfile = useAuthStore((s) => s.refreshProfile);
+  // Signature du formulaire : tout changement de saisie tire une clé neuve.
+  const depositIdempotencyKey = useIdempotencyKey(
+    JSON.stringify([amount, operator, phone, otp, selectedCountry, fincraZoneCountry]),
+  );
   const intlRails = useConfigStore((s) => s.intl_rails);
   const depositMin = useConfigStore((s) => s.deposit_min);
   const depositMax = useConfigStore((s) => s.deposit_max);
@@ -213,6 +220,24 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
     setPhone(defaultPhone);
     initialFormRef.current = { amount: initAmount, phone: defaultPhone, operator: initOperator };
   }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Le telephone du profil ne vit plus dans le cache local : a l'ouverture on
+  // redemande GET /me, puis on preremplit s'il n'y a rien a l'ecran et que
+  // l'utilisateur n'a pas commence a saisir.
+  useEffect(() => {
+    if (visible && !profileComplete) refreshProfile();
+  }, [visible, profileComplete]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!visible || !profileComplete || prefill?.phone || phoneUserEditedRef.current) return;
+    const profilePhone = (user?.phone ?? '').trim();
+    if (!profilePhone) return;
+    setPhone((prev) => {
+      if (prev) return prev;
+      initialFormRef.current = { ...initialFormRef.current, phone: profilePhone };
+      return profilePhone;
+    });
+  }, [visible, profileComplete, user?.phone]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset le sous-pays Fincra à chaque changement d'opérateur.
   useEffect(() => { setFincraZoneCountry(null); }, [operator]);
@@ -331,7 +356,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const depositBlocked = useConfigStore((s) => s.deposit_blocked);
   const depositBlockMessage = useConfigStore((s) => s.deposit_block_message);
   // Admin bypass : voit toutes les passerelles, y compris désactivées (bandeau rouge en haut).
-  // Fincra USD/EUR/GBP : payout-only (SWIFT/SEPA) — Fincra ne supporte pas le checkout
+  // Fincra USD/EUR/GBP : payout-only (SWIFT/SEPA), Fincra ne supporte pas le checkout
   // pour ces devises. On les exclut du DepositModal pour éviter un 500 backend.
   // Corridors server-driven (aggregator_routing) : masquage payin temps réel.
   const corridorsLoaded = useCorridorStore((s) => s.isLoaded);
@@ -361,7 +386,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const isCardOp = (op: any) => !!op?.id && (op.id === 'card' || (typeof op.id === 'string' && op.id.startsWith('card-')));
   const operatorsBase = OPERATORS_SRC.filter((op) => {
     if (!corridorsLoaded && !afribapayEnabled && !isAdmin && (op as any).afribapay) return false;
-    // Exclure les corridors PAYOUT-ONLY du modal de DÉPÔT — via la CAPACITÉ
+    // Exclure les corridors PAYOUT-ONLY du modal de DÉPÔT, via la CAPACITÉ
     // (supportsPayin), pas l'état activé : un corridor désactivé mais capable
     // reste visible (admin), seul un vrai payout-only (Klasha wire, Fincra intl bt)
     // est masqué. supportsPayin absent (statique) → conservé.
@@ -375,7 +400,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // Trois audiences distinctes :
   // - admin : TOUT, y compris corridors désactivés / moyens VIP (bandeau rouge) ;
   // - non validé (exploration) : moyens ACTIFS POUR LE PUBLIC (isCodeEnabled + audienceOk),
-  //   mais TOUS pays confondus (pas de filtre sur le pays user) — l'utilisateur découvre
+  //   mais TOUS pays confondus (pas de filtre sur le pays user), l'utilisateur découvre
   //   l'offre avant KYC ; la transaction reste bloquée à la soumission ;
   // - validé : moyens actifs de SON pays uniquement (dépôt depuis son compte MM local).
   const filteredOperators = isAdmin
@@ -400,7 +425,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
     : (corridorsLoaded ? [] : operatorsBase);
 
   // Étape « choix du pays » : admin (tous pays, tests) ET utilisateur non validé
-  // (exploration avant KYC — il découvre l'offre de tous les pays). L'utilisateur
+  // (exploration avant KYC, il découvre l'offre de tous les pays). L'utilisateur
   // validé a déjà une liste filtrée sur son pays, pas d'étape pays.
   const useCountryStep = isAdmin || !isKycValidated;
 
@@ -410,7 +435,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // - Devises internationales Fincra (EUR/USD/GBP)
   const ZONE_CURRENCIES = ['XOF', 'XAF', 'EUR', 'USD', 'GBP'];
   // Les opérateurs MM Fincra par pays (fincraOperator présent) s'affichent comme
-  // le softpay (par pays) — PAS sous « Autres ». Seuls les rails sans pays unique
+  // le softpay (par pays), PAS sous « Autres ». Seuls les rails sans pays unique
   // (cartes génériques, virements internationaux EUR/USD/GBP) restent en « Autres ».
   // Fincra Checkout (rail=checkout, page hébergée) = tuile directe par pays, PAS
   // « Autres » (sinon les checkout XOF/XAF/EUR… seraient enfouis sous Autres).
@@ -441,7 +466,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // Groupe « International » : gaté par l'audience International (intl_payin),
   // indépendante des toggles pays. Un rail n'y apparaît que si l'admin l'a activé
   // pour l'International (fiche Marchés → card « International »).
-  // Groupe « International » : piloté par /config.intl_rails (calculé serveur —
+  // Groupe « International » : piloté par /config.intl_rails (calculé serveur , 
   // dim 3 par pays listé, ou dim 2 pour les pays non listés). Couvre donc aussi
   // les users de pays listés (un Béninois peut envoyer en USD si activé pour BJ).
   const otherOps = operatorsBase.filter(isOtherOp).filter(
@@ -451,7 +476,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const baseForStep = useCountryStep
     ? (selectedCountry ? displayOperators.filter((op) => operatorServesCountry(op as any, selectedCountry)) : [])
     : displayOperators;
-  // La liste du pays inclut les Fincra de zone (XOF/XAF) qui servent ce pays —
+  // La liste du pays inclut les Fincra de zone (XOF/XAF) qui servent ce pays , 
   // visibles directement (Mobile Money + Carte) quand leur corridor est actif
   // dans le routing. Ils restent AUSSI listés sous « Autres » (zone). Seule la
   // carte générique INTL (PayDunya) est réservée à « Autres » ; la carte
@@ -469,7 +494,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const flattenCrypto = !isAdmin && cryptoEnabled && hasSellCrypto && sellRates.length <= FLATTEN_CRYPTO_MAX;
   const operatorsForStep = othersOpen ? otherOps : (clientFlattenOthers ? otherOps : primaryOps);
   // Entrée « International » : visible dès qu'il y a des rails internationaux pour
-  // ce user (y compris pays listés — dim 3), au niveau du picker, hors flatten.
+  // ce user (y compris pays listés, dim 3), au niveau du picker, hors flatten.
   const showOthersEntry = otherOps.length > 0 && !selectedCountry && !clientFlattenOthers;
 
   // Opérateurs exigeant un code OTP saisi dans l'app (généré via USSD côté client) :
@@ -661,7 +686,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const klashaFeeRate = isKlasha ? (KLASHA_PAYIN_FEE[fincraMethod ?? ''] ?? 0) : 0;
   const klashaGrossLive = klashaFeeRate > 0 && numInputLive > 0 ? numInputLive / (1 - klashaFeeRate) : null;
   const klashaFeeLive = klashaGrossLive !== null ? klashaGrossLive - numInputLive : null;
-  // Frais AfribaPay (client) : même principe — le montant saisi est le net crédité,
+  // Frais AfribaPay (client) : même principe, le montant saisi est le net crédité,
   // le total débité sur le téléphone est le brut (ceil, miroir du backend).
   const afpFeeRate = AFRIBAPAY_PAYIN_FEE[operator] ?? 0;
   const afpGrossLive = afpFeeRate > 0 && numInputLive > 0 ? Math.ceil(numInputLive / (1 - afpFeeRate)) : null;
@@ -790,6 +815,9 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   };
 
   const handleDeposit = async () => {
+    // Clé d'idempotence de CETTE soumission : la même sur une nouvelle tentative
+    // après erreur réseau, une autre dès que le formulaire change.
+    const idemKey = depositIdempotencyKey();
     const numInput = parseFloat(amount) || 0;   // saisi dans railCurrency
     // Taux du rail étranger indisponible → on refuse (pas de crédit hasardeux).
     if (fincraRateBlocking) {
@@ -830,7 +858,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
     setLoading(true);
     setBankTransferInfo(null);
     setManualPaymentUrl(null);
-    // Pré-ouvre le popup AVANT le await — les browsers bloquent window.open
+    // Pré-ouvre le popup AVANT le await, les browsers bloquent window.open
     // hors d'un gesture utilisateur. Seuls les flows hosted (vraie card + Fincra checkout)
     // ont besoin d'une nouvelle fenêtre. Fincra BT/MM affichent les infos in-modal.
     let cardWindow: Window | null = null;
@@ -866,7 +894,11 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
           fincraPayload.country  = mmCountry;
           fincraPayload.phone    = formatFincraPhone(phone, fincraDialCode || '', true);
         }
-        const { data } = await api.post(isKlasha ? '/deposit/klasha' : '/deposit/fincra', fincraPayload, { timeout: 70000 });
+        const { data } = await api.post(
+          isKlasha ? '/deposit/klasha' : '/deposit/fincra',
+          fincraPayload,
+          withIdempotency(idemKey, { timeout: 70000 }),
+        );
         result = { deposit_id: data.deposit_id, reference: data.reference };
         if (isFincraCH) {
           result.checkout_url = data.payment_url;
@@ -920,7 +952,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
         const payload: any = { amount: numAmount, moyen: operator };
         if (!isCard) payload.tel = phone.trim();
         if (needsOtp && otp) payload.otp = otp;
-        result = await walletService.deposit(payload);
+        result = await walletService.deposit(payload, idemKey);
       }
 
       // Étape OTP Fincra MM : on suspend le flux, on affiche le champ OTP, et on
@@ -1455,7 +1487,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                   </>
                 )}
 
-                {/* Frais AfribaPay (client) : même annonce que Klasha — frais + total
+                {/* Frais AfribaPay (client) : même annonce que Klasha, frais + total
                     débité sur le téléphone ; le net saisi reste crédité tel quel. */}
                 {afpGrossLive !== null && (
                   <>
@@ -2193,7 +2225,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     gap: Spacing.xs,
   },
-  // Liste opérateurs (modal sauvegarde) — rangées logo + drapeau + nom.
+  // Liste opérateurs (modal sauvegarde), rangées logo + drapeau + nom.
   saveOpList: {
     maxHeight: 240,
     marginBottom: Spacing.sm,

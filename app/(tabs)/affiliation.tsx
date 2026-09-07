@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useIdempotencyKey } from '../../src/utils/idempotency';
 import {
   View,
   Text,
@@ -75,6 +76,9 @@ export default function AffiliationScreen() {
   const fetchBalance = useWalletStore((s) => s.fetchBalance);
 
   const [stats, setStats] = useState<AffiliationStats | null>(null);
+  // Clé de réclamation : rejouée si l'on retente après une erreur réseau,
+  // renouvelée dès que le montant en attente change (nouvelle réclamation).
+  const claimIdempotencyKey = useIdempotencyKey(String(stats?.unpayed ?? ''));
   const [bonus, setBonus] = useState<WelcomeBonus | null>(null);
   const [children, setChildren] = useState<AffiliationChild[]>([]);
   const [history, setHistory] = useState<AffiliationHistoryItem[]>([]);
@@ -186,6 +190,7 @@ export default function AffiliationScreen() {
 
   const handleClaim = () => {
     if (!stats || stats.unpayed <= 0) return;
+    const idemKey = claimIdempotencyKey();
     showAlert(
       t('affiliation.claimTitle', 'Réclamer les commissions'),
       t('affiliation.claimConfirm', { amount: fmtXof(stats.unpayed), defaultValue: `Transférer ${fmtXof(stats.unpayed)} sur votre solde ?` }),
@@ -196,7 +201,7 @@ export default function AffiliationScreen() {
           onPress: async () => {
             setClaiming(true);
             try {
-              const res = await affiliationService.claim();
+              const res = await affiliationService.claim(idemKey);
               showAlert(t('common.success'), res.message);
               await Promise.all([loadAll(), fetchBalance()]);
             } catch (e: any) {
@@ -282,7 +287,7 @@ export default function AffiliationScreen() {
         </Reveal>
       )}
 
-      {/* Claim — de l'argent qui attend le client : la carte le montre comme un
+      {/* Claim, de l'argent qui attend le client : la carte le montre comme un
           gain, montant en grand, l'action juste à côté. */}
       {(stats?.unpayed ?? 0) > 0 && (
         <Reveal offset={12}>
@@ -354,12 +359,12 @@ export default function AffiliationScreen() {
         ) : (
           <>
             {/* Le code EST le contenu de la carte : il se lit de loin, se copie
-                d'un toucher, et le lien qu'il produit s'affiche dessous — c'est
+                d'un toucher, et le lien qu'il produit s'affiche dessous, c'est
                 ce qu'on colle réellement dans une conversation. */}
             <Bounce style={styles.codePanel} onPress={handleCopyCode}>
               <View style={styles.codePanelMain}>
                 <Text style={styles.codeText} numberOfLines={1} adjustsFontSizeToFit>
-                  {referralCode || '—'}
+                  {referralCode || ', '}
                 </Text>
                 <Text style={styles.codeLink} numberOfLines={1}>
                   {referralLink.replace(/^https?:\/\//, '')}
@@ -562,7 +567,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.surfaceBorder,
   },
-  // C — Commissions à réclamer. Surface pleine et montant en grand, comme les
+  // C, Commissions à réclamer. Surface pleine et montant en grand, comme les
   // cards mises en avant ailleurs dans l'app : c'est un gain, pas un formulaire.
   claimCard: {
     borderRadius: 16,

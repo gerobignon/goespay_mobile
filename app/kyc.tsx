@@ -23,6 +23,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { compressImage, MAX_EDGE_DOCUMENT } from '../src/utils/imageCompress';
 import { authService } from '../src/services/authService';
 import { useAuthStore } from '../src/stores/authStore';
+import { AuthImage } from '../src/components/AuthImage';
 import { Input } from '../src/components/Input';
 import { Button } from '../src/components/Button';
 import { Card } from '../src/components/Card';
@@ -44,7 +45,7 @@ const DOC_TYPES_KEYS = [
   { value: "Driver's license", key: 'kyc.driverLicense', icon: 'car' },
 ];
 
-/** Cible d'une prise de vue (pièce ou selfie) — pilote la feuille caméra/galerie. */
+/** Cible d'une prise de vue (pièce ou selfie), pilote la feuille caméra/galerie. */
 type PhotoTarget = 'id' | 'selfie' | null;
 
 /** Erreurs de saisie, par nom de champ. */
@@ -61,7 +62,7 @@ export default function KycScreen() {
   // pour permettre une re-soumission (ex. ajout de la date de naissance pour la Chine).
   const { edit } = useLocalSearchParams<{ edit?: string }>();
   const editMode = edit === '1';
-  const { user, refreshProfile } = useAuthStore();
+  const { user, refreshProfile, profileComplete } = useAuthStore();
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const { t } = useTranslation();
@@ -93,7 +94,7 @@ export default function KycScreen() {
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [telegram, setTelegram] = useState(user?.telegram ?? '');
 
-  // KYC docs state — type de pièce prérempli depuis la précédente soumission.
+  // KYC docs state, type de pièce prérempli depuis la précédente soumission.
   const [docType, setDocType] = useState(user?.kyc_type ?? '');
   const [fileUri, setFileUri] = useState<string | null>(null);
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
@@ -105,6 +106,40 @@ export default function KycScreen() {
   const [errors, setErrors] = useState<Errors>({});
   const scrollRef = useRef<ScrollView>(null);
   const progress = useRef(new Animated.Value(0)).current;
+
+  // Le cache local ne garde plus les champs d'identite : sans profil complet en
+  // memoire, le formulaire s'ouvrirait vide. On redemande GET /me puis on
+  // preremplit une seule fois, sans toucher a ce qui a deja ete saisi.
+  const prefilled = useRef(profileComplete);
+  useEffect(() => {
+    if (!profileComplete) refreshProfile();
+  }, [profileComplete]);
+  useEffect(() => {
+    if (!profileComplete || prefilled.current || !user) return;
+    prefilled.current = true;
+    const keep = (current: string, next?: string | null) => current || next || '';
+    setCountry((v) => keep(v, user.country));
+    setCity((v) => keep(v, user.city));
+    setStateProv((v) => keep(v, user.state));
+    setPostcode((v) => keep(v, user.postcode));
+    setAddress((v) => keep(v, user.address));
+    setIdnumber((v) => keep(v, user.idnumber));
+    setBvn((v) => keep(v, user.bvn));
+    setPhone((v) => keep(v, user.phone));
+    setTelegram((v) => keep(v, user.telegram));
+    setDocType((v) => keep(v, user.kyc_type));
+    const b = (user.birthdate ?? '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (b) {
+      setBirthDay((v) => keep(v, b[3]));
+      setBirthMonth((v) => keep(v, b[2]));
+      setBirthYear((v) => keep(v, b[1]));
+    }
+    const e = (user.idexp ?? '').match(/^(?:(\d{1,2})\/)?(\d{1,2})\/(\d{4})$/);
+    if (e) {
+      setIdexpMonth((v) => keep(v, e[2]));
+      setIdexpYear((v) => keep(v, e[3]));
+    }
+  }, [profileComplete, user]);
 
   // Country picker modal
   const [countryModalVisible, setCountryModalVisible] = useState(false);
@@ -217,7 +252,7 @@ export default function KycScreen() {
   };
 
   // Pastille du stepper : on ne saute en avant que sur une étape atteignable
-  // (toutes celles qui la précèdent sont valides) — sinon le retour est libre.
+  // (toutes celles qui la précèdent sont valides), sinon le retour est libre.
   const canJumpTo = (i: number) => i <= step || stepDone.slice(0, i).every(Boolean);
 
   /* ─────────────────────────── Photos ──────────────────────────────────── */
@@ -335,7 +370,8 @@ export default function KycScreen() {
       >
         {preview ? (
           <>
-            <Image source={{ uri: preview }} style={styles.previewImage} />
+            {/* Pièce KYC : servie par une route API sous jeton, pas un fichier public. */}
+            <AuthImage uri={preview} style={styles.previewImage} />
             <View style={styles.previewBadge}>
               <FontAwesome6 name="check" size={10} color={colors.white} />
             </View>
@@ -380,7 +416,7 @@ export default function KycScreen() {
 
   /* ─────────────────────────── États terminaux ─────────────────────────── */
 
-  // --- État: validate == 2 (en attente) — sauf en mode édition (re-soumission) ---
+  // --- État: validate == 2 (en attente), sauf en mode édition (re-soumission) ---
   if (user?.validate === 2 && !editMode) {
     return (
       <ScreenBackground>
@@ -408,7 +444,7 @@ export default function KycScreen() {
     );
   }
 
-  // --- État: validate == 1 (déjà validé) — sauf en mode édition (re-soumission) ---
+  // --- État: validate == 1 (déjà validé), sauf en mode édition (re-soumission) ---
   if (user?.validate === 1 && !editMode) {
     return (
       <ScreenBackground>
@@ -435,7 +471,7 @@ export default function KycScreen() {
 
   const docLabel = DOC_TYPES.find((d) => d.value === docType)?.label;
 
-  // edges={['top']} : la barre d'action gère elle-même l'inset bas — sinon
+  // edges={['top']} : la barre d'action gère elle-même l'inset bas, sinon
   // double comptage avec ScreenBackground → bande vide sous le footer (PWA / notch).
   return (
     <ScreenBackground edges={['top']} style={{ overflow: 'hidden' }}>
@@ -465,7 +501,7 @@ export default function KycScreen() {
               />
             </View>
 
-            {/* Stepper — pastilles cliquables */}
+            {/* Stepper, pastilles cliquables */}
             <View style={styles.stepper}>
               {STEPS.map((s, i) => {
                 const done = i < 3 ? stepDone[i] : allDone;
@@ -767,7 +803,7 @@ export default function KycScreen() {
                   <View style={styles.thumbRow}>
                     {[idPreview, selfiePreview].map((uri, i) => (
                       <View key={i} style={styles.thumbWrap}>
-                        {uri ? <Image source={{ uri }} style={styles.thumb} /> : <View style={styles.thumb} />}
+                        {uri ? <AuthImage uri={uri} style={styles.thumb} /> : <View style={styles.thumb} />}
                         <View style={styles.thumbBadge}>
                           <FontAwesome6 name="check" size={9} color={colors.white} />
                         </View>
@@ -789,7 +825,7 @@ export default function KycScreen() {
           </View>{/* /maxWidth wrapper */}
         </ScrollView>
 
-        {/* Barre d'action fixe — l'action principale reste sous le pouce */}
+        {/* Barre d'action fixe, l'action principale reste sous le pouce */}
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
           <View style={[styles.footerInner, { maxWidth: contentMaxWidth }]}>
             <Bounce style={styles.footerBack} scaleTo={0.95} onPress={goPrev} disabled={loading}>
@@ -1151,7 +1187,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     paddingRight: Spacing.md,
     borderRadius: BorderRadius.pill,
     // Teinte d'accent très diluée : lisible sur le fond clair comme sur le sombre
-    // (inputBg est transparent en thème clair — il ne ferait pas de pastille).
+    // (inputBg est transparent en thème clair, il ne ferait pas de pastille).
     backgroundColor: withAlpha(Colors.secondary, 0.1),
     borderWidth: 1,
     borderColor: withAlpha(Colors.secondary, 0.25),

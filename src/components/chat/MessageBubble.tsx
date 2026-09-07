@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { AuthImage } from '../AuthImage';
 import {
   View,
   Text,
@@ -43,7 +44,7 @@ interface MessageBubbleProps {
 
 /**
  * Bulle d'un message. Trois états visuels côté émetteur : en cours d'envoi,
- * envoyé, lu — l'échec reste affiché et réessayable plutôt que de disparaître.
+ * envoyé, lu, l'échec reste affiché et réessayable plutôt que de disparaître.
  *
  * Un balayage horizontal cite le message, dans les deux sens : sur un fil, la
  * main tombe indifféremment à gauche ou à droite selon le côté de la bulle.
@@ -124,7 +125,7 @@ export function MessageBubble({
       {...pan.panHandlers}
     >
       <View style={[styles.stack, isPromo && styles.stackPromo, isWide && styles.stackWide]}>
-      {/* Carte promo : posée nue dans le fil, à sa pleine largeur — enfermée
+      {/* Carte promo : posée nue dans le fil, à sa pleine largeur, enfermée
           dans la bulle, elle se retrouvait comprimée à deux mots par ligne. */}
       {isPromo && (
         <MessageItemCard
@@ -197,14 +198,15 @@ export function MessageBubble({
             onPress={() => fullImage && onPressImage(fullImage)}
             disabled={!fullImage}
           >
-            <Image source={{ uri: image }} style={styles.image} resizeMode="cover" />
+            {/* Pièce jointe : route API sous jeton (ou photo locale en attente d'envoi). */}
+            <AuthImage uri={image} style={styles.image} resizeMode="cover" />
           </TouchableOpacity>
         )}
 
         {!!message.body && (
           message.format === 'html' ? (
             // Annonce du canal GoesPay : mise en forme rédigée par l'équipe.
-            // Le drapeau vient du serveur — jamais deviné à partir du contenu.
+            // Le drapeau vient du serveur, jamais deviné à partir du contenu.
             <RichBody
               html={message.body}
               color={mine ? colors.white : colors.text}

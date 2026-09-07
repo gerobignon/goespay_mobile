@@ -1,4 +1,5 @@
 import api from './api';
+import { withIdempotency } from '../utils/idempotency';
 import type {
   Transaction,
   DepositRequest,
@@ -38,11 +39,11 @@ export interface VirtualAccountEntry {
 
 export interface VirtualAccountStatement {
   account: VirtualAccount;
-  /** Cumul encaissé — un compte virtuel ne retient aucun fonds. */
+  /** Cumul encaissé, un compte virtuel ne retient aucun fonds. */
   total_received: number | null;
   total_xof: number;
   count: number;
-  /** Reçu mais pas encore crédité (devise du compte) — 0 si tout est à jour. */
+  /** Reçu mais pas encore crédité (devise du compte), 0 si tout est à jour. */
   pending_amount: number;
   pending_count: number;
   entries: VirtualAccountEntry[];
@@ -59,7 +60,7 @@ export interface StatementRow {
   type: 'deposit' | 'withdraw' | 'transfer' | 'crypto' | 'adjustment';
   /** Libellé prêt à afficher, localisé côté serveur. */
   label: string;
-  /** Moyen de paiement (jamais un nom d'agrégateur) — null pour les transferts. */
+  /** Moyen de paiement (jamais un nom d'agrégateur), null pour les transferts. */
   mode: string | null;
   reference: string;
   direction: 'in' | 'out';
@@ -126,7 +127,7 @@ export interface FincraPayoutResponse {
   fincra_balance: number;
 }
 
-// Klasha Wire (transfert international USD/EUR/GBP) — process Klasha (bénéficiaire
+// Klasha Wire (transfert international USD/EUR/GBP), process Klasha (bénéficiaire
 // → quote → initiate côté backend). Champs requis par la Klasha Wire API.
 export interface KlashaWireBeneficiary {
   beneficiaryName: string;
@@ -154,11 +155,11 @@ export interface KlashaWireRequest {
 // Service de payout Chine : virement bancaire, carte UnionPay, ou wallet Alipay.
 export type KlashaCnyService = 'BANK_ACCOUNT' | 'BANK_CARD' | 'WALLET';
 
-// Bénéficiaire CNY (Chine) — champs variables selon le service. L'expéditeur (le
+// Bénéficiaire CNY (Chine), champs variables selon le service. L'expéditeur (le
 // user) est auto-rempli côté backend depuis le profil KYC → non transmis ici.
 export interface KlashaCnyBeneficiary {
-  receiverFirstName: string;     // prénom (caractères chinois) — tous services
-  receiverLastName: string;      // nom (caractères chinois) — tous services
+  receiverFirstName: string;     // prénom (caractères chinois), tous services
+  receiverLastName: string;      // nom (caractères chinois), tous services
   // BANK_ACCOUNT + WALLET :
   receiverIdNumber?: string;     // n° pièce d'identité
   receiverRelationship?: string; // SELF | SPOUSE | PARENTS | …
@@ -195,7 +196,7 @@ export interface KlashaCnyRequest {
 // plus rien elle-même. On affiche le devis, puis on l'exécute via `quote_id`
 // → ce qui est montré est exactement ce qui est débité.
 export interface TransferQuoteRequest {
-  // afribapay : devis informatif (RDC CDF, Guinée GNF…) — montre le montant
+  // afribapay : devis informatif (RDC CDF, Guinée GNF…), montre le montant
   // reçu au taux statique backend, l'exécution ne rejoue pas de quote_id.
   aggregator: 'fincra' | 'klasha' | 'afribapay';
   rail: 'mobile_money' | 'bank_transfer' | 'SWIFT' | 'SEPA' | 'cny';
@@ -347,8 +348,8 @@ export const walletService = {
     return response.data?.data ?? response.data;
   },
 
-  deposit: async (data: DepositRequest): Promise<any> => {
-    const response = await api.post('/deposit/init', data);
+  deposit: async (data: DepositRequest, idempotencyKey?: string): Promise<any> => {
+    const response = await api.post('/deposit/init', data, withIdempotency(idempotencyKey));
     return response.data;
   },
 
@@ -369,9 +370,10 @@ export const walletService = {
   },
 
   transfer: async (
-    data: TransferRequest
+    data: TransferRequest,
+    idempotencyKey?: string,
   ): Promise<any> => {
-    const response = await api.post('/transfer', data, { timeout: 70000 });
+    const response = await api.post('/transfer', data, withIdempotency(idempotencyKey, { timeout: 70000 }));
     return response.data;
   },
 
@@ -382,8 +384,8 @@ export const walletService = {
     return response.data.recipient;
   },
 
-  sendP2P: async (payload: { recipient_id: number; amount: number }): Promise<P2PTransferResult> => {
-    const response = await api.post('/transfer/p2p', payload, { timeout: 60000 });
+  sendP2P: async (payload: { recipient_id: number; amount: number }, idempotencyKey?: string): Promise<P2PTransferResult> => {
+    const response = await api.post('/transfer/p2p', payload, withIdempotency(idempotencyKey, { timeout: 60000 }));
     return response.data;
   },
 
@@ -392,8 +394,8 @@ export const walletService = {
     return response.data;
   },
 
-  fincraPayout: async (payload: FincraPayoutRequest): Promise<FincraPayoutResponse> => {
-    const response = await api.post('/payout/fincra', payload, { timeout: 70000 });
+  fincraPayout: async (payload: FincraPayoutRequest, idempotencyKey?: string): Promise<FincraPayoutResponse> => {
+    const response = await api.post('/payout/fincra', payload, withIdempotency(idempotencyKey, { timeout: 70000 }));
     return response.data;
   },
 
@@ -467,12 +469,12 @@ export const walletService = {
     return response.data;
   },
 
-  // ── Klasha (4e agrégateur — mêmes patterns que Fincra) ──
+  // ── Klasha (4e agrégateur, mêmes patterns que Fincra) ──
   klashaDeposit: async (payload: {
     amount: number; currency: string; method: 'mobile_money' | 'bank_transfer' | 'card';
     operator?: string; phone?: string; country?: string; code?: string; card?: any;
-  }): Promise<any> => {
-    const response = await api.post('/deposit/klasha', payload, { timeout: 70000 });
+  }, idempotencyKey?: string): Promise<any> => {
+    const response = await api.post('/deposit/klasha', payload, withIdempotency(idempotencyKey, { timeout: 70000 }));
     return response.data;
   },
 
@@ -487,8 +489,8 @@ export const walletService = {
     return response.data;
   },
 
-  klashaPayout: async (payload: FincraPayoutRequest): Promise<FincraPayoutResponse> => {
-    const response = await api.post('/payout/klasha', payload, { timeout: 70000 });
+  klashaPayout: async (payload: FincraPayoutRequest, idempotencyKey?: string): Promise<FincraPayoutResponse> => {
+    const response = await api.post('/payout/klasha', payload, withIdempotency(idempotencyKey, { timeout: 70000 }));
     return response.data;
   },
 
@@ -529,8 +531,8 @@ export const walletService = {
   },
 
   // Wire international Klasha (USD/EUR/GBP). Le backend orchestre bénéficiaire→quote→initiate.
-  klashaWire: async (payload: KlashaWireRequest): Promise<FincraPayoutResponse> => {
-    const response = await api.post('/transfer/klasha/wire', payload, { timeout: 70000 });
+  klashaWire: async (payload: KlashaWireRequest, idempotencyKey?: string): Promise<FincraPayoutResponse> => {
+    const response = await api.post('/transfer/klasha/wire', payload, withIdempotency(idempotencyKey, { timeout: 70000 }));
     return response.data;
   },
 
@@ -567,8 +569,8 @@ export const walletService = {
   },
 
   // Payout CNY (Chine) C2C. Le backend orchestre quote→initiate (corps 3DES).
-  klashaCny: async (payload: KlashaCnyRequest): Promise<FincraPayoutResponse> => {
-    const response = await api.post('/transfer/klasha/cny', payload, { timeout: 70000 });
+  klashaCny: async (payload: KlashaCnyRequest, idempotencyKey?: string): Promise<FincraPayoutResponse> => {
+    const response = await api.post('/transfer/klasha/cny', payload, withIdempotency(idempotencyKey, { timeout: 70000 }));
     return response.data;
   },
 

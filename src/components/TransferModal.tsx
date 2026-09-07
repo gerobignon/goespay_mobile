@@ -23,6 +23,7 @@ import { ResponsiveModal } from './ResponsiveModal';
 import { walletService, type FincraRail, type SavedBank } from '../services/walletService';
 import { useWalletStore } from '../stores/walletStore';
 import { useAuthStore } from '../stores/authStore';
+import { useIdempotencyKey } from '../utils/idempotency';
 import { OPERATORS, FINCRA_ZONES, operatorServesCountry, walletZone } from '../constants/config';
 import { useCatalogStore } from '../stores/catalogStore';
 import { useCorridorStore } from '../stores/corridorStore';
@@ -54,7 +55,7 @@ import { CryptoSearchField } from './CryptoSearchField';
 import { useCryptoSearch } from '../hooks/useCryptoSearch';
 import { noConnectionMessage } from '../utils/apiError';
 
-// Zone SEPA (ISO-2) — pays destinataires proposés pour un virement SEPA (EUR).
+// Zone SEPA (ISO-2), pays destinataires proposés pour un virement SEPA (EUR).
 const SEPA_COUNTRIES = [
   'AT', 'BE', 'CY', 'DE', 'EE', 'ES', 'FI', 'FR', 'GR', 'IE', 'IT', 'LT', 'LU',
   'LV', 'MT', 'NL', 'PT', 'SI', 'SK', 'BG', 'CH', 'CZ', 'DK', 'GB', 'HR', 'HU',
@@ -79,7 +80,7 @@ interface TransferModalProps {
   prefillPhone?: string;
   /** Opérateur enregistré avec ce numéro : saute les étapes pays / opérateur. */
   prefillOperator?: string;
-  /** Bénéficiaire bancaire pré-rempli (virement) — depuis la home / le menu compte. */
+  /** Bénéficiaire bancaire pré-rempli (virement), depuis la home / le menu compte. */
   prefillBank?: SavedBank | null;
 }
 
@@ -142,7 +143,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const [beneficiaryAddress, setBeneficiaryAddress] = useState('');
   const [routingNumber, setRoutingNumber] = useState('');
 
-  // Klasha bank payout — champs requis par devise : GHS→branchCode, KES→serviceCode,
+  // Klasha bank payout, champs requis par devise : GHS→branchCode, KES→serviceCode,
   // ZAR→mobileNumber/recipientAddress/recipientEmail.
   const [bankBranchCode, setBankBranchCode] = useState('');
   const [bankServiceCode, setBankServiceCode] = useState('');
@@ -150,7 +151,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const [bankRecipientAddress, setBankRecipientAddress] = useState('');
   const [bankRecipientEmail, setBankRecipientEmail] = useState('');
 
-  // CNY (Chine) — bénéficiaire C2C. L'EXPÉDITEUR (le user) est auto-rempli côté
+  // CNY (Chine), bénéficiaire C2C. L'EXPÉDITEUR (le user) est auto-rempli côté
   // backend depuis le profil KYC → aucune saisie expéditeur ici. Le service
   // (virement / UnionPay / Alipay) est porté par la TUILE choisie (cnyService dérivé).
   const [cnyFirstName, setCnyFirstName] = useState('');   // prénom bénéficiaire
@@ -171,7 +172,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const [banksLoading, setBanksLoading] = useState(false);
   const [bankPickerVisible, setBankPickerVisible] = useState(false);
   const [bankSearchQuery, setBankSearchQuery] = useState('');
-  // Sélecteur de pays destinataire (SWIFT/SEPA) — pilote la liste de banques.
+  // Sélecteur de pays destinataire (SWIFT/SEPA), pilote la liste de banques.
   const [countryPickerVisible, setCountryPickerVisible] = useState(false);
   const [countrySearchQuery, setCountrySearchQuery] = useState('');
   const [resolving, setResolving] = useState(false);
@@ -196,6 +197,13 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const showCryptoEntry = cryptoEnabled && (cryptoRates.length === 0 || hasBuyCrypto);
   const fetchCryptoRates = useCryptoStore((s) => s.fetchRates);
   const user = useAuthStore((s) => s.user);
+  // Le wire Klasha joint le téléphone du profil au bénéficiaire : ce champ ne
+  // vit plus dans le cache local, on le redemande à l'ouverture.
+  const profileComplete = useAuthStore((s) => s.profileComplete);
+  const refreshProfileForWire = useAuthStore((s) => s.refreshProfile);
+  useEffect(() => {
+    if (visible && !profileComplete) refreshProfileForWire();
+  }, [visible, profileComplete]); // eslint-disable-line react-hooks/exhaustive-deps
   const countryFees = useConfigStore((s) => s.country_fees);
   const outgoingFees = useConfigStore((s) => s.outgoing_fees);
   const transferMin = useConfigStore((s) => s.transfer_min);
@@ -217,7 +225,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const isPayoutAvailable = useCorridorStore((s) => s.isPayoutAvailable);
   const audienceFor = useCorridorStore((s) => s.audienceFor);
   // Audience « International » (pays du user non listé dans Marchés) : la
-  // visibilité payout se lit sur les flags intl_* — mêmes règles que le backend,
+  // visibilité payout se lit sur les flags intl_*, mêmes règles que le backend,
   // sinon on affiche des moyens que l'API refusera (« retraits désactivés »).
   const intlAudience = corridorsLoaded && !!user?.country && !isCountryListed(user.country);
   const payoutEnabled = (id: string) =>
@@ -244,7 +252,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   );
 
   // Rails Fincra de zone (XOF/XAF) + internationaux (EUR/USD/GBP) : exposés PAR PAYS
-  // de destination (chacun sous son/ses pays) — plus de groupe « International » séparé.
+  // de destination (chacun sous son/ses pays), plus de groupe « International » séparé.
   const ZONE_CURRENCIES = ['XOF', 'XAF', 'EUR', 'USD', 'GBP'];
   // Opérateurs MM Fincra par pays (fincraOperator présent) → affichés par pays comme le softpay.
   const isZoneFincra = (op: any) => !!op.fincra && ZONE_CURRENCIES.includes(op.currency) && !op.fincraOperator;
@@ -292,7 +300,13 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const isKlashaOp = !!(selectedOp as any)?.klasha;
   // Service Chine porté par la tuile sélectionnée (klasha-cny-bt/card/wallet/wechat).
   const cnyService: 'BANK_ACCOUNT' | 'BANK_CARD' | 'WALLET' = ((selectedOp as any)?.cnyService) ?? 'BANK_ACCOUNT';
-  // Wallet chinois : Alipay (défaut) ou WeChat — porte le serviceCode + le libellé.
+
+  // Clé d'idempotence de l'envoi : rejouée à l'identique si l'on retente après
+  // une erreur réseau, renouvelée dès qu'un champ du formulaire change.
+  const transferIdempotencyKey = useIdempotencyKey(
+    JSON.stringify([amount, operator, phone, bankAccountNumber, iban, bankCode, bankName, cnyService, cnyWalletAccount, cnyCardNumber]),
+  );
+  // Wallet chinois : Alipay (défaut) ou WeChat, porte le serviceCode + le libellé.
   const cnyServiceCode: 'ALIPAY' | 'WECHAT' = ((selectedOp as any)?.cnyServiceCode) ?? 'ALIPAY';
   const cnyWalletLabel = cnyServiceCode === 'WECHAT' ? 'WeChat' : 'Alipay';
   // WeChat = téléphone uniquement (pas d'email) → force MOBILE.
@@ -306,7 +320,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // AfribaPay hors zone CFA (RDC CDF, Guinée GNF…) : la saisie reste en XOF et
   // AfribaPay convertit lui-même à l'exécution (taux statique backend). On
   // demande un devis informatif au serveur pour montrer le montant reçu en
-  // devise locale, comme pour le Nigeria — sans toucher aux frais ni au total.
+  // devise locale, comme pour le Nigeria, sans toucher aux frais ni au total.
   const isAfpOp = !!(selectedOp as any)?.afribapay;
   const afpCurrency = isAfpOp ? (((selectedOp as any)?.currency as string) || '').toUpperCase() : '';
   const afpForeign = !!afpCurrency && afpCurrency !== 'XOF' && afpCurrency !== 'XAF';
@@ -332,7 +346,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // Multi-devise d'affichage retiré : le solde est en XOF et l'envoi se saisit
   // en XOF débité. Cette valeur sert aux frais, validations et contrôle de solde.
   // Saisie brute. Elle est en XOF partout SAUF pour la Chine, où le client saisit
-  // directement le nombre de yuans à envoyer (c'est ce qu'il achète — et c'est
+  // directement le nombre de yuans à envoyer (c'est ce qu'il achète, et c'est
   // aussi le seul paramètre que la cotation Klasha accepte).
   const numAmountInput = parseFloat(amount) || 0;
   const isCny = aggRail === 'cny';
@@ -350,7 +364,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // retraits classiques). Base = valeur XOF envoyée.
   // Pas d'arrondi : le backend calcule fixed + montant×percent/100 sans arrondir
   // (PricingResolver::feeAmount). Arrondir ici ferait diverger l'annoncé du débité.
-  // Uniquement pour les envois SANS devis serveur (wire) — donc jamais la Chine :
+  // Uniquement pour les envois SANS devis serveur (wire), donc jamais la Chine :
   // la saisie y est déjà en XOF.
   const localFees = useMemo(
     () => feeConfig ? feeConfig.fixed + numAmountInput * feeConfig.percent / 100 : 0,
@@ -429,7 +443,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               : (aggRate.rate && aggRate.rate > 0 ? numAmountInput / aggRate.rate : null)))
       : null;
   // Montant MINIMUM du moyen, dans la devise destination (ex. 100 EUR en SEPA,
-  // 100 USD/GBP en SWIFT) — piloté par l'admin Marchés (catalogue), fallback config.ts.
+  // 100 USD/GBP en SWIFT), piloté par l'admin Marchés (catalogue), fallback config.ts.
   // On compare au montant REÇU (celui du devis), pas au XOF saisi.
   const aggMinAmount: number | null = isAggOp
     ? (Number((selectedOp as any)?.minAmount) > 0 ? Number((selectedOp as any).minAmount) : null)
@@ -443,7 +457,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // Frais : ceux du devis quand il y en a un (source unique), sinon calcul local.
   const fees = quotable ? (quote ? quote.fee_xof : 0) : localFees;
   // Total débité : celui du devis. Le montant réellement envoyé peut différer
-  // de la saisie — Klasha cote le corridor Chine par tranches (730 234 saisis →
+  // de la saisie, Klasha cote le corridor Chine par tranches (730 234 saisis →
   // 730 000 cotés) → on affiche ce qui sera débité, pas la saisie brute.
   const total = quotable ? (quote ? quote.total_xof : 0) : numAmountXof + fees;
   // XOF réellement envoyé (base des frais), issu du devis quand il existe.
@@ -538,7 +552,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     setBic('');
     setSwiftCode('');
     setAggBanks([]);
-    // Klasha bank — champs requis par devise (GHS/KES/ZAR).
+    // Klasha bank, champs requis par devise (GHS/KES/ZAR).
     setBankBranchCode('');
     setBankServiceCode('');
     setBankMobileNumber('');
@@ -1112,6 +1126,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   };
 
   const handleTransfer = async () => {
+    const idemKey = transferIdempotencyKey();
     setConfirmVisible(false);
     setLoading(true);
     try {
@@ -1142,7 +1157,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               phone: (user as any)?.phone || undefined,
               email: (user as any)?.email || undefined,
             },
-          });
+          }, idemKey);
           await fetchBalance();
           setAmount('');
           setPendingDetails({
@@ -1178,7 +1193,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             ben.cardNumber = cnyCardNumber.trim();
             ben.cardHolderName = cnyCardHolder.trim();
           } else {
-            // WALLET (Alipay / WeChat) — compte + accountId seulement.
+            // WALLET (Alipay / WeChat), compte + accountId seulement.
             ben.accountNumber = cnyWalletAccount.trim();
             ben.accountId = cnyWalletAccountId;
           }
@@ -1192,7 +1207,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             // Wallet : ALIPAY | WECHAT (ignoré par le backend hors WALLET).
             serviceCode: cnyService === 'WALLET' ? cnyServiceCode : undefined,
             beneficiary: ben,
-          });
+          }, idemKey);
           await fetchBalance();
           setAmount('');
           // Purge le bénéficiaire (PII) après envoi → pas de réutilisation silencieuse.
@@ -1224,7 +1239,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           // bankSwiftCode : sélectionné via le picker pour GHS/KES/etc., ou saisi
           // manuellement pour SWIFT/SEPA via le champ dédié.
           bankSwiftCode: (bankSwiftCode.trim() || swiftCode.trim() || bic.trim()) || undefined,
-          // country (bénéficiaire) requis par Fincra pour UGX/ZMW/TZS — on
+          // country (bénéficiaire) requis par Fincra pour UGX/ZMW/TZS, on
           // l'envoie systématiquement pour les rails bancaires (= pays de la
           // devise Fincra), sauf SWIFT/SEPA où l'utilisateur peut le surcharger
           // via bankCountry.
@@ -1281,7 +1296,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             ? `${user?.name ?? ''} ${user?.surname ?? ''}`.trim() || undefined
             : undefined,
           beneficiary,
-        } as any);
+        } as any, idemKey);
 
         await fetchBalance();
         setAmount('');
@@ -1306,7 +1321,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
         amount: numAmount,
         moyen: operator,
         tel: normalizedPhone,
-      });
+      }, idemKey);
       const existing = savedPhones.find((item) => item.tel.replace(/\s+/g, '') === normalizedPhone);
       if (!existing && normalizedPhone) {
         const created = await walletService.createSavedPhone({ tel: normalizedPhone, name: '', type: 'transfer' });
@@ -1588,7 +1603,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             </View>
 
             {/* Chine : si la date de naissance (KYC) manque, on n'affiche AUCUN
-                formulaire de retrait — juste une alerte jaune renvoyant au KYC. */}
+                formulaire de retrait, juste une alerte jaune renvoyant au KYC. */}
             {chinaKycGate ? (
               <View style={styles.kycGateCard}>
                 <FontAwesome6 name="triangle-exclamation" size={22} color={Colors.warning} iconStyle="solid" />
@@ -1651,7 +1666,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               />
             )}
 
-            {/* Minimum imposé par le moyen (devise destination) — affiché dès le choix
+            {/* Minimum imposé par le moyen (devise destination), affiché dès le choix
                 du moyen, en rouge dès que le montant reçu passe dessous. */}
             {isAggOp && aggMinAmount !== null && (
               <View style={{ marginTop: -Spacing.xs, marginBottom: Spacing.sm }}>
@@ -1697,7 +1712,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               </View>
             ) : null}
 
-            {/* Sélecteur de sous-pays Fincra XOF/XAF — masqué si le pays est déjà connu. */}
+            {/* Sélecteur de sous-pays Fincra XOF/XAF, masqué si le pays est déjà connu. */}
             {aggZoneList && !zoneHasContext && (
               <View style={{ gap: Spacing.xs }}>
                 <Text style={styles.zoneLabel}>{t('transferModal.chooseCountry')}</Text>
@@ -1722,7 +1737,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               </View>
             )}
 
-            {/* Champ téléphone — visible pour les flux PayDunya/AfribaPay et pour Fincra mobile_money */}
+            {/* Champ téléphone, visible pour les flux PayDunya/AfribaPay et pour Fincra mobile_money */}
             {(!isAggOp || aggRail === 'mobile_money') && (
               <>
                 <Input
@@ -1818,7 +1833,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                         />
                       </>
                     )}
-                    {/* Carte du bénéficiaire — affichée dès que numéro + banque sont saisis */}
+                    {/* Carte du bénéficiaire, affichée dès que numéro + banque sont saisis */}
                     {!!bankAccountNumber && !!bankCode && (
                       <View style={[
                         styles.beneficiaryCard,
@@ -1848,7 +1863,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                             <View style={styles.beneficiaryRow}>
                               <FontAwesome6 name="triangle-exclamation" size={14} color={Colors.warning} iconStyle="solid" />
                               <Text style={styles.beneficiaryHintWarn}>
-                                Compte non vérifié — saisissez le nom manuellement
+                                Compte non vérifié, saisissez le nom manuellement
                               </Text>
                             </View>
                             <Input
@@ -1866,7 +1881,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 )}
                 {aggRail === 'SWIFT' && (
                   <>
-                    {/* Pays de la banque (destinataire) — pilote la liste de banques. */}
+                    {/* Pays de la banque (destinataire), pilote la liste de banques. */}
                     <Text style={styles.fieldLabel}>Pays de la banque *</Text>
                     <TouchableOpacity style={styles.bankPickerBtn} onPress={() => setCountryPickerVisible(true)}>
                       <FontAwesome6 name="globe" size={14} color={Colors.textMuted} iconStyle="solid" />
@@ -1917,7 +1932,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 )}
                 {aggRail === 'SEPA' && (
                   <>
-                    {/* Pays de la banque (destinataire) — pilote la liste de banques SEPA. */}
+                    {/* Pays de la banque (destinataire), pilote la liste de banques SEPA. */}
                     <Text style={styles.fieldLabel}>Pays de la banque</Text>
                     <TouchableOpacity style={styles.bankPickerBtn} onPress={() => setCountryPickerVisible(true)}>
                       <FontAwesome6 name="globe" size={14} color={Colors.textMuted} iconStyle="solid" />
@@ -2053,7 +2068,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                         <Input label="N° pièce d'identité du bénéficiaire *" placeholder="N° de pièce d'identité" value={cnyIdNumber} onChangeText={setCnyIdNumber} />
                         <Input label="Téléphone du bénéficiaire *" placeholder="ex: +8613699262597" value={cnyMobile} onChangeText={setCnyMobile} keyboardType="phone-pad" />
                         {/* La relation expéditeur↔bénéficiaire (requise par Klasha) est
-                            renseignée automatiquement (SELF) — pas demandée au client. */}
+                            renseignée automatiquement (SELF), pas demandée au client. */}
                       </>
                     )}
 
@@ -2065,7 +2080,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       </>
                     )}
 
-                    {/* Wallet (Alipay / WeChat) — nom + compte uniquement */}
+                    {/* Wallet (Alipay / WeChat), nom + compte uniquement */}
                     {cnyService === 'WALLET' && (
                       <>
                         <Text style={styles.fieldLabel}>Identifiant {cnyWalletLabel} *</Text>
@@ -2173,7 +2188,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                     const acct = cnyService === 'BANK_ACCOUNT' ? (b.account_number || '') : cnyService === 'BANK_CARD' ? (m.card_number || '') : (m.wallet_account || b.account_number || '');
                     const selectedAcct = cnyService === 'BANK_ACCOUNT' ? bankAccountNumber : cnyService === 'BANK_CARD' ? cnyCardNumber : cnyWalletAccount;
                     const selected = !!selectedAcct && selectedAcct === acct;
-                    const label = (b.name?.trim() || [m.first_name, m.last_name].filter(Boolean).join(' ') || '—');
+                    const label = (b.name?.trim() || [m.first_name, m.last_name].filter(Boolean).join(' ') || ', ');
                     const sub = [b.bank_name, acct].filter(Boolean).join(' · ');
                     return (
                       <TouchableOpacity
@@ -2197,7 +2212,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 <View style={styles.savedList}>
                   {savedBanks.filter((b) => (b.currency || '').toUpperCase() === aggCurrency).map((b) => {
                     const selected = !!(bankAccountNumber || iban) && (b.account_number || b.iban || '') === (bankAccountNumber || iban);
-                    const label = (b.name?.trim() || b.account_holder?.trim() || b.bank_name?.trim() || '—');
+                    const label = (b.name?.trim() || b.account_holder?.trim() || b.bank_name?.trim() || ', ');
                     const sub = [b.bank_name, b.account_number || b.iban].filter(Boolean).join(' · ');
                     return (
                       <TouchableOpacity
@@ -2251,7 +2266,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           </View>
       </KeyboardAvoidingView>
 
-      {/* Modal de confirmation — design refondu (cards segmentées, typo douce) */}
+      {/* Modal de confirmation, design refondu (cards segmentées, typo douce) */}
       <Modal visible={confirmVisible} transparent animationType="fade">
         <View style={styles.confirmOverlay}>
           <View style={styles.confirmSheet}>
@@ -2272,7 +2287,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               </View>
             ) : null}
 
-            {/* Card montant. Chine : le montant demandé EST en yuans — on le met
+            {/* Card montant. Chine : le montant demandé EST en yuans, on le met
                 en avant, la contre-valeur XOF suit. */}
             <View style={styles.confirmCard}>
               <Text style={styles.confirmCardLabel}>{t('transferModal.amountSent')}</Text>
@@ -2299,8 +2314,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 // Décomposition propre des champs destinataire selon le rail.
                 const isMM = !isAggOp || aggRail === 'mobile_money';
                 const primary = isMM
-                  ? (phone || '—')
-                  : (bankAccountHolder || bankAccountNumber || iban || '—');
+                  ? (phone || ', ')
+                  : (bankAccountHolder || bankAccountNumber || iban || ', ');
                 const secondaryParts: string[] = [];
                 if (!isMM) {
                   if (bankAccountHolder && (bankAccountNumber || iban)) {
@@ -2318,7 +2333,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 );
               })()}
 
-              {/* Chip méthode (logo + nom + rail) — discret */}
+              {/* Chip méthode (logo + nom + rail), discret */}
               {selectedOp && (
                 <View style={styles.confirmMethodChip}>
                   <Image source={selectedOp.logo} style={styles.confirmMethodLogo} resizeMode="contain" />
@@ -2499,7 +2514,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
         </View>
       </Modal>
 
-      {/* Picker de banques Fincra — modal de recherche */}
+      {/* Picker de banques Fincra, modal de recherche */}
       <Modal visible={bankPickerVisible} transparent animationType="fade" onRequestClose={() => setBankPickerVisible(false)}>
         <View style={styles.confirmOverlay}>
           <View style={[styles.confirmSheet, styles.bankPickerSheet]}>
@@ -2537,7 +2552,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       setBankName(item.name);
                       // SWIFT/SEPA : Fincra veut le BIC dans beneficiary.bankCode.
                       // On pose le BIC dans swiftCode/bic (que le payload mappe vers
-                      // bankCode) et on LAISSE bankCode vide — le `code` Fincra local
+                      // bankCode) et on LAISSE bankCode vide, le `code` Fincra local
                       // n'est PAS un BIC. bank_transfer : code banque + swift.
                       if (aggRail === 'SWIFT') {
                         setSwiftCode(item.swiftCode ?? '');
@@ -2573,7 +2588,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
         </View>
       </Modal>
 
-      {/* Picker pays de la banque (SWIFT/SEPA) — modal de recherche */}
+      {/* Picker pays de la banque (SWIFT/SEPA), modal de recherche */}
       <Modal visible={countryPickerVisible} transparent animationType="fade" onRequestClose={() => setCountryPickerVisible(false)}>
         <View style={styles.confirmOverlay}>
           <View style={[styles.confirmSheet, styles.bankPickerSheet]}>
@@ -3021,7 +3036,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     textAlign: 'center',
     marginTop: 2,
   },
-  // Card générique — un container par section (montant / destinataire / breakdown).
+  // Card générique, un container par section (montant / destinataire / breakdown).
   confirmCard: {
     backgroundColor: Colors.inputBg,
     borderRadius: BorderRadius.lg,
@@ -3254,7 +3269,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     gap: Spacing.xs,
   },
-  // Liste opérateurs (modal sauvegarde) — rangées logo + drapeau + nom.
+  // Liste opérateurs (modal sauvegarde), rangées logo + drapeau + nom.
   saveOpList: {
     maxHeight: 240,
     marginBottom: Spacing.sm,

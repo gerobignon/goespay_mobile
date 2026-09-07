@@ -14,14 +14,14 @@ import { Linking, Platform } from 'react-native';
  *  · `Linking.openURL` se traduit sur le web par `window.open(_, '_blank')`,
  *    que le navigateur bloque quand le clic n'est pas jugé « de confiance »
  *    (PWA standalone iOS en particulier) : le lien ne faisait alors RIEN, sans
- *    erreur — d'où un lien qui marche une fois sur deux. On retombe sur une
+ *    erreur, d'où un lien qui marche une fois sur deux. On retombe sur une
  *    navigation directe quand l'ouverture est refusée.
  */
 
 /** Hôtes qui servent l'application (pas le site vitrine, qui reste externe). */
 const APP_HOSTS = ['app.goespay.io'];
 
-/** Premier segment des routes de l'app — cf. `app/`. */
+/** Premier segment des routes de l'app, cf. `app/`. */
 const APP_ROUTES = [
   '',            // racine
   'cards',
@@ -70,8 +70,30 @@ export function internalPathFor(url: string): string | null {
   return path.startsWith('/') ? path : '/' + path;
 }
 
+/**
+ * Schémas autorisés à quitter l'application.
+ *
+ * Un lien vient d'un contenu rédigé (annonce, carte promo, message) : il peut
+ * porter n'importe quel schéma. `javascript:` exécuterait du code dans la page,
+ * `data:` afficherait une page fabriquée sous NOTRE origine, `intent:` ou
+ * `file:` viseraient l'appareil. On ne laisse passer que ce qui a un sens ici.
+ */
+const ALLOWED_SCHEMES = ['http:', 'https:', 'mailto:', 'tel:'];
+
+function schemeAllowed(url: string): boolean {
+  const raw = (url || '').trim();
+  // Chemin relatif : pas de schéma, il reste dans l'application.
+  if (raw.startsWith('/') && !raw.startsWith('//')) return true;
+  const m = /^([a-z][a-z0-9+.-]*:)/i.exec(raw);
+  if (!m) return false; // sans schéma explicite, on ne navigue pas
+  return ALLOWED_SCHEMES.includes(m[1].toLowerCase());
+}
+
 /** Ouvre un lien hors de l'application, avec repli si l'onglet est refusé. */
 export function openExternal(url: string): void {
+  // Garde-fou au plus près de la navigation : `openExternal` est aussi appelée
+  // directement, sans passer par `openLink`.
+  if (!schemeAllowed(url)) return;
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     const win = window.open(url, '_blank', 'noopener');
     // `null` = ouverture bloquée (PWA standalone, bloqueur de fenêtres) :
@@ -91,6 +113,8 @@ export function openExternal(url: string): void {
 export function openLink(url: string, push?: (path: string) => void): void {
   const href = (url || '').trim();
   if (!href) return;
+
+  if (!schemeAllowed(href)) return;
 
   if (/^(mailto:|tel:)/i.test(href)) {
     Linking.openURL(href).catch(() => {});
