@@ -28,6 +28,10 @@ export interface CatalogCorridor {
   country: string;     // ISO-2 ou zone (XOF/XAF)
   network: string;
   currency: string;
+  // Libellé du corridor, éditable dans Marchés. Sert à distinguer deux moyens
+  // d'un même réseau sur un même pays (ex. plusieurs cartes) ; quand il vaut le
+  // libellé par défaut du réseau, l'app garde son propre calcul de nom.
+  label?: string | null;
   payin: boolean;
   payout: boolean;
   audience?: string;

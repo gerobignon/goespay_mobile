@@ -254,13 +254,21 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
                          : isKlashaAgg ? klashaRailFor(r.code) : undefined;
         // Le label réseau est suffixé de l'agrégateur côté admin (distinction
         // corridor) — le client ne doit jamais voir ces marques. On les retire.
-        const baseName = (net?.label ?? r.network)
-          .replace(/\s*\((?:fincra|klasha|afribapay|paydunya|kkiapay|payci)\)\s*$/i, '');
+        const stripAgg = (s: string) => s.replace(/\s*\((?:fincra|klasha|afribapay|paydunya|kkiapay|payci)\)\s*$/i, '');
+        const baseName = stripAgg(net?.label ?? r.network);
+        // Libellé propre au corridor, saisi dans Marchés. Plusieurs moyens d'un
+        // même réseau peuvent coexister sur un pays (les cartes, notamment) : sans
+        // ça, ils s'afficheraient tous sous le même nom. On ne le prend que s'il
+        // s'écarte du libellé par défaut du réseau, sinon on garde le calcul de
+        // nom habituel (suffixe devise des rails Fincra/Klasha, noms Chine…).
+        const corridorLabel = stripAgg(String(r.label ?? '').trim());
+        const customLabel = corridorLabel && corridorLabel !== baseName ? corridorLabel : '';
         return {
           id: r.code,
-          name: (isKlashaAgg && r.code.startsWith('klasha-cny-'))
+          name: customLabel
+            || ((isKlashaAgg && r.code.startsWith('klasha-cny-'))
             ? klashaCnyName(r.code)
-            : ((isFincraAgg || isKlashaAgg) ? fincraDisplayName(baseName, fincraRail, r.currency) : baseName),
+            : ((isFincraAgg || isKlashaAgg) ? fincraDisplayName(baseName, fincraRail, r.currency) : baseName)),
           // Service Chine (BANK_ACCOUNT|BANK_CARD|WALLET) porté par la tuile.
           cnyService: isKlashaAgg ? klashaCnyService(r.code) : undefined,
           // Wallet chinois (Alipay/WeChat) → serviceCode Klasha.
