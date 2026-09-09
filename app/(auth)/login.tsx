@@ -92,6 +92,12 @@ export default function LoginScreen() {
       }
     } catch (error: any) {
       if (handleActivationRedirect(error)) return;
+      // Le compte se connecte par mot de passe et ne reçoit aucun code : on l'y
+      // emmène directement, symétrique de otp_required plus bas.
+      if (error?.response?.data?.password_required) {
+        setStep('password');
+        return;
+      }
       showAlert(t('common.error'), errorMessage(error, t('auth.login.codeSendError')));
     } finally {
       setLoading(false);
