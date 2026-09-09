@@ -237,7 +237,7 @@
   },
   "home": {
     "greeting": "Hello, {{name}}",
-    "welcome": "Welcome to GoesPay",
+    "welcome": "Welcome to GOESPAY",
     "balance": "AVAILABLE BALANCE",
     "fincraBalance": "INTERNATIONAL BALANCE",
     "deposit": "Top up",
@@ -268,7 +268,7 @@
     "referralDesc": "Share your code and earn bonuses for every signup.",
     "referralShare": "Share",
     "referralManage": "Manage",
-    "referralShareMsg": "Join GoesPay using my link {{link}} (code {{code}}) and unlock benefits from signup.",
+    "referralShareMsg": "Join GOESPAY using my link {{link}} (code {{code}}) and unlock benefits from signup.",
     "referralCopied": "Message copied to clipboard.",
     "referralLinkCopied": "Link copied.",
     "promo1Title": "New international corridors",
@@ -311,7 +311,7 @@
     "totalOut": "Out",
     "fees": "Fees",
     "download": "Download PDF",
-    "shareTitle": "GoesPay account statement",
+    "shareTitle": "GOESPAY account statement",
     "empty": "No transaction over this period.",
     "loadError": "Unable to load the statement.",
     "downloadError": "Unable to generate the statement."
@@ -707,7 +707,7 @@
     }
   },
   "p2p": {
-    "title": "Transfer to a GoesPay account",
+    "title": "Transfer to a GOESPAY account",
     "identifierLabel": "Recipient",
     "identifierPlaceholder": "Email, phone, account ID or referral code",
     "amountLabel": "Amount (XOF)",
@@ -988,7 +988,7 @@
     "codeUpdated": "Your referral code has been updated.",
     "copyLink": "Copy link",
     "share": "Share",
-    "shareMessage": "Join me on GoesPay: {{link}}",
+    "shareMessage": "Join me on GOESPAY: {{link}}",
     "codeCopied": "Code copied",
     "linkCopied": "Link copied",
     "filleuls": "Referees",
@@ -1005,7 +1005,7 @@
     "loadError": "Unable to load data."
   },
   "pwa": {
-    "title": "Install GoesPay",
+    "title": "Install GOESPAY",
     "subtitle": "Quick access from your home screen, no browser tab needed.",
     "install": "Install",
     "howTo": "How to install",
@@ -1022,7 +1022,7 @@
       "macSafari": {
         "1": "Menu bar: File → Add to Dock.",
         "2": "Confirm the name and icon.",
-        "3": "GoesPay now opens as a standalone app."
+        "3": "GOESPAY now opens as a standalone app."
       },
       "androidChrome": {
         "1": "Tap the ⋮ menu at the top right of Chrome.",
@@ -1030,8 +1030,8 @@
         "3": "Confirm. The icon appears alongside your other apps."
       },
       "desktopChrome": {
-        "1": "Click the Install icon (⊕) in the address bar, or Menu ⋮ → Install GoesPay.",
-        "2": "Confirm. GoesPay opens like a real app."
+        "1": "Click the Install icon (⊕) in the address bar, or Menu ⋮ → Install GOESPAY.",
+        "2": "Confirm. GOESPAY opens like a real app."
       },
       "edge": {
         "1": "Click Menu ··· → Apps → Install this site as an app.",
@@ -1048,7 +1048,7 @@
       },
       "other": {
         "1": "Your browser does not yet support direct installation.",
-        "2": "Try Chrome (Android, desktop) or Safari (iOS) to add GoesPay to your home screen."
+        "2": "Try Chrome (Android, desktop) or Safari (iOS) to add GOESPAY to your home screen."
       }
     }
   },
@@ -1172,8 +1172,8 @@
   "cards": {
     "title": "Virtual cards",
     "order": "Order my card",
-    "declineWarning": "Important: check your card balance before every payment. Each declined payment incurs a USD 0.50 fee. After 2 declined payments, the card is automatically deleted and its balance returned to your GoesPay wallet.",
-    "declineWarningShort": "Declined payment: USD 0.50 fee. After 2 declines, the card is deleted and the balance returned to your GoesPay wallet.",
+    "declineWarning": "Important: check your card balance before every payment. Each declined payment incurs a USD 0.50 fee. After 2 declined payments, the card is automatically deleted and its balance returned to your GOESPAY wallet.",
+    "declineWarningShort": "Declined payment: USD 0.50 fee. After 2 declines, the card is deleted and the balance returned to your GOESPAY wallet.",
     "issuing": "Creating…",
     "issueFee": "Creation fee",
     "balance": "Balance",
@@ -1305,7 +1305,7 @@
   },
   "messages": {
     "title": "Messages",
-    "supportTitle": "GoesPay Support",
+    "supportTitle": "GOESPAY Support",
     "supportSub": "A question? Write to us.",
     "supportEmpty": "Describe your request, we reply here.",
     "directEmpty": "Send the first message.",
@@ -1449,11 +1449,11 @@
     "toPerson": "to",
     "inviteHintFound": "Your invitation goes to this identifier, along with the note you write here.",
     "tourWelcomeTitle": "Welcome to messages",
-    "tourWelcomeText": "Message support and chat with other GoesPay accounts.",
-    "tourSupportTitle": "GoesPay support",
+    "tourWelcomeText": "Message support and chat with other GOESPAY accounts.",
+    "tourSupportTitle": "GOESPAY support",
     "tourSupportText": "A question about a transaction? The answer lands here.",
     "tourComposeTitle": "New conversation",
-    "tourComposeText": "Find a GoesPay account and start a conversation in a tap.",
+    "tourComposeText": "Find a GOESPAY account and start a conversation in a tap.",
     "tourRequestsTitle": "Invitations",
     "tourRequestsText": "First messages from strangers wait for your approval here.",
     "tourSettingsTitle": "Settings",

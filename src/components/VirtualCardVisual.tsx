@@ -20,7 +20,7 @@ const CARD_RATIO = 1.586;
  * dans le temps et cohérente entre l'accueil et l'écran cartes.
  */
 const PALETTES: Array<[string, string]> = [
-  ['#2b5cff', '#0b1f5c'],   // bleu GoesPay
+  ['#2b5cff', '#0b1f5c'],   // bleu GOESPAY
   ['#7b3fe4', '#2a1259'],   // violet
   ['#0f9b8e', '#06342f'],   // teal
   ['#e0623f', '#4a1a10'],   // cuivre

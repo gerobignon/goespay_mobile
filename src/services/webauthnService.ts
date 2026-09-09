@@ -90,7 +90,7 @@ export async function registerWebauthn(userId: string | number, userLabel: strin
     const credential = (await navigator.credentials.create({
       publicKey: {
         challenge: randomBytes(32),
-        rp: { id: window.location.hostname, name: 'GoesPay' },
+        rp: { id: window.location.hostname, name: 'GOESPAY' },
         user: {
           id: encodeUserId(userId),
           name: userLabel,

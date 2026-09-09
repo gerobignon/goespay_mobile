@@ -136,7 +136,7 @@ const MODE_LABELS: Record<string, string> = {
   'fincra-bank_transfer': 'Virement bancaire', 'fincra-mobile_money': 'Mobile Money', 'fincra-checkout': 'Open Banking',
   'klasha-mobile_money': 'Mobile Money', 'klasha-bank_transfer': 'Virement bancaire', 'klasha-card': 'Carte bancaire', 'klasha-checkout': 'Open Banking', 'klasha-wire': 'Virement international',
   'referal': 'Parrainage', 'commission': 'Commission', 'reward': 'Récompense', 'manual': 'Manuel',
-  // Crédit reçu d'un autre compte GoesPay (transfert interne).
+  // Crédit reçu d'un autre compte GOESPAY (transfert interne).
   'transferp2p': 'Transfert P2P reçu',
 };
 

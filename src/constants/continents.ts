@@ -1,5 +1,5 @@
 // Regroupement géographique des pays par continent pour le sélecteur d'envoi.
-// GoesPay n'a AUCUNE donnée continent côté serveur (le seul regroupement est la
+// GOESPAY n'a AUCUNE donnée continent côté serveur (le seul regroupement est la
 // zone-devise CFA XOF/XAF). On dérive donc le continent du code ISO-2 ici.
 
 // Océanie retirée : ses pays (Australie, NZ…) sont repliés dans l'Asie-Pacifique
@@ -69,7 +69,7 @@ const CONTINENT_BY_ISO2: Record<string, Continent> = (() => {
   return map;
 })();
 
-// Continent d'un pays (ISO-2). Repli 'africa' pour un code inconnu (GoesPay est
+// Continent d'un pays (ISO-2). Repli 'africa' pour un code inconnu (GOESPAY est
 // centré Afrique ; un code non mappé est extrêmement improbable).
 export function continentOf(code: string): Continent {
   return CONTINENT_BY_ISO2[(code || '').toUpperCase()] ?? 'africa';

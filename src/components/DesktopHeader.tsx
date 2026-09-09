@@ -61,7 +61,7 @@ export function DesktopHeader() {
         {/* Logo */}
         <TouchableOpacity onPress={() => router.push('/(tabs)')} style={styles.logoWrap}>
           <Image source={require('../../assets/logo.png')} style={styles.logo} />
-          <Text style={styles.brand}>GoesPay</Text>
+          <Text style={styles.brand}>GOESPAY</Text>
         </TouchableOpacity>
 
         {/* Navigation */}

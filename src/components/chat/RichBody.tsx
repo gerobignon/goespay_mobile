@@ -5,7 +5,7 @@ import { Fonts, FontSize, Spacing } from '../../constants/theme';
 import { internalPathFor, openLink } from '../../utils/openLink';
 
 /**
- * Rendu d'une annonce du canal GoesPay, rédigée en HTML par l'équipe.
+ * Rendu d'une annonce du canal GOESPAY, rédigée en HTML par l'équipe.
  *
  * NI WEBVIEW NI BIBLIOTHÈQUE : une WebView par bulle coûterait un contexte web
  * complet dans une liste qui défile, et une dépendance de rendu HTML pèserait

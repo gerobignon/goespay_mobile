@@ -189,7 +189,7 @@ export async function authenticateWithBiometric(): Promise<boolean> {
   // remonterait en erreur de rendu au lieu d'un simple échec.
   try {
     const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Déverrouillez GoesPay',
+      promptMessage: 'Déverrouillez GOESPAY',
       fallbackLabel: 'Utiliser le PIN',
       disableDeviceFallback: false,
     });

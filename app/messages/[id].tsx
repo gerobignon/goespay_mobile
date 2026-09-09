@@ -157,7 +157,7 @@ export default function ConversationScreen() {
   }, [error]);
 
   const isSupport = conversation?.type === 'support';
-  // Canal GoesPay : on y lit une annonce, on n'y répond pas. Le serveur refuse
+  // Canal GOESPAY : on y lit une annonce, on n'y répond pas. Le serveur refuse
   // de toute façon tout message ; masquer la saisie évite d'en proposer une.
   const isBroadcast = conversation?.type === 'broadcast' || !!conversation?.read_only;
   const peer = conversation?.peer || null;
@@ -297,7 +297,7 @@ export default function ConversationScreen() {
             <View style={styles.headerText}>
               <View style={styles.headerNameRow}>
                 <Text style={styles.headerTitle} numberOfLines={1}>
-                  {isSupport ? t('messages.supportTitle', 'Support GoesPay') : conversation?.title || ''}
+                  {isSupport ? t('messages.supportTitle', 'Support GOESPAY') : conversation?.title || ''}
                 </Text>
                 {/* Compte signalé par moi : le rappel reste sous les yeux
                     pendant l'échange, pas seulement sur la fiche. */}
@@ -443,7 +443,7 @@ export default function ConversationScreen() {
 
       <ActionSheet
         visible={menuOpen}
-        title={isSupport ? t('messages.supportTitle', 'Support GoesPay') : conversation?.title}
+        title={isSupport ? t('messages.supportTitle', 'Support GOESPAY') : conversation?.title}
         actions={menuActions}
         onClose={() => setMenuOpen(false)}
       />

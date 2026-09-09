@@ -164,13 +164,13 @@ export function MessagesInbox() {
         title: t('messages.tourWelcomeTitle', 'Bienvenue dans les messages'),
         text: t(
           'messages.tourWelcomeText',
-          'Écrivez au support et discutez avec les autres comptes GoesPay.',
+          'Écrivez au support et discutez avec les autres comptes GOESPAY.',
         ),
       },
       {
         target: 'support',
         icon: 'headset',
-        title: t('messages.tourSupportTitle', 'Support GoesPay'),
+        title: t('messages.tourSupportTitle', 'Support GOESPAY'),
         text: t('messages.tourSupportText', 'Une question sur une transaction ? La réponse arrive ici.'),
       },
       {
@@ -179,7 +179,7 @@ export function MessagesInbox() {
         title: t('messages.tourComposeTitle', 'Nouvelle conversation'),
         text: t(
           'messages.tourComposeText',
-          'Cherchez et lancez une discussion avec un compte GoesPay facilement.',
+          'Cherchez et lancez une discussion avec un compte GOESPAY facilement.',
         ),
       },
       {
@@ -290,7 +290,7 @@ export function MessagesInbox() {
           <Bounce style={styles.supportCard} scaleTo={0.985} onPress={goSupport}>
             <ChatAvatar name="Support" isSupport size={50} />
             <View style={styles.supportBody}>
-              <Text style={styles.supportTitle}>{t('messages.supportTitle', 'Support GoesPay')}</Text>
+              <Text style={styles.supportTitle}>{t('messages.supportTitle', 'Support GOESPAY')}</Text>
               <Text style={styles.supportSub} numberOfLines={1}>
                 {support?.preview || t('messages.supportSub', 'Une question ? Écrivez-nous.')}
               </Text>
@@ -308,7 +308,7 @@ export function MessagesInbox() {
         </Reveal>
         </TourSpot>
 
-        {/* Canal d'annonces GoesPay */}
+        {/* Canal d'annonces GOESPAY */}
         {channel && (
           <Reveal offset={12}>
             <Bounce

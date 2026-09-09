@@ -1,4 +1,4 @@
-/* GoesPay — Service Worker (Web Push uniquement).
+/* GOESPAY — Service Worker (Web Push uniquement).
  * Volontairement SANS handler `fetch` : il n'intercepte ni ne met en cache
  * les requêtes réseau, donc n'interfère pas avec l'app Expo. Il gère seulement
  * la réception d'une notification push et le clic dessus. */
@@ -18,10 +18,10 @@ self.addEventListener('push', function (event) {
   try {
     payload = event.data ? event.data.json() : {};
   } catch (e) {
-    payload = { title: 'GoesPay', body: event.data ? event.data.text() : '' };
+    payload = { title: 'GOESPAY', body: event.data ? event.data.text() : '' };
   }
 
-  var title = payload.title || 'GoesPay';
+  var title = payload.title || 'GOESPAY';
   var options = {
     body: payload.body || '',
     icon: '/icon-192.png',
@@ -138,7 +138,7 @@ function storeTarget(url) {
   });
 }
 
-// Clic sur la notif : focus l'onglet GoesPay existant (et navigue) ou en ouvre un.
+// Clic sur la notif : focus l'onglet GOESPAY existant (et navigue) ou en ouvre un.
 self.addEventListener('notificationclick', function (event) {
   event.notification.close();
   var url = targetUrl(event.notification.data);
@@ -159,7 +159,7 @@ self.addEventListener('notificationclick', function (event) {
 /**
  * Amène l'utilisateur sur `url`.
  *
- * Quand une fenêtre GoesPay est déjà ouverte, on la focalise et on lui DEMANDE
+ * Quand une fenêtre GOESPAY est déjà ouverte, on la focalise et on lui DEMANDE
  * de naviguer (postMessage → routeur Expo). `client.navigate()` rechargerait
  * toute l'application — plusieurs secondes d'écran blanc pour ouvrir une
  * conversation — et échoue silencieusement sur un client non contrôlé par ce

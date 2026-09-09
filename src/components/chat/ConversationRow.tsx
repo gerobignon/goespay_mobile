@@ -53,7 +53,7 @@ export function ConversationRow({
       <View style={styles.body}>
         <View style={styles.topLine}>
           <Text style={[styles.title, unread > 0 && styles.titleUnread]} numberOfLines={1}>
-            {isSupport ? t('messages.supportTitle', 'Support GoesPay') : conversation.title}
+            {isSupport ? t('messages.supportTitle', 'Support GOESPAY') : conversation.title}
           </Text>
           {/* Signalé par moi : le drapeau reste tant que le fil existe, pour
               qu'on sache à qui on parle sans rouvrir la fiche. */}

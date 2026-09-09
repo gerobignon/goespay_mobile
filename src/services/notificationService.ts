@@ -146,7 +146,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
   // Canal Android, doit être créé AVANT d'obtenir le token
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
-      name: 'GoesPay',
+      name: 'GOESPAY',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#06b6d4',

@@ -495,7 +495,7 @@ export function VirtualAccountsBar() {
   return (
     <Bounce style={styles.vaWrap} onPress={open}>
       {/* Surface pleine + pastilles translucides : le langage des cards mises en
-          avant sur l'accueil (parrainage, bonus, hero solde). Bleu nuit GoesPay,
+          avant sur l'accueil (parrainage, bonus, hero solde). Bleu nuit GOESPAY,
           l'or de la marque réservé aux informations clés (les numéros). */}
       <LinearGradient
         colors={['#1D3A8A', '#0B1226']}

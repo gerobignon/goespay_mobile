@@ -435,7 +435,7 @@ export interface ChatMessage {
   mine: boolean;
   is_system: boolean;
   body: string;
-  /** « html » uniquement sur une annonce du canal GoesPay ; sinon texte brut. */
+  /** « html » uniquement sur une annonce du canal GOESPAY ; sinon texte brut. */
   format?: 'text' | 'html';
   attachment: ChatAttachment | null;
   author: ChatAuthor | null;

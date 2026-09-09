@@ -141,7 +141,7 @@ export default function AffiliationScreen() {
     if (!referralLink) return;
     try {
       await Share.share({
-        message: t('affiliation.shareMessage', { link: referralLink, defaultValue: `Rejoins-moi sur GoesPay : ${referralLink}` }),
+        message: t('affiliation.shareMessage', { link: referralLink, defaultValue: `Rejoins-moi sur GOESPAY : ${referralLink}` }),
       });
     } catch {}
   };

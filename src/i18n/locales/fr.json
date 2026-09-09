@@ -237,7 +237,7 @@
   },
   "home": {
     "greeting": "Bonjour, {{name}}",
-    "welcome": "Bienvenue sur GoesPay",
+    "welcome": "Bienvenue sur GOESPAY",
     "balance": "SOLDE DISPONIBLE",
     "fincraBalance": "SOLDE INTERNATIONAL",
     "deposit": "Recharger",
@@ -268,7 +268,7 @@
     "referralDesc": "Partagez votre code et gagnez des bonus à chaque parrainage.",
     "referralShare": "Partager",
     "referralManage": "Gérer",
-    "referralShareMsg": "Rejoins GoesPay avec mon lien {{link}} (code {{code}}) et profite d'avantages dès l'inscription.",
+    "referralShareMsg": "Rejoins GOESPAY avec mon lien {{link}} (code {{code}}) et profite d'avantages dès l'inscription.",
     "referralCopied": "Message copié dans le presse-papiers.",
     "referralLinkCopied": "Lien copié.",
     "promo1Title": "Nouveaux corridors internationaux",
@@ -311,7 +311,7 @@
     "totalOut": "Sorties",
     "fees": "Frais",
     "download": "Télécharger le PDF",
-    "shareTitle": "Relevé de compte GoesPay",
+    "shareTitle": "Relevé de compte GOESPAY",
     "empty": "Aucune opération sur cette période.",
     "loadError": "Impossible de charger le relevé.",
     "downloadError": "Impossible de générer le relevé."
@@ -707,7 +707,7 @@
     }
   },
   "p2p": {
-    "title": "Transfert à un compte GoesPay",
+    "title": "Transfert à un compte GOESPAY",
     "identifierLabel": "Destinataire",
     "identifierPlaceholder": "Email, téléphone, identifiant ou code parrain",
     "amountLabel": "Montant (XOF)",
@@ -988,7 +988,7 @@
     "codeUpdated": "Votre code de parrainage a été mis à jour.",
     "copyLink": "Copier le lien",
     "share": "Partager",
-    "shareMessage": "Rejoins-moi sur GoesPay : {{link}}",
+    "shareMessage": "Rejoins-moi sur GOESPAY : {{link}}",
     "codeCopied": "Code copié",
     "linkCopied": "Lien copié",
     "filleuls": "Filleuls",
@@ -1005,7 +1005,7 @@
     "loadError": "Impossible de charger les données."
   },
   "pwa": {
-    "title": "Installer GoesPay",
+    "title": "Installer GOESPAY",
     "subtitle": "Accès rapide depuis votre écran d'accueil, sans passer par le navigateur.",
     "install": "Installer",
     "howTo": "Voir comment",
@@ -1022,7 +1022,7 @@
       "macSafari": {
         "1": "Dans la barre de menu : Fichier → Ajouter au Dock.",
         "2": "Confirmez le nom et l'icône.",
-        "3": "GoesPay s'ouvre désormais en application autonome."
+        "3": "GOESPAY s'ouvre désormais en application autonome."
       },
       "androidChrome": {
         "1": "Touchez le menu ⋮ en haut à droite de Chrome.",
@@ -1030,8 +1030,8 @@
         "3": "Confirmez. L'icône apparaît avec vos autres applications."
       },
       "desktopChrome": {
-        "1": "Cliquez sur l'icône Installer (⊕) dans la barre d'adresse, ou Menu ⋮ → Installer GoesPay.",
-        "2": "Confirmez. GoesPay s'ouvre comme une vraie app."
+        "1": "Cliquez sur l'icône Installer (⊕) dans la barre d'adresse, ou Menu ⋮ → Installer GOESPAY.",
+        "2": "Confirmez. GOESPAY s'ouvre comme une vraie app."
       },
       "edge": {
         "1": "Cliquez sur Menu ··· → Applications → Installer ce site en tant qu'application.",
@@ -1048,7 +1048,7 @@
       },
       "other": {
         "1": "Votre navigateur ne supporte pas encore l'installation directe.",
-        "2": "Essayez Chrome (Android, ordinateur) ou Safari (iOS) pour ajouter GoesPay à votre écran d'accueil."
+        "2": "Essayez Chrome (Android, ordinateur) ou Safari (iOS) pour ajouter GOESPAY à votre écran d'accueil."
       }
     }
   },
@@ -1172,8 +1172,8 @@
   "cards": {
     "title": "Cartes virtuelles",
     "order": "Commander ma carte",
-    "declineWarning": "Important : vérifie le solde de ta carte avant chaque paiement. Chaque paiement refusé entraîne des frais de 0,50 USD. Après 2 paiements refusés, la carte est automatiquement supprimée et son solde est reversé sur ton wallet GoesPay.",
-    "declineWarningShort": "Paiement refusé : 0,50 USD de frais. Après 2 refus, la carte est supprimée et le solde reversé sur votre wallet GoesPay.",
+    "declineWarning": "Important : vérifie le solde de ta carte avant chaque paiement. Chaque paiement refusé entraîne des frais de 0,50 USD. Après 2 paiements refusés, la carte est automatiquement supprimée et son solde est reversé sur ton wallet GOESPAY.",
+    "declineWarningShort": "Paiement refusé : 0,50 USD de frais. Après 2 refus, la carte est supprimée et le solde reversé sur votre wallet GOESPAY.",
     "issuing": "Création en cours…",
     "issueFee": "Frais de création",
     "balance": "Solde",
@@ -1305,7 +1305,7 @@
   },
   "messages": {
     "title": "Messages",
-    "supportTitle": "Support GoesPay",
+    "supportTitle": "Support GOESPAY",
     "supportSub": "Une question ? Écrivez-nous.",
     "supportEmpty": "Décrivez votre demande, nous vous répondons ici.",
     "directEmpty": "Envoyez le premier message.",
@@ -1449,11 +1449,11 @@
     "toPerson": "à",
     "inviteHintFound": "Votre invitation part vers cet identifiant, avec le mot que vous écrivez ici.",
     "tourWelcomeTitle": "Bienvenue dans les messages",
-    "tourWelcomeText": "Écrivez au support et discutez avec les autres comptes GoesPay.",
-    "tourSupportTitle": "Support GoesPay",
+    "tourWelcomeText": "Écrivez au support et discutez avec les autres comptes GOESPAY.",
+    "tourSupportTitle": "Support GOESPAY",
     "tourSupportText": "Une question sur une transaction ? La réponse arrive ici.",
     "tourComposeTitle": "Nouvelle conversation",
-    "tourComposeText": "Cherchez et lancez une discussion avec un compte GoesPay facilement.",
+    "tourComposeText": "Cherchez et lancez une discussion avec un compte GOESPAY facilement.",
     "tourRequestsTitle": "Invitations",
     "tourRequestsText": "Les premiers messages d’inconnus attendent votre accord ici.",
     "tourSettingsTitle": "Réglages",

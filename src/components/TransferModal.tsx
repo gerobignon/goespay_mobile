@@ -360,7 +360,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // destination (outgoing_fees, calculé via PricingResolver). Si la clé manque, on
   // ne devine pas (ce serait un frais ≠ de celui débité) → on bloque l'envoi.
   const feeConfig = (destCountry && outgoingFees[destCountry]) || null;
-  // Frais GoesPay appliqués AUSSI aux retraits Fincra (débités en XOF, comme les
+  // Frais GOESPAY appliqués AUSSI aux retraits Fincra (débités en XOF, comme les
   // retraits classiques). Base = valeur XOF envoyée.
   // Pas d'arrondi : le backend calcule fixed + montant×percent/100 sans arrondir
   // (PricingResolver::feeAmount). Arrondir ici ferait diverger l'annoncé du débité.
@@ -474,7 +474,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // Avec devis, les frais viennent du devis → seul le cas non-coté est concerné.
   const feeUnavailable = !quotable && !!operator && numAmountInput > 0 && !feeConfig;
   const showFees = numAmountInput > 0 && operator && (quotable ? !!quote : !!feeConfig);
-  // Débit total XOF = XOF envoyé + frais GoesPay (devis serveur si disponible).
+  // Débit total XOF = XOF envoyé + frais GOESPAY (devis serveur si disponible).
   const aggTotalDebitXof = quotable
     ? (quote ? quote.total_xof : null)
     : (aggDebitXof !== null ? aggDebitXof + fees : null);
@@ -1698,7 +1698,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               </View>
             )}
 
-            {/* Frais en live (jamais affichés pour Fincra : pas de frais côté GoesPay) */}
+            {/* Frais en live (jamais affichés pour Fincra : pas de frais côté GOESPAY) */}
             {showFees ? (
               <View style={styles.feesBox}>
                 <View style={styles.feesRow}>

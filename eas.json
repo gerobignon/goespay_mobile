@@ -25,6 +25,9 @@
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
+      },
+      "ios": {
+        "distribution": "store"
       }
     }
   },
@@ -35,6 +38,10 @@
         "track": "internal",
         "releaseStatus": "completed",
         "changesNotSentForReview": false
+      },
+      "ios": {
+        "appleTeamId": "7T6979FP8P",
+        "language": "fr-FR"
       }
     }
   }

@@ -27,7 +27,7 @@ function buildRows(tx: Transaction, type: 'deposit' | 'withdraw' | 'transfer' | 
     if (tx.cp_hash) rows.push({ label: 'Hash transaction', value: tx.cp_hash });
   } else if (type === 'withdraw' || type === 'transfer') {
     // Retrait Fincra : amount = XOF débité (total), amount_sent = livré en
-    // currency_dest (NGN/GHS/…), fee_xof = frais GoesPay (XOF). On n'additionne
+    // currency_dest (NGN/GHS/…), fee_xof = frais GOESPAY (XOF). On n'additionne
     // ni ne soustrait JAMAIS deux devises différentes.
     const isFincraTx = (!!tx.currency_dest && tx.currency_dest !== 'XOF')
       || !!(tx.mode && tx.mode.startsWith('fincra-'));
@@ -122,7 +122,7 @@ export async function shareReceipt(tx: Transaction, type: 'deposit' | 'withdraw'
         <table>
           ${rows.map((r) => `<tr><td class="label">${r.label}</td><td class="value">${r.value}</td></tr>`).join('')}
         </table>
-        <div class="footer">GoesPay — Reçu généré le ${new Date().toLocaleDateString('fr-FR')}</div>
+        <div class="footer">GOESPAY — Reçu généré le ${new Date().toLocaleDateString('fr-FR')}</div>
       </body>
     </html>
   `;

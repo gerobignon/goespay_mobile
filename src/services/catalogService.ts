@@ -36,7 +36,7 @@ export interface CatalogCorridor {
   payout: boolean;
   audience?: string;
   // Montant minimum d'envoi, dans la devise du corridor (ex. 100 EUR en SEPA).
-  // null = pas de minimum imposé par GoesPay.
+  // null = pas de minimum imposé par GOESPAY.
   min_payout_amount?: number | null;
 }
 export interface CatalogResponse {

@@ -205,7 +205,7 @@ export function MessageBubble({
 
         {!!message.body && (
           message.format === 'html' ? (
-            // Annonce du canal GoesPay : mise en forme rédigée par l'équipe.
+            // Annonce du canal GOESPAY : mise en forme rédigée par l'équipe.
             // Le drapeau vient du serveur, jamais deviné à partir du contenu.
             <RichBody
               html={message.body}

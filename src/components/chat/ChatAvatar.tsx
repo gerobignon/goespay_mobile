@@ -14,7 +14,7 @@ interface ChatAvatarProps {
   online?: boolean;
   /** Support : casque sur fond de marque plutôt que des initiales. */
   isSupport?: boolean;
-  /** Canal d'annonces GoesPay : mégaphone plutôt que des initiales. */
+  /** Canal d'annonces GOESPAY : mégaphone plutôt que des initiales. */
   isChannel?: boolean;
   /**
    * Le compte cache son identité : œil barré plutôt que des initiales, qui ne

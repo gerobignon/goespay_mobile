@@ -113,7 +113,7 @@ export default function SecurityScreen() {
   // pendant de la biométrie native. L'enregistrement DOIT partir d'un geste
   // utilisateur, on l'appelle donc directement depuis le onPress.
   const handleEnableWebauthn = async () => {
-    const registered = await registerWebauthn(user?.id ?? 'user', user?.email ?? 'GoesPay');
+    const registered = await registerWebauthn(user?.id ?? 'user', user?.email ?? 'GOESPAY');
     if (!registered) {
       showAlert(t('common.error'), t('account.webauthnError'));
       return;

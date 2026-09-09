@@ -620,7 +620,7 @@ function RootInner() {
         <FontAwesome6 name="wifi" size={48} color={Colors.error} style={{ marginBottom: Spacing.lg }} />
         <Text style={styles.errorTitle}>{t('layout.connectionError')}</Text>
         <Text style={styles.errorText}>
-          Impossible de joindre GoesPay pour le moment.{'\n'}
+          Impossible de joindre GOESPAY pour le moment.{'\n'}
           Vérifiez votre connexion ou réessayez dans un instant.
         </Text>
         {__DEV__ && (
@@ -781,7 +781,7 @@ function MaintenanceScreen({ onRetry }: { onRetry: () => void }) {
         {/* Textes */}
         <Text style={mStyles.title}>Maintenance en cours</Text>
         <Text style={mStyles.subtitle}>
-          Nous améliorons GoesPay pour vous offrir{'\n'}une meilleure expérience.
+          Nous améliorons GOESPAY pour vous offrir{'\n'}une meilleure expérience.
         </Text>
         <Text style={mStyles.hint}>
           L'application sera de nouveau disponible{'\n'}très prochainement. Merci de votre patience 🙏
