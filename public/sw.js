@@ -1,4 +1,4 @@
-/* GOESPAY — Service Worker (Web Push uniquement).
+/* GOESPAY : Service Worker (Web Push uniquement).
  * Volontairement SANS handler `fetch` : il n'intercepte ni ne met en cache
  * les requêtes réseau, donc n'interfère pas avec l'app Expo. Il gère seulement
  * la réception d'une notification push et le clic dessus. */
@@ -97,8 +97,8 @@ function targetUrl(data) {
  *
  * `openWindow` est ignoré par la PWA installée sur iOS : elle se relance sur son
  * start_url (l'accueil) quelle que soit l'URL demandée, et un onglet gelé peut
- * rater le postMessage. On range donc la cible dans IndexedDB — seul stockage
- * accessible depuis un service worker — et l'app la relit au démarrage comme au
+ * rater le postMessage. On range donc la cible dans IndexedDB, seul stockage
+ * accessible depuis un service worker, et l'app la relit au démarrage comme au
  * retour au premier plan (src/utils/webNotificationTarget.ts). */
 var DB_NAME = 'goespay-push';
 var STORE = 'targets';
@@ -161,8 +161,8 @@ self.addEventListener('notificationclick', function (event) {
  *
  * Quand une fenêtre GOESPAY est déjà ouverte, on la focalise et on lui DEMANDE
  * de naviguer (postMessage → routeur Expo). `client.navigate()` rechargerait
- * toute l'application — plusieurs secondes d'écran blanc pour ouvrir une
- * conversation — et échoue silencieusement sur un client non contrôlé par ce
+ * toute l'application : plusieurs secondes d'écran blanc pour ouvrir une
+ * conversation : et échoue silencieusement sur un client non contrôlé par ce
  * service worker, ce qui laissait l'app ouverte sur la page en cours : c'était
  * la cause du « ça ouvre l'app mais pas la discussion ».
  *

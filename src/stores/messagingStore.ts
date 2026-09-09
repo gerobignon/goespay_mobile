@@ -252,7 +252,7 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
         isSending: false,
       }));
     } catch (e: any) {
-      // Le message reste visible, marqué en échec et réessayable — le perdre
+      // Le message reste visible, marqué en échec et réessayable, le perdre
       // silencieusement serait pire que l'afficher barré.
       set((s) => ({
         threads: {

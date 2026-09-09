@@ -32,7 +32,7 @@ import type { Conversation } from '../../types';
 
 const open = (url: string) => Linking.openURL(url).catch(() => {});
 
-/** Canaux hors application — conservés en second rideau sous la messagerie. */
+/** Canaux hors application : conservés en second rideau sous la messagerie. */
 const CHANNELS = [
   { icon: 'telegram' as const, brand: true, label: 'Telegram', color: '#0088cc', url: 'https://t.me/goespaay' },
   { icon: 'whatsapp' as const, brand: true, label: 'WhatsApp', color: '#25D366', url: 'https://wa.me/237659939340' },
@@ -42,7 +42,7 @@ const CHANNELS = [
 
 /**
  * Boîte de réception : le fil support en tête, puis les conversations avec les
- * autres comptes. Les canaux externes restent accessibles en bas — ils ne sont
+ * autres comptes. Les canaux externes restent accessibles en bas, ils ne sont
  * plus la porte d'entrée, mais le repli quand l'app elle-même pose problème.
  *
  * Affichée par l'onglet Support aux seuls comptes autorisés ; les autres voient
@@ -75,7 +75,7 @@ export function MessagesInbox() {
 
   const support = conversations.find((c) => c.type === 'support') || null;
   // Canal d'annonces : il n'existe qu'après la première diffusion, et il a sa
-  // propre carte — filtré des directs, il n'apparaîtrait nulle part.
+  // propre carte : filtré des directs, il n'apparaîtrait nulle part.
   const channel = conversations.find((c) => c.type === 'broadcast') || null;
   const directs = conversations.filter((c) => c.type === 'direct');
 

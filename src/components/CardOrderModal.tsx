@@ -33,7 +33,7 @@ interface Props {
  * Commande d'une carte : réseau, puis préfinancement.
  *
  * Les deux décisions sont réunies ici plutôt que posées sur l'écran, parce
- * qu'elles n'engagent que le moment de la commande — un sélecteur de réseau
+ * qu'elles n'engagent que le moment de la commande, un sélecteur de réseau
  * affiché en permanence sous une carte existante laisse croire qu'on peut
  * changer le réseau de CELLE-CI, ce qui est impossible : il est gravé à
  * l'émission.
@@ -154,7 +154,7 @@ export function CardOrderModal({ visible, pricing, onClose, onOrdered, onIneligi
         {quoting && !quote ? (
           <ActivityIndicator size="small" color={Colors.primary} />
         ) : quote ? (
-          /* Le détail reste ENTIÈREMENT en USD — c'est la devise de la carte et
+          /* Le détail reste ENTIÈREMENT en USD, c'est la devise de la carte et
              celle des tarifs. Mélanger les deux devises dans la même liste
              donnait un total dont aucune ligne affichée ne rendait compte : le
              montant chargé apparaissait en dollars, les frais en francs, et la

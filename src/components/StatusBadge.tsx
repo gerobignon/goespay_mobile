@@ -9,7 +9,7 @@ import { normalizeStatut, getStatusIcon } from '../utils/transactionStatus';
 
 interface Props {
   statut: string | number;
-  /** Transaction type — crypto uses a numeric state (1/0/3). */
+  /** Transaction type : crypto uses a numeric state (1/0/3). */
   type?: string;
   style?: StyleProp<ViewStyle>;
 }

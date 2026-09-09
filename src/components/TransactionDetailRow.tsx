@@ -51,8 +51,8 @@ export function TransactionDetailRow({
 
   const renderValue = () => {
     if (valueNode) return valueNode;
-    if (value === '—') {
-      return <Text style={styles.muted}>—</Text>;
+    if (value === '-') {
+      return <Text style={styles.muted}>-</Text>;
     }
     if (badge && badgeColor) {
       return (
@@ -96,14 +96,14 @@ export function TransactionDetailRow({
   return (
     <TouchableOpacity
       style={styles.row}
-      onPress={copyable && value !== '—' ? handleCopy : undefined}
-      activeOpacity={copyable && value !== '—' ? 0.6 : 1}
-      disabled={!copyable || value === '—'}
+      onPress={copyable && value !== '-' ? handleCopy : undefined}
+      activeOpacity={copyable && value !== '-' ? 0.6 : 1}
+      disabled={!copyable || value === '-'}
     >
       <Text style={styles.rowLabel}>{label}</Text>
       <View style={styles.valueCol}>
         {renderValue()}
-        {copyable && value !== '—' && (
+        {copyable && value !== '-' && (
           <FontAwesome6
             name={copied ? 'circle-check' : 'clipboard'}
             size={13}

@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "io.goespay.app",
-      "buildNumber": "5",
+      "buildNumber": "6",
       "infoPlist": {
         "NSCameraUsageDescription": "GOESPAY a besoin de la caméra pour vérifier votre identité (KYC).",
         "NSPhotoLibraryUsageDescription": "GOESPAY a besoin d'accéder à vos photos quand vous changez de photo de profil.",

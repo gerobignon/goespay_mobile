@@ -40,7 +40,7 @@ interface CurrencyState {
   setUserCurrency: (currency: string, source?: 'auto' | 'manual') => Promise<void>;
   hydrateFromUser: (currency?: string | null, source?: 'auto' | 'manual' | null) => Promise<void>;
 
-  // Helpers — XOF est la source de vérité, l'affichage est dérivé
+  // Helpers : XOF est la source de vérité, l'affichage est dérivé
   convertFromXof: (xofAmount: number, target?: string) => number;
   convertToXof: (displayAmount: number, source?: string) => number;
   formatFromXof: (xofAmount: number, opts?: { withCode?: boolean; approx?: boolean }) => string;

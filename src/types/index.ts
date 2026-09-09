@@ -152,7 +152,7 @@ export interface WelcomeBonus {
   volume: { current: number; target: number };
   /** Condition B : filleuls ayant validé leur KYC + fait ≥1 transaction. */
   filleuls: { current: number; target: number };
-  /** L'annonce du déblocage a déjà été vue — mémoire serveur, pas appareil. */
+  /** L'annonce du déblocage a déjà été vue, mémoire serveur, pas appareil. */
   celebrated?: boolean;
 }
 
@@ -292,8 +292,8 @@ export type ReportReason = 'scam' | 'spam' | 'harassment' | 'other';
 
 /**
  * Relation avec un autre client :
- *  - friend   : invitation acceptée — seule relation qui ouvre un fil
- *  - known    : lien déjà établi (parrainage, transfert) — nom visible, mais
+ *  - friend   : invitation acceptée, seule relation qui ouvre un fil
+ *  - known    : lien déjà établi (parrainage, transfert), nom visible, mais
  *               discuter demande quand même une invitation
  *  - stranger : rien
  */
@@ -317,7 +317,7 @@ export interface ChatVisibility {
  */
 export interface PeerCard {
   id: number;
-  /** Vaut « #id » quand le nom est masqué — cf. name_hidden. */
+  /** Vaut « #id » quand le nom est masqué, cf. name_hidden. */
   name: string;
   /** Le compte réserve son nom / sa photo : caché, et non simplement absent. */
   name_hidden?: boolean;
@@ -329,7 +329,7 @@ export interface PeerCard {
   online: boolean;
   last_seen_at: string | null;
   relation: ChatRelation;
-  /** Vrai si JE l'ai signalé — visible de moi seul, jamais du signalé. */
+  /** Vrai si JE l'ai signalé : visible de moi seul, jamais du signalé. */
   reported_by_me?: boolean;
   /** null quand le serveur ne l'a pas calculé (listes, pour rester léger). */
   is_contact: boolean | null;
@@ -341,7 +341,7 @@ export interface PeerCard {
 /** Invitation à discuter, reçue ou envoyée. */
 export interface ContactRequest {
   id: number;
-  /** « declined » : reçue puis refusée — conservée, donc réactivable. */
+  /** « declined » : reçue puis refusée, conservée, donc réactivable. */
   direction: 'incoming' | 'outgoing' | 'declined';
   note: string;
   created_at: string | null;

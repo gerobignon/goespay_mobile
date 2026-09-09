@@ -122,7 +122,7 @@ export async function shareReceipt(tx: Transaction, type: 'deposit' | 'withdraw'
         <table>
           ${rows.map((r) => `<tr><td class="label">${r.label}</td><td class="value">${r.value}</td></tr>`).join('')}
         </table>
-        <div class="footer">GOESPAY — Reçu généré le ${new Date().toLocaleDateString('fr-FR')}</div>
+        <div class="footer">GOESPAY : Reçu généré le ${new Date().toLocaleDateString('fr-FR')}</div>
       </body>
     </html>
   `;

@@ -216,8 +216,8 @@ export default function DepositDetailScreen() {
           {/* Origine du paiement : quel lien, et qui a payé. */}
           {!!tx.paylink && (
             <>
-              <TransactionDetailRow label={t('transaction.paylinkTitle')} value={tx.paylink.title || '—'} />
-              <TransactionDetailRow label={t('transaction.payer')} value={tx.paylink.payer || tx.de || '—'} />
+              <TransactionDetailRow label={t('transaction.paylinkTitle')} value={tx.paylink.title || '-'} />
+              <TransactionDetailRow label={t('transaction.payer')} value={tx.paylink.payer || tx.de || '-'} />
               {/* Voir TransactionDetailModal : affiché seulement s'il existe.
                   Le remboursement se déclenche ici, à côté du numéro : c'est le
                   destinataire de l'envoi, il doit être lu avant d'appuyer. */}
@@ -261,18 +261,18 @@ export default function DepositDetailScreen() {
             badgeColor={status.color}
             badgeIcon={tx.statut === 'success' ? 'circle-check' : tx.statut === 'wait' ? 'clock' : 'circle-xmark'}
           />
-          <TransactionDetailRow label={t('transaction.operator')} value={resolveOperatorDisplay(tx.mode, tx.currency_dest)?.name ?? tx.mode ?? '—'} badge badgeColor={Colors.secondary} />
-          <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />
+          <TransactionDetailRow label={t('transaction.operator')} value={resolveOperatorDisplay(tx.mode, tx.currency_dest)?.name ?? tx.mode ?? '-'} badge badgeColor={Colors.secondary} />
+          <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '-'} copyable mono />
           {tx.statut === 'success' && (
             <>
               <TransactionDetailRow
                 label={t('transaction.balanceBefore')}
-                value={tx.avant != null ? fmtXof(tx.avant) : '—'}
+                value={tx.avant != null ? fmtXof(tx.avant) : '-'}
                 mono
               />
               <TransactionDetailRow
                 label={t('transaction.balanceAfter')}
-                value={tx.apres != null ? fmtXof(tx.apres) : '—'}
+                value={tx.apres != null ? fmtXof(tx.apres) : '-'}
                 mono
                 color={status.color}
               />

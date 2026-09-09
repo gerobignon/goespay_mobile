@@ -132,7 +132,7 @@ export default function WithdrawDetailScreen() {
           {(() => {
             // Valeurs EXACTES (pas d'arrondi) dans le détail.
             const exact = (n: number) => Number(n).toLocaleString('fr-FR', { maximumFractionDigits: 2 });
-            const exactXof = (n?: number | null) => (n == null ? '—' : `${exact(n)} XOF`);
+            const exactXof = (n?: number | null) => (n == null ? '-' : `${exact(n)} XOF`);
             // Fincra = devise destinataire ≠ XOF, détecté via currency_dest OU le mode.
             const isFincraTx =
               (!!tx.currency_dest && tx.currency_dest !== 'XOF') ||
@@ -179,7 +179,7 @@ export default function WithdrawDetailScreen() {
                 )}
                 <TransactionDetailRow
                   label={t('transaction.operator')}
-                  value={opView?.name ?? tx.mode ?? '—'}
+                  value={opView?.name ?? tx.mode ?? '-'}
                   valueNode={
                     opView ? (
                       <View style={styles.opValue}>
@@ -200,11 +200,11 @@ export default function WithdrawDetailScreen() {
                 ) : null}
                 <TransactionDetailRow
                   label={isFincraTx && tx.currency_dest ? t('transaction.accountNumber') : t('transaction.receiver')}
-                  value={tx.phone ?? '—'}
+                  value={tx.phone ?? '-'}
                   copyable
                   mono
                 />
-                <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />
+                <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '-'} copyable mono />
                 {tx.statut === 'success' && (
                   <>
                     <TransactionDetailRow label={t('transaction.balanceBefore')} value={exactXof(tx.avant)} mono />

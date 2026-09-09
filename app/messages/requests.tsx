@@ -22,14 +22,14 @@ import type { ContactRequest } from '../../src/types';
 /**
  * Invitations à discuter.
  *
- * Reçues : on voit la fiche du demandeur — c'est lui qui sollicite, il se
- * montre — et son mot d'accompagnement, de quoi décider. Envoyées : on voit
+ * Reçues : on voit la fiche du demandeur, c'est lui qui sollicite, il se
+ * montre : et son mot d'accompagnement, de quoi décider. Envoyées : on voit
  * seulement qu'elles sont en attente ; rien ne dit si elles ont été lues, ni
  * même si le compte visé existe.
  *
  * Refusées : repliées derrière un bouton, car un refus n'a pas à occuper
  * l'écran. Elles restent en base pour empêcher les relances, donc les montrer
- * est le seul moyen de revenir dessus — accepter, ou effacer pour rouvrir la
+ * est le seul moyen de revenir dessus, accepter, ou effacer pour rouvrir la
  * porte à l'expéditeur.
  */
 /**

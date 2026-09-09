@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { catalogService, type CatalogCountry, type CatalogCurrency } from '../services/catalogService';
 
 // ─────────────────────────────────────────────────────────────────────────
-// Catalogue serveur (P3) — l'app construit ses listes opérateurs/pays/devises
+// Catalogue serveur (P3) : l'app construit ses listes opérateurs/pays/devises
 // depuis /catalog (piloté par l'admin « Marchés »), au lieu des listes en dur
 // de config.ts. Les composants gardent config.ts en FALLBACK tant que le
 // catalogue n'est pas chargé (offline / premier rendu).
@@ -178,7 +178,7 @@ function klashaCnyName(code: string): string {
 }
 
 // Comme l'admin : sur les cartes et virements Fincra, on suffixe le nom avec la
-// devise gérée — « Virement bancaire (NGN) », « Carte bancaire (XOF) ». Le Mobile
+// devise gérée : « Virement bancaire (NGN) », « Carte bancaire (XOF) ». Le Mobile
 // Money n'est pas suffixé (le drapeau pays suffit à le distinguer).
 const FINCRA_CUR_RAILS = new Set(['bank_transfer', 'SWIFT', 'SEPA', 'checkout', 'wire', 'cny']);
 function fincraDisplayName(name: string, rail?: string, currency?: string): string {
@@ -253,7 +253,7 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
                          : isFincraAgg ? fincraRailFor(r.code, r.currency)
                          : isKlashaAgg ? klashaRailFor(r.code) : undefined;
         // Le label réseau est suffixé de l'agrégateur côté admin (distinction
-        // corridor) — le client ne doit jamais voir ces marques. On les retire.
+        // corridor) : le client ne doit jamais voir ces marques. On les retire.
         const stripAgg = (s: string) => s.replace(/\s*\((?:fincra|klasha|afribapay|paydunya|kkiapay|payci)\)\s*$/i, '');
         const baseName = stripAgg(net?.label ?? r.network);
         // Libellé propre au corridor, saisi dans Marchés. Plusieurs moyens d'un
@@ -274,7 +274,7 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
           // Wallet chinois (Alipay/WeChat) → serviceCode Klasha.
           cnyServiceCode: isKlashaAgg ? klashaCnyServiceCode(r.code) : undefined,
           // Drapeau : celui du pays catalogue, sinon dérivé du code ISO (US/EU/GB/NG…
-          // — pays des rails internationaux souvent sans emoji stocké en base).
+          // pays des rails internationaux souvent sans emoji stocké en base).
           flag: countryByCode[r.country]?.flag || flagFromCode(r.country),
           country: r.country,
           countries: isZone ? zoneMembers[r.country] : undefined,
@@ -303,7 +303,7 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
           fincraOperator: (r.code.startsWith('fincra-mm-') || r.code.startsWith('klasha-mm-')) ? r.network.toUpperCase() : undefined,
           klashaOperator: r.code.startsWith('klasha-mm-') ? r.network.toUpperCase() : undefined,
           aggregator: r.aggregator,
-          // Minimum d'envoi du corridor (devise destination) — affiché et bloqué
+          // Minimum d'envoi du corridor (devise destination), affiché et bloqué
           // côté app, revérifié par le backend à l'exécution.
           minAmount: (r.min_payout_amount ?? undefined) || undefined,
           logo: (isKlashaAgg && klashaCnyLogo(r.code)) || (net && LOGO_BY_KEY[net.logo_key]) || DEFAULT_LOGO,

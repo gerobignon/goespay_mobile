@@ -14,7 +14,7 @@ import { MessagingGate } from '../../src/components/MessagingGate';
  *
  * Garde d'accès : sur le web ces routes s'atteignent en tapant l'URL, sans
  * passer par l'onglet. Un compte sans droit de messagerie est renvoyé à
- * l'accueil — le serveur refuserait de toute façon, mais autant ne pas
+ * l'accueil : le serveur refuserait de toute façon, mais autant ne pas
  * afficher une coquille vide.
  */
 export default function MessagesLayout() {

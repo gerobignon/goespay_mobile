@@ -75,7 +75,7 @@ const CATEGORIES: { key: string; icon: string; emojis: string[] }[] = [
 
 interface EmojiPickerProps {
   onPick: (emoji: string) => void;
-  /** Hauteur du panneau — calée sur celle du clavier quand elle est connue. */
+  /** Hauteur du panneau : calée sur celle du clavier quand elle est connue. */
   height?: number;
 }
 
@@ -86,7 +86,7 @@ export function EmojiPicker({ onPick, height = 260 }: EmojiPickerProps) {
   const [active, setActive] = useState(0);
 
   // Grille fluide, calibrée sur des emojis confortables : ~58 px par case, et
-  // jamais plus de 7 colonnes — au-delà, les symboles redeviennent minuscules.
+  // jamais plus de 7 colonnes : au-delà, les symboles redeviennent minuscules.
   const columns = Math.min(7, Math.max(5, Math.floor((width - Spacing.md * 2) / 58)));
   const size = (width - Spacing.md * 2) / columns;
 

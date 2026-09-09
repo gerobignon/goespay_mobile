@@ -4,7 +4,7 @@ import { SafeStorage } from '../services/storage';
 const KEY = 'messaging_lock';
 
 /**
- * Verrou d'entrée de la messagerie — OPTIONNEL et désactivé par défaut.
+ * Verrou d'entrée de la messagerie, OPTIONNEL et désactivé par défaut.
  *
  * Demander le code à chaque ouverture de l'onglet gênait plus qu'il ne
  * protégeait : la messagerie est un onglet de l'app, pas un coffre. Qui veut la

@@ -42,7 +42,7 @@ export function DevKanbanScreen({ showBack = false }: { showBack?: boolean }) {
   const { task: taskParam } = useLocalSearchParams<{ task?: string }>();
   const openedFromParamRef = useRef<number | null>(null);
 
-  // Réservé au super-admin (user id 1) — miroir de la garde backend (groupe admin).
+  // Réservé au super-admin (user id 1), miroir de la garde backend (groupe admin).
   useEffect(() => {
     if (user && user.id !== 1) router.replace('/(tabs)');
   }, [user?.id]);
@@ -58,7 +58,7 @@ export function DevKanbanScreen({ showBack = false }: { showBack?: boolean }) {
   );
 
   // Arrivée depuis une notification (`?task=<id>`) : on ouvre la tâche annoncée
-  // sur son fil de commentaires — venir d'une notif de commentaire pour
+  // sur son fil de commentaires : venir d'une notif de commentaire pour
   // atterrir sur le board entier obligeait à retrouver la carte à la main.
   // Le board peut n'être pas encore chargé : on attend qu'il le soit.
   useEffect(() => {

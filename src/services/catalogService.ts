@@ -1,6 +1,6 @@
 import api from './api';
 
-// Référentiel serveur (P3) — piloté par l'admin « Marchés » (tables normalisées
+// Référentiel serveur (P3) : piloté par l'admin « Marchés » (tables normalisées
 // countries/currencies/networks + corridors aggregator_routing).
 export interface CatalogCountry {
   code: string;

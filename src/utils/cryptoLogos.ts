@@ -17,7 +17,7 @@ const CRYPTO_IMAGES: Record<string, ImageSourcePropType> = {
 
 // NOTE : ne pas réintroduire de helper renvoyant directement `{ uri: rate.img }`
 // pour un <Image>. Les logos du catalogue NOWPayments sont des SVG, que <Image>
-// ne rend pas en natif — passer par <CryptoLogo>, qui gère les deux cas.
+// ne rend pas en natif : passer par <CryptoLogo>, qui gère les deux cas.
 
 /** Asset local éventuel, sans passer par l'URL distante. */
 export function localCryptoSource(code?: string | null): ImageSourcePropType | null {

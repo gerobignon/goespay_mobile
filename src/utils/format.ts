@@ -20,7 +20,7 @@ export function formatXof(xofAmount: number, opts?: { withCode?: boolean; approx
   return `${formatted}${opts?.withCode === false ? '' : ' XOF'}`;
 }
 
-// Hook réactif (conservé pour compat) — formate toujours en XOF.
+// Hook réactif (conservé pour compat), formate toujours en XOF.
 export function useFormatXof(): (xofAmount: number, opts?: { withCode?: boolean; approx?: boolean; decimals?: number }) => string {
   return (xofAmount: number, opts) => formatXof(xofAmount, opts);
 }

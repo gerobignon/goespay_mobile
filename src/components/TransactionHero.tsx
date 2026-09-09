@@ -6,12 +6,12 @@ import StatusBadge from './StatusBadge';
 
 interface Props {
   statut: string | number;
-  /** Transaction type — crypto uses a numeric state (1/0/3). */
+  /** Transaction type : crypto uses a numeric state (1/0/3). */
   type?: string;
   /** Pre-formatted amount, without currency code. */
   amount: string;
   sign?: '+' | '-' | '';
-  /** Amount color — defaults to the secondary accent. */
+  /** Amount color : defaults to the secondary accent. */
   amountColor?: string;
   currencyCode: string;
 }

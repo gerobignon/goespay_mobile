@@ -15,7 +15,7 @@ export function fincraCollectionRails(currency: string): FincraCollectionRail[] 
 }
 
 // Indicatif principal par devise Fincra (utilisé quand on n'a pas de sous-pays
-// sélectionné — XOF/XAF en particulier qui couvrent plusieurs pays).
+// sélectionné : XOF/XAF en particulier qui couvrent plusieurs pays).
 const DEFAULT_DIAL: Record<string, string> = {
   NGN: '234', GHS: '233', KES: '254', UGX: '256', ZMW: '260', TZS: '255',
   RWF: '250', EGP: '20',  ZAR: '27',  XOF: '221', XAF: '237', SLE: '232',

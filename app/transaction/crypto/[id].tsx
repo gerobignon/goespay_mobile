@@ -97,7 +97,7 @@ export default function CryptoDetailScreen() {
   const statusInfo = getTransactionStatus(t)[norm] ?? { label: String(tx.statut), color: Colors.textMuted };
   const statusIcon = getStatusIcon(norm);
   const isBuy = tx.mode === 'Buy';
-  const cryptoCode = tx.currency_src ?? '—';
+  const cryptoCode = tx.currency_src ?? '-';
   const xofAmount = tx.amount;
   const cryptoAmount = tx.dollar;
 
@@ -147,7 +147,7 @@ export default function CryptoDetailScreen() {
           {cryptoAmount != null && (
             <TransactionDetailRow label={t('transaction.amount')} value={`${cryptoAmount} ${cryptoCode}`} mono />
           )}
-          <TransactionDetailRow label={t('transaction.address')} value={tx.address ?? '—'} copyable mono />
+          <TransactionDetailRow label={t('transaction.address')} value={tx.address ?? '-'} copyable mono />
           {tx.tx_id && (
             <TransactionDetailRow
               label={tx.provider === 'nowpayments' ? t('transaction.npReference') : t('transaction.cpReference')}
@@ -167,8 +167,8 @@ export default function CryptoDetailScreen() {
           {tx.cp_hash && <TransactionDetailRow label={t('transaction.txHash')} value={tx.cp_hash} copyable mono />}
           {norm === 'success' && (
             <>
-              <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '—'} mono />
-              <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '—'} mono color={statusInfo.color} />
+              <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '-'} mono />
+              <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '-'} mono color={statusInfo.color} />
             </>
           )}
           <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />

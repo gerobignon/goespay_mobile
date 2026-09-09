@@ -35,7 +35,7 @@ import * as Clipboard from 'expo-clipboard';
 import { Bounce } from '../anim';
 
 // ═══════════════════════════════════════════════════════════════════
-//  G — Carrousel promo : images 4:3, autoplay, tap → lien.
+//  G : Carrousel promo : images 4:3, autoplay, tap → lien.
 // ═══════════════════════════════════════════════════════════════════
 export interface PromoSlide {
   id: string;
@@ -135,7 +135,7 @@ export function PromoCarousel({ slides }: { slides: PromoSlide[] }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  H — Insights mensuels (3 KPI dérivées des transactions en cache).
+//  H : Insights mensuels (3 KPI dérivées des transactions en cache).
 // ═══════════════════════════════════════════════════════════════════
 export function MonthlyInsights() {
   const { t } = useTranslation();
@@ -171,15 +171,15 @@ export function MonthlyInsights() {
 
   return (
     <View style={styles.insightsGrid}>
-      {cell('arrow-down', '#10B981', t('home.insightsDeposit'), insights ? fmtXof(insights.deposit_month, { withCode: false }) : '—')}
-      {cell('arrow-up', '#3176FE', t('home.insightsSent'), insights ? fmtXof(insights.sent_month, { withCode: false }) : '—')}
-      {cell('sack-dollar', '#F4B228', t('home.insightsGains'), gains !== null ? fmtXof(gains, { withCode: false }) : '—')}
+      {cell('arrow-down', '#10B981', t('home.insightsDeposit'), insights ? fmtXof(insights.deposit_month, { withCode: false }) : '-')}
+      {cell('arrow-up', '#3176FE', t('home.insightsSent'), insights ? fmtXof(insights.sent_month, { withCode: false }) : '-')}
+      {cell('sack-dollar', '#F4B228', t('home.insightsGains'), gains !== null ? fmtXof(gains, { withCode: false }) : '-')}
     </View>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  A — Bénéficiaires fréquents (avatars compacts + tile « Ajouter »).
+//  A : Bénéficiaires fréquents (avatars compacts + tile « Ajouter »).
 // ═══════════════════════════════════════════════════════════════════
 const PALETTE = ['#3176FE', '#F4900C', '#10B981', '#A855F7', '#EC4899', '#0EA5E9'];
 
@@ -223,7 +223,7 @@ export function RecentBeneficiaries({ onPick, onPickBank, onAdd, allowCrypto = f
           );
         })}
         {banks.map((b) => {
-          const label = b.name || b.account_holder || b.bank_name || '—';
+          const label = b.name || b.account_holder || b.bank_name || '-';
           return (
             <Bounce key={`b${b.id}`} style={styles.benefTile} onPress={() => onPickBank(b)}>
               <View style={[styles.benefAvatar, { backgroundColor: '#475569' }]}>
@@ -260,7 +260,7 @@ export function RecentBeneficiaries({ onPick, onPickBank, onAdd, allowCrypto = f
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  C — Convertisseur instantané (XOF → devise Fincra).
+//  C : Convertisseur instantané (XOF → devise Fincra).
 // ═══════════════════════════════════════════════════════════════════
 const CONV_CURRENCIES = ['NGN', 'GHS', 'KES', 'USD', 'EUR', 'GBP'];
 
@@ -271,8 +271,8 @@ export function QuickConverter() {
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState('1000');
   const [targetCur, setTargetCur] = useState('NGN');
-  // sellRate = taux de VENTE (payout, forDeposit=false) — lecture seule, référence.
-  // payinRate = taux d'ENCAISSEMENT (payin, forDeposit=true) — défaut du champ éditable.
+  // sellRate = taux de VENTE (payout, forDeposit=false), lecture seule, référence.
+  // payinRate = taux d'ENCAISSEMENT (payin, forDeposit=true), défaut du champ éditable.
   // buyRate = « VOTRE TAUX D'ACHAT » (éditable, XOF pour 1 targetCur) qui pilote la conversion.
   const [sellRate, setSellRate] = useState<number | null>(null);
   const [payinRate, setPayinRate] = useState<number | null>(null);
@@ -300,7 +300,7 @@ export function QuickConverter() {
     const zone = walletZone(userCountry);
     // Achat (payin) = même appel que le form de dépôt (forDeposit=true, zone CFA du
     // user, agrégateur résolu) → coïncide avec le taux réellement appliqué au dépôt.
-    // Vente (payout) = forDeposit=false (côté buy) — le taux de vente Fincra d'origine.
+    // Vente (payout) = forDeposit=false (côté buy), le taux de vente Fincra d'origine.
     Promise.all([
       fetchFincraRate(targetCur, isKlashaPayin, true, zone),
       fetchFincraRate(targetCur, isKlashaPayin, false, zone),
@@ -393,11 +393,11 @@ export function QuickConverter() {
             <View style={[styles.convField, styles.convFieldHighlight]}>
               <Text style={[styles.convCornerLabel, { color: Colors.secondary }]}>{targetCur}</Text>
               <Text style={styles.convResultBig} numberOfLines={1}>
-                {loading ? '…' : converted !== null ? converted.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) : '—'}
+                {loading ? '…' : converted !== null ? converted.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) : '-'}
               </Text>
             </View>
 
-            {/* VOTRE TAUX D'ACHAT — éditable, pré-rempli avec le taux de payin */}
+            {/* VOTRE TAUX D'ACHAT : éditable, pré-rempli avec le taux de payin */}
             <Text style={styles.convBuyLabel}>{t('home.convertBuyRate')}</Text>
             <View style={styles.convField}>
               <Text style={styles.convCornerLabel}>XOF / 1 {targetCur}</Text>
@@ -425,7 +425,7 @@ export function QuickConverter() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  V — Comptes virtuels : barre compacte, une pastille par devise.
+//  V : Comptes virtuels : barre compacte, une pastille par devise.
 //  Une seule ligne d'en-tête + la rangée de devises : l'accueil ne
 //  gagne qu'un bloc court, le détail reste sur /account/virtual-accounts.
 // ═══════════════════════════════════════════════════════════════════
@@ -532,7 +532,7 @@ export function VirtualAccountsBar() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  E — Parrainage (card gradient + code + share).
+//  E : Parrainage (card gradient + code + share).
 // ═══════════════════════════════════════════════════════════════════
 const REFERRAL_BASE_URL = 'https://goespay.io';
 
@@ -617,14 +617,14 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     marginBottom: Spacing.sm,
   },
 
-  // G — Promo (images 4:3)
+  // G : Promo (images 4:3)
   promoWrap: { marginTop: Spacing.lg },
   promoImage: { width: '100%', height: '100%', borderRadius: BorderRadius.xl },
   promoDots: { flexDirection: 'row', justifyContent: 'center', gap: 5, marginTop: Spacing.sm },
   promoDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.border },
   promoDotActive: { backgroundColor: Colors.secondary, width: 18 },
 
-  // H — Insights (sur bg sombre du hero solde : chaque colonne a un fond
+  // H : Insights (sur bg sombre du hero solde : chaque colonne a un fond
   // teinté distinct + bordure subtile pour bien se détacher).
   insightsGrid: {
     flexDirection: 'row',
@@ -657,7 +657,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  // V — Comptes virtuels. Surface pleine + pastilles translucides, comme les
+  // V : Comptes virtuels. Surface pleine + pastilles translucides, comme les
   // cards mises en avant sur l'accueil (parrainage, bonus, hero solde) :
   // texte blanc, icône ronde `rgba(255,255,255,.22)`, aucune boîte bordée.
   vaWrap: {
@@ -709,7 +709,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   vaColValue_pending: { fontSize: FontSize.sm, fontFamily: Fonts.semiBold, letterSpacing: 0, color: 'rgba(255,255,255,0.7)' },
   vaColValue_blocked: { fontSize: FontSize.sm, fontFamily: Fonts.semiBold, letterSpacing: 0, color: 'rgba(255,255,255,0.55)' },
 
-  // A — Bénéficiaires
+  // A : Bénéficiaires
   benefList: { gap: Spacing.sm, paddingVertical: 2, paddingRight: Spacing.lg },
   benefTile: {
     width: 64,
@@ -767,7 +767,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.text,
   },
 
-  // C — Convertisseur : trigger compact sur la home + modal centré.
+  // C : Convertisseur : trigger compact sur la home + modal centré.
   convTrigger: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     backgroundColor: Colors.inputBg,
@@ -873,7 +873,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     marginBottom: 4,
   },
 
-  // E — Parrainage
+  // E : Parrainage
   refCard: {
     backgroundColor: Colors.secondary,
     borderRadius: BorderRadius.xl,

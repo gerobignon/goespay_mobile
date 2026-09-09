@@ -47,7 +47,7 @@ export const OPERATORS = [
   { id: 'mtn-cameroun', name: 'MTN Mobile Money', flag: '🇨🇲', country: 'CM', withdraw: true, logo: require('../../assets/operators/pay_mtn.png') },
 
   // ─── AfribaPay ──────────────────────────────────────────────────────────
-  // Niger (XOF) — AfribaPay ne supporte qu'Airtel au Niger
+  // Niger (XOF) : AfribaPay ne supporte qu'Airtel au Niger
   { id: 'airtel-ne', name: 'Airtel Money', flag: '🇳🇪', country: 'NE', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_airtel.png') },
   // Guinée Conakry (GNF)
   { id: 'orange-gn', name: 'Orange Money', flag: '🇬🇳', country: 'GN', withdraw: true, afribapay: true, currency: 'GNF', logo: require('../../assets/operators/pay_orange.jpg') },
@@ -69,7 +69,7 @@ export const OPERATORS = [
   { id: 'orange-cd', name: 'Orange Money', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, currency: 'CDF', logo: require('../../assets/operators/pay_orange.jpg') },
   { id: 'airtel-cd', name: 'Airtel Money', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, currency: 'CDF', logo: require('../../assets/operators/pay_airtel.png') },
   { id: 'africell-cd', name: 'Africell Money', flag: '🇨🇩', country: 'CD', withdraw: true, afribapay: true, currency: 'CDF', logo: require('../../assets/operators/pay_africell.png') },
-  // Cameroun (XAF, AfribaPay — coexiste avec mtn-cameroun PayDunya)
+  // Cameroun (XAF, AfribaPay : coexiste avec mtn-cameroun PayDunya)
   { id: 'mtn-cm', name: 'MTN Mobile Money', flag: '🇨🇲', country: 'CM', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_mtn.png') },
   { id: 'orange-cm', name: 'Orange Money', flag: '🇨🇲', country: 'CM', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
 
@@ -131,15 +131,15 @@ export const OPERATORS = [
   { id: 'fincra-zmw-bt',   name: 'Virement bancaire (ZMW)', flag: '🇿🇲', country: 'ZM', withdraw: true, fincra: true, currency: 'ZMW', rail: 'bank_transfer', logo: require('../../assets/operators/pay_bank.png') },
   { id: 'fincra-zmw-card', name: 'Open Banking (ZMW)',   flag: '🇿🇲', country: 'ZM', withdraw: false, fincra: true, currency: 'ZMW', rail: 'checkout',     logo: require('../../assets/operators/pay_card.jpg') },
 
-  // Tanzanie (TZS) — Fincra ne supporte pas le checkout hébergé pour TZS, pas de carte
+  // Tanzanie (TZS) : Fincra ne supporte pas le checkout hébergé pour TZS, pas de carte
   { id: 'fincra-tzs-mm', name: 'Mobile Money',     flag: '🇹🇿', country: 'TZ', withdraw: true, fincra: true, currency: 'TZS', rail: 'mobile_money',  logo: require('../../assets/operators/pay_momo.png') },
   { id: 'fincra-tzs-bt', name: 'Virement bancaire (TZS)', flag: '🇹🇿', country: 'TZ', withdraw: true, fincra: true, currency: 'TZS', rail: 'bank_transfer', logo: require('../../assets/operators/pay_bank.png') },
 
-  // Zone CEMAC (XAF) — Mobile Money + carte (hosted checkout). Pas de bank_transfer chez Fincra.
+  // Zone CEMAC (XAF) : Mobile Money + carte (hosted checkout). Pas de bank_transfer chez Fincra.
   { id: 'fincra-xaf-mm',   name: 'Mobile Money', flag: '', country: 'XAF', countries: ['CM','CF','CG','GA','GQ','TD'], withdraw: true, fincra: true, currency: 'XAF', rail: 'mobile_money', logo: require('../../assets/operators/pay_momo.png') },
   { id: 'fincra-xaf-card', name: 'Open Banking (XAF)', flag: '', country: 'XAF', countries: ['CM','CF','CG','GA','GQ','TD'], withdraw: false, fincra: true, currency: 'XAF', rail: 'checkout', logo: require('../../assets/operators/pay_card.jpg') },
 
-  // Zone UEMOA (XOF) — Mobile Money + carte (hosted checkout). Pas de bank_transfer chez Fincra.
+  // Zone UEMOA (XOF) : Mobile Money + carte (hosted checkout). Pas de bank_transfer chez Fincra.
   { id: 'fincra-xof-mm',   name: 'Mobile Money', flag: '', country: 'XOF', countries: ['BJ','BF','CI','GW','ML','NE','SN','TG'], withdraw: true, fincra: true, currency: 'XOF', rail: 'mobile_money', logo: require('../../assets/operators/pay_momo.png') },
   { id: 'fincra-xof-card', name: 'Open Banking (XOF)', flag: '', country: 'XOF', countries: ['BJ','BF','CI','GW','ML','NE','SN','TG'], withdraw: false, fincra: true, currency: 'XOF', rail: 'checkout', logo: require('../../assets/operators/pay_card.jpg') },
 
@@ -151,7 +151,7 @@ export const OPERATORS = [
   { id: 'fincra-egp-mm', name: 'Mobile Money',     flag: '🇪🇬', country: 'EG', withdraw: true, fincra: true, currency: 'EGP', rail: 'mobile_money',  logo: require('../../assets/operators/pay_momo.png') },
   { id: 'fincra-egp-bt', name: 'Virement bancaire (EGP)', flag: '🇪🇬', country: 'EG', withdraw: true, fincra: true, currency: 'EGP', rail: 'bank_transfer', logo: require('../../assets/operators/pay_bank.png') },
 
-  // International (USD/EUR/GBP) — payout via SWIFT/SEPA. Pas de bank_transfer en
+  // International (USD/EUR/GBP) : payout via SWIFT/SEPA. Pas de bank_transfer en
   // pay-in (Fincra n'expose pas de virtual accounts dans ces devises) ni de carte
   // Fincra dédiée (supprimée) : le pay-in intl passe par l'Open Banking hébergé
   // (fincra-checkout-<cc>, catalogue serveur).

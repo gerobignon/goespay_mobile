@@ -3,7 +3,7 @@ import * as Notifications from 'expo-notifications';
 
 /**
  * Pastille de décompte sur l'icône de l'app.
- *  - Web/PWA : Badging API (`navigator.setAppBadge`) — visible sur l'icône de la
+ *  - Web/PWA : Badging API (`navigator.setAppBadge`), visible sur l'icône de la
  *    PWA installée (iOS 16.4+, Android/Chrome, macOS). Ignoré si non supportée.
  *  - Natif : badge d'icône iOS/Android via expo-notifications.
  */

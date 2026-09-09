@@ -29,7 +29,7 @@ interface Props {
  * Le logo du provider Fincra est exposé séparément via `<GatewayBadge>` en mode admin.
  */
 export function OperatorLogo({ op, size = 26, style, rounded }: Props) {
-  // Image dans une pastille ronde (fond clair) — uniforme avec l'historique.
+  // Image dans une pastille ronde (fond clair), uniforme avec l'historique.
   const renderImage = (src: any) => {
     if (!rounded) {
       return <Image source={src} style={[{ width: size, height: size }, style as ImageStyle]} resizeMode="contain" />;

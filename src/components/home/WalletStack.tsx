@@ -44,13 +44,13 @@ interface Props {
  * emplacement, l'une devant l'autre. Celle du dessous dépasse en bas, réduite,
  * comme dans un jeu de cartes.
  *
- * On change de carte en glissant vers la gauche ou la droite — la carte du
- * dessus part sur le côté et repasse dessous — ou en touchant l'une des deux
+ * On change de carte en glissant vers la gauche ou la droite, la carte du
+ * dessus part sur le côté et repasse dessous, ou en touchant l'une des deux
  * icônes sous la pile.
  *
  * Le panneau « carte » n'apparaît que si le service répond. Sur un compte où
- * les cartes ne sont pas ouvertes — ou si la fonctionnalité est coupée côté
- * serveur — l'accueil garde exactement son affichage d'avant.
+ * les cartes ne sont pas ouvertes, ou si la fonctionnalité est coupée côté
+ * serveur : l'accueil garde exactement son affichage d'avant.
  */
 export function WalletStack({ children }: Props) {
   const styles = useThemedStyles(createStyles);
@@ -135,7 +135,7 @@ export function WalletStack({ children }: Props) {
   // horizontal il entrait en concurrence avec le défilement des cartes logé
   // dans l'un des panneaux, en vertical avec celui de la page d'accueil sur
   // laquelle la pile est posée. On change de panneau en touchant celui du
-  // dessous, ou par le sélecteur sous la pile — deux gestes sans ambiguïté.
+  // dessous, ou par le sélecteur sous la pile, deux gestes sans ambiguïté.
 
   /** Panneau « carte virtuelle », calé sur la présentation de la carte de solde. */
   const renderCardPanel = () => (
@@ -145,7 +145,7 @@ export function WalletStack({ children }: Props) {
       imageStyle={styles.panelCardImage}
     >
       {/* Conteneur NON tactile : un Touchable enveloppant tout le panneau se
-          disputait chaque geste avec le défilement des cartes — le doigt
+          disputait chaque geste avec le défilement des cartes, le doigt
           déclenchait tantôt le glissement, tantôt la navigation, d'où des
           sauts. Les zones qui ouvrent l'écran cartes sont désignées une à une. */}
       <View style={styles.panelInner}>
@@ -154,7 +154,7 @@ export function WalletStack({ children }: Props) {
         </TouchableOpacity>
 
         {/* Plusieurs cartes : elles défilent sur place. Le glissement reste
-            capté par ce défilement, jamais par la pile — on change de panneau
+            capté par ce défilement, jamais par la pile, on change de panneau
             avec les deux pastilles sous la pile, pas en balayant la carte. */}
         {liveCards.length > 1 ? (
           <View style={styles.pager} onLayout={(e) => setPagerWidth(Math.round(e.nativeEvent.layout.width))}>
@@ -411,7 +411,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     textTransform: 'uppercase',
   },
   // Pas d'alignItems ici : centrer les enfants écrase la largeur du ScrollView,
-  // qui prend alors celle de son contenu (n cartes) et déborde du panneau — on
+  // qui prend alors celle de son contenu (n cartes) et déborde du panneau : on
   // voyait deux demi-cartes au lieu d'une, et la pagination ne tombait jamais juste.
   flex: { flex: 1 },
   pager: { width: '100%' },

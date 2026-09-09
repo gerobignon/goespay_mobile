@@ -21,7 +21,7 @@ import { walletService, type SimulationParams } from '../../services/walletServi
 import { useFormatXof } from '../../utils/format';
 
 // ═══════════════════════════════════════════════════════════════════
-//  Simulateur de taux — calculatrice « combien ça me coûte ».
+//  Simulateur de taux : calculatrice « combien ça me coûte ».
 //
 //  Les chiffres viennent de POST /simulate : le serveur renvoie le TAUX et la
 //  FORMULE de frais du corridor (pas un montant), donc la conversion se fait
@@ -357,7 +357,7 @@ export function RateSimulator({ allowCrypto = false }: { allowCrypto?: boolean }
         />
       </View>
       <View style={styles.badge}>
-        <Text style={styles.badgeText}>{code || '—'}</Text>
+        <Text style={styles.badgeText}>{code || '-'}</Text>
       </View>
     </View>
   );

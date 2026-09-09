@@ -37,7 +37,7 @@ export default function SettingsScreen() {
   const { mode: themeMode, setMode: setThemeMode, isDark } = useTheme();
   const { t } = useTranslation();
 
-  // Notifications Web Push (PWA) — web uniquement.
+  // Notifications Web Push (PWA) : web uniquement.
   const webPushSupported = isWebPushSupported();
   const [notifPerm, setNotifPerm] = useState<string>(() => getWebNotificationPermission());
   const [notifBusy, setNotifBusy] = useState(false);
@@ -114,7 +114,7 @@ export default function SettingsScreen() {
             }
             description={
               notifPerm === 'denied'
-                ? t('account.notifDeniedHint', 'Bloquées — à réautoriser dans votre navigateur')
+                ? t('account.notifDeniedHint', 'Bloquées, à réautoriser dans votre navigateur')
                 : t('account.notifEnableHint', 'Recevez vos confirmations de transaction')
             }
             onPress={notifPerm === 'granted' || notifBusy ? undefined : enableWebNotifications}

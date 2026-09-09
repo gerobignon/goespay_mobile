@@ -13,7 +13,7 @@ import { useColors } from '../ThemeProvider';
  *
  * Dessinée nativement et non rendue depuis du HTML : le fil n'a pas de moteur
  * de rendu, et une promotion vit de son visuel, de son accent de couleur et
- * d'un bouton qui ouvre un écran de l'application — trois choses qu'un
+ * d'un bouton qui ouvre un écran de l'application, trois choses qu'un
  * paragraphe mis en forme ne peut pas porter.
  *
  * Tout est facultatif sauf le titre. Le serveur a déjà borné les longueurs et

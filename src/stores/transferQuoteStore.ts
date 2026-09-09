@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { walletService, TransferQuote, TransferQuoteRequest, DepositQuote } from '../services/walletService';
 
 // ─────────────────────────────────────────────────────────────────────────
-// Devis d'envoi — le backend calcule, l'app affiche.
+// Devis d'envoi : le backend calcule, l'app affiche.
 //
 // Avant, l'app convertissait elle-même le XOF saisi via /fincra/rates ou
 // /klasha/rates, pendant que l'exécution recalculait le coût réel (cotation
@@ -100,7 +100,7 @@ export interface DepositQuoteState {
 }
 
 /**
- * Devis de dépôt : crédit XOF figé par le backend. Même règle que l'envoi —
+ * Devis de dépôt : crédit XOF figé par le backend. Même règle que l'envoi,
  * ce qui est annoncé à l'écran est ce qui sera crédité au wallet.
  */
 export function useDepositQuote(params: DepositQuoteRequest | null, enabled: boolean): DepositQuoteState {

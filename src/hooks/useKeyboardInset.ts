@@ -4,10 +4,10 @@ import { Keyboard, Platform } from 'react-native';
 export interface KeyboardViewport {
   /** Hauteur occupée par le clavier, en points (natif). */
   keyboard: number;
-  /** Hauteur réellement visible — web uniquement, null ailleurs. */
+  /** Hauteur réellement visible : web uniquement, null ailleurs. */
   viewportHeight: number | null;
   /**
-   * Décalage du viewport visible par rapport au viewport de mise en page —
+   * Décalage du viewport visible par rapport au viewport de mise en page,
    * web uniquement, 0 ailleurs.
    *
    * iOS ne se contente pas de rétrécir la zone visible quand le clavier monte :
@@ -23,11 +23,11 @@ export interface KeyboardViewport {
  * Place occupée par le clavier, et hauteur réellement visible sur le web.
  *
  * Natif : `KeyboardAvoidingView` ne convient pas en edge-to-edge (Android 15),
- * où le système ne redimensionne plus la fenêtre mais la pousse — l'en-tête
+ * où le système ne redimensionne plus la fenêtre mais la pousse, l'en-tête
  * sortait de l'écran. On mesure donc le clavier et l'écran lui réserve la place.
  *
  * Web : le clavier virtuel ne change QUE le viewport visuel ; le document, lui,
- * garde sa hauteur. Réserver un espace en bas ne sert alors à rien — la barre
+ * garde sa hauteur. Réserver un espace en bas ne sert alors à rien, la barre
  * de saisie reste au bas du document, c'est-à-dire sous le clavier, et elle
  * suit le défilement de la page. D'où `viewportHeight` : l'écran s'y cale en
  * position fixe et cesse de dépendre du document.

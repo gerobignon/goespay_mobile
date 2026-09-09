@@ -9,13 +9,13 @@ import { useMessagingLockStore } from '../stores/messagingLockStore';
 import { hasLocalLock } from '../utils/localAuth';
 
 /**
- * Verrou d'entrée de la messagerie — OPTIONNEL.
+ * Verrou d'entrée de la messagerie, OPTIONNEL.
  *
  * Par défaut la messagerie s'ouvre comme n'importe quel onglet. Qui veut la
  * protéger arme le verrou depuis Réglages › Sécurité ou les réglages des
  * messages ; on demande alors la même preuve que pour ouvrir l'app. La
- * confirmation vaut pour toute la session — la redemander à chaque aller-retour
- * entre l'onglet et une conversation rendrait la messagerie inutilisable — et
+ * confirmation vaut pour toute la session, la redemander à chaque aller-retour
+ * entre l'onglet et une conversation rendrait la messagerie inutilisable, et
  * tombe dès que l'app se verrouille, c'est-à-dire dès qu'elle passe en
  * arrière-plan.
  */
@@ -58,7 +58,7 @@ export function MessagingGate({ children, onDeny }: Props) {
     if (confirmed || asking || !isInitialized || isLocked || !lockLoaded || !lockEnabled) return;
 
     // Le verrou de l'appareil a été désarmé depuis (PIN effacé, clé révoquée) :
-    // il n'y a plus rien à demander. On ne barre pas l'entrée pour autant — on
+    // il n'y a plus rien à demander. On ne barre pas l'entrée pour autant, on
     // retire le réglage, qui ne veut plus rien dire.
     if (!hasLocalLock()) {
       setLockEnabled(false);

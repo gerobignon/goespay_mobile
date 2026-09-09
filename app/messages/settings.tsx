@@ -69,7 +69,7 @@ export default function MessagingSettingsScreen() {
     : null;
   const memberSince = user?.created_at
     ? new Date(user.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
-    : '—';
+    : '-';
 
   /**
    * Chaque réglage montre la valeur qu'il gouverne : on décide de cacher son
@@ -79,7 +79,7 @@ export default function MessagingSettingsScreen() {
     {
       key: 'name',
       label: t('messages.fieldName', 'Nom'),
-      preview: <Text style={styles.preview} numberOfLines={1}>{fullName || '—'}</Text>,
+      preview: <Text style={styles.preview} numberOfLines={1}>{fullName || '-'}</Text>,
     },
     {
       key: 'avatar',
@@ -89,7 +89,7 @@ export default function MessagingSettingsScreen() {
     {
       key: 'country',
       label: t('messages.fieldCountry', 'Pays'),
-      preview: <Text style={styles.preview}>{user?.country?.toUpperCase() || '—'}</Text>,
+      preview: <Text style={styles.preview}>{user?.country?.toUpperCase() || '-'}</Text>,
     },
     {
       key: 'member_since',
@@ -183,7 +183,7 @@ export default function MessagingSettingsScreen() {
             </View>
           ))}
 
-          {/* Verrou d'entrée — éteint par défaut. */}
+          {/* Verrou d'entrée : éteint par défaut. */}
           <View style={[styles.row, styles.rowDivider]}>
             <View style={styles.rowBody}>
               <Text style={styles.rowLabel}>{t('messages.prefLock', 'Demander le code à l’ouverture')}</Text>

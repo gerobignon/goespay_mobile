@@ -20,7 +20,7 @@ const FINCRA_RAIL_LABEL: Record<string, string> = {
   card: 'Carte bancaire',
 };
 
-// Logo par rail Fincra — MÊMES visuels que les modals dépôt/retrait (LOGO_BY_KEY :
+// Logo par rail Fincra : MÊMES visuels que les modals dépôt/retrait (LOGO_BY_KEY :
 // pay_bank / pay_momo / pay_card) → cohérence garantie.
 const FINCRA_RAIL_LOGO: Record<string, any> = {
   bank_transfer: require('../../assets/operators/pay_bank.png'),

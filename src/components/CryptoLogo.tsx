@@ -14,7 +14,7 @@ interface CryptoLogoProps {
 /**
  * Logo d'une crypto, par ordre de préférence :
  *  1. URL fournie par l'API (logo uploadé en admin, sinon celui du catalogue
- *     NOWPayments — souvent un SVG, que <Image> ne rend PAS sur iOS/Android) ;
+ *     NOWPayments : souvent un SVG, que <Image> ne rend PAS sur iOS/Android) ;
  *  2. asset local bundlé (les quelques cryptos historiques) ;
  *  3. initiale du code dans une pastille.
  *

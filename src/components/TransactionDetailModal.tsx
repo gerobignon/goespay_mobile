@@ -55,7 +55,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
   const resolveOperatorView = (mode?: string | null, currencyDest?: string | null) =>
     resolveOperatorDisplay(mode, currencyDest);
 
-  // Hero résumé (statut + montant) — bloc teinté selon le statut, partagé par
+  // Hero résumé (statut + montant), bloc teinté selon le statut, partagé par
   // les 4 types de transaction pour un rendu homogène.
   const Hero = ({ statusColor, statusIcon, statusLabel, sign, amount, amountColor }: {
     statusColor: string; statusIcon: string; statusLabel: string;
@@ -73,7 +73,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
 
   const OperatorValue = ({ mode, currencyDest }: { mode?: string | null; currencyDest?: string | null }) => {
     const info = resolveOperatorView(mode, currencyDest);
-    if (!info) return <Text style={styles.opName}>—</Text>;
+    if (!info) return <Text style={styles.opName}>-</Text>;
     return (
       <View style={styles.opValue}>
         {info.op ? <OperatorLogo op={info.op} size={24} rounded /> : null}
@@ -375,8 +375,8 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
             {/* Origine du paiement : quel lien, et qui a payé. */}
             {!!tx.paylink && (
               <>
-                <TransactionDetailRow label={t('transaction.paylinkTitle')} value={tx.paylink.title || '—'} />
-                <TransactionDetailRow label={t('transaction.payer')} value={tx.paylink.payer || tx.de || '—'} />
+                <TransactionDetailRow label={t('transaction.paylinkTitle')} value={tx.paylink.title || '-'} />
+                <TransactionDetailRow label={t('transaction.payer')} value={tx.paylink.payer || tx.de || '-'} />
                 {/* Seul moyen de rappeler le payeur. Absent quand le moyen de
                     paiement ne demande pas de numéro : on n'affiche alors rien
                     plutôt qu'un tiret sans explication. */}
@@ -415,10 +415,10 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
                 )}
               </>
             )}
-            <TransactionDetailRow label={t('transaction.operator')} value={resolveOperatorView(tx.mode)?.name ?? '—'} valueNode={<OperatorValue mode={tx.mode} />} />
-            <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />
-            <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '—'} mono />
-            <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '—'} mono color={status.color} />
+            <TransactionDetailRow label={t('transaction.operator')} value={resolveOperatorView(tx.mode)?.name ?? '-'} valueNode={<OperatorValue mode={tx.mode} />} />
+            <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '-'} copyable mono />
+            <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '-'} mono />
+            <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '-'} mono color={status.color} />
             {tx.note && <TransactionDetailRow label={t('transaction.note')} value={tx.note} />}
             <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
             {tx.updated_at && tx.updated_at !== tx.created_at && (
@@ -517,11 +517,11 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
                 </>
               );
             })()}
-            <TransactionDetailRow label={t('transaction.operator')} value={resolveOperatorView(tx.mode, tx.currency_dest)?.name ?? '—'} valueNode={<OperatorValue mode={tx.mode} currencyDest={tx.currency_dest} />} />
-            <TransactionDetailRow label={t('transaction.receiver')} value={tx.phone ?? '—'} copyable mono />
-            <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />
-            <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '—'} mono />
-            <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '—'} mono color={status.color} />
+            <TransactionDetailRow label={t('transaction.operator')} value={resolveOperatorView(tx.mode, tx.currency_dest)?.name ?? '-'} valueNode={<OperatorValue mode={tx.mode} currencyDest={tx.currency_dest} />} />
+            <TransactionDetailRow label={t('transaction.receiver')} value={tx.phone ?? '-'} copyable mono />
+            <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '-'} copyable mono />
+            <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '-'} mono />
+            <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '-'} mono color={status.color} />
             <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
             {tx.updated_at && tx.updated_at !== tx.created_at && (
               <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.updated_at)} />
@@ -584,11 +584,11 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
             <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
             <TransactionDetailRow label={t('transaction.type')} value={t('transaction.transfer')} badge badgeColor={Colors.secondary} badgeIcon="right-left" />
             <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={getStatusIcon(normalizeStatut(tx.statut))} />
-            <TransactionDetailRow label={t('transaction.receiver')} value={tx.receiver_name ?? '—'} />
-            <TransactionDetailRow label="Email" value={tx.receiver_email ?? '—'} copyable />
-            <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '—'} copyable mono />
-            <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '—'} mono />
-            <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '—'} mono color={status.color} />
+            <TransactionDetailRow label={t('transaction.receiver')} value={tx.receiver_name ?? '-'} />
+            <TransactionDetailRow label="Email" value={tx.receiver_email ?? '-'} copyable />
+            <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '-'} copyable mono />
+            <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '-'} mono />
+            <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '-'} mono color={status.color} />
             <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
             {tx.updated_at && tx.updated_at !== tx.created_at && (
               <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.updated_at)} />
@@ -602,7 +602,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
     if (txType === 'crypto') {
       const status = getCryptoStatus(tx.statut, t);
       const isBuy = tx.mode === 'Buy';
-      const cryptoCode = tx.currency_src ?? '—';
+      const cryptoCode = tx.currency_src ?? '-';
       // `state` est une colonne STRING côté backend → statut arrive en "1"/"0"/"3".
       // On normalise (robuste string/number) au lieu d'un `=== 1` strict qui
       // masquait le bouton de reçu pour toutes les crypto réussies.
@@ -672,7 +672,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
             {tx.dollar != null && (
               <TransactionDetailRow label={t('transaction.amount')} value={`${tx.dollar} ${cryptoCode}`} mono />
             )}
-            <TransactionDetailRow label={t('transaction.address')} value={tx.address ?? '—'} copyable mono />
+            <TransactionDetailRow label={t('transaction.address')} value={tx.address ?? '-'} copyable mono />
             {tx.tx_id && (
               <TransactionDetailRow
                 label={tx.provider === 'nowpayments' ? t('transaction.npReference') : t('transaction.cpReference')}
@@ -690,8 +690,8 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
               />
             )}
             {tx.cp_hash && <TransactionDetailRow label={t('transaction.txHash')} value={tx.cp_hash} copyable mono />}
-            <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '—'} mono />
-            <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '—'} mono color={status.color} />
+            <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '-'} mono />
+            <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '-'} mono color={status.color} />
             <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
             {tx.updated_at && tx.updated_at !== tx.created_at && (
               <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.updated_at)} />

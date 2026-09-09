@@ -28,7 +28,7 @@ interface ActionSheetProps {
  *
  * Le CustomAlert du projet range ses boutons en ligne : passé deux entrées aux
  * libellés un peu longs, ils se chevauchent et deviennent illisibles. Un menu
- * contextuel a besoin d'une liste verticale — c'est ce que fait ce composant,
+ * contextuel a besoin d'une liste verticale, c'est ce que fait ce composant,
  * et c'est aussi ce que l'utilisateur attend d'un appui long.
  */
 export function ActionSheet({ visible, title, subtitle, actions, onClose }: ActionSheetProps) {

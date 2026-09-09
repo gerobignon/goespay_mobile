@@ -1,9 +1,9 @@
 /**
  * Helpers d'animation réutilisables (légers, sans dépendance externe).
- * Basés sur l'API Animated de React Native — useNativeDriver quand possible.
+ * Basés sur l'API Animated de React Native, useNativeDriver quand possible.
  *
  * - <Reveal>      : apparition fondu + slide, optionnellement décalée (cascade).
- * - <Bounce>      : feedback tactile (léger scale au toucher) — remplace TouchableOpacity.
+ * - <Bounce>      : feedback tactile (léger scale au toucher), remplace TouchableOpacity.
  * - useCountUp()  : compteur animé (ex. solde) avec séparateurs de milliers FR.
  *
  * Tout est opt-in : on l'applique là où on veut, rien n'est imposé globalement.
@@ -54,7 +54,7 @@ export function Reveal({ children, delay = 0, offset = 18, duration = 450, style
 interface BounceProps {
   children: React.ReactNode;
   onPress?: () => void;
-  /** Appui long — menu contextuel sur une carte, par exemple. */
+  /** Appui long : menu contextuel sur une carte, par exemple. */
   onLongPress?: () => void;
   disabled?: boolean;
   /** Échelle au toucher (défaut 0.96). */

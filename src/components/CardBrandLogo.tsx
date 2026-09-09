@@ -6,7 +6,7 @@ import Svg, { Path, Circle, ClipPath, Defs, G } from 'react-native-svg';
  *
  * Tracés vectoriels plutôt que texte stylé ou image bitmap : la carte est
  * rendue à des tailles très différentes (widget d'accueil, écran carte, futur
- * export) et un logo de réseau mal proportionné se remarque immédiatement —
+ * export) et un logo de réseau mal proportionné se remarque immédiatement,
  * c'est le repère que le porteur cherche en premier.
  */
 
@@ -21,7 +21,7 @@ export function CardBrandLogo({ brand, height = 26 }: Props) {
 
   if (isMastercard) {
     // Deux disques sécants ; l'intersection est le disque droit découpé par le
-    // gauche — c'est ce recouvrement, et non un simple chevauchement, qui rend
+    // gauche : c'est ce recouvrement, et non un simple chevauchement, qui rend
     // la marque reconnaissable.
     const w = height * (36 / 24);
     return (

@@ -10,8 +10,8 @@ import { internalPathFor, openLink } from '../../utils/openLink';
  * NI WEBVIEW NI BIBLIOTHÈQUE : une WebView par bulle coûterait un contexte web
  * complet dans une liste qui défile, et une dépendance de rendu HTML pèserait
  * lourd pour le seul cas de l'annonce. On couvre donc le sous-ensemble
- * réellement utilisé dans une annonce — paragraphes, sauts, gras, italique,
- * souligné, liens, listes, titres — et TOUT LE RESTE est réduit à son texte.
+ * réellement utilisé dans une annonce, paragraphes, sauts, gras, italique,
+ * souligné, liens, listes, titres, et TOUT LE RESTE est réduit à son texte.
  *
  * C'est aussi une garde : le HTML n'est jamais interprété tel quel, seules les
  * balises reconnues produisent quelque chose. Une balise inattendue (script,
@@ -55,7 +55,7 @@ function decode(text: string): string {
  * Découpe le HTML en blocs de fragments stylés.
  *
  * Analyse linéaire avec une pile de styles : suffisant pour du contenu
- * rédactionnel, et incapable d'exécuter quoi que ce soit — c'est le but.
+ * rédactionnel, et incapable d'exécuter quoi que ce soit, c'est le but.
  */
 function parse(html: string): Block[] {
   const blocks: Block[] = [];
@@ -130,7 +130,7 @@ export function RichBody({ html, color, linkColor }: Props) {
 
   // Un lien d'annonce vient de l'équipe, mais on n'ouvre que ce qui ressemble
   // à une adresse : jamais un schéma exotique. Les mêmes schémas que ceux
-  // acceptés à la rédaction côté serveur — sans quoi un numéro d'assistance
+  // acceptés à la rédaction côté serveur, sans quoi un numéro d'assistance
   // s'afficherait en lien et ne ferait rien au toucher. `openLink` se charge
   // du reste : navigation interne pour un lien vers l'app, repli de fenêtre
   // pour la PWA qui refuse `window.open`.
@@ -159,7 +159,7 @@ export function RichBody({ html, color, linkColor }: Props) {
                 style.textDecorationLine = 'underline';
               }
               // Sur le web, un lien doit être une vraie ancre : un simple
-              // `onPress` produisait un <span> cliquable — pas de curseur, pas
+              // `onPress` produisait un <span> cliquable, pas de curseur, pas
               // de clic-milieu, pas d'ouverture dans un onglet, et un clic
               // avalé dès que le balayage de citation prenait la main. Avec un
               // href, le navigateur ouvre le lien lui-même ; on n'intercepte

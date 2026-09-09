@@ -77,7 +77,7 @@ export default function PaymentLinksScreen() {
   const [freeAmount, setFreeAmount] = useState(false);
   const [reusable, setReusable] = useState(false);
   const [feeBearer, setFeeBearer] = useState<FeeBearer>('payer');
-  // Acceptation de la clause de responsabilité — obligatoire à chaque création.
+  // Acceptation de la clause de responsabilité, obligatoire à chaque création.
   const [accepted, setAccepted] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -135,7 +135,7 @@ export default function PaymentLinksScreen() {
 
   const share = async (link: PayLink) => {
     try {
-      await Share.share({ message: `${link.title} — ${link.url}`, url: link.url });
+      await Share.share({ message: `${link.title}, ${link.url}`, url: link.url });
     } catch (_) {}
   };
 
@@ -300,7 +300,7 @@ export default function PaymentLinksScreen() {
         {/* Affiche : l'image RENDUE PAR LE SERVEUR (/pay/<code>/affiche.png),
             pas une recomposition locale. L'aperçu est alors exactement le fichier
             que le client va télécharger, partager, et que verra quiconque reçoit
-            le lien — une seule maquette à maintenir, côté backend. */}
+            le lien : une seule maquette à maintenir, côté backend. */}
         {qrId === link.id && (
           <View style={styles.poster}>
             <Image
@@ -468,7 +468,7 @@ export default function PaymentLinksScreen() {
         style={{ marginBottom: Spacing.md }}
       />
 
-      {/* Bascule vers les liens rangés — proposée seulement s'il en existe. */}
+      {/* Bascule vers les liens rangés, proposée seulement s'il en existe. */}
       {(archivedCount > 0 || showArchived) && (
         <TouchableOpacity
           style={styles.archiveToggle}
@@ -576,7 +576,7 @@ export default function PaymentLinksScreen() {
         )}
 
         {/* Options : un seul bloc, une ligne par option. La ligne ENTIÈRE bascule
-            l'option — le Switch est décoratif (pointerEvents none) pour éviter le
+            l'option : le Switch est décoratif (pointerEvents none) pour éviter le
             double toggle quand le clic tombe pile dessus. */}
         <View style={styles.optionCard}>
           {([
@@ -827,7 +827,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   totalValue: { fontSize: FontSize.lg, fontFamily: Fonts.bold, color: Colors.text, marginTop: 3 },
 
   // Affiche : l'image du backend, affichée telle quelle. Rien n'est recomposé
-  // ici — le fond sombre ne sert qu'au temps de chargement et aux bords.
+  // ici : le fond sombre ne sert qu'au temps de chargement et aux bords.
   poster: {
     aspectRatio: 1,
     justifyContent: 'center',

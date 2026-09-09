@@ -32,7 +32,7 @@ const REASONS: ReportReason[] = ['scam', 'spam', 'harassment', 'other'];
 /**
  * Fiche publique d'un client : de quoi reconnaître un interlocuteur (nom,
  * pays, ancienneté, KYC) et agir sur lui (écrire, bloquer, signaler). Ni
- * email, ni téléphone, ni montant — le serveur ne les envoie pas.
+ * email, ni téléphone, ni montant, le serveur ne les envoie pas.
  */
 export default function PeerProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

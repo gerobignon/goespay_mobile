@@ -120,7 +120,7 @@ export default function DashboardScreen() {
   const showTransfer = isAdmin || (configLoaded && (transfer_enabled || transfer_blocked));
   const showCrypto = isAdmin || (configLoaded && isCryptoUser && (crypto_buy_enabled || crypto_sell_enabled));
   // Transfert compte à compte : interne au wallet, il ne dépend d'aucun corridor
-  // ni d'un blocage payout — seul son propre kill-switch le masque.
+  // ni d'un blocage payout : seul son propre kill-switch le masque.
   const showP2P = isAdmin || (configLoaded && (p2p_enabled || p2p_blocked));
   // Ouvre le flux crypto avec l'action forcée, depuis Dépôt (vente) ou Retrait (achat).
   const openCrypto = (tab: 'buy' | 'sell', currency?: string) => {
@@ -133,7 +133,7 @@ export default function DashboardScreen() {
   const isValidated = user?.validate === 1;
   const { t } = useTranslation();
 
-  // Flux ouvert depuis l'extérieur de l'écran — bouton d'une annonce du canal,
+  // Flux ouvert depuis l'extérieur de l'écran, bouton d'une annonce du canal,
   // notification, lien partagé : `/(tabs)?action=deposit`. Recharger et Envoyer
   // ne sont pas des routes mais des modals de l'accueil ; sans ce paramètre, un
   // bouton « Recharger » ne pouvait que déposer le client sur l'accueil.
@@ -157,7 +157,7 @@ export default function DashboardScreen() {
     router.setParams({ action: undefined } as any);
   }, [action, configReady, showDeposit, showTransfer, showP2P, showCrypto]);
 
-  // Slides du carrousel promo — pilotées depuis l'admin (/config → promo_slides).
+  // Slides du carrousel promo : pilotées depuis l'admin (/config → promo_slides).
   // Image = URL distante ({uri}), lien optionnel ouvert au tap. Carrousel masqué
   // si l'admin n'a configuré aucune slide.
   const promoSlides: PromoSlide[] = React.useMemo(
@@ -707,7 +707,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     alignItems: 'center',
   },
-  // Bloc supérieur (solde + boutons) — garde un padding latéral généreux.
+  // Bloc supérieur (solde + boutons), garde un padding latéral généreux.
   balanceTop: {
     paddingHorizontal: Spacing.xl - Spacing.sm,
     alignItems: 'center',
@@ -743,13 +743,13 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     gap: Spacing.md,
   },
   // Grille régulière : chaque action occupe EXACTEMENT la même largeur (2 par
-  // ligne). flexGrow reste à 0 — sinon l'espace restant est réparti au prorata
+  // ligne). flexGrow reste à 0 : sinon l'espace restant est réparti au prorata
   // du libellé et « Transférer » finit plus large que « Paylink ».
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    // Chaque action prend la largeur de son libellé — « Recharger » est plus
+    // Chaque action prend la largeur de son libellé, « Recharger » est plus
     // large qu'« Envoyer », et aucun des deux n'est coupé. Une largeur commune
     // imposée obligeait à tronquer le plus long.
     flexGrow: 0,
@@ -764,7 +764,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   // Paylink et Transfert P2P : boutons pleins au même gabarit que Recharger /
   // Envoyer, différenciés par la teinte (prune / corail) et non par un fond
-  // translucide — sur l'image de fond, le verre lisait comme un bouton désactivé.
+  // translucide : sur l'image de fond, le verre lisait comme un bouton désactivé.
   // Placeholder neutre affiché tant que /config n'a pas confirmé l'état des actions.
   actionBtnSkeleton: {
     // Vide : sans contenu pour lui donner sa largeur, on la pose ici.

@@ -16,7 +16,7 @@ export interface AccountMenuItem {
   route: Href;
   /** Réservé aux utilisateurs crypto (masqué sinon). */
   cryptoOnly?: boolean;
-  /** Réservé au super-admin (user id 1) — gestion du board Dev. */
+  /** Réservé au super-admin (user id 1), gestion du board Dev. */
   adminOnly?: boolean;
 }
 

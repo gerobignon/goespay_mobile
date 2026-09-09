@@ -17,7 +17,7 @@ export const LOCK_SETUP_ROUTE = Platform.OS === 'web' ? '/account/security' : '/
 /**
  * Exige un verrou local avant un geste sensible.
  *
- * Rend `true` si le verrou est déjà armé — l'appelant enchaîne alors sur la
+ * Rend `true` si le verrou est déjà armé, l'appelant enchaîne alors sur la
  * confirmation (LocalAuthModal). Sinon l'utilisateur est envoyé l'armer : c'est
  * la condition d'entrée dans les cartes et la messagerie, pas une suggestion.
  */

@@ -11,7 +11,7 @@ interface Props {
   style?: StyleProp<ViewStyle>;
 }
 
-/** "Account verified" pill — shown when user.validate === 1. */
+/** "Account verified" pill : shown when user.validate === 1. */
 export default function VerifiedBadge({ size = 'md', style }: Props) {
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();

@@ -22,7 +22,7 @@ import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { useColors } from '../ThemeProvider';
 import { EmojiPicker } from './EmojiPicker';
 
-/** Hauteur commune aux icônes et à la ligne de saisie — leur ligne de base. */
+/** Hauteur commune aux icônes et à la ligne de saisie, leur ligne de base. */
 const ICON_SLOT = 38;
 
 /** Au-delà, la saisie défile au lieu de manger la conversation. */
@@ -61,7 +61,7 @@ interface ChatComposerProps {
  * Barre de saisie : emojis, pièce jointe, texte, envoi.
  *
  * Une seule pilule porte tout, posée sur le fond du fil. Les états précédents
- * — champ dans une barre opaque, puis boutons ronds séparés — empilaient des
+ * champ dans une barre opaque, puis boutons ronds séparés, empilaient des
  * surfaces claires les unes à côté des autres sans qu'aucune ne l'emporte. Ici
  * il n'y a qu'un objet, et le seul accent est le bouton d'envoi.
  */
@@ -98,7 +98,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
    * `multiline` y produit un <textarea>, dont la hauteur par défaut vaut
    * plusieurs lignes : la barre s'étirait dès le premier affichage, le texte
    * restait collé en haut et les icônes, posées sur le bas, tombaient au fond.
-   * On la ramène donc à ce que le contenu occupe réellement — une ligne tant
+   * On la ramène donc à ce que le contenu occupe réellement, une ligne tant
    * qu'il n'y en a qu'une, puis autant que nécessaire jusqu'au plafond.
    */
   useEffect(() => {
@@ -238,7 +238,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
             multiline
             maxLength={4000}
             // Web : donne au <textarea> une hauteur d'une ligne dès le premier
-            // rendu, avant que la mesure ne prenne le relais — sans quoi la
+            // rendu, avant que la mesure ne prenne le relais, sans quoi la
             // barre apparaît haute puis se rétracte sous les yeux.
             {...(Platform.OS === 'web' ? { numberOfLines: 1 } : null)}
           />
@@ -303,7 +303,7 @@ const createStyles = (Colors: ColorPalette) =>
     },
     /**
      * La barre entière est l'objet : une pilule unique qui contient les
-     * actions, la saisie et l'envoi. Le champ n'a pas de fond propre — deux
+     * actions, la saisie et l'envoi. Le champ n'a pas de fond propre, deux
      * surfaces imbriquées faisaient un empilement de blancs sans hiérarchie.
      */
     bar: {

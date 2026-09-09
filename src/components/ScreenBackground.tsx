@@ -9,7 +9,7 @@ const bgDark = require('../../assets/bg_page.jpg');
 const bgLight = require('../../assets/bg_page_light.jpg');
 
 // Overlay teinté par-dessus l'image plexus.
-// Sombre : dégradé diagonal aux couleurs de marque — bleu GOESPAY (#3176FE) en
+// Sombre : dégradé diagonal aux couleurs de marque, bleu GOESPAY (#3176FE) en
 // haut-gauche → noir profond au centre → or GOESPAY (#F4B228) en bas-droite.
 // Miroir sombre du dégradé clair « bleu-blanc-jaune » → « bleu-noir-jaune ».
 const DARK_OVERLAY = [

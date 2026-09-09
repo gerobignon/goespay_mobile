@@ -3,13 +3,13 @@ import { SafeStorage } from './storage';
 
 /**
  * Déverrouillage web/PWA par Face ID, Touch ID, Windows Hello ou clé de
- * sécurité, via WebAuthn — l'équivalent web de la biométrie native
+ * sécurité, via WebAuthn : l'équivalent web de la biométrie native
  * (expo-local-authentication) déjà proposée sur mobile.
  *
  * PÉRIMÈTRE : comme la biométrie native, c'est un VERROU LOCAL, pas une
  * authentification du compte auprès du serveur. Le challenge est tiré côté
  * client et l'assertion n'est pas vérifiée par le backend : ce que ça prouve,
- * c'est que l'authentificateur de cet appareil a validé l'utilisateur — assez
+ * c'est que l'authentificateur de cet appareil a validé l'utilisateur, assez
  * pour rouvrir une session déjà établie, pas pour en ouvrir une nouvelle. Une
  * vraie connexion par passkey (sans mot de passe) demande des endpoints
  * d'enregistrement/vérification côté OctoberCMS.

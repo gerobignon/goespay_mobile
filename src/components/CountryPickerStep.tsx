@@ -224,7 +224,7 @@ function ContinentPicker({
   // Groupes alphabétiques (A, B, C…) sur la liste filtrée.
   const groups = groupByLetter(filtered);
   // Rail A-Z : lettres présentes dans la liste complète du continent. (Calcul
-  // direct : pas de useMemo ici — on est après un return conditionnel.)
+  // direct : pas de useMemo ici : on est après un return conditionnel.)
   const availableLetters = Array.from(new Set(list.map((c) => firstLetter(c.name)))).sort();
 
   return (

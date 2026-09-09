@@ -36,7 +36,7 @@ interface SendMoneySheetProps {
  *
  * Deux temps, comme le transfert P2P ordinaire : le montant, puis une
  * confirmation qui redit à qui et combien. On ne déplace pas d'argent sur un
- * seul geste — surtout dans un fil, où l'on tape vite.
+ * seul geste : surtout dans un fil, où l'on tape vite.
  *
  * Le destinataire n'est pas à choisir : c'est la personne en face. Cet écran
  * n'a donc pas l'étape d'identification du modal P2P.
@@ -65,12 +65,12 @@ export function SendMoneySheet({ visible, peer, sending, onClose, onSend }: Send
   };
 
   /**
-   * Place à laisser au clavier — la feuille est ancrée en bas, elle passait
+   * Place à laisser au clavier : la feuille est ancrée en bas, elle passait
    * dessous dès l'ouverture (le montant est en `autoFocus`).
    *
    * Web : le clavier virtuel ne réduit PAS le document, seulement le viewport
    * visible ; le modal reste donc plein écran et son bas est masqué. On cale le
-   * fond sur la hauteur réellement visible — même remède que l'écran de
+   * fond sur la hauteur réellement visible, même remède que l'écran de
    * conversation (`app/messages/[id].tsx`).
    *
    * Natif : le clavier a une hauteur mesurable, le fond la lui réserve.
@@ -81,14 +81,14 @@ export function SendMoneySheet({ visible, peer, sending, onClose, onSend }: Send
       ? ({
           height: viewportHeight,
           // `flexBasis: 'auto'` est indispensable : le fond porte `flex: 1`,
-          // qui vaut `flex-basis: 0%` — la hauteur posée ici était calculée par
+          // qui vaut `flex-basis: 0%` : la hauteur posée ici était calculée par
           // le flex et purement ignorée, donc le modal restait plein écran,
           // bas sous le clavier. Même piège que `app/messages/[id].tsx`.
           flexGrow: 0,
           flexShrink: 0,
           flexBasis: 'auto',
           // iOS fait GLISSER la zone visible vers le bas pour dégager le champ :
-          // le modal, en `position: fixed`, ne suit pas — on lui rend le
+          // le modal, en `position: fixed`, ne suit pas, on lui rend le
           // décalage, sans quoi son bas retombe sous le clavier.
           marginTop: offsetTop,
         } as any)
@@ -127,7 +127,7 @@ export function SendMoneySheet({ visible, peer, sending, onClose, onSend }: Send
             <View style={styles.peerBody}>
               <Text style={styles.peerName} numberOfLines={1}>{peer?.name}</Text>
               <Text style={styles.peerMeta}>
-                {t('messages.balanceIs', 'Solde')} : {balance != null ? formatAmount(balance) : '—'} XOF
+                {t('messages.balanceIs', 'Solde')} : {balance != null ? formatAmount(balance) : '-'} XOF
               </Text>
             </View>
           </View>

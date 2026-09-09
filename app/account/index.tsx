@@ -42,7 +42,7 @@ export default function AccountScreen() {
   const { isDark } = useTheme();
   const { t } = useTranslation();
 
-  // Sur desktop, la sidebar est dans le layout — rediriger vers profil
+  // Sur desktop, la sidebar est dans le layout, rediriger vers profil
   React.useEffect(() => {
     if (isDesktop) router.replace('/account/profile');
   }, [isDesktop]);
@@ -91,7 +91,7 @@ export default function AccountScreen() {
     : null;
 
   // Éligibilité crypto : groupe `crypto`/admin OU corridor crypto (NowPayments/
-  // futur) actif en payin (vente) et/ou payout (achat) pour le pays — porté par
+  // futur) actif en payin (vente) et/ou payout (achat) pour le pays : porté par
   // les flags /config crypto_*_enabled (cohérent avec l'accueil et l'historique).
   const cryptoBuyEnabled = useConfigStore((s) => s.crypto_buy_enabled);
   const cryptoSellEnabled = useConfigStore((s) => s.crypto_sell_enabled);

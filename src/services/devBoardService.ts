@@ -3,7 +3,7 @@ import api from './api';
 import type { DevBoard, DevComment, DevTask, DevTaskInput, DevSubtask } from '../types';
 
 /**
- * API du board Kanban Dev (admin) — miroir de la page backend /admin/dev.
+ * API du board Kanban Dev (admin), miroir de la page backend /admin/dev.
  * Toutes les routes sont sous `/admin/dev` et réservées au groupe admin.
  */
 export const devBoardService = {

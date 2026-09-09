@@ -20,7 +20,7 @@ export function posterImageUrl(linkUrl: string, lang: string, dl = false): strin
  * Remet l'affiche à l'utilisateur.
  * - Web : clic sur un `<a>` vers l'URL en pièce jointe (`Content-Disposition:
  *   attachment`). PAS `window.open` : en PWA installée (standalone iOS) une
- *   fenêtre nommée est bloquée SILENCIEUSEMENT — « rien ne se passe » au clic.
+ *   fenêtre nommée est bloquée SILENCIEUSEMENT, « rien ne se passe » au clic.
  *   L'attribut `download` est ignoré (image d'une autre origine que la PWA),
  *   c'est l'en-tête serveur qui déclenche le téléchargement ; en standalone on
  *   omet aussi `target` pour éviter le même blocage.

@@ -1,4 +1,4 @@
-# Copilot Instructions — GoesPay
+# Copilot Instructions : GoesPay
 
 ## Project Overview
 
@@ -20,65 +20,65 @@ There are no test or lint scripts configured.
 
 ### Routing (expo-router, file-based)
 
-- `app/_layout.tsx` — Root layout: loads fonts, handles auth guard, PIN lock flow, push notification setup, API connectivity check
-- `app/(auth)/` — Unauthenticated screens: login, register, forgot-password, activation (email verify), setup-pin, unlock
-- `app/(tabs)/` — Main authenticated tabs (home, history, support)
-- `app/transaction/{deposit,transfer,withdraw,crypto}/[id]` — Transaction detail screens
-- `app/account.tsx` — Profile, settings, saved phones/wallets, biometric toggle, language, theme
-- `app/kyc.tsx` — Identity verification (document + selfie upload)
+- `app/_layout.tsx` : Root layout: loads fonts, handles auth guard, PIN lock flow, push notification setup, API connectivity check
+- `app/(auth)/` : Unauthenticated screens: login, register, forgot-password, activation (email verify), setup-pin, unlock
+- `app/(tabs)/` : Main authenticated tabs (home, history, support)
+- `app/transaction/{deposit,transfer,withdraw,crypto}/[id]` : Transaction detail screens
+- `app/account.tsx` : Profile, settings, saved phones/wallets, biometric toggle, language, theme
+- `app/kyc.tsx` : Identity verification (document + selfie upload)
 
 ### State Management (Zustand)
 
 All stores live in `src/stores/`. Each is a standalone Zustand store (no providers needed):
 
-- `authStore` — Auth state, token management, login/logout. Uses `SafeStorage` for tokens and `AsyncStorage` for cached user data.
-- `walletStore` — Balance and transaction history with pagination and offline cache.
-- `pinStore` — PIN lock/unlock and biometric auth flow.
-- `cryptoStore` — Crypto buy/sell state. Supported: BTC, ETH, TRX, USDT, LTC, BNB, BUSD. Live rates with 1-minute cache.
-- `themeStore` — Dark/light/system theme preference.
-- `alertStore` — Global alert system. Use `showAlert()` as a drop-in replacement for `Alert.alert`.
+- `authStore` : Auth state, token management, login/logout. Uses `SafeStorage` for tokens and `AsyncStorage` for cached user data.
+- `walletStore` : Balance and transaction history with pagination and offline cache.
+- `pinStore` : PIN lock/unlock and biometric auth flow.
+- `cryptoStore` : Crypto buy/sell state. Supported: BTC, ETH, TRX, USDT, LTC, BNB, BUSD. Live rates with 1-minute cache.
+- `themeStore` : Dark/light/system theme preference.
+- `alertStore` : Global alert system. Use `showAlert()` as a drop-in replacement for `Alert.alert`.
 
 ### API Layer
 
-- `src/services/api.ts` — Axios instance with Bearer token injection and auto-logout on 401. Base URL configured in `src/constants/config.ts`.
-- `src/services/walletService.ts` — Wallet endpoints. Handles multiple Laravel response envelope formats (`{ data }`, `{ data: { data } }`, raw array).
-- `src/services/authService.ts` — Auth endpoints (login, 2FA, register, email verification, password reset, profile, avatar upload, KYC document upload).
-- `src/services/secureAuthService.ts` — Biometric/PIN credential storage.
-- `src/services/notificationService.ts` — Push permissions, token registration, deep linking on notification tap.
+- `src/services/api.ts` : Axios instance with Bearer token injection and auto-logout on 401. Base URL configured in `src/constants/config.ts`.
+- `src/services/walletService.ts` : Wallet endpoints. Handles multiple Laravel response envelope formats (`{ data }`, `{ data: { data } }`, raw array).
+- `src/services/authService.ts` : Auth endpoints (login, 2FA, register, email verification, password reset, profile, avatar upload, KYC document upload).
+- `src/services/secureAuthService.ts` : Biometric/PIN credential storage.
+- `src/services/notificationService.ts` : Push permissions, token registration, deep linking on notification tap.
 
 Backend API base path: `/api/mobile/v1`
 
 ### Backend (October CMS)
 
-- **Stack:** October CMS 3.x + Laravel — repo `/Dev/2025/goespay`
+- **Stack:** October CMS 3.x + Laravel, repo `/Dev/2025/goespay`
 - **Toute l'API mobile** est dans un seul fichier : `plugins/lightlab/goes/routes/api_mobile.php` (~2300 lignes), chargé par `Plugin.php` au boot.
-- **Authentification** : token custom (pas Sanctum) — `bin2hex(random_bytes(32))`, hash SHA-256 stocké dans `lightlab_goes_api_tokens`. Middleware `AuthMiddleware.php` injecte `_api_user_id`.
+- **Authentification** : token custom (pas Sanctum), `bin2hex(random_bytes(32))`, hash SHA-256 stocké dans `lightlab_goes_api_tokens`. Middleware `AuthMiddleware.php` injecte `_api_user_id`.
 
 **Plugins October CMS :**
 
 | Plugin | Rôle |
 |---|---|
 | `lightlab/goes` | Plugin principal : API, auth, wallet, crypto, notifs, 2FA |
-| `lightlab/deposit` | Dépôts — table `lightlab_deposit_wallets` |
-| `lightlab/buy` | Crypto, transferts, retraits — tables `cryptos`, `transfers`, `withdraws`, `buys` |
-| `lightlab/validation` | KYC — table `validations` |
+| `lightlab/deposit` | Dépôts : table `lightlab_deposit_wallets` |
+| `lightlab/buy` | Crypto, transferts, retraits, tables `cryptos`, `transfers`, `withdraws`, `buys` |
+| `lightlab/validation` | KYC : table `validations` |
 | `rainlab/user` | Utilisateurs base (`users`, étendu avec 2FA) |
 
 **Correspondance types TS ↔ tables backend :**
 
 | Type TS | Table(s) backend |
 |---|---|
-| `User` | `users` — `name`→`first_name`, `surname`→`last_name` |
+| `User` | `users`-`name`→`first_name`, `surname`→`last_name` |
 | `Transaction` | Union de 4 tables : `lightlab_deposit_wallets`, `lightlab_buy_withdraws`, `lightlab_buy_transfers`, `lightlab_buy_cryptos` |
 | `SavedPhone` | `lightlab_goes_user_phones` |
 | `SavedWallet` | `lightlab_goes_user_wallets` |
 
 **Passerelles de paiement :**
-- **PayDunya** — mobile money UEMOA (Softpay), retraits (Disburse), carte (Checkout)
-- **KKiaPay** — dépôts Bénin, CI, Nigeria
-- **PayCI** — dépôts CI alternatif
-- **CoinPayments** — crypto (BTC, ETH, LTC, TRX, BNB)
-- **Perfect Money / Payeer** — stablecoins
+- **PayDunya** : mobile money UEMOA (Softpay), retraits (Disburse), carte (Checkout)
+- **KKiaPay** : dépôts Bénin, CI, Nigeria
+- **PayCI** : dépôts CI alternatif
+- **CoinPayments** : crypto (BTC, ETH, LTC, TRX, BNB)
+- **Perfect Money / Payeer** : stablecoins
 - Les callbacks paiement sont dans `routes.php` (pas `api_mobile.php`)
 
 **Routes API publiques :** `GET /ping`, `POST /auth/login`, `/auth/2fa-verify`, `/auth/register`, `/auth/verify-email`, `/auth/forgot-password`, `/auth/reset-password`, `/auth/logout`
@@ -89,8 +89,8 @@ Backend API base path: `/api/mobile/v1`
 
 ### Storage
 
-- `SafeStorage` (`src/services/storage.ts`) — Abstraction: `expo-secure-store` on mobile, `localStorage` on web. Use for sensitive data (tokens, credentials).
-- `AsyncStorage` — Use for non-sensitive cached data (user profile, transactions, preferences).
+- `SafeStorage` (`src/services/storage.ts`), Abstraction: `expo-secure-store` on mobile, `localStorage` on web. Use for sensitive data (tokens, credentials).
+- `AsyncStorage` : Use for non-sensitive cached data (user profile, transactions, preferences).
 
 ## Key Conventions
 
@@ -139,9 +139,9 @@ Comments and some hardcoded UI strings are in **French**. Translation keys and v
 
 ### Formatting Utilities
 
-- `src/utils/format.ts` — `formatAmount()` (French locale, e.g. `1 234,56`), `formatDate()` (DD/MM/YYYY HH:MM)
-- `src/utils/receipt.ts` — Receipt generation and printing via `expo-print` / `expo-sharing`
-- `src/hooks/useResponsive.ts` — Breakpoint detection: mobile, tablet, desktop
+- `src/utils/format.ts`-`formatAmount()` (French locale, e.g. `1 234,56`), `formatDate()` (DD/MM/YYYY HH:MM)
+- `src/utils/receipt.ts` : Receipt generation and printing via `expo-print` / `expo-sharing`
+- `src/hooks/useResponsive.ts` : Breakpoint detection: mobile, tablet, desktop
 
 ### Countries Data
 

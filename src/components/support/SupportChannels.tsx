@@ -13,7 +13,7 @@ import {
  * email, téléphone) et les réseaux sociaux.
  *
  * C'est ce que voient les clients tant que la messagerie in-app reste réservée
- * aux administrateurs — d'où sa survie en composant séparé plutôt qu'un
+ * aux administrateurs : d'où sa survie en composant séparé plutôt qu'un
  * remplacement pur et simple par la boîte de réception.
  */
 

@@ -8,7 +8,7 @@ import { requireLocalLock } from '../utils/localAuth';
  * Interrupteur du verrou de la messagerie, partagé par Réglages › Sécurité et
  * les réglages des messages : les deux écrans commandent le même réglage.
  *
- * L'activer suppose un verrou d'appareil armé — sinon il n'y aurait rien à
+ * L'activer suppose un verrou d'appareil armé, sinon il n'y aurait rien à
  * demander : on renvoie l'armer. Le désactiver passe par une confirmation
  * (`askConfirm` → LocalAuthModal côté écran) : sans elle, qui a l'app ouverte
  * lèverait la protection d'un doigt.

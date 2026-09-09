@@ -41,7 +41,7 @@ const FILTER_KEYS = [
   { key: 'deposit', labelKey: 'history.filterDeposit' },
   { key: 'withdraw', labelKey: 'history.filterWithdraw' },
   // Encaissements par lien et échanges entre clients : ils figuraient déjà dans
-  // « Tout » — l'un comme un dépôt, l'autre comme un transfert — mais rien ne
+  // « Tout » : l'un comme un dépôt, l'autre comme un transfert, mais rien ne
   // permettait de les isoler.
   { key: 'paylink', labelKey: 'history.filterPaylink' },
   { key: 'p2p', labelKey: 'history.filterP2p' },
@@ -64,7 +64,7 @@ export default function HistoryScreen() {
   const crypto_sell_enabled = useConfigStore((s) => s.crypto_sell_enabled);
   const isAdmin = user?.group === 'admin';
   // Éligibilité crypto : groupe `crypto` OU corridor crypto (NowPayments/futur)
-  // actif en payin (vente) et/ou payout (achat) pour le pays — porté par les flags
+  // actif en payin (vente) et/ou payout (achat) pour le pays, porté par les flags
   // /config crypto_*_enabled. Plus de dépendance à la liste statique COUNTRIES.
   const isCryptoUser = isAdmin || user?.group === 'crypto' || crypto_buy_enabled || crypto_sell_enabled;
   // crypto_buy_enabled est prioritaire : si off, seuls les admins voient le filtre Crypto.
@@ -217,15 +217,15 @@ export default function HistoryScreen() {
 }
 
 function getDetail(tx: Transaction, t: (key: string) => string): string {
-  if (tx.type === 'transfer') return tx.receiver_name || tx.receiver_email || tx.phone || tx.note || '—';
+  if (tx.type === 'transfer') return tx.receiver_name || tx.receiver_email || tx.phone || tx.note || '-';
   if (tx.type === 'crypto') {
     const side = tx.mode === 'Buy' ? t('history.buy') : t('history.sell');
     if (tx.address) return `${side} · ${tx.address.slice(0, 10)}…`;
     return `${side} ${tx.currency_src ?? ''}`;
   }
-  if (tx.type === 'withdraw') return tx.phone || tx.note || '—';
+  if (tx.type === 'withdraw') return tx.phone || tx.note || '-';
   // deposit
-  return tx.note || '—';
+  return tx.note || '-';
 }
 
 function getRef(tx: Transaction): string {
@@ -273,13 +273,13 @@ function DesktopTransactionRow({ tx, onPress, styles }: { tx: Transaction; onPre
       {/* Solde avant */}
       <View style={styles.tdCol1}>
         <Text style={[styles.tdCell, { opacity: 0.55 }]} numberOfLines={1}>
-          {tx.avant != null ? fmtXof(tx.avant, { withCode: false }) : '—'}
+          {tx.avant != null ? fmtXof(tx.avant, { withCode: false }) : '-'}
         </Text>
       </View>
       {/* Solde après */}
       <View style={styles.tdCol1}>
         <Text style={[styles.tdCell, { opacity: 0.55 }]} numberOfLines={1}>
-          {tx.apres != null ? fmtXof(tx.apres, { withCode: false }) : '—'}
+          {tx.apres != null ? fmtXof(tx.apres, { withCode: false }) : '-'}
         </Text>
       </View>
       {/* Montant */}

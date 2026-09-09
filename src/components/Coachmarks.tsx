@@ -177,7 +177,7 @@ export function Coachmarks({
     : { top: height * 0.32 };
 
   return (
-    // Guide obligatoire : ni croix, ni tap hors zone, ni retour Android — la
+    // Guide obligatoire : ni croix, ni tap hors zone, ni retour Android : la
     // seule sortie est le dernier « C'est parti ».
     <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
       <View style={StyleSheet.absoluteFill}>

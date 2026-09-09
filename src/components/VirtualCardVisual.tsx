@@ -98,7 +98,7 @@ export function VirtualCardVisual({ card, holder, onCopy, copiedField, secrets, 
 
   // Une carte réduite doit réduire son contenu avec elle : les tailles de
   // texte étaient fixes, si bien qu'un aperçu à 300 px portait le lettrage
-  // d'une carte de 380 — numéro et libellés paraissaient énormes.
+  // d'une carte de 380 : numéro et libellés paraissaient énormes.
   const k = Math.min(1, maxWidth / REFERENCE_WIDTH);
   const scaled = (value: number) => Math.round(value * k);
 
@@ -161,7 +161,7 @@ export function VirtualCardVisual({ card, holder, onCopy, copiedField, secrets, 
 
           {/* Cryptogramme : des points tant que rien n'est révélé, la valeur une
               fois la ré-authentification passée. Il figure sur la carte parce que
-              le porteur le cherche là — le toucher le copie. */}
+              le porteur le cherche là : le toucher le copie. */}
           <TouchableOpacity
             style={styles.cvvBlock}
             onPress={() => onCopy?.('cvv')}

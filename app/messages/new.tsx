@@ -229,7 +229,7 @@ export default function NewConversationScreen() {
                   </>
                 ) : (
                   // Formulé sans mentir : l'absence de résultat ne prouve pas
-                  // l'absence de compte — un compte hors annuaire ne sort
+                  // l'absence de compte : un compte hors annuaire ne sort
                   // jamais d'une recherche, et c'est exactement le but.
                   <View style={styles.noResult}>
                     <FontAwesome6 name="user-slash" size={18} color={colors.textMuted} />
@@ -252,7 +252,7 @@ export default function NewConversationScreen() {
                   <Text style={styles.inviteTitle}>{t('messages.inviteTitle', 'Inviter à discuter')}</Text>
                   {/* Texte purement factuel. La réserve sur l'existence du
                       compte est déjà dite par le bloc « aucun résultat » quand
-                      il s'affiche — la répéter ici la diluait, et elle n'a
+                      il s'affiche : la répéter ici la diluait, et elle n'a
                       aucun sens quand un compte est listé juste au-dessus. */}
                   <Text style={styles.inviteHint}>
                     {t(

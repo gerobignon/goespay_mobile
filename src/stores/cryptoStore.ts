@@ -47,7 +47,7 @@ export interface CryptoRate {
   // antérieurs : tout est alors autorisé, comme avant.
   buy_active?: boolean;
   sell_active?: boolean;
-  // Catalogue NOWPayments (sync backend) — absents des devises hors NOWPayments.
+  // Catalogue NOWPayments (sync backend), absents des devises hors NOWPayments.
   network?: string | null;
   wallet_regex?: string | null;
   precision?: number | null;
@@ -126,7 +126,7 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       if (list.length > 0) {
         set({ rates: list, lastFetchedAt: Date.now(), error: null });
       } else {
-        // API succeeded but no active crypto — distinct from a network error
+        // API succeeded but no active crypto, distinct from a network error
         set({ rates: [], lastFetchedAt: Date.now(), error: 'NO_ACTIVE_CRYPTO' });
       }
     } catch (e: any) {

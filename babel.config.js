@@ -16,7 +16,7 @@ module.exports = function (api) {
   // transforms for web only.
   //
   // NOTE: declared as a PRESET placed first in the list so that, per Babel's
-  // reverse preset ordering, it runs AFTER `babel-preset-expo` — i.e. after
+  // reverse preset ordering, it runs AFTER `babel-preset-expo`, i.e. after
   // Flow/TypeScript types have been stripped. This respects the documented
   // "flow strip types must run before class properties" constraint.
   const legacyWebSyntax = () => ({

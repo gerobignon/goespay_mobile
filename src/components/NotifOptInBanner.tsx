@@ -38,7 +38,7 @@ export const NotifOptInBanner: React.FC = () => {
   const insets = useSafeAreaInsets();
   // Se pose AU-DESSUS de la tabbar (sans la recouvrir) : hauteur tabbar ≈
   // contenu (~62) + inset bas (home indicator). Sur un écran sans tabbar, ça
-  // laisse juste un petit décalage — acceptable pour un bandeau transitoire.
+  // laisse juste un petit décalage, acceptable pour un bandeau transitoire.
   const tabBarHeight = 62 + insets.bottom;
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [visible, setVisible] = useState(false);

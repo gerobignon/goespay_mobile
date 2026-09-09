@@ -14,7 +14,7 @@ function detectBrowser(): { browser: Browser; isMobile: boolean; isStandalone: b
   const ua = navigator.userAgent || '';
   const isStandalone =
     (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
-    // @ts-ignore — iOS Safari only
+    // @ts-ignore : iOS Safari only
     (typeof navigator !== 'undefined' && (navigator as any).standalone === true);
   const isIOS = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
   const isMacOS = /Macintosh/.test(ua) && !isIOS;

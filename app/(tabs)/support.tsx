@@ -9,7 +9,7 @@ import { MessagingGate } from '../../src/components/MessagingGate';
  *
  * La messagerie in-app est en rodage et réservée aux administrateurs : ils y
  * voient la boîte de réception, tout le monde voit les canaux de contact
- * historiques. L'onglet reste au même endroit dans les deux cas — pas d'onglet
+ * historiques. L'onglet reste au même endroit dans les deux cas, pas d'onglet
  * qui apparaît et disparaît selon le compte.
  *
  * Le droit vient du serveur (`messaging_enabled` sur le profil), pas d'un test

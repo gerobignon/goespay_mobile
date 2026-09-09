@@ -81,7 +81,7 @@ export function WelcomeBonusCard() {
           // Bonus fraîchement crédité → célébration UNE SEULE FOIS, jamais
           // rejouée. C'est le SERVEUR qui s'en souvient (`celebrated`) : le
           // drapeau local ne vaut que pour l'appareil, et il repartait à zéro
-          // sur un nouveau téléphone, une PWA réinstallée ou un cache vidé —
+          // sur un nouveau téléphone, une PWA réinstallée ou un cache vidé,
           // le client revoyait l'annonce d'un bonus reçu depuis longtemps. Le
           // drapeau local reste consulté en second : il évite que l'annonce ne
           // reparaisse entre la fermeture et la prise en compte du serveur.

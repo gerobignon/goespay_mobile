@@ -34,7 +34,7 @@ const TYPE_META: Record<string, { icon: string; labelKey: string; fallback: stri
 /** Les seuls types qui se cherchent : les opérations. */
 const isTxType = (type: string) => type === 'transaction' || type === 'transfer';
 
-/** Couleur d'un statut d'opération — la même sémantique que dans l'historique. */
+/** Couleur d'un statut d'opération, la même sémantique que dans l'historique. */
 function statusTone(status: string | undefined, colors: any): string | null {
   const s = (status || '').toLowerCase();
   if (!s) return null;

@@ -125,7 +125,7 @@ export function CustomAlert() {
                 })}
               </View>
 
-              {/* Footer support — uniquement sur les alertes d'ERREUR */}
+              {/* Footer support : uniquement sur les alertes d'ERREUR */}
               {type === 'error' && (
                 <TouchableOpacity
                   style={styles.supportRow}

@@ -18,7 +18,7 @@ import type { MessageItem } from '../../types';
  * Objet de l'application affiché dans une bulle : lien de paiement, envoi,
  * opération, carte, compte de réception, relevé.
  *
- * Le bloc n'affiche que ce que le serveur a jugé partageable — il ne va rien
+ * Le bloc n'affiche que ce que le serveur a jugé partageable, il ne va rien
  * rechercher de lui-même. Un champ absent est un champ que l'autre n'a pas le
  * droit de voir, pas une donnée à retrouver.
  */
@@ -44,7 +44,7 @@ export function MessageItemCard({
   const tint = mine ? colors.white : colors.secondary;
 
   const open = (url?: string) => {
-    // Lien de paiement partagé : même résolveur que les annonces — navigation
+    // Lien de paiement partagé : même résolveur que les annonces, navigation
     // interne si l'adresse mène à l'app, repli si la PWA refuse la fenêtre.
     if (url) openLink(url, (path) => router.push(path as any));
   };

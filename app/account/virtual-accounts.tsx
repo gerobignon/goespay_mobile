@@ -35,7 +35,7 @@ import { getApiErrorMessage } from '../../src/utils/apiError';
 
 const CURRENCY_FLAG: Record<string, string> = { NGN: '🇳🇬', GHS: '🇬🇭', TZS: '🇹🇿' };
 
-/** Montant dans la devise du compte (jamais XOF) — séparateur d'espace fine. */
+/** Montant dans la devise du compte (jamais XOF), séparateur d'espace fine. */
 const fmtSrc = (amount: number, currency: string) =>
   `${amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${currency}`;
 
@@ -164,12 +164,12 @@ export default function VirtualAccountsScreen() {
                     ? (st.total_received !== null
                         ? fmtSrc(st.total_received, account.currency)
                         : fmtXof(st.total_xof))
-                    : '—'}
+                    : '-'}
                 </Text>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.totalLabel}>{t('account.vaCreditedTotal')}</Text>
-                <Text style={styles.totalValue}>{st ? fmtXof(st.total_xof) : '—'}</Text>
+                <Text style={styles.totalValue}>{st ? fmtXof(st.total_xof) : '-'}</Text>
               </View>
             </View>
 
@@ -230,7 +230,7 @@ export default function VirtualAccountsScreen() {
             {account.status === 'declined' ? t('depositModal.vaDeclined')
               : account.status === 'closed' ? t('account.vaClosed')
               : t('depositModal.vaPending')}
-            {account.reason ? ` — ${account.reason}` : ''}
+            {account.reason ? ` : ${account.reason}` : ''}
           </Text>
         )}
       </View>

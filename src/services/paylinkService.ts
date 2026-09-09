@@ -30,7 +30,7 @@ export interface PayLink {
   /** Rangé par son propriétaire : hors de la liste courante, plus payable. */
   archived: boolean;
   archived_at: string | null;
-  /** Faux dès qu'un paiement a été encaissé — le lien s'archive au lieu d'être supprimé. */
+  /** Faux dès qu'un paiement a été encaissé, le lien s'archive au lieu d'être supprimé. */
   can_delete: boolean;
   /** Encore payable (actif, non expiré, quota non atteint). */
   open: boolean;

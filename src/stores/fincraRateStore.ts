@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { walletService } from '../services/walletService';
 
 // ─────────────────────────────────────────────────────────────────────────
-// Taux Fincra — ISOLÉ du currencyStore global.
+// Taux Fincra : ISOLÉ du currencyStore global.
 //
 // wallet_fincra est canonique en XOF, et l'utilisateur saisit toujours dans la
 // devise de son compte (XOF). On convertit ce montant vers la devise Fincra
@@ -27,7 +27,7 @@ const cache = new Map<string, CacheEntry>();
 
 // Récupère le taux XOF (XOF pour 1 unité de $currency). null si indisponible.
 // forDeposit : le DÉPÔT (encaissement) et le payout (versement) sont cotés
-// DIFFÉREMMENT — Klasha (direct vs triangulé) ET Fincra (side buy vs sell) →
+// DIFFÉREMMENT : Klasha (direct vs triangulé) ET Fincra (side buy vs sell) →
 // cache et appel distincts par sens.
 export async function fetchFincraRate(currency: string, isKlasha = false, forDeposit = false, zone: 'XOF' | 'XAF' = 'XOF'): Promise<number | null> {
   const cur = (currency || '').toUpperCase();

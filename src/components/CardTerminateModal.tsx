@@ -21,7 +21,7 @@ interface Props {
  *
  * Le geste est irréversible et coûte le prix d'une nouvelle carte : il ne peut
  * pas se jouer sur une alerte à deux boutons, où « Résilier » se tape aussi vite
- * que « Annuler » — des clients l'ont fait sans savoir ce que le mot désignait.
+ * que « Annuler » : des clients l'ont fait sans savoir ce que le mot désignait.
  * D'où la fenêtre dédiée : ce que la fermeture entraîne, énoncé avant, une case
  * à cocher qui débloque le bouton, et le verrou de l'appareil derrière (posé par
  * l'appelant, comme pour l'affichage du numéro).

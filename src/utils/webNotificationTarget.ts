@@ -8,8 +8,8 @@
  * `start_url` (l'accueil) en ignorant l'URL demandée, et un onglet gelé peut
  * rater le `postMessage`. Le client atterrissait donc sur l'accueil.
  *
- * On dépose donc la destination dans IndexedDB — le seul stockage accessible
- * DEPUIS un service worker — et l'application la relit au démarrage puis à
+ * On dépose donc la destination dans IndexedDB, le seul stockage accessible
+ * DEPUIS un service worker : et l'application la relit au démarrage puis à
  * chaque retour au premier plan. Le chemin `postMessage` reste en place : quand
  * il fonctionne, la navigation est immédiate et la valeur rangée ici est
  * simplement consommée sans effet.

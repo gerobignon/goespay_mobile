@@ -57,7 +57,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   // l'écran (screen.height) : cet écart est de l'espace « en trop » sous le
   // contenu. On l'ajoute au padding bas de la barre pour qu'elle garde sa
   // position naturelle (icônes en haut) tout en remplissant, avec son fond,
-  // jusqu'au bas physique — pas de bande, pas d'espace au-dessus.
+  // jusqu'au bas physique : pas de bande, pas d'espace au-dessus.
   const bottomPad = insets.bottom > 0 ? insets.bottom : 8;
 
   return (
@@ -142,7 +142,7 @@ export default function TabsLayout() {
 
   // Badge de messages : un compteur léger en fond, plus un rattrapage au retour
   // au premier plan (l'app peut avoir manqué des push en veille). Rien ne part
-  // sans le droit de messagerie — sinon un compte ordinaire sonderait en boucle
+  // sans le droit de messagerie : sinon un compte ordinaire sonderait en boucle
   // une route qui lui répond 403.
   useEffect(() => {
     if (!canMessage) return;
