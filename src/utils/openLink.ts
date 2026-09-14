@@ -1,4 +1,5 @@
 import { Linking, Platform } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 
 /**
  * Ouverture d'un lien reçu dans un contenu rédigé (annonce du canal, carte
@@ -101,6 +102,21 @@ export function openExternal(url: string): void {
     if (!win) window.location.href = url;
     return;
   }
+
+  // Sur mobile, une page web s'ouvre DANS l'application, en onglet intégré
+  // (SFSafariViewController sur iOS, Custom Tab sur Android) : l'utilisateur
+  // revient d'un bouton « OK » sans quitter GOESPAY. `Linking.openURL` le
+  // basculait dans Safari ou Chrome, et lui faisait perdre sa session de vue.
+  if (/^https?:\/\//i.test(url.trim())) {
+    WebBrowser.openBrowserAsync(url, {
+      presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+    }).catch(() => {
+      Linking.openURL(url).catch(() => {});
+    });
+    return;
+  }
+
+  // mailto: et tel: restent l'affaire du téléphone.
   Linking.openURL(url).catch(() => {});
 }
 

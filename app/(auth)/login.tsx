@@ -189,7 +189,7 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.logoContainer}>
-            <View style={styles.logoGlow} />
+            {Platform.OS === 'web' && <View style={styles.logoGlow} />}
             <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
             <Text style={styles.subtitle}>{t('auth.login.subtitle')}</Text>
           </View>

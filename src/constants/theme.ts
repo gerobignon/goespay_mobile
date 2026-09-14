@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 
 export type ColorPalette = typeof DarkColors;
 
@@ -76,16 +75,17 @@ export const BorderRadius = {
   pill: 50,
 };
 
-const webBump = Platform.OS === 'web' ? 2 : 0;
-
+// Une seule échelle pour tous les supports. Le bonus n'existait que sur le web :
+// l'application native rendait donc chaque texte 2 points plus petit que la PWA
+// sur le même téléphone.
 export const FontSize = {
-  xs: 10 + webBump,
-  sm: 12 + webBump,
-  md: 14 + webBump,
-  lg: 16 + webBump,
-  xl: 20 + webBump,
-  xxl: 28 + webBump,
-  hero: 48 + webBump,
+  xs: 12,
+  sm: 14,
+  md: 16,
+  lg: 18,
+  xl: 22,
+  xxl: 30,
+  hero: 50,
 };
 
 export const Fonts = {

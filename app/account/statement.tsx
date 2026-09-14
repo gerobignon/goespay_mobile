@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   Platform,
   ImageBackground,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { RefreshableScrollView } from '../../src/components/Refreshable';
@@ -17,7 +19,6 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { walletService, type AccountStatement, type StatementRow } from '../../src/services/walletService';
 import { downloadStatement } from '../../src/utils/statement';
 import { Button } from '../../src/components/Button';
-import { CustomAlert } from '../../src/components/CustomAlert';
 import { showAlert } from '../../src/stores/alertStore';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
@@ -184,7 +185,7 @@ export default function StatementScreen() {
         </View>
       )}
 
-      {Platform.OS !== 'web' && picking && (
+      {Platform.OS === 'android' && picking && (
         <DateTimePicker
           value={fromIso(picking === 'from' ? range.from : range.to)}
           mode="date"
@@ -194,6 +195,30 @@ export default function StatementScreen() {
             if (event.type === 'set' && date) setBound(picking, date);
           }}
         />
+      )}
+
+      {/* iOS : le picker posé dans le flux s'affichait en pastille compacte,
+          soit un SECOND champ date à ouvrir après avoir touché « Du » ou « Au ».
+          Présenté en feuille, le calendrier s'ouvre du premier coup. */}
+      {Platform.OS === 'ios' && (
+        <Modal visible={!!picking} transparent animationType="fade" onRequestClose={() => setPicking(null)}>
+          <Pressable style={styles.pickerBackdrop} onPress={() => setPicking(null)}>
+            <Pressable style={styles.pickerSheet} onPress={(e) => e.stopPropagation()}>
+              <Text style={styles.pickerTitle}>
+                {picking === 'to' ? t('statement.to') : t('statement.from')}
+              </Text>
+              <DateTimePicker
+                value={fromIso(picking === 'to' ? range.to : range.from)}
+                mode="date"
+                display="inline"
+                themeVariant={isDark ? 'dark' : 'light'}
+                maximumDate={new Date()}
+                onChange={(_e, date) => { if (date && picking) setBound(picking, date); }}
+              />
+              <Button title={t('common.validate')} onPress={() => setPicking(null)} />
+            </Pressable>
+          </Pressable>
+        </Modal>
       )}
 
       {loading ? (
@@ -255,7 +280,6 @@ export default function StatementScreen() {
             refreshing={refreshing}
             onRefresh={onRefresh}
           >{content}</RefreshableScrollView>
-        <CustomAlert />
       </View>
     );
   }
@@ -272,7 +296,6 @@ export default function StatementScreen() {
             onRefresh={onRefresh}
           >{content}</RefreshableScrollView>
         </SafeAreaView>
-        <CustomAlert />
       </ImageBackground>
     </View>
   );
@@ -372,6 +395,8 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   scroll: { padding: Spacing.lg, paddingBottom: Spacing.xxl, maxWidth: 760, width: '100%', alignSelf: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.lg },
   title: { fontSize: FontSize.xl, fontFamily: Fonts.bold, color: Colors.text, marginBottom: Spacing.md },
+  // Dans la rangée de l'en-tête, la marge basse du titre le désalignait de la flèche.
+  titleInHeader: { marginBottom: 0 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.md },
   chip: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.md, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border },
   chipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
@@ -395,6 +420,9 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   rowSub: { fontSize: FontSize.sm, color: Colors.textMuted, marginTop: 2 },
   rowAmount: { fontSize: FontSize.md, fontFamily: Fonts.semiBold },
   rowBalance: { fontSize: FontSize.sm, color: Colors.textMuted, marginTop: 2 },
+  pickerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: Spacing.lg },
+  pickerSheet: { backgroundColor: Colors.cardSolid, borderRadius: BorderRadius.lg, padding: Spacing.md, gap: Spacing.sm },
+  pickerTitle: { fontSize: FontSize.md, fontFamily: Fonts.semiBold, color: Colors.text },
   loader: { paddingVertical: Spacing.xxl },
   emptyText: { color: Colors.textMuted, textAlign: 'center', paddingVertical: Spacing.md },
 });

@@ -30,7 +30,6 @@ import { useThemedStyles } from '../hooks/useThemedStyles';
 import { useResponsive } from '../hooks/useResponsive';
 import api from '../services/api';
 import { showAlert } from '../stores/alertStore';
-import { CustomAlert } from './CustomAlert';
 import { walletService } from '../services/walletService';
 import type { SavedWallet } from '../types';
 import { useTranslation } from 'react-i18next';
@@ -962,7 +961,6 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
         data={sellDetailsData}
       />
 
-      <CustomAlert />
     </ResponsiveModal>
   );
 }

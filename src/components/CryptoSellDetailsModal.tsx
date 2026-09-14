@@ -17,7 +17,6 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts, Shadow } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { useResponsive } from '../hooks/useResponsive';
-import { CustomAlert } from './CustomAlert';
 import { useTranslation } from 'react-i18next';
 import { useFormatXof } from '../utils/format';
 import { useCryptoStore } from '../stores/cryptoStore';
@@ -221,7 +220,6 @@ export function CryptoSellDetailsModal({ visible, onClose, data }: CryptoSellDet
           </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
-      <CustomAlert />
     </Modal>
   );
 }

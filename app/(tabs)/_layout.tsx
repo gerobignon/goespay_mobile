@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Tabs } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, Text, Pressable, StyleSheet, Animated, AppState } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Animated, AppState, Platform } from 'react-native';
 import { setAppBadgeCount, clearWebNotifications } from '../../src/services/appBadge';
 import { Spacing, FontSize, Fonts } from '../../src/constants/theme';
 import { useColors } from '../../src/components/ThemeProvider';
@@ -60,8 +60,19 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   // jusqu'au bas physique : pas de bande, pas d'espace au-dessus.
   const bottomPad = insets.bottom > 0 ? insets.bottom : 8;
 
+  // Android : la barre de navigation du téléphone ne se pose pas sur les
+  // onglets, elle les POUSSE vers le haut (marge), et la barre se contente de
+  // la hauteur de son contenu. Auparavant l'inset du bas servait aussi de
+  // marge haute, soit près de 48 points de vide au-dessus des icônes sur un
+  // appareil à trois boutons. iOS, la PWA et le web gardent leur calcul, qui
+  // dépend de la façon dont le document y est calé sur l'écran physique.
+  const barPad =
+    Platform.OS === 'android'
+      ? { paddingTop: Spacing.sm, paddingBottom: Spacing.sm, marginBottom: insets.bottom }
+      : { paddingTop: bottomPad, paddingBottom: bottomPad };
+
   return (
-    <View style={[styles.bar, { paddingTop: bottomPad, paddingBottom: bottomPad, backgroundColor: colors.background, borderTopColor: colors.border }]}>
+    <View style={[styles.bar, barPad, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
       {routes.map((route) => {
         const { options } = descriptors[route.key];
         const label = (options.title ?? route.name) as string;
@@ -185,7 +196,10 @@ export default function TabsLayout() {
     </Tabs>
   );
 
-  if (!isDesktop) return tabs;
+  // La barre d'onglets est décalée au-dessus des boutons du téléphone sur
+  // Android : ce fond garantit que la bande ainsi libérée porte la couleur du
+  // thème, et non le blanc par défaut du navigateur, qui trancherait en sombre.
+  if (!isDesktop) return <View style={{ flex: 1, backgroundColor: colors.background }}>{tabs}</View>;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>

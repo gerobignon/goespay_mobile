@@ -30,7 +30,6 @@ import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } fro
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { useResponsive } from '../hooks/useResponsive';
 import { showAlert } from '../stores/alertStore';
-import { CustomAlert } from './CustomAlert';
 import type { SavedPhone } from '../types';
 import { useTranslation } from 'react-i18next';
 
@@ -1645,7 +1644,6 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
           </ScrollView>}
           </View>
       </KeyboardAvoidingView>
-      <CustomAlert />
 
       {/* Étape OTP Fincra MM (Orange Sénégal & co) : saisie + validation de l'OTP */}
       <Modal visible={!!fincraOtpStep} transparent animationType="fade" onRequestClose={() => { if (!loading) { setFincraOtpStep(null); setFincraOtpInput(''); } }}>

@@ -22,7 +22,6 @@ import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } fro
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { ALL_COUNTRIES } from '../../src/constants/countries';
 import { showAlert } from '../../src/stores/alertStore';
-import { CustomAlert } from '../../src/components/CustomAlert';
 import VerifiedBadge from '../../src/components/VerifiedBadge';
 import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
@@ -231,7 +230,6 @@ export default function ProfileScreen() {
     return (
       <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: 0 }]} keyboardShouldPersistTaps="handled">
         {content}
-        <CustomAlert />
       </ScrollView>
     );
   }
@@ -249,7 +247,6 @@ export default function ProfileScreen() {
             </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
-        <CustomAlert />
       </ImageBackground>
     </View>
   );

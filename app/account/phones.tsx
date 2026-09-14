@@ -22,7 +22,6 @@ import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } fro
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { OPERATORS, operatorServesCountry } from '../../src/constants/config';
 import { showAlert } from '../../src/stores/alertStore';
-import { CustomAlert } from '../../src/components/CustomAlert';
 import { OperatorLogo } from '../../src/components/OperatorLogo';
 import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
@@ -303,7 +302,6 @@ export default function PhonesScreen() {
           {content}
         </RefreshableScrollView>
         {phoneModal}
-        <CustomAlert />
       </View>
     );
   }
@@ -325,7 +323,6 @@ export default function PhonesScreen() {
           </KeyboardAvoidingView>
         </SafeAreaView>
         {phoneModal}
-        <CustomAlert />
       </ImageBackground>
     </View>
   );

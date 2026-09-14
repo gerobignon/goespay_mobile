@@ -21,7 +21,6 @@ import { Button } from '../../src/components/Button';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { showAlert } from '../../src/stores/alertStore';
-import { CustomAlert } from '../../src/components/CustomAlert';
 import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 import { useResponsive } from '../../src/hooks/useResponsive';
@@ -237,7 +236,6 @@ export default function WalletsScreen() {
           {content}
         </RefreshableScrollView>
         {walletModal}
-        <CustomAlert />
       </View>
     );
   }
@@ -259,7 +257,6 @@ export default function WalletsScreen() {
           </KeyboardAvoidingView>
         </SafeAreaView>
         {walletModal}
-        <CustomAlert />
       </ImageBackground>
     </View>
   );

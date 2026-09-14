@@ -1,6 +1,6 @@
 import React, { ReactNode, useEffect, useRef } from 'react';
 import { Modal, View, StyleSheet, Pressable, Platform, KeyboardAvoidingView, Animated } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 import { useResponsive } from '../hooks/useResponsive';
@@ -23,6 +23,7 @@ export function ResponsiveModal({ visible, onClose, children, width, disableBack
   const { isWide, modalWidth } = useResponsive();
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   // Pop d'ouverture (desktop/large) : scale + fondu du panneau à chaque ouverture.
   const pop = useRef(new Animated.Value(0)).current;
@@ -41,14 +42,25 @@ export function ResponsiveModal({ visible, onClose, children, width, disableBack
         onRequestClose={onClose}
         statusBarTranslucent
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'bottom']}>
+        {/* Marges d'encoche posées à la main plutôt que par <SafeAreaView> :
+            dans un modal plein écran, celui-ci retombait à zéro et l'en-tête,
+            croix comprise, se retrouvait sous la barre d'état. Le plancher
+            couvre le cas où l'appareil ne déclare aucune encoche. */}
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: colors.background,
+            paddingTop: Math.max(insets.top, Platform.OS === 'web' ? 0 : 12),
+            paddingBottom: insets.bottom,
+          }}
+        >
           <KeyboardAvoidingView
             style={{ flex: 1 }}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           >
             {children}
           </KeyboardAvoidingView>
-        </SafeAreaView>
+        </View>
       </Modal>
     );
   }

@@ -5,7 +5,6 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
 import { ScreenBackground } from '../../src/components/ScreenBackground';
-import { CustomAlert } from '../../src/components/CustomAlert';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useColors } from '../../src/components/ThemeProvider';
 import { useResponsive } from '../../src/hooks/useResponsive';
@@ -277,7 +276,6 @@ export default function MessagingSettingsScreen() {
         onSuccess={messagingLock.confirmDisable}
         onClose={messagingLock.cancelConfirm}
       />
-      <CustomAlert />
     </ScreenBackground>
   );
 }

@@ -7,7 +7,6 @@ import type { ColorPalette } from '../../constants/theme';
 import { Spacing, FontSize, BorderRadius, Fonts, withAlpha } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { showAlert } from '../../stores/alertStore';
-import { CustomAlert } from '../CustomAlert';
 import { useDevBoardStore } from '../../stores/devBoardStore';
 import type { DevBoard, DevTask } from '../../types';
 import { useSheetViewport } from './devSheet';
@@ -77,7 +76,6 @@ export function DevBacklogModal({ visible, board, onClose, onEditTask, onNew }: 
             </TouchableOpacity>
           </View>
         </SafeAreaView>
-        <CustomAlert />
       </View>
     </Modal>
   );

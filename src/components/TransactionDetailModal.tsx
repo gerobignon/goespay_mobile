@@ -16,7 +16,6 @@ import { ResponsiveModal } from './ResponsiveModal';
 import { Card } from './Card';
 import { TransactionDetailRow } from './TransactionDetailRow';
 import { OperatorLogo } from './OperatorLogo';
-import { CustomAlert } from './CustomAlert';
 import { walletService } from '../services/walletService';
 import { paylinkService } from '../services/paylinkService';
 import { showAlert } from '../stores/alertStore';
@@ -713,7 +712,6 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
 
   return (
     <ResponsiveModal visible={visible} onClose={onClose}>
-      <CustomAlert />
       <View style={styles.root}>
         {/* Modal header */}
         <View style={styles.header}>

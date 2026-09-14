@@ -33,7 +33,6 @@ import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } fro
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { useResponsive } from '../hooks/useResponsive';
 import { showAlert } from '../stores/alertStore';
-import { CustomAlert } from './CustomAlert';
 import type { SavedPhone } from '../types';
 import { useTranslation } from 'react-i18next';
 
@@ -2646,7 +2645,6 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
         </View>
       </Modal>
 
-      <CustomAlert />
     </ResponsiveModal>
   );
 }

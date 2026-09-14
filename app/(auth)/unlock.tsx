@@ -15,6 +15,7 @@ import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { GlassCard } from '../../src/components/GlassCard';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { PinPad } from '../../src/components/PinPad';
+import { usePinPadFit } from '../../src/hooks/usePinPadFit';
 import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
 import { OtpInput } from '../../src/components/OtpInput';
@@ -50,6 +51,8 @@ export default function UnlockScreen() {
   const styles = useThemedStyles(createStyles);
   const { height } = useWindowDimensions();
   const isSmallScreen = height <= 720;
+  // Le pavé se resserre plutôt que de pousser les boutons hors de l'écran.
+  const { keySize, onLayout, onContentSizeChange } = usePinPadFit();
   const { t } = useTranslation();
 
   const [error, setError] = useState<string | null>(null);
@@ -212,6 +215,8 @@ export default function UnlockScreen() {
         contentContainerStyle={[styles.container, isSmallScreen && styles.containerSmall]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        onLayout={onLayout}
+        onContentSizeChange={onContentSizeChange}
       >
         <Image
           source={require('../../assets/logo_min.png')}
@@ -237,6 +242,7 @@ export default function UnlockScreen() {
         {lockMethod === 'pin' && !pinLock.locked && (
           <PinPad
             length={4}
+            keySize={keySize}
             onComplete={handlePin}
             error={error}
             reset={resetTrigger}

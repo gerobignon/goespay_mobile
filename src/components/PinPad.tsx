@@ -18,12 +18,20 @@ interface PinPadProps {
   error?: string | null;
   label?: string;
   reset?: boolean; // quand true, efface le pin saisi
+  /**
+   * Diamètre d'une touche. L'écran qui héberge le clavier le réduit quand la
+   * page ne tient pas en hauteur : le pavé se resserre au lieu de pousser les
+   * boutons du bas hors de l'écran.
+   */
+  keySize?: number;
 }
 
 const KEYS = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
 
-export function PinPad({ length = 4, onComplete, onBiometric, error, label, reset }: PinPadProps) {
+export function PinPad({ length = 4, onComplete, onBiometric, error, label, reset, keySize = 80 }: PinPadProps) {
   const styles = useThemedStyles(createStyles);
+  // La grille tient trois touches et deux intervalles : sa largeur suit.
+  const gridWidth = keySize * 3 + Spacing.sm * 2;
   const [pin, setPin] = useState('');
 
   // reset toggle: vide le PIN à chaque flip, vibre si erreur présente
@@ -96,13 +104,17 @@ export function PinPad({ length = 4, onComplete, onBiometric, error, label, rese
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {/* Clavier */}
-      <View style={styles.grid}>
+      <View style={[styles.grid, { width: gridWidth }]}>
         {KEYS.map((key, i) => {
           const isBioKey = key === '' && !!onBiometric;
           return (
             <TouchableOpacity
               key={i}
-              style={[styles.key, key === '' && !onBiometric && styles.keyEmpty]}
+              style={[
+                styles.key,
+                { width: keySize, height: keySize, borderRadius: keySize / 2 },
+                key === '' && !onBiometric && styles.keyEmpty,
+              ]}
               onPress={() => press(key)}
               disabled={key === '' && !onBiometric}
               activeOpacity={0.7}

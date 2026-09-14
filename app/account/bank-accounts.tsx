@@ -19,7 +19,6 @@ import { Input } from '../../src/components/Input';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { showAlert } from '../../src/stores/alertStore';
-import { CustomAlert } from '../../src/components/CustomAlert';
 import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 import { useResponsive } from '../../src/hooks/useResponsive';
@@ -160,7 +159,6 @@ export default function BankAccountsScreen() {
           {content}
         </RefreshableScrollView>
         {editModal}
-        <CustomAlert />
       </View>
     );
   }
@@ -180,7 +178,6 @@ export default function BankAccountsScreen() {
           </RefreshableScrollView>
         </SafeAreaView>
         {editModal}
-        <CustomAlert />
       </ImageBackground>
     </View>
   );

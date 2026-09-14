@@ -31,7 +31,6 @@ import { ResponsiveModal } from '../src/components/ResponsiveModal';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../src/constants/theme';
 import { useThemedStyles } from '../src/hooks/useThemedStyles';
 import { showAlert } from '../src/stores/alertStore';
-import { CustomAlert } from '../src/components/CustomAlert';
 import { DesktopHeader } from '../src/components/DesktopHeader';
 import { DesktopFooter } from '../src/components/DesktopFooter';
 import { useTheme } from '../src/components/ThemeProvider';
@@ -702,7 +701,6 @@ export default function PaymentLinksScreen() {
         </ImageBackground>
         <DesktopFooter />
         {form}
-        <CustomAlert />
       </View>
     );
   }
@@ -724,7 +722,6 @@ export default function PaymentLinksScreen() {
           </RefreshableScrollView>
         </SafeAreaView>
         {form}
-        <CustomAlert />
       </ImageBackground>
     </View>
   );

@@ -26,7 +26,6 @@ import { getTransactionStatus } from '../../../src/constants/config';
 import { normalizeStatut, getStatusIcon } from '../../../src/utils/transactionStatus';
 import { useTranslation } from 'react-i18next';
 import { showAlert } from '../../../src/stores/alertStore';
-import { CustomAlert } from '../../../src/components/CustomAlert';
 import type { Transaction } from '../../../src/types';
 
 export default function CryptoDetailScreen() {
@@ -188,7 +187,6 @@ export default function CryptoDetailScreen() {
         loading={claimLoading}
         warning={t('transaction.claimCryptoWarning')}
       />
-      <CustomAlert />
     </ScreenBackground>
   );
 }

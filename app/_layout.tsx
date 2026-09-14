@@ -24,6 +24,7 @@ import { NotifOptInBanner } from '../src/components/NotifOptInBanner';
 import { walletService } from '../src/services/walletService';
 import { showAlert } from '../src/stores/alertStore';
 import { useWalletStore } from '../src/stores/walletStore';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from '../src/components/ThemeProvider';
 import '../src/i18n';  // initialize i18next
 import { initLanguage } from '../src/i18n';
@@ -56,9 +57,15 @@ function routeFromUrl(url: string): PendingRoute {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <RootInner />
-    </ThemeProvider>
+    // Le fournisseur de safe-area manquait : les encoches n'étaient connues que
+    // des écrans, via React Navigation. Dans un <Modal> les marges retombaient
+    // donc à zéro, et l'en-tête du modal passait sous la barre d'état, croix de
+    // fermeture comprise, hors de portée du doigt.
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      <ThemeProvider>
+        <RootInner />
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
 

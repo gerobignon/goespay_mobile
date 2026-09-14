@@ -19,7 +19,6 @@ import type { ThemeMode } from '../../src/stores/themeStore';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../src/i18n';
 import { SUPPORTED_LANGUAGES, setLanguage } from '../../src/i18n';
-import { CustomAlert } from '../../src/components/CustomAlert';
 import SettingsRow from '../../src/components/SettingsRow';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import {
@@ -175,7 +174,6 @@ export default function SettingsScreen() {
     return (
       <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: 0 }]}>
         {content}
-        <CustomAlert />
       </ScrollView>
     );
   }
@@ -191,7 +189,6 @@ export default function SettingsScreen() {
             {content}
           </ScrollView>
         </SafeAreaView>
-        <CustomAlert />
       </ImageBackground>
     </View>
   );

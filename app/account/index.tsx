@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   ImageBackground,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { RefreshableScrollView } from '../../src/components/Refreshable';
@@ -21,9 +22,8 @@ import { authService } from '../../src/services/authService';
 import { Button } from '../../src/components/Button';
 import { Colors, DarkColors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
-import { API_BASE_URL } from '../../src/constants/config';
+import { API_BASE_URL, ACCOUNT_DELETION_URL } from '../../src/constants/config';
 import { getAccountMenuItems } from '../../src/constants/accountMenu';
-import { CustomAlert } from '../../src/components/CustomAlert';
 import { showAlert } from '../../src/stores/alertStore';
 import { DesktopHeader } from '../../src/components/DesktopHeader';
 import { DesktopFooter } from '../../src/components/DesktopFooter';
@@ -62,6 +62,13 @@ export default function AccountScreen() {
           usePinStore.setState({ lockMethod: null, isSetupDone: false, isLocked: false });
         }
       },
+    ]);
+  };
+
+  const handleDeleteAccount = () => {
+    showAlert(t('account.deleteAccount'), t('account.deleteAccountMessage'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('account.deleteAccountConfirm'), style: 'destructive', onPress: () => Linking.openURL(ACCOUNT_DELETION_URL) },
     ]);
   };
 
@@ -189,11 +196,21 @@ export default function AccountScreen() {
                   <Text style={[styles.menuLabel, { color: Colors.error }]}>{t('account.logout')}</Text>
                 </Bounce>
               </Reveal>
+
+              {/* Suppression de compte (exigence stores) */}
+              <Reveal delay={(menuItems.length + 1) * 45} offset={10}>
+                <Bounce style={styles.menuRow} scaleTo={0.98} onPress={handleDeleteAccount}>
+                  <View style={[styles.menuIcon, { backgroundColor: Colors.error + '22' }]}>
+                    <FontAwesome6 name="trash-can" size={16} color={Colors.error} />
+                  </View>
+                  <Text style={[styles.menuLabel, { color: Colors.error }]}>{t('account.deleteAccount')}</Text>
+                  <FontAwesome6 name="arrow-up-right-from-square" size={14} color={Colors.textMuted} />
+                </Bounce>
+              </Reveal>
             </View>
           </RefreshableScrollView>
         </SafeAreaView>
 
-        <CustomAlert />
       </ImageBackground>
       {isDesktop && <DesktopFooter />}
     </View>

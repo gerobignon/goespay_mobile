@@ -53,12 +53,20 @@ export function ScreenBackground({ children, edges = ['top', 'bottom'], style, a
     useCallback(() => {
       if (!animateEntrance) return;
       enter.setValue(0);
-      Animated.timing(enter, {
+      const anim = Animated.timing(enter, {
         toValue: 1,
         duration: 550,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
-      }).start();
+      });
+      anim.start();
+      // L'animation n'était jamais arrêtée : quitter l'onglet en cours de route
+      // laissait tourner une animation native de plus à chaque passage, et la
+      // vue pouvait rester figée entre ses deux états, décalée de son layout.
+      return () => {
+        anim.stop();
+        enter.setValue(1);
+      };
     }, [animateEntrance])
   );
 

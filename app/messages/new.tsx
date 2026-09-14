@@ -13,7 +13,6 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
 import { ScreenBackground } from '../../src/components/ScreenBackground';
-import { CustomAlert } from '../../src/components/CustomAlert';
 import { showAlert } from '../../src/stores/alertStore';
 import { Bounce, Reveal } from '../../src/components/anim';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
@@ -304,7 +303,6 @@ export default function NewConversationScreen() {
           </>
         )}
       </ScrollView>
-      <CustomAlert />
     </ScreenBackground>
   );
 }

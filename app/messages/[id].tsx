@@ -15,7 +15,6 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
 import { ScreenBackground } from '../../src/components/ScreenBackground';
-import { CustomAlert } from '../../src/components/CustomAlert';
 import { showAlert } from '../../src/stores/alertStore';
 import { ActionSheet, type SheetAction } from '../../src/components/ActionSheet';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
@@ -273,7 +272,11 @@ export default function ConversationScreen() {
         style={[
           styles.flex,
           webViewportStyle,
-          !webViewportStyle && { paddingBottom: keyboardInset },
+          // Clavier fermé, `keyboardInset` vaut 0 : sans la réserve d'encoche,
+          // la saisie passait sous la barre de navigation d'Android, l'app
+          // étant dessinée bord à bord. Clavier ouvert, sa hauteur couvre déjà
+          // cette barre, on garde donc la plus grande des deux.
+          !webViewportStyle && { paddingBottom: Math.max(keyboardInset, insets.bottom) },
         ]}
       >
         {/* En-tête, aligné sur la colonne de lecture en grand écran. */}
@@ -448,7 +451,6 @@ export default function ConversationScreen() {
         onClose={() => setMenuOpen(false)}
       />
       <ImageLightbox uri={viewerUri} onClose={() => setViewerUri(null)} />
-      <CustomAlert />
     </ScreenBackground>
   );
 }

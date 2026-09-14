@@ -38,7 +38,6 @@ import { ResponsiveModal } from '../../src/components/ResponsiveModal';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../../src/constants/theme';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { showAlert } from '../../src/stores/alertStore';
-import { CustomAlert } from '../../src/components/CustomAlert';
 import SettingsRow from '../../src/components/SettingsRow';
 import { LocalAuthModal } from '../../src/components/LocalAuthModal';
 import { useMessagingLock } from '../../src/hooks/useMessagingLock';
@@ -752,7 +751,6 @@ export default function SecurityScreen() {
           {content}
         </ScrollView>
         {modals}
-        <CustomAlert />
       </View>
     );
   }
@@ -771,7 +769,6 @@ export default function SecurityScreen() {
           </KeyboardAvoidingView>
         </SafeAreaView>
         {modals}
-        <CustomAlert />
       </ImageBackground>
     </View>
   );

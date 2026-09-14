@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ImageBackground } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ImageBackground, Linking } from 'react-native';
+import { ACCOUNT_DELETION_URL } from '../../src/constants/config';
 import { Stack, Slot, useRouter, useSegments } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,7 +14,6 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { usePinStore } from '../../src/stores/pinStore';
 import { showAlert } from '../../src/stores/alertStore';
 import { authService } from '../../src/services/authService';
-import { CustomAlert } from '../../src/components/CustomAlert';
 import { DesktopHeader } from '../../src/components/DesktopHeader';
 import { DesktopFooter } from '../../src/components/DesktopFooter';
 import { Button } from '../../src/components/Button';
@@ -70,6 +70,13 @@ function DesktopAccountLayout() {
   const isCryptoUser = user?.group === 'admin' || user?.group === 'crypto';
 
   const menuItems = getAccountMenuItems(t, { isCryptoUser, isSuperAdmin: user?.id === 1 });
+
+  const handleDeleteAccount = () => {
+    showAlert(t('account.deleteAccount'), t('account.deleteAccountMessage'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('account.deleteAccountConfirm'), style: 'destructive', onPress: () => Linking.openURL(ACCOUNT_DELETION_URL) },
+    ]);
+  };
 
   const handleLogout = () => {
     showAlert(t('account.logoutTitle'), t('account.logoutMessage'), [
@@ -151,6 +158,13 @@ function DesktopAccountLayout() {
                   </View>
                   <Text style={[styles.menuLabel, { color: Colors.error }]}>{t('account.logout')}</Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity style={styles.menuRow} onPress={handleDeleteAccount} activeOpacity={0.7}>
+                  <View style={[styles.menuIcon, { backgroundColor: Colors.error + '22' }]}>
+                    <FontAwesome6 name="trash-can" size={14} color={Colors.error} />
+                  </View>
+                  <Text style={[styles.menuLabel, { color: Colors.error }]}>{t('account.deleteAccount')}</Text>
+                </TouchableOpacity>
               </View>
             </ScrollView>
           </View>
@@ -161,7 +175,6 @@ function DesktopAccountLayout() {
           </View>
         </View>
 
-        <CustomAlert />
       </ImageBackground>
       <DesktopFooter />
     </View>

@@ -21,7 +21,6 @@ import { useWalletStore } from '../../src/stores/walletStore';
 import { usePinStore } from '../../src/stores/pinStore';
 import { authService } from '../../src/services/authService';
 import { showAlert } from '../../src/stores/alertStore';
-import { CustomAlert } from '../../src/components/CustomAlert';
 import { KycBanner } from '../../src/components/KycBanner';
 import { WelcomeBonusCard } from '../../src/components/WelcomeBonusCard';
 import { WalletStack } from '../../src/components/home/WalletStack';
@@ -630,7 +629,6 @@ export default function DashboardScreen() {
         onClose={() => { setModalTxId(null); setModalTxType(null); }}
       />
 
-      <CustomAlert />
     </ScreenBackground>
   );
 }

@@ -284,7 +284,9 @@ const createStyles = (Colors: ColorPalette) =>
     },
     bubble: {
       width: '100%',
-      backgroundColor: Colors.surface,
+      // Fond OPAQUE : `surface` est translucide en mode sombre, le texte du
+      // guide se lisait alors par-dessus la liste des conversations.
+      backgroundColor: Colors.cardSolid,
       borderRadius: BorderRadius.xl,
       borderWidth: 1,
       borderColor: Colors.border,

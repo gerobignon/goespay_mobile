@@ -12,7 +12,6 @@ import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { showAlert } from '../../../src/stores/alertStore';
-import { CustomAlert } from '../../../src/components/CustomAlert';
 import { walletService } from '../../../src/services/walletService';
 import { Card } from '../../../src/components/Card';
 import { TransactionDetailRow } from '../../../src/components/TransactionDetailRow';
@@ -326,7 +325,6 @@ export default function DepositDetailScreen() {
           phone: tx?.phone ?? '',
         }}
       />
-      <CustomAlert />
     </ScreenBackground>
   );
 }

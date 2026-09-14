@@ -11,6 +11,7 @@ import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { GlassCard } from '../../src/components/GlassCard';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { PinPad } from '../../src/components/PinPad';
+import { usePinPadFit } from '../../src/hooks/usePinPadFit';
 import { usePinStore } from '../../src/stores/pinStore';
 import {
   savePin,
@@ -30,6 +31,8 @@ export default function SetupPinScreen() {
   const router = useRouter();
   const { setMethod, unlock } = usePinStore();
   const styles = useThemedStyles(createStyles);
+  // Le pavé se resserre plutôt que de pousser les boutons hors de l'écran.
+  const { keySize, onLayout, onContentSizeChange } = usePinPadFit();
   const { t } = useTranslation();
 
   const [step, setStep] = useState<Step>('choose');
@@ -86,7 +89,11 @@ export default function SetupPinScreen() {
   return (
     <ScreenBackground edges={['top', 'bottom']}>
       <LanguageSwitcher />
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        onLayout={onLayout}
+        onContentSizeChange={onContentSizeChange}
+      >
         <Image
           source={require('../../assets/logo_min.png')}
           style={styles.logo}
@@ -132,6 +139,7 @@ export default function SetupPinScreen() {
           <GlassCard style={styles.content}>
             <Text style={styles.title}>{t('auth.pin.choosePin', 'Choisissez un PIN')}</Text>
             <PinPad
+            keySize={keySize}
               length={4}
               onComplete={handleFirstPin}
               error={error}
@@ -148,6 +156,7 @@ export default function SetupPinScreen() {
           <GlassCard style={styles.content}>
             <Text style={styles.title}>{t('auth.pin.confirmTitle')}</Text>
             <PinPad
+            keySize={keySize}
               length={4}
               onComplete={handleConfirmPin}
               error={error}

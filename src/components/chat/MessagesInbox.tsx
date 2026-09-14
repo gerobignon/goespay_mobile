@@ -18,7 +18,6 @@ import { ScreenBackground } from '../ScreenBackground';
 import { RefreshableScrollView } from '../Refreshable';
 import { Reveal, Bounce } from '../anim';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts, BorderRadius, withAlpha } from '../../constants/theme';
-import { CustomAlert } from '../CustomAlert';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { useTheme } from '../ThemeProvider';
@@ -438,7 +437,6 @@ export function MessagesInbox() {
           scrollRef.current?.scrollTo({ y, animated: true });
         }}
       />
-      <CustomAlert />
     </ScreenBackground>
   );
 }

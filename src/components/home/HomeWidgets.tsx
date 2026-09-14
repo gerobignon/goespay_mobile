@@ -11,13 +11,13 @@ import {
   Image,
   Dimensions,
   ImageSourcePropType,
-  Linking,
   Modal,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { openLink } from '../../utils/openLink';
 import { useTranslation } from 'react-i18next';
 import { Colors, DarkColors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
@@ -54,6 +54,7 @@ const PROMO_GAP = Spacing.sm;  // espace entre slides (et amorce de la suivante)
 
 export function PromoCarousel({ slides }: { slides: PromoSlide[] }) {
   const styles = useThemedStyles(createStyles);
+  const router = useRouter();
   const [page, setPage] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   const [containerWidth, setContainerWidth] = useState<number>(Dimensions.get('window').width - Spacing.lg * 2);
@@ -80,7 +81,10 @@ export function PromoCarousel({ slides }: { slides: PromoSlide[] }) {
 
   const handleTap = (s: PromoSlide) => {
     if (s.onPress) s.onPress();
-    else if (s.href) Linking.openURL(s.href).catch(() => {});
+    // Même traitement que les liens d'une annonce : une adresse qui mène à un
+    // écran de l'app y navigue, le reste s'ouvre dans le navigateur intégré.
+    // `Linking.openURL` envoyait tout vers le navigateur du téléphone.
+    else if (s.href) openLink(s.href, (path) => router.push(path as any));
   };
 
   return (

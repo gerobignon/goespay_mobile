@@ -27,7 +27,6 @@ import { useResponsive } from '../../src/hooks/useResponsive';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useWalletStore } from '../../src/stores/walletStore';
 import { showAlert } from '../../src/stores/alertStore';
-import { CustomAlert } from '../../src/components/CustomAlert';
 import { affiliationService } from '../../src/services/affiliationService';
 import { formatAmount, formatDate, useFormatXof, useCurrencyCode } from '../../src/utils/format';
 import type { AffiliationStats, AffiliationChild, AffiliationHistoryItem, WelcomeBonus } from '../../src/types';
@@ -506,7 +505,6 @@ export default function AffiliationScreen() {
             {content}
           </RefreshableScrollView>
         </View>
-        <CustomAlert />
       </View>
     );
   }
@@ -529,7 +527,6 @@ export default function AffiliationScreen() {
             {content}
           </RefreshableScrollView>
         </SafeAreaView>
-        <CustomAlert />
       </ImageBackground>
     </View>
   );

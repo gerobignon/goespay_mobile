@@ -20,7 +20,6 @@ import type { ColorPalette } from '../../constants/theme';
 import { Spacing, FontSize, BorderRadius, Fonts, withAlpha } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { showAlert } from '../../stores/alertStore';
-import { CustomAlert } from '../CustomAlert';
 import { useDevBoardStore } from '../../stores/devBoardStore';
 import type { DevBoard, DevPriority, DevStatus, DevSubtask, DevTask } from '../../types';
 import { DevSelect, DevDateSelect, type DevOption } from './DevSelect';
@@ -398,7 +397,6 @@ export function DevTaskModal({ visible, task, initialStatus, initialTab, board, 
 
         <ImageLightbox uri={zoomUri} onClose={() => setZoomUri(null)} />
         {/* Rendu dans la modale pour s'afficher au-dessus (modals frères masqués sur iOS). */}
-        <CustomAlert />
       </View>
     </Modal>
   );

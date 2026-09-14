@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "io.goespay.app",
-      "buildNumber": "6",
+      "buildNumber": "8",
       "infoPlist": {
         "NSCameraUsageDescription": "GOESPAY a besoin de la caméra pour vérifier votre identité (KYC).",
         "NSPhotoLibraryUsageDescription": "GOESPAY a besoin d'accéder à vos photos quand vous changez de photo de profil.",
@@ -42,7 +42,7 @@
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_MEDIA_VIDEO"
       ],
-      "versionCode": 18
+      "versionCode": 19
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -69,7 +69,16 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true
+          }
+        }
+      ],
+      "expo-web-browser"
     ],
     "extra": {
       "router": {},

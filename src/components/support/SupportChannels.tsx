@@ -23,7 +23,6 @@ import { ScreenBackground } from '../ScreenBackground';
 import { Reveal, Bounce } from '../anim';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts, BorderRadius } from '../../constants/theme';
 import { showAlert } from '../../stores/alertStore';
-import { CustomAlert } from '../CustomAlert';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { useTheme } from '../ThemeProvider';
@@ -132,7 +131,6 @@ export function SupportChannels() {
             </View>
           </View>
         </ScrollView>
-      <CustomAlert />
     </ScreenBackground>
   );
 }

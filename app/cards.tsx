@@ -23,7 +23,6 @@ import {
   type CardSecrets,
 } from '../src/services/cardService';
 import { Button } from '../src/components/Button';
-import { CustomAlert } from '../src/components/CustomAlert';
 import { LocalAuthModal } from '../src/components/LocalAuthModal';
 import { CardFundModal } from '../src/components/CardFundModal';
 import { CardOrderModal } from '../src/components/CardOrderModal';
@@ -1019,7 +1018,6 @@ export default function CardsScreen() {
         onDone={(card) => { if (card) applyCard(card); }}
         onIneligible={onIneligible}
       />
-      <CustomAlert />
     </>
   );
 
