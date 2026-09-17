@@ -21,6 +21,7 @@ import { showAlert } from '../../src/stores/alertStore';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
+import { isAccountMissing, accountMissingEmail } from '../../src/utils/accountMissing';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -50,8 +51,17 @@ export default function ForgotPasswordScreen() {
       await authService.forgotPassword(email.trim());
       setStep(2);
     } catch (error: any) {
+      // Adresse sans compte : il n'y a pas de mot de passe à réinitialiser,
+      // direction l'inscription, adresse déjà remplie.
+      if (isAccountMissing(error)) {
+        router.push({
+          pathname: '/(auth)/register',
+          params: { email: accountMissingEmail(error, email) },
+        });
+        return;
+      }
       const message =
-        error?.response?.data?.message || "Erreur lors de l'envoi.";
+        error?.response?.data?.message || t('auth.forgotPassword.sendError', "Erreur lors de l'envoi.");
       showAlert(t('common.error'), message);
     } finally {
       setLoading(false);

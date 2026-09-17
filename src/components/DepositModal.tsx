@@ -18,6 +18,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { Input } from './Input';
 import { Button } from './Button';
 import { walletService, type VirtualAccount, type VirtualAccountsResponse } from '../services/walletService';
+import { logDepositStarted, logDepositCompleted } from '../services/metaEvents';
 import api from '../services/api';
 import { useWalletStore } from '../stores/walletStore';
 import { useAuthStore } from '../stores/authStore';
@@ -113,6 +114,9 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [pollingState, setPollingState] = useState<'idle' | 'pending' | 'success' | 'failed' | 'timeout'>('idle');
+  // Recharge en cours de confirmation, retenue pour la mesure Meta : le polling
+  // aboutit alors que le formulaire est déjà vidé, l'état local ne dit plus rien.
+  const trackedDepositRef = useRef<{ amountXof: number; operator: string } | null>(null);
   const [pollingMessage, setPollingMessage] = useState('');
   // Si Safari bloque window.open malgré le user-gesture (cas connu avec RN Web),
   // on expose un vrai <a target="_blank"> dans la modal, cliquable manuellement.
@@ -297,6 +301,17 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
     }
     return false;
   }, [fetchBalance, stopPolling]);
+
+  // Issue de la recharge → mesure Meta. Le succès est la conversion optimisée
+  // par les campagnes ; un échec libère simplement le suivi.
+  useEffect(() => {
+    if (pollingState !== 'success' && pollingState !== 'failed' && pollingState !== 'timeout') return;
+    const tracked = trackedDepositRef.current;
+    trackedDepositRef.current = null;
+    if (tracked && pollingState === 'success') {
+      logDepositCompleted(tracked.amountXof, tracked.operator);
+    }
+  }, [pollingState]);
 
   const startPolling = useCallback((depositId: number) => {
     let attempts = 0;
@@ -859,6 +874,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
       showAlert(t('common.error'), t('account.enterPhoneNumber'));
       return;
     }
+    trackedDepositRef.current = { amountXof: numAmountXof, operator };
     setLoading(true);
     setBankTransferInfo(null);
     setManualPaymentUrl(null);
@@ -995,6 +1011,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                   : redirectUrl ? t('depositModal.waitingConfirmation')
                   : t('depositModal.checkPhone');
         setPollingMessage(msg);
+        logDepositStarted(numAmountXof, operator);
         startPolling(result.deposit_id);
       } else {
         await fetchBalance();
@@ -1024,6 +1041,8 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
       }
       pollingRefRef.current = fincraOtpStep.reference;
       setPollingMessage(t('depositModal.waitingConfirmation'));
+      const tracked = trackedDepositRef.current;
+      if (tracked) logDepositStarted(tracked.amountXof, tracked.operator);
       startPolling(fincraOtpStep.depositId);
       setFincraOtpStep(null);
       setFincraOtpInput('');

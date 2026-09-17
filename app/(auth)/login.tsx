@@ -23,6 +23,7 @@ import { OtpInput } from '../../src/components/OtpInput';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
+import { isAccountMissing, accountMissingEmail } from '../../src/utils/accountMissing';
 
 /**
  * Étapes de connexion. Par défaut on saisit son email et on reçoit un code à
@@ -64,6 +65,19 @@ export default function LoginScreen() {
     return false;
   };
 
+  /**
+   * Adresse sans compte : on ne fait pas attendre un code qui ne viendra jamais,
+   * on emmène directement sur l'inscription, adresse déjà remplie.
+   */
+  const handleMissingAccount = (error: any): boolean => {
+    if (!isAccountMissing(error)) return false;
+    router.push({
+      pathname: '/(auth)/register',
+      params: { email: accountMissingEmail(error, email) },
+    });
+    return true;
+  };
+
   const errorMessage = (error: any, fallback: string) =>
     error?.response?.data?.message || error?.response?.data?.error || fallback;
 
@@ -92,6 +106,7 @@ export default function LoginScreen() {
       }
     } catch (error: any) {
       if (handleActivationRedirect(error)) return;
+      if (handleMissingAccount(error)) return;
       // Le compte se connecte par mot de passe et ne reçoit aucun code : on l'y
       // emmène directement, symétrique de otp_required plus bas.
       if (error?.response?.data?.password_required) {
@@ -116,6 +131,7 @@ export default function LoginScreen() {
       await openSession(await authService.verifyLoginCode(email.trim(), code));
     } catch (error: any) {
       if (handleActivationRedirect(error)) return;
+      if (handleMissingAccount(error)) return;
       setCode('');
       showAlert(t('common.error'), errorMessage(error, t('auth.login.incorrectCode', 'Code incorrect.')));
     } finally {
@@ -136,6 +152,7 @@ export default function LoginScreen() {
       await saveCredentials(email.trim());
     } catch (error: any) {
       if (handleActivationRedirect(error)) return;
+      if (handleMissingAccount(error)) return;
       // Le compte a choisi le code par email : on l'y emmène directement.
       if (error?.response?.data?.otp_required) {
         setPassword('');

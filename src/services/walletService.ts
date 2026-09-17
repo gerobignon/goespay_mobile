@@ -196,8 +196,9 @@ export interface KlashaCnyRequest {
 // plus rien elle-même. On affiche le devis, puis on l'exécute via `quote_id`
 // → ce qui est montré est exactement ce qui est débité.
 export interface TransferQuoteRequest {
-  // afribapay : devis informatif (RDC CDF, Guinée GNF…), montre le montant
-  // reçu au taux statique backend, l'exécution ne rejoue pas de quote_id.
+  // afribapay : devis informatif (RDC CDF, Guinée GNF…), montre le montant reçu
+  // au taux du jour retenu par le backend ; l'exécution refait le même calcul
+  // sans rejouer de quote_id.
   aggregator: 'fincra' | 'klasha' | 'afribapay';
   rail: 'mobile_money' | 'bank_transfer' | 'SWIFT' | 'SEPA' | 'cny';
   currency: string;
@@ -216,7 +217,7 @@ export interface TransferQuoteRequest {
 export interface SimulationRequest {
   mode: 'send' | 'deposit';
   currency: string;
-  aggregator?: 'fincra' | 'klasha';
+  aggregator?: 'fincra' | 'klasha' | 'afribapay';
   rail?: 'mobile_money' | 'bank_transfer' | 'checkout' | 'SWIFT' | 'SEPA';
   country?: string;
 }

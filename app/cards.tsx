@@ -56,6 +56,14 @@ const POLL_MAX_ATTEMPTS = 60;
 /** Les données réelles restent lisibles sur la carte ce nombre de secondes. */
 const REVEAL_SECONDS = 60;
 
+/**
+ * Adresse de facturation à saisir sur les boutiques américaines (App Store,
+ * Google Play, Amazon...) : la carte est émise aux États-Unis, une adresse
+ * africaine y fait échouer la vérification AVS.
+ */
+const US_BILLING_ADDRESS_LINES = ['1 Sansome St', 'San Francisco, CA, 94104', 'US'];
+const US_BILLING_ADDRESS = US_BILLING_ADDRESS_LINES.join(', ');
+
 export default function CardsScreen() {
   // Numéro, cryptogramme, expiration : rien de tout cela ne doit partir dans
   // une capture d'écran ni dans l'aperçu du multitâche.
@@ -108,6 +116,7 @@ export default function CardsScreen() {
   const [fundFor, setFundFor] = useState<{ card: VirtualCard; direction: 'fund' | 'withdraw' } | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [activationCopied, setActivationCopied] = useState(false);
+  const [billingCopied, setBillingCopied] = useState(false);
 
   const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollAttempts = useRef(0);
@@ -385,6 +394,12 @@ export default function CardsScreen() {
     await Clipboard.setStringAsync(card.activation_code);
     setActivationCopied(true);
     setTimeout(() => setActivationCopied(false), 1500);
+  };
+
+  const copyBillingAddress = async () => {
+    await Clipboard.setStringAsync(US_BILLING_ADDRESS);
+    setBillingCopied(true);
+    setTimeout(() => setBillingCopied(false), 1500);
   };
 
   const dismissActivationCode = async (card: VirtualCard) => {
@@ -735,6 +750,32 @@ export default function CardsScreen() {
             )}
           </View>
         )}
+
+        {/* Adresse à donner aux boutiques américaines. */}
+        <View style={styles.billing}>
+          <View style={styles.billingHead}>
+            <FontAwesome6 name="location-dot" size={12} color={Colors.textMuted} iconStyle="solid" />
+            <Text style={styles.billingTitle}>{t('cards.billingAddress')}</Text>
+          </View>
+          <View style={styles.billingRow}>
+            <View style={styles.billingLines}>
+              {US_BILLING_ADDRESS_LINES.map((line) => (
+                <Text key={line} style={styles.billingLine} selectable>{line}</Text>
+              ))}
+            </View>
+            <TouchableOpacity style={styles.billingCopy} onPress={copyBillingAddress} activeOpacity={0.7}>
+              <FontAwesome6
+                name={billingCopied ? 'check' : 'copy'}
+                size={14}
+                color={Colors.primary}
+                iconStyle={billingCopied ? 'solid' : 'regular'}
+              />
+              <Text style={styles.billingCopyText}>
+                {billingCopied ? t('common.copied') : t('cards.copy')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* Zone dangereuse : gel et suppression y sont enfermés ensemble, sous un
             repli fermé par défaut. Le gel est réversible mais coupe les paiements
@@ -1303,6 +1344,25 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   activationCopy: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
   activationCopyText: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.primary },
   activationDone: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.primary },
+  // Adresse de facturation des boutiques américaines : surface sobre, contour
+  // sur les quatre côtés, adresse copiable d'un geste.
+  billing: {
+    gap: Spacing.sm,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.surfaceBorder,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+  },
+  billingHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  billingTitle: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.textMuted },
+  billingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  billingLines: { flex: 1, gap: 2 },
+  billingLine: { fontSize: FontSize.md, lineHeight: 20, color: Colors.text },
+  billingCopy: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  billingCopyText: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.primary },
+
   pendingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   pendingText: { fontSize: FontSize.sm, color: Colors.textMuted },
 

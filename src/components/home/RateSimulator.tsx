@@ -42,7 +42,7 @@ interface Corridor {
   label: string;
   currency: string;
   country: string;
-  aggregator?: 'fincra' | 'klasha';
+  aggregator?: 'fincra' | 'klasha' | 'afribapay';
   rail?: SimRail;
 }
 
@@ -66,8 +66,11 @@ const railOf = (op: CatalogOperator): SimRail | undefined => {
   return undefined;
 };
 
+// AfribaPay compte comme agrégateur ici : hors zone CFA (RDC, Guinée…) c'est
+// nous qui fixons le taux, le serveur doit le dire plutôt que de retomber sur
+// la parité des corridors locaux.
 const aggOf = (op: CatalogOperator): Corridor['aggregator'] =>
-  op.klasha ? 'klasha' : op.fincra ? 'fincra' : undefined;
+  op.klasha ? 'klasha' : op.fincra ? 'fincra' : op.afribapay ? 'afribapay' : undefined;
 
 export function RateSimulator({ allowCrypto = false }: { allowCrypto?: boolean }) {
   const { t } = useTranslation();

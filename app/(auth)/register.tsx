@@ -17,13 +17,14 @@ import { Button } from '../../src/components/Button';
 import { authService } from '../../src/services/authService';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../../src/constants/theme';
 import { showAlert } from '../../src/stores/alertStore';
+import { logSignUp } from '../../src/services/metaEvents';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ ref?: string }>();
+  const params = useLocalSearchParams<{ ref?: string; email?: string }>();
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
@@ -38,6 +39,14 @@ export default function RegisterScreen() {
       setParrainCode(params.ref);
     }
   }, [params.ref]);
+
+  // Adresse arrivée depuis la connexion (« aucun compte pour cette adresse ») :
+  // on la reprend telle quelle, l'utilisateur n'a pas à la ressaisir.
+  useEffect(() => {
+    if (params.email && typeof params.email === 'string') {
+      setEmail(params.email);
+    }
+  }, [params.email]);
 
   const surnameRef = useRef<TextInput>(null);
   const nameRef = useRef<TextInput>(null);
@@ -75,6 +84,8 @@ export default function RegisterScreen() {
         parrain_code: parrainCode.trim() || undefined,
         hp_field: '',
       } as any);
+      // Conversion suivie par les campagnes Meta : compte créé.
+      logSignUp('email');
       showAlert(
         t('auth.register.successTitle', 'Inscription réussie'),
         t('auth.register.successMessage', 'Un code de vérification a été envoyé à votre adresse email.'),

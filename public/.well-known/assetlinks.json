@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "io.goespay.app",
+      "sha256_cert_fingerprints": [
+        "1F:A9:C5:FF:12:96:01:88:BF:6D:A5:8F:41:5D:57:8C:28:AA:2A:F7:4A:FB:9C:71:26:06:90:D5:E6:F7:77:44"
+      ]
+    }
+  }
+]

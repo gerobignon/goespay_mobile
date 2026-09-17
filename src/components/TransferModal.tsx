@@ -316,10 +316,11 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // Le rail est porté directement par l'opérateur Fincra (cf. config.ts).
   // Plus de sélecteur dynamique ; chaque opérateur Fincra = 1 rail.
   const aggRail: FincraRail | '' = isAggOp ? (((selectedOp as any)?.rail as FincraRail) || '') : '';
-  // AfribaPay hors zone CFA (RDC CDF, Guinée GNF…) : la saisie reste en XOF et
-  // AfribaPay convertit lui-même à l'exécution (taux statique backend). On
-  // demande un devis informatif au serveur pour montrer le montant reçu en
-  // devise locale, comme pour le Nigeria, sans toucher aux frais ni au total.
+  // AfribaPay hors zone CFA (RDC CDF, Guinée GNF…) : la saisie reste en XOF, la
+  // conversion est faite par le backend au taux du jour (AfribaPay reçoit un
+  // montant déjà en devise locale). On demande un devis informatif au serveur
+  // pour montrer le montant reçu, comme pour le Nigeria, sans toucher aux frais
+  // ni au total.
   const isAfpOp = !!(selectedOp as any)?.afribapay;
   const afpCurrency = isAfpOp ? (((selectedOp as any)?.currency as string) || '').toUpperCase() : '';
   const afpForeign = !!afpCurrency && afpCurrency !== 'XOF' && afpCurrency !== 'XAF';

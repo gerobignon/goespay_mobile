@@ -167,7 +167,8 @@
       "step1": "Étape 1",
       "step2": "Étape 2",
       "invalidCode": "Code invalide ou expiré.",
-      "successMessage": "Votre mot de passe a été réinitialisé avec succès."
+      "successMessage": "Votre mot de passe a été réinitialisé avec succès.",
+      "sendError": "Erreur lors de l'envoi."
     },
     "activation": {
       "title": "Vérification email",
@@ -1055,6 +1056,11 @@
       }
     }
   },
+  "androidApp": {
+    "title": "GOESPAY pour Android",
+    "subtitle": "Sur Google Play",
+    "install": "Installer"
+  },
   "countries": {
     "AT": "Autriche",
     "BE": "Belgique",
@@ -1188,7 +1194,7 @@
     "cardNumber": "Numéro de carte",
     "cardDetails": "Détails de la carte",
     "holder": "Titulaire",
-    "billingAddress": "Adresse de facturation",
+    "billingAddress": "Adresse de facturation pour les stores US",
     "reveal": "Afficher",
     "hide": "Masquer",
     "password": "Mot de passe du compte",

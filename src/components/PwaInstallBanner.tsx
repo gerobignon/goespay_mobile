@@ -4,6 +4,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Colors, Spacing, FontSize, Fonts, BorderRadius, Shadow, type ColorPalette } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
+import { nativeAppTakesOverPwaPrompt } from '../utils/nativeAppPromo';
 
 const SESSION_KEY = 'goespay_pwa_install_dismissed';
 
@@ -44,6 +45,9 @@ export const PwaInstallBanner: React.FC = () => {
     if (Platform.OS !== 'web') return;
     if (typeof window === 'undefined') return;
     if (info.isStandalone) return;
+    // Sur Android, c'est l'application du Play Store qu'on met en avant
+    // (bandeau haut) : pas de seconde invitation à installer la PWA.
+    if (nativeAppTakesOverPwaPrompt()) return;
     try {
       if (window.sessionStorage.getItem(SESSION_KEY) === '1') return;
     } catch {}
