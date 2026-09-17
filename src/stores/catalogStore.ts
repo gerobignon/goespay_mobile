@@ -22,10 +22,7 @@ const LOGO_BY_KEY: Record<string, any> = {
   pay_tmoney:   require('../../assets/operators/pay_tmoney.jpg'),
   pay_telecel:  require('../../assets/operators/pay_telecel.png'),
   pay_card:     require('../../assets/operators/pay_card.jpg'),
-  pay_fincra:   require('../../assets/operators/pay_fincra.png'),
-  pay_klasha:   require('../../assets/operators/pay_klasha.png'),
   pay_momo:     require('../../assets/operators/pay_momo.png'),
-  paydunya:     require('../../assets/operators/paydunya.png'),
   // Opérateurs AfribaPay / Fincra additionnels (catalogue Marchés).
   pay_bank:       require('../../assets/operators/pay_bank.png'),
   pay_free:       require('../../assets/operators/pay_free.jpg'),
@@ -56,6 +53,33 @@ const LOGO_BY_KEY: Record<string, any> = {
   pay_unionpay:   require('../../assets/operators/pay_unionpay.png'),
 };
 const DEFAULT_LOGO = LOGO_BY_KEY.pay_card;
+
+/**
+ * Logos de PASSERELLE (PayDunya, Fincra, Klasha, AfribaPay, KkiaPay). Ils ne
+ * sont jamais un moyen de paiement : le client choisit « MTN », « Wave » ou
+ * « Virement bancaire », pas la plomberie qui les achemine. Seul l'admin les
+ * voit, en pastille de coin, via <GatewayBadge>.
+ *
+ * Ces clés arrivent pourtant du serveur (réseaux seedés sur 'pay_fincra' ou
+ * 'paydunya'), et elles réapparaissent à chaque nouveau réseau créé par
+ * markets:sync-catalog. On les neutralise ici, quoi qu'envoie le catalogue :
+ * l'icône retombe sur le type de réseau (téléphone, banque, carte).
+ */
+const GATEWAY_LOGO_KEYS = new Set(['paydunya', 'pay_fincra', 'pay_klasha', 'afribapay', 'kkiapay']);
+
+/** Icône neutre d'un réseau, par type : mobile money, banque ou carte. */
+function neutralLogo(kind?: string): any {
+  if (kind === 'bank') return LOGO_BY_KEY.pay_bank;
+  if (kind === 'card') return LOGO_BY_KEY.pay_card;
+  return LOGO_BY_KEY.pay_momo;
+}
+
+/** Logo client d'un réseau : son logo de marque, jamais celui de la passerelle. */
+function networkLogo(net?: { logo_key: string; kind: string }): any {
+  if (!net) return undefined;
+  if (GATEWAY_LOGO_KEYS.has(net.logo_key)) return neutralLogo(net.kind);
+  return LOGO_BY_KEY[net.logo_key] || neutralLogo(net.kind);
+}
 
 export interface CatalogOperator {
   id: string;
@@ -306,7 +330,7 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
           // Minimum d'envoi du corridor (devise destination), affiché et bloqué
           // côté app, revérifié par le backend à l'exécution.
           minAmount: (r.min_payout_amount ?? undefined) || undefined,
-          logo: (isKlashaAgg && klashaCnyLogo(r.code)) || (net && LOGO_BY_KEY[net.logo_key]) || DEFAULT_LOGO,
+          logo: (isKlashaAgg && klashaCnyLogo(r.code)) || networkLogo(net) || DEFAULT_LOGO,
         };
       });
 

@@ -95,8 +95,8 @@ export const OPERATORS = [
   { id: 'moov-ml-afp', name: 'Moov Money', flag: '🇲🇱', country: 'ML', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_moov.png') },
   // Sénégal
   { id: 'orange-sn-afp', name: 'Orange Money', flag: '🇸🇳', country: 'SN', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_orange.jpg') },
-  { id: 'free-sn-afp', name: 'Free Money', flag: '🇸🇳', country: 'SN', withdraw: true, afribapay: true, logo: require('../../assets/operators/paydunya.png') },
-  { id: 'expresso-sn-afp', name: 'Expresso', flag: '🇸🇳', country: 'SN', withdraw: true, afribapay: true, logo: require('../../assets/operators/paydunya.png') },
+  { id: 'free-sn-afp', name: 'Free Money', flag: '🇸🇳', country: 'SN', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_free.jpg') },
+  { id: 'expresso-sn-afp', name: 'Expresso', flag: '🇸🇳', country: 'SN', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_expresso.png') },
   { id: 'wave-sn-afp', name: 'Wave', flag: '🇸🇳', country: 'SN', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_wave.jpg') },
   // Togo
   { id: 'moov-tg-afp', name: 'Moov Money', flag: '🇹🇬', country: 'TG', withdraw: true, afribapay: true, logo: require('../../assets/operators/pay_moov.png') },
