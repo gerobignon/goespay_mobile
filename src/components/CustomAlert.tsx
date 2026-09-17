@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Modal,
   TouchableOpacity,
   TouchableWithoutFeedback,
   Animated,
@@ -12,6 +11,7 @@ import {
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAlertStore, AlertType } from '../stores/alertStore';
+import { AlertOverlay } from './AlertOverlay';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 
@@ -62,12 +62,14 @@ export function CustomAlert() {
   const handlePress = (onPress?: () => void) => {
     // ⚠️ onPress doit s'exécuter SYNCHRONEMENT pour préserver le user-gesture
     // context du browser (sinon window.open est silencieusement bloqué).
+    const seq = useAlertStore.getState().seq;
     try { onPress?.(); } catch (_) {}
-    hide();
+    // Fermer CETTE alerte, pas celle que le bouton vient éventuellement d'ouvrir.
+    hide(seq);
   };
 
   return (
-    <Modal transparent visible={visible} animationType="fade" statusBarTranslucent onRequestClose={() => handlePress()}>
+    <AlertOverlay visible={visible} onRequestClose={() => handlePress()}>
       <TouchableWithoutFeedback onPress={() => handlePress()}>
         <View style={styles.overlay}>
           <TouchableWithoutFeedback>
@@ -140,7 +142,7 @@ export function CustomAlert() {
           </TouchableWithoutFeedback>
         </View>
       </TouchableWithoutFeedback>
-    </Modal>
+    </AlertOverlay>
   );
 }
 

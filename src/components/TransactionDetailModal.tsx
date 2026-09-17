@@ -27,6 +27,7 @@ import { useThemedStyles } from '../hooks/useThemedStyles';
 import { downloadInvoice } from '../utils/invoice';
 import { normalizeStatut, getStatusIcon } from '../utils/transactionStatus';
 import type { Transaction } from '../types';
+import { CloseButton } from './CloseButton';
 
 function getCryptoStatus(statut: string | number, t: (key: string) => string): { label: string; color: string; icon: string } {
   const norm = normalizeStatut(statut, 'crypto');
@@ -716,9 +717,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
         {/* Modal header */}
         <View style={styles.header}>
           <Text style={styles.title}>{txType ? titleMap[txType] : ''}</Text>
-          <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <FontAwesome6 name="xmark" size={18} color={Colors.text} />
-          </TouchableOpacity>
+          <CloseButton onPress={onClose} size={18} color={Colors.text} />
         </View>
 
         <ScrollView

@@ -39,6 +39,7 @@ import { useCurrencyStore } from '../stores/currencyStore';
 import { useFormatXof, useCurrencyCode } from '../utils/format';
 import { AdminDisabledBanner } from './AdminDisabledBanner';
 import { TransactionAlertBanner } from './TransactionAlertBanner';
+import { CloseButton } from './CloseButton';
 
 interface CryptoModalProps {
   visible: boolean;
@@ -485,9 +486,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
           <View style={[styles.sheet, { flex: 1, paddingBottom: Math.max(insets.bottom, Spacing.lg), paddingTop: Spacing.lg }]}>
               <View style={styles.header}>
                 <Text style={styles.title}>{t('transaction.crypto')}</Text>
-                <TouchableOpacity onPress={handleClose}>
-                  <FontAwesome6 name="xmark" size={20} color={Colors.textMuted} />
-                </TouchableOpacity>
+                <CloseButton onPress={handleClose} color={Colors.textMuted} />
               </View>
 
           {/* Tabs, masqués quand l'action est forcée (lancé depuis Dépôt/Retrait) */}
@@ -823,7 +822,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
       </KeyboardAvoidingView>
 
       {/* Modal de confirmation */}
-      <Modal visible={confirmVisible} transparent animationType="fade">
+      <Modal visible={confirmVisible} transparent animationType="fade" onRequestClose={() => setConfirmVisible(false)}>
         <View style={styles.confirmOverlay}>
           <View style={styles.confirmSheet}>
             <Text style={styles.confirmTitle}>

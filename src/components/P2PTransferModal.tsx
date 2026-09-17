@@ -26,6 +26,7 @@ import { useFormatXof } from '../utils/format';
 import { getApiErrorMessage } from '../utils/apiError';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts, withAlpha } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
+import { CloseButton } from './CloseButton';
 
 interface P2PTransferModalProps {
   visible: boolean;
@@ -159,9 +160,7 @@ export function P2PTransferModal({ visible, onClose }: P2PTransferModalProps) {
         <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, Spacing.lg) }]}>
           <View style={styles.header}>
             <Text style={styles.title}>{t('p2p.title')}</Text>
-            <TouchableOpacity onPress={handleClose} hitSlop={8}>
-              <FontAwesome6 name="xmark" size={20} color={Colors.textMuted} />
-            </TouchableOpacity>
+            <CloseButton onPress={handleClose} color={Colors.textMuted} />
           </View>
 
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: Spacing.lg }} showsVerticalScrollIndicator={false}>

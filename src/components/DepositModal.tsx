@@ -50,6 +50,7 @@ import { OperatorLogo } from './OperatorLogo';
 import { CryptoLogo } from './CryptoLogo';
 import { CryptoSearchField } from './CryptoSearchField';
 import { useCryptoSearch } from '../hooks/useCryptoSearch';
+import { CloseButton } from './CloseButton';
 
 // Combinaison USSD Orange Money pour générer le code OTP de paiement, par
 // opérateur (Softpay orange-money-* ET AfribaPay orange-*-afp). Codes officiels
@@ -1065,9 +1066,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
           <View style={[styles.sheet, { flex: 1, paddingBottom: Math.max(insets.bottom, Spacing.lg), paddingTop: Spacing.lg }]}>
               <View style={styles.header}>
                 <Text style={styles.title}>{t('depositModal.title')}</Text>
-                <TouchableOpacity onPress={handleClose}>
-                  <FontAwesome6 name="xmark" size={20} color={Colors.textMuted} />
-                </TouchableOpacity>
+                <CloseButton onPress={handleClose} color={Colors.textMuted} />
               </View>
 
           {pollingState === 'pending' && (

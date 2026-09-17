@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts, withAlpha } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
+import { CloseButton } from './CloseButton';
 
 interface Props {
   visible: boolean;
@@ -39,14 +40,12 @@ export default function ClaimNoteModal({ visible, mode, value, onChangeText, onC
   const isClaim = mode === 'claim';
 
   return (
-    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent>
+    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
       <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={[styles.content, { paddingBottom: Spacing.lg + insets.bottom }]}>
           <View style={styles.header}>
             <Text style={styles.title}>{isClaim ? t('transaction.addClaim') : t('transaction.addNote')}</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={8}>
-              <FontAwesome6 name="xmark" size={18} color={Colors.text} />
-            </TouchableOpacity>
+            <CloseButton onPress={onClose} size={18} color={Colors.text} />
           </View>
 
           {warning ? <Text style={styles.warning}>{warning}</Text> : null}

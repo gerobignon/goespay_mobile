@@ -12,6 +12,7 @@ import { usePinLock } from '../hooks/usePinLock';
 import { formatPinLockDelay } from '../services/pinAttemptGuard';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
+import { CloseButton } from './CloseButton';
 
 interface Props {
   visible: boolean;
@@ -123,9 +124,7 @@ export function LocalAuthModal({ visible, title, onClose, onSuccess }: Props) {
       <View style={styles.container}>
         <View style={styles.head}>
           <Text style={styles.title}>{heading}</Text>
-          <TouchableOpacity onPress={onClose} hitSlop={10}>
-            <FontAwesome6 name="xmark" size={20} color={Colors.textMuted} />
-          </TouchableOpacity>
+          <CloseButton onPress={onClose} color={Colors.textMuted} />
         </View>
 
         {lockMethod === 'pin' && pinLock.locked ? (

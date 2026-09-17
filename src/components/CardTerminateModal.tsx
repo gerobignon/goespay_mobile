@@ -7,6 +7,7 @@ import { Button } from './Button';
 import type { VirtualCard } from '../services/cardService';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts, BorderRadius } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
+import { CloseButton } from './CloseButton';
 
 interface Props {
   visible: boolean;
@@ -49,9 +50,7 @@ export function CardTerminateModal({ visible, card, busy = false, onClose, onCon
         <View style={styles.head}>
           <Text style={styles.title}>{t('cards.terminateTitle')}</Text>
           {!busy && (
-            <TouchableOpacity onPress={onClose} hitSlop={10}>
-              <FontAwesome6 name="xmark" size={20} color={Colors.textMuted} />
-            </TouchableOpacity>
+            <CloseButton onPress={onClose} color={Colors.textMuted} />
           )}
         </View>
 

@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts, withAlpha } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { useFormatXof } from '../utils/format';
+import { CloseButton } from './CloseButton';
 
 interface Props {
   visible: boolean;
@@ -50,14 +51,12 @@ export default function PaylinkRefundModal({ visible, phone, max, loading, onClo
   const invalid = !Number.isFinite(amount) || amount <= 0 || amount > max;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent>
+    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
       <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={[styles.content, { paddingBottom: Spacing.lg + insets.bottom }]}>
           <View style={styles.header}>
             <Text style={styles.title}>{t('transaction.refund')}</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={8}>
-              <FontAwesome6 name="xmark" size={18} color={Colors.text} />
-            </TouchableOpacity>
+            <CloseButton onPress={onClose} size={18} color={Colors.text} />
           </View>
 
           <View style={styles.target}>

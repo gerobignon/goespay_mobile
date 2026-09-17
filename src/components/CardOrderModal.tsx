@@ -11,6 +11,7 @@ import { Colors, type ColorPalette, Spacing, FontSize, Fonts, BorderRadius } fro
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { useFormatXof } from '../utils/format';
 import { getApiErrorMessage } from '../utils/apiError';
+import { CloseButton } from './CloseButton';
 
 /** Repli si le serveur ne renvoie pas le minimum (vieille version d'API). */
 const FALLBACK_MIN_USD = 2;
@@ -114,9 +115,7 @@ export function CardOrderModal({ visible, pricing, onClose, onOrdered, onIneligi
       <View style={styles.container}>
         <View style={styles.head}>
           <Text style={styles.title}>{t('cards.orderTitle')}</Text>
-          <TouchableOpacity onPress={onClose} hitSlop={10} disabled={ordering}>
-            <FontAwesome6 name="xmark" size={20} color={Colors.textMuted} />
-          </TouchableOpacity>
+          <CloseButton onPress={onClose} color={Colors.textMuted} disabled={ordering} />
         </View>
 
         <View>

@@ -19,6 +19,7 @@ import { useColors } from '../ThemeProvider';
 import { messagingService } from '../../services/messagingService';
 import { formatAmount } from '../../utils/format';
 import type { AttachableItem, MessageItemType } from '../../types';
+import { CloseButton } from '../CloseButton';
 
 /** Présentation de chaque type joignable : icône et libellé. */
 const TYPE_META: Record<string, { icon: string; labelKey: string; fallback: string }> = {
@@ -199,12 +200,12 @@ export function AttachSheet({
             <Text style={styles.title} numberOfLines={1}>
               {openType ? label(openType) : t('messages.attachTitle', 'Joindre')}
             </Text>
-            <TouchableOpacity
+            <CloseButton
               onPress={() => (openType ? setOpenType(null) : onClose())}
-              hitSlop={12}
-            >
-              <FontAwesome6 name={openType ? 'arrow-left' : 'xmark'} size={18} color={colors.textMuted} />
-            </TouchableOpacity>
+              icon={openType ? 'arrow-left' : 'xmark'}
+              size={18}
+              color={colors.textMuted}
+            />
           </View>
 
           {!openType ? (

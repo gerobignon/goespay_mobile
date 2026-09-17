@@ -53,6 +53,7 @@ import { CryptoLogo } from './CryptoLogo';
 import { CryptoSearchField } from './CryptoSearchField';
 import { useCryptoSearch } from '../hooks/useCryptoSearch';
 import { noConnectionMessage } from '../utils/apiError';
+import { CloseButton } from './CloseButton';
 
 // Zone SEPA (ISO-2), pays destinataires proposés pour un virement SEPA (EUR).
 const SEPA_COUNTRIES = [
@@ -1385,9 +1386,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           <View style={[styles.sheet, { flex: 1, paddingBottom: Math.max(insets.bottom, Spacing.lg), paddingTop: Spacing.lg }]}>
           <View style={styles.header}>
             <Text style={styles.title}>{t('transferModal.title2')}</Text>
-            <TouchableOpacity onPress={handleClose}>
-              <FontAwesome6 name="xmark" size={20} color={Colors.textMuted} />
-            </TouchableOpacity>
+            <CloseButton onPress={handleClose} color={Colors.textMuted} />
           </View>
 
           {pollingState === 'pending' && (

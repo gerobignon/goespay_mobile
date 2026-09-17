@@ -18,6 +18,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { walletService } from '../../src/services/walletService';
 import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
+import { CloseButton } from '../../src/components/CloseButton';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { showAlert } from '../../src/stores/alertStore';
@@ -183,9 +184,7 @@ export default function WalletsScreen() {
         <View style={styles.formModalContainer}>
           <View style={styles.formModalHeader}>
             <Text style={styles.formModalTitle}>{walletForm.id ? t('account.editWallet') : t('account.addWallet')}</Text>
-            <TouchableOpacity onPress={resetWalletForm} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <FontAwesome6 name="xmark" size={16} color={Colors.textMuted} />
-            </TouchableOpacity>
+            <CloseButton onPress={resetWalletForm} size={16} color={Colors.textMuted} />
           </View>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <Input

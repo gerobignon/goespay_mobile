@@ -33,6 +33,7 @@ import {
 import { Input } from '../../src/components/Input';
 import { OtpInput } from '../../src/components/OtpInput';
 import { Button } from '../../src/components/Button';
+import { CloseButton } from '../../src/components/CloseButton';
 import { PinPad } from '../../src/components/PinPad';
 import { ResponsiveModal } from '../../src/components/ResponsiveModal';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../../src/constants/theme';
@@ -522,9 +523,7 @@ export default function SecurityScreen() {
             <Text style={styles.modalTitle}>
               {twoFaStep === 'disable' ? t('account.twoFaDisableTitle') : twoFaStep === 'recovery' ? t('account.twoFaRecoveryTitle') : t('account.twoFaTitle')}
             </Text>
-            <TouchableOpacity onPress={handleCloseTwoFaModal}>
-              <FontAwesome6 name="xmark" size={20} color={Colors.textMuted} />
-            </TouchableOpacity>
+            <CloseButton onPress={handleCloseTwoFaModal} color={Colors.textMuted} />
           </View>
 
           {twoFaStep === 'qr' && (
@@ -695,9 +694,7 @@ export default function SecurityScreen() {
         <View style={styles.modalSheet}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{hasPassword ? t('account.changePasswordTitle') : t('account.setPasswordTitle')}</Text>
-            <TouchableOpacity onPress={handleClosePwModal}>
-              <FontAwesome6 name="xmark" size={20} color={Colors.textMuted} />
-            </TouchableOpacity>
+            <CloseButton onPress={handleClosePwModal} color={Colors.textMuted} />
           </View>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {hasPassword && (

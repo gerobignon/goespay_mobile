@@ -12,6 +12,7 @@ import { useThemedStyles } from '../hooks/useThemedStyles';
 import { useFormatXof } from '../utils/format';
 import { useWalletStore } from '../stores/walletStore';
 import { getApiErrorMessage } from '../utils/apiError';
+import { CloseButton } from './CloseButton';
 
 type Direction = 'fund' | 'withdraw';
 type Step = 'form' | 'confirm' | 'sending' | 'success' | 'failed' | 'unknown';
@@ -150,9 +151,7 @@ export function CardFundModal({ visible, card, direction, onClose, onDone, onIne
         <View style={styles.head}>
           <Text style={styles.title}>{title}</Text>
           {step !== 'sending' && (
-            <TouchableOpacity onPress={onClose} hitSlop={10}>
-              <FontAwesome6 name="xmark" size={20} color={Colors.textMuted} />
-            </TouchableOpacity>
+            <CloseButton onPress={onClose} color={Colors.textMuted} />
           )}
         </View>
 

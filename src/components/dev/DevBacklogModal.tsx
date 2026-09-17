@@ -10,6 +10,7 @@ import { showAlert } from '../../stores/alertStore';
 import { useDevBoardStore } from '../../stores/devBoardStore';
 import type { DevBoard, DevTask } from '../../types';
 import { useSheetViewport } from './devSheet';
+import { CloseButton } from '../CloseButton';
 
 interface Props {
   visible: boolean;
@@ -41,9 +42,7 @@ export function DevBacklogModal({ visible, board, onClose, onEditTask, onNew }: 
             <Text style={styles.headerTitle}>
               {t('dev.backlog')} ({board.backlog.length})
             </Text>
-            <TouchableOpacity onPress={onClose} hitSlop={10}>
-              <FontAwesome6 name="xmark" size={20} color={styles.headerTitle.color} />
-            </TouchableOpacity>
+            <CloseButton onPress={onClose} color={styles.headerTitle.color} />
           </View>
 
           <ScrollView contentContainerStyle={styles.list}>

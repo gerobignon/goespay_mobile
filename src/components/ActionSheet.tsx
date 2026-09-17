@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BorderRadius, FontSize, Fonts, Spacing, withAlpha, type ColorPalette } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { useColors } from './ThemeProvider';
+import { CloseButton } from './CloseButton';
 
 export interface SheetAction {
   label: string;
@@ -55,9 +56,7 @@ export function ActionSheet({ visible, title, subtitle, actions, onClose }: Acti
               {!!title && <Text style={styles.title} numberOfLines={1}>{title}</Text>}
               {!!subtitle && <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>}
             </View>
-            <TouchableOpacity onPress={onClose} hitSlop={12}>
-              <FontAwesome6 name="xmark" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
+            <CloseButton onPress={onClose} size={18} color={colors.textMuted} />
           </View>
 
           {actions.map((action, i) => (

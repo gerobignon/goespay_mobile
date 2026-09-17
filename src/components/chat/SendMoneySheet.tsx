@@ -22,6 +22,7 @@ import { useWalletStore } from '../../stores/walletStore';
 import { formatAmount } from '../../utils/format';
 import { ChatAvatar } from './ChatAvatar';
 import type { PeerCard } from '../../types';
+import { CloseButton } from '../CloseButton';
 
 interface SendMoneySheetProps {
   visible: boolean;
@@ -108,9 +109,12 @@ export function SendMoneySheet({ visible, peer, sending, onClose, onSend }: Send
             <Text style={styles.title}>
               {confirming ? t('messages.confirmSend', 'Confirmer l’envoi') : t('messages.sendMoney', 'Envoyer de l’argent')}
             </Text>
-            <TouchableOpacity onPress={confirming ? () => setConfirming(false) : close} hitSlop={12}>
-              <FontAwesome6 name={confirming ? 'arrow-left' : 'xmark'} size={18} color={colors.textMuted} />
-            </TouchableOpacity>
+            <CloseButton
+              onPress={confirming ? () => setConfirming(false) : close}
+              icon={confirming ? 'arrow-left' : 'xmark'}
+              size={18}
+              color={colors.textMuted}
+            />
           </View>
 
           {/* Le corps défile : clavier ouvert sur un petit écran, la feuille
