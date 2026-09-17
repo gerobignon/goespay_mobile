@@ -23,18 +23,28 @@ import type {
  * compteur de non-lus.
  */
 
-/** Ajoute une image (URI locale) à un FormData, web et natif. */
+/**
+ * Ajoute une image (URI locale) à un FormData, web et natif.
+ *
+ * Le nom du fichier doit TOUJOURS porter son extension. Sur le web, l'URI est
+ * celle d'un blob (`blob:https://.../<uuid>`) : le dernier segment n'est qu'un
+ * identifiant, sans extension. Un fichier ainsi nommé arrive au serveur sans
+ * rien qui dise que c'est une image : sa vignette n'est jamais fabriquée, et
+ * la photo n'apparaît ni dans la bulle du fil ni dans la console du support.
+ * L'extension est donc reprise du type réel du blob.
+ */
 async function appendImage(form: FormData, uri: string): Promise<void> {
-  const filename = uri.split('/').pop() || 'photo.jpg';
-  const match = /\.(\w+)$/.exec(filename);
+  const last = uri.split('/').pop() || 'photo.jpg';
+  const match = /\.(\w+)$/.exec(last);
   const type = match ? `image/${match[1]}` : 'image/jpeg';
 
   if (Platform.OS === 'web') {
     const resp = await fetch(uri);
     const blob = await resp.blob();
-    form.append('image', blob, filename);
+    const ext = (blob.type.split('/')[1] || 'jpeg').split(';')[0].toLowerCase();
+    form.append('image', blob, match ? last : `photo.${ext === 'jpeg' ? 'jpg' : ext}`);
   } else {
-    form.append('image', { uri, name: filename, type } as unknown as Blob);
+    form.append('image', { uri, name: last, type } as unknown as Blob);
   }
 }
 
