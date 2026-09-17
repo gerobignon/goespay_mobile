@@ -9,6 +9,7 @@ import {
 import { useRouter } from 'expo-router';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { GlassCard } from '../../src/components/GlassCard';
+import { LinkButton } from '../../src/components/LinkButton';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { PinPad } from '../../src/components/PinPad';
 import { usePinPadFit } from '../../src/hooks/usePinPadFit';
@@ -146,9 +147,12 @@ export default function SetupPinScreen() {
               label={t('auth.pin.enter4digits', 'Entrez votre PIN à 4 chiffres')}
               reset={resetTrigger}
             />
-            <TouchableOpacity onPress={() => { setStep('choose'); setError(null); }}>
-              <Text style={styles.back}>← {t('common.back')}</Text>
-            </TouchableOpacity>
+            <LinkButton
+              title={t('common.back')}
+              onPress={() => { setStep('choose'); setError(null); }}
+              icon="arrow-left"
+              variant="quiet"
+            />
           </GlassCard>
         )}
 
@@ -163,9 +167,12 @@ export default function SetupPinScreen() {
               label={t('auth.pin.confirmPin', 'Confirmez votre PIN')}
               reset={resetTrigger}
             />
-            <TouchableOpacity onPress={() => { setStep('enter-pin'); setError(null); triggerReset(); }}>
-              <Text style={styles.back}>← {t('common.back')}</Text>
-            </TouchableOpacity>
+            <LinkButton
+              title={t('common.back')}
+              onPress={() => { setStep('enter-pin'); setError(null); triggerReset(); }}
+              icon="arrow-left"
+              variant="quiet"
+            />
           </GlassCard>
         )}
       </ScrollView>
@@ -242,11 +249,5 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: FontSize.sm,
     fontFamily: Fonts.medium,
     textAlign: 'center',
-  },
-  back: {
-    color: Colors.textMuted,
-    fontSize: FontSize.sm,
-    fontFamily: Fonts.medium,
-    marginTop: Spacing.sm,
   },
 });

@@ -26,6 +26,11 @@ export const DarkColors = {
   border: 'rgba(255,255,255,0.15)',
   white: '#ffffff',
   black: '#000000',
+  // Actions secondaires (liens, boutons « fantôme »). Sur fond sombre, l'or de
+  // marque passe très bien : on le garde.
+  link: '#F4B228',
+  linkSurface: 'rgba(244,178,40,0.14)',
+  linkBorder: 'rgba(244,178,40,0.38)',
 };
 
 export const LightColors: ColorPalette = {
@@ -53,6 +58,12 @@ export const LightColors: ColorPalette = {
   border: 'rgba(0,0,0,0.1)',
   white: '#ffffff',
   black: '#000000',
+  // Sur fond clair, l'or de marque tombe à 1,9:1 de contraste : illisible. Les
+  // actions secondaires reprennent donc le bleu de marque, assombri pour
+  // dépasser 4,5:1 sur une carte blanche.
+  link: '#1F57C9',
+  linkSurface: 'rgba(49,118,254,0.10)',
+  linkBorder: 'rgba(49,118,254,0.32)',
 };
 
 // Mutable object that ThemeProvider keeps in sync with the active palette

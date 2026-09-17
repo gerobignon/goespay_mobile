@@ -9,12 +9,13 @@ import {
   Image,
   TextInput,
 } from 'react-native';
-import { Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { GlassCard } from '../../src/components/GlassCard';
 import { Input } from '../../src/components/Input';
 import { OtpInput } from '../../src/components/OtpInput';
 import { Button } from '../../src/components/Button';
+import { LinkButton } from '../../src/components/LinkButton';
 import { authService } from '../../src/services/authService';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../../src/constants/theme';
 import { showAlert } from '../../src/stores/alertStore';
@@ -148,11 +149,12 @@ export default function ForgotPasswordScreen() {
                     loading={loading}
                     style={{ marginTop: Spacing.sm }}
                   />
-                  <View style={styles.links}>
-                    <Link href="/(auth)/login" style={styles.link}>
-                      {t('auth.forgotPassword.backToLogin')}
-                    </Link>
-                  </View>
+                  <LinkButton
+                    title={t('auth.forgotPassword.backToLogin')}
+                    href="/(auth)/login"
+                    icon="arrow-left"
+                    style={{ marginTop: Spacing.md }}
+                  />
                 </>
               ) : (
                 <>
@@ -190,12 +192,16 @@ export default function ForgotPasswordScreen() {
                     style={{ marginTop: Spacing.sm }}
                   />
                   <View style={styles.links}>
-                    <Text style={styles.link} onPress={() => setStep(1)}>
-                      {t('auth.forgotPassword.resendCode')}
-                    </Text>
-                    <Link href="/(auth)/login" asChild>
-                      <Text style={styles.linkPrimary}>{t('auth.forgotPassword.backToLogin')}</Text>
-                    </Link>
+                    <LinkButton
+                      title={t('auth.forgotPassword.resendCode')}
+                      onPress={() => setStep(1)}
+                      icon="rotate-right"
+                    />
+                    <LinkButton
+                      title={t('auth.forgotPassword.backToLogin')}
+                      href="/(auth)/login"
+                      variant="quiet"
+                    />
                   </View>
                 </>
               )}
@@ -251,24 +257,12 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   email: {
-    color: Colors.secondary,
+    color: Colors.link,
     fontFamily: Fonts.semiBold,
   },
   links: {
     alignItems: 'center',
-    marginTop: Spacing.lg,
-    gap: Spacing.sm,
-  },
-  link: {
-    color: Colors.textSecondary,
-    fontSize: FontSize.sm,
-    fontFamily: Fonts.semiBold,
-    textAlign: 'center',
-  },
-  linkPrimary: {
-    color: Colors.secondary,
-    fontSize: FontSize.sm,
-    fontFamily: Fonts.bold,
-    textAlign: 'center',
+    marginTop: Spacing.md,
+    gap: Spacing.xs,
   },
 });

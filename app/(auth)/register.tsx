@@ -9,11 +9,12 @@ import {
   Image,
   TextInput,
 } from 'react-native';
-import { Link, useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { GlassCard } from '../../src/components/GlassCard';
 import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
+import { LinkButton } from '../../src/components/LinkButton';
 import { authService } from '../../src/services/authService';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../../src/constants/theme';
 import { showAlert } from '../../src/stores/alertStore';
@@ -183,11 +184,12 @@ export default function RegisterScreen() {
               style={{ marginTop: Spacing.sm }}
             />
 
-            <View style={styles.links}>
-              <Link href="/(auth)/login" style={styles.link}>
-                {t('auth.register.alreadyAccount')}
-              </Link>
-            </View>
+            <LinkButton
+              title={t('auth.register.alreadyAccount')}
+              href="/(auth)/login"
+              icon="right-to-bracket"
+              style={{ marginTop: Spacing.md }}
+            />
           </GlassCard>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -225,15 +227,6 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   subtitle: {
     fontSize: FontSize.lg,
     color: Colors.text,
-    fontFamily: Fonts.semiBold,
-  },
-  links: {
-    alignItems: 'center',
-    marginTop: Spacing.lg,
-  },
-  link: {
-    color: Colors.textSecondary,
-    fontSize: FontSize.sm,
     fontFamily: Fonts.semiBold,
   },
 });

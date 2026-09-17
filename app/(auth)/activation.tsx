@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { Link, useLocalSearchParams, useRouter } from 'expo-router';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { GlassCard } from '../../src/components/GlassCard';
 import { FontAwesome6 } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../../src/c
 import { Input } from '../../src/components/Input';
 import { OtpInput } from '../../src/components/OtpInput';
 import { Button } from '../../src/components/Button';
+import { LinkButton } from '../../src/components/LinkButton';
 import { authService } from '../../src/services/authService';
 import { showAlert } from '../../src/stores/alertStore';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
@@ -114,15 +115,19 @@ export default function ActivationScreen() {
         />
       </View>
 
-      <TouchableOpacity onPress={handleResend} disabled={resending} style={styles.resendBtn}>
-        <Text style={styles.resendText}>
-          {resending ? t('auth.activation.sending', 'Envoi en cours...') : t('auth.forgotPassword.resendCode')}
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={() => setShowChangeEmail(!showChangeEmail)} style={styles.resendBtn}>
-        <Text style={styles.changeEmailText}>{t('auth.activation.changeEmail', "Changer l'adresse email")}</Text>
-      </TouchableOpacity>
+      <View style={styles.actions}>
+        <LinkButton
+          title={resending ? t('auth.activation.sending', 'Envoi en cours...') : t('auth.forgotPassword.resendCode')}
+          onPress={handleResend}
+          disabled={resending}
+          icon="rotate-right"
+        />
+        <LinkButton
+          title={t('auth.activation.changeEmail', "Changer l'adresse email")}
+          onPress={() => setShowChangeEmail(!showChangeEmail)}
+          variant="quiet"
+        />
+      </View>
 
       {showChangeEmail && (
         <View style={styles.changeEmailForm}>
@@ -143,9 +148,12 @@ export default function ActivationScreen() {
         </View>
       )}
 
-      <Link href="/(auth)/login" style={styles.link}>
-        {t('auth.forgotPassword.backToLogin')}
-      </Link>
+      <LinkButton
+        title={t('auth.forgotPassword.backToLogin')}
+        href="/(auth)/login"
+        variant="quiet"
+        style={{ marginTop: Spacing.sm }}
+      />
       </GlassCard>
     </ScrollView>
     </KeyboardAvoidingView>
@@ -160,7 +168,8 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   title: {
     fontSize: FontSize.xxl,
     fontFamily: Fonts.bold,
-    color: Colors.secondary,
+    color: Colors.text,
+    textAlign: 'center',
     marginBottom: Spacing.md,
   },
   message: {
@@ -179,29 +188,14 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     gap: Spacing.md,
     marginBottom: Spacing.lg,
   },
-  resendBtn: {
-    paddingVertical: Spacing.sm,
-  },
-  resendText: {
-    color: Colors.secondary,
-    fontSize: FontSize.sm,
-    fontFamily: Fonts.semiBold,
-  },
-  changeEmailText: {
-    color: Colors.textMuted,
-    fontSize: FontSize.sm,
-    fontFamily: Fonts.semiBold,
-    textDecorationLine: 'underline',
+  // Actions secondaires empilées sous le formulaire de vérification.
+  actions: {
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   changeEmailForm: {
     width: '100%',
     marginTop: Spacing.sm,
     gap: Spacing.sm,
-  },
-  link: {
-    color: Colors.textMuted,
-    fontSize: FontSize.md,
-    fontFamily: Fonts.semiBold,
-    marginTop: Spacing.lg,
   },
 });

@@ -7,15 +7,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
-  TouchableOpacity,
 } from 'react-native';
-import { Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { GlassCard } from '../../src/components/GlassCard';
 import { useAuthStore } from '../../src/stores/authStore';
 import { saveCredentials } from '../../src/services/secureAuthService';
 import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
+import { LinkButton } from '../../src/components/LinkButton';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../../src/constants/theme';
 import { showAlert } from '../../src/stores/alertStore';
 import { authService } from '../../src/services/authService';
@@ -232,14 +232,17 @@ export default function LoginScreen() {
                   style={{ marginTop: Spacing.sm }}
                 />
 
-                <TouchableOpacity onPress={() => setStep('password')} style={styles.switchLink}>
-                  <Text style={styles.link}>{t('auth.login.usePassword')}</Text>
-                </TouchableOpacity>
-
-                <View style={[styles.links, { justifyContent: 'center' }]}>
-                  <Link href="/(auth)/register" style={styles.link}>
-                    {t('auth.login.createAccount')}
-                  </Link>
+                <View style={styles.actions}>
+                  <LinkButton
+                    title={t('auth.login.usePassword')}
+                    onPress={() => setStep('password')}
+                    icon="key"
+                  />
+                  <LinkButton
+                    title={t('auth.login.createAccount')}
+                    href="/(auth)/register"
+                    icon="user-plus"
+                  />
                 </View>
               </>
             )}
@@ -256,9 +259,12 @@ export default function LoginScreen() {
                   loading={loading}
                   style={{ marginTop: Spacing.md }}
                 />
-                <TouchableOpacity onPress={() => handleRequestCode(true)} style={styles.switchLink}>
-                  <Text style={styles.link}>{t('auth.login.resendCode')}</Text>
-                </TouchableOpacity>
+                <LinkButton
+                  title={t('auth.login.resendCode')}
+                  onPress={() => handleRequestCode(true)}
+                  icon="rotate-right"
+                  style={{ marginTop: Spacing.md }}
+                />
                 <Button
                   title={t('common.cancel')}
                   onPress={backToEmail}
@@ -297,17 +303,24 @@ export default function LoginScreen() {
                   style={{ marginTop: Spacing.sm }}
                 />
 
-                <TouchableOpacity onPress={() => setStep('email')} style={styles.switchLink}>
-                  <Text style={styles.link}>{t('auth.login.useCode')}</Text>
-                </TouchableOpacity>
-
-                <View style={styles.links}>
-                  <Link href="/(auth)/forgot-password" style={styles.link}>
-                    {t('auth.login.forgotPassword')}
-                  </Link>
-                  <Link href="/(auth)/register" style={styles.link}>
-                    {t('auth.login.createAccount')}
-                  </Link>
+                <View style={styles.actions}>
+                  <LinkButton
+                    title={t('auth.login.useCode')}
+                    onPress={() => setStep('email')}
+                    icon="envelope"
+                  />
+                  <View style={styles.quietRow}>
+                    <LinkButton
+                      title={t('auth.login.forgotPassword')}
+                      href="/(auth)/forgot-password"
+                      variant="quiet"
+                    />
+                    <LinkButton
+                      title={t('auth.login.createAccount')}
+                      href="/(auth)/register"
+                      variant="quiet"
+                    />
+                  </View>
                 </View>
               </>
             )}
@@ -385,18 +398,15 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     marginBottom: Spacing.md,
     textAlign: 'center',
   },
-  switchLink: {
-    alignItems: 'center',
+  // Bloc des actions secondaires sous le bouton principal.
+  actions: {
     marginTop: Spacing.md,
+    gap: Spacing.sm,
   },
-  links: {
+  quietRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: Spacing.lg,
-  },
-  link: {
-    color: Colors.secondary,
-    fontSize: FontSize.sm,
-    fontFamily: Fonts.semiBold,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    columnGap: Spacing.md,
   },
 });
