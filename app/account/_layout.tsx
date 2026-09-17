@@ -152,18 +152,19 @@ function DesktopAccountLayout() {
                   );
                 })}
 
-                <TouchableOpacity style={styles.menuRow} onPress={handleLogout} activeOpacity={0.7}>
-                  <View style={[styles.menuIcon, { backgroundColor: Colors.error + '22' }]}>
-                    <FontAwesome6 name="right-from-bracket" size={14} color={Colors.error} />
-                  </View>
-                  <Text style={[styles.menuLabel, { color: Colors.error }]}>{t('account.logout')}</Text>
+                {/* Déconnexion : bouton plein. Suppression : gris, en retrait.
+                    Les deux portaient le même rouge sur la même ligne de menu,
+                    au risque de prendre l'une pour l'autre. */}
+                <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
+                  <FontAwesome6 name="right-from-bracket" size={14} color={Colors.white} />
+                  <Text style={styles.logoutLabel}>{t('account.logout')}</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.menuRow} onPress={handleDeleteAccount} activeOpacity={0.7}>
-                  <View style={[styles.menuIcon, { backgroundColor: Colors.error + '22' }]}>
-                    <FontAwesome6 name="trash-can" size={14} color={Colors.error} />
+                <TouchableOpacity style={styles.deleteRow} onPress={handleDeleteAccount} activeOpacity={0.7}>
+                  <View style={styles.menuIcon}>
+                    <FontAwesome6 name="trash-can" size={14} color={Colors.textMuted} />
                   </View>
-                  <Text style={[styles.menuLabel, { color: Colors.error }]}>{t('account.deleteAccount')}</Text>
+                  <Text style={[styles.menuLabel, { color: Colors.textMuted }]}>{t('account.deleteAccount')}</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -285,6 +286,31 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: FontSize.sm,
     fontFamily: Fonts.medium,
     color: Colors.text,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    minHeight: 40,
+    paddingHorizontal: Spacing.md,
+    marginTop: Spacing.md,
+    borderRadius: BorderRadius.pill,
+    backgroundColor: Colors.errorSolid,
+  },
+  logoutLabel: {
+    color: Colors.white,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.bold,
+  },
+  deleteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    gap: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    marginTop: Spacing.sm,
   },
   content: {
     flex: 1,

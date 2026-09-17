@@ -245,6 +245,7 @@ export default function LoginScreen() {
                     title={t('auth.login.createAccount')}
                     href="/(auth)/register"
                     icon="user-plus"
+                    tone="brand"
                   />
                 </View>
               </>
@@ -312,15 +313,16 @@ export default function LoginScreen() {
                     onPress={() => setStep('email')}
                     icon="envelope"
                   />
+                  <LinkButton
+                    title={t('auth.login.createAccount')}
+                    href="/(auth)/register"
+                    icon="user-plus"
+                    tone="brand"
+                  />
                   <View style={styles.quietRow}>
                     <LinkButton
                       title={t('auth.login.forgotPassword')}
                       href="/(auth)/forgot-password"
-                      variant="quiet"
-                    />
-                    <LinkButton
-                      title={t('auth.login.createAccount')}
-                      href="/(auth)/register"
                       variant="quiet"
                     />
                   </View>

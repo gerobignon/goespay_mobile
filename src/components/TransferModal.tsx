@@ -2269,134 +2269,147 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       </KeyboardAvoidingView>
 
       {/* Modal de confirmation, design refondu (cards segmentées, typo douce) */}
-      <Modal visible={confirmVisible} transparent animationType="fade">
+      <Modal visible={confirmVisible} transparent animationType="fade" onRequestClose={() => setConfirmVisible(false)}>
         <View style={styles.confirmOverlay}>
           <View style={styles.confirmSheet}>
-            {/* Header */}
-            <View style={styles.confirmHeader}>
-              <Text style={styles.confirmTitle}>{t('transferModal.confirmTitle')}</Text>
-              <Text style={styles.confirmSubtitle}>{t('transferModal.confirmHint')}</Text>
-            </View>
-
-            {/* Chine : taux de change mis en avant en haut du modal. Taux du
-                DEVIS (celui qui sera exécuté), pas une cotation indicative. */}
-            {aggRail === 'cny' && (quote?.rate ?? aggRate.rate) ? (
-              <View style={styles.confirmRateBanner}>
-                <Text style={styles.confirmRateBannerLabel}>{t('transferModal.exchangeRate')}</Text>
-                <Text style={styles.confirmRateBannerValue}>
-                  1 {aggCurrency} = {(quote?.rate ?? aggRate.rate ?? 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} XOF
-                </Text>
+            {/* La feuille défile : sur un écran de téléphone en web, le
+                récapitulatif Chine (bandeau de taux, montant, bénéficiaire,
+                détail des frais, délai de réception) dépasse la hauteur de la
+                fenêtre. Une View coupe ce qui dépasse sans rien laisser faire
+                défiler : les boutons Modifier et Confirmer passaient hors de
+                l'écran, sous un voile qui interceptait tous les clics. Plus
+                rien ne répondait, pas même la croix de la fenêtre d'envoi. */}
+            <ScrollView
+              style={styles.confirmScroll}
+              contentContainerStyle={styles.confirmScrollContent}
+            >
+              {/* Header */}
+              <View style={styles.confirmHeader}>
+                <Text style={styles.confirmTitle}>{t('transferModal.confirmTitle')}</Text>
+                <Text style={styles.confirmSubtitle}>{t('transferModal.confirmHint')}</Text>
               </View>
-            ) : null}
 
-            {/* Card montant. Chine : le montant demandé EST en yuans, on le met
-                en avant, la contre-valeur XOF suit. */}
-            <View style={styles.confirmCard}>
-              <Text style={styles.confirmCardLabel}>{t('transferModal.amountSent')}</Text>
-              <View style={styles.confirmAmountRow}>
-                {/* Montant coté (= débité hors frais), pas la saisie brute. */}
-                <Text style={styles.confirmAmount}>
-                  {isCny
-                    ? (aggSendAmount ?? 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })
-                    : fmtXof(sentXof, { withCode: false })}
-                </Text>
-                <Text style={styles.confirmAmountCurrency}>{isCny ? aggCurrency : 'XOF'}</Text>
-              </View>
-              {isCny && (
-                <Text style={styles.confirmCardLabel}>
-                  {t('transferModal.amountDebited')} {fmtXof(sentXof)}
-                </Text>
-              )}
-            </View>
-
-            {/* Card destinataire */}
-            <View style={styles.confirmCard}>
-              <Text style={styles.confirmCardLabel}>{t('transferModal.recipient')}</Text>
-              {(() => {
-                // Décomposition propre des champs destinataire selon le rail.
-                const isMM = !isAggOp || aggRail === 'mobile_money';
-                const primary = isMM
-                  ? (phone || ', ')
-                  : (bankAccountHolder || bankAccountNumber || iban || ', ');
-                const secondaryParts: string[] = [];
-                if (!isMM) {
-                  if (bankAccountHolder && (bankAccountNumber || iban)) {
-                    secondaryParts.push(bankAccountNumber || iban);
-                  }
-                  if (bankName.trim()) secondaryParts.push(bankName.trim());
-                }
-                return (
-                  <>
-                    <Text style={styles.confirmPrimary} numberOfLines={2}>{primary}</Text>
-                    {secondaryParts.length > 0 && (
-                      <Text style={styles.confirmSecondary}>{secondaryParts.join(' · ')}</Text>
-                    )}
-                  </>
-                );
-              })()}
-
-              {/* Chip méthode (logo + nom + rail), discret */}
-              {selectedOp && (
-                <View style={styles.confirmMethodChip}>
-                  <Image source={selectedOp.logo} style={styles.confirmMethodLogo} resizeMode="contain" />
-                  <Text style={styles.confirmMethodText} numberOfLines={1}>
-                    {selectedOp.flag} {selectedOp.name}
-                    {isAggOp && aggRail
-                      ? ` · ${aggRail === 'mobile_money' ? 'Mobile Money' : aggRail === 'bank_transfer' ? 'Virement bancaire' : aggRail === 'wire' ? 'Virement international' : aggRail}`
-                      : ''}
+              {/* Chine : taux de change mis en avant en haut du modal. Taux du
+                  DEVIS (celui qui sera exécuté), pas une cotation indicative. */}
+              {aggRail === 'cny' && (quote?.rate ?? aggRate.rate) ? (
+                <View style={styles.confirmRateBanner}>
+                  <Text style={styles.confirmRateBannerLabel}>{t('transferModal.exchangeRate')}</Text>
+                  <Text style={styles.confirmRateBannerValue}>
+                    1 {aggCurrency} = {(quote?.rate ?? aggRate.rate ?? 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} XOF
                   </Text>
                 </View>
-              )}
-            </View>
+              ) : null}
 
-            {/* Card breakdown */}
-            <View style={styles.confirmCard}>
-              {isAggOp && aggCurrency !== 'XOF' && (
+              {/* Card montant. Chine : le montant demandé EST en yuans, on le met
+                  en avant, la contre-valeur XOF suit. */}
+              <View style={styles.confirmCard}>
+                <Text style={styles.confirmCardLabel}>{t('transferModal.amountSent')}</Text>
+                <View style={styles.confirmAmountRow}>
+                  {/* Montant coté (= débité hors frais), pas la saisie brute. */}
+                  <Text style={styles.confirmAmount}>
+                    {isCny
+                      ? (aggSendAmount ?? 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })
+                      : fmtXof(sentXof, { withCode: false })}
+                  </Text>
+                  <Text style={styles.confirmAmountCurrency}>{isCny ? aggCurrency : 'XOF'}</Text>
+                </View>
+                {isCny && (
+                  <Text style={styles.confirmCardLabel}>
+                    {t('transferModal.amountDebited')} {fmtXof(sentXof)}
+                  </Text>
+                )}
+              </View>
+
+              {/* Card destinataire */}
+              <View style={styles.confirmCard}>
+                <Text style={styles.confirmCardLabel}>{t('transferModal.recipient')}</Text>
+                {(() => {
+                  // Décomposition propre des champs destinataire selon le rail.
+                  const isMM = !isAggOp || aggRail === 'mobile_money';
+                  const primary = isMM
+                    ? (phone || ', ')
+                    : (bankAccountHolder || bankAccountNumber || iban || ', ');
+                  const secondaryParts: string[] = [];
+                  if (!isMM) {
+                    if (bankAccountHolder && (bankAccountNumber || iban)) {
+                      secondaryParts.push(bankAccountNumber || iban);
+                    }
+                    if (bankName.trim()) secondaryParts.push(bankName.trim());
+                  }
+                  return (
+                    <>
+                      <Text style={styles.confirmPrimary} numberOfLines={2}>{primary}</Text>
+                      {secondaryParts.length > 0 && (
+                        <Text style={styles.confirmSecondary}>{secondaryParts.join(' · ')}</Text>
+                      )}
+                    </>
+                  );
+                })()}
+
+                {/* Chip méthode (logo + nom + rail), discret */}
+                {selectedOp && (
+                  <View style={styles.confirmMethodChip}>
+                    <Image source={selectedOp.logo} style={styles.confirmMethodLogo} resizeMode="contain" />
+                    <Text style={styles.confirmMethodText} numberOfLines={1}>
+                      {selectedOp.flag} {selectedOp.name}
+                      {isAggOp && aggRail
+                        ? ` · ${aggRail === 'mobile_money' ? 'Mobile Money' : aggRail === 'bank_transfer' ? 'Virement bancaire' : aggRail === 'wire' ? 'Virement international' : aggRail}`
+                        : ''}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Card breakdown */}
+              <View style={styles.confirmCard}>
+                {isAggOp && aggCurrency !== 'XOF' && (
+                  <View style={styles.confirmBreakdownRow}>
+                    <Text style={styles.confirmBreakdownLabel}>{t('transferModal.fincraReceives')}</Text>
+                    <Text style={styles.confirmBreakdownValue}>{fmtAgg(numAmount)}</Text>
+                  </View>
+                )}
+                {afpForeign && afpQuoteState.quote && (
+                  <View style={styles.confirmBreakdownRow}>
+                    <Text style={styles.confirmBreakdownLabel}>{t('transferModal.fincraReceives')}</Text>
+                    <Text style={styles.confirmBreakdownValue}>{fmtAfp(afpQuoteState.quote.send_amount)}</Text>
+                  </View>
+                )}
+                {fees > 0 && (
+                  <View style={styles.confirmBreakdownRow}>
+                    <Text style={styles.confirmBreakdownLabel}>{t('transferModal.fees')} ({feeLabel})</Text>
+                    <Text style={[styles.confirmBreakdownValue, styles.confirmBreakdownValueFee]}>+ {fmtXof(fees)}</Text>
+                  </View>
+                )}
+                <View style={styles.confirmBreakdownDivider} />
                 <View style={styles.confirmBreakdownRow}>
-                  <Text style={styles.confirmBreakdownLabel}>{t('transferModal.fincraReceives')}</Text>
-                  <Text style={styles.confirmBreakdownValue}>{fmtAgg(numAmount)}</Text>
+                  <Text style={styles.confirmBreakdownTotalLabel}>{t('transferModal.totalDebited')}</Text>
+                  <Text style={styles.confirmBreakdownTotalValue}>
+                    {isAggOp
+                      ? (aggTotalDebitXof !== null ? fmtXof(aggTotalDebitXof) : fmtAgg(numAmount))
+                      : fmtXof(total)}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Chine : délai de réception estimé */}
+              {aggRail === 'cny' && (
+                <View style={styles.confirmDeliveryBox}>
+                  <FontAwesome6 name="clock" size={14} color={Colors.primary} solid />
+                  <Text style={styles.confirmDeliveryNote}>{t('transferModal.chinaDeliveryEstimate')}</Text>
                 </View>
               )}
-              {afpForeign && afpQuoteState.quote && (
-                <View style={styles.confirmBreakdownRow}>
-                  <Text style={styles.confirmBreakdownLabel}>{t('transferModal.fincraReceives')}</Text>
-                  <Text style={styles.confirmBreakdownValue}>{fmtAfp(afpQuoteState.quote.send_amount)}</Text>
+
+              {/* Checkbox confirmation */}
+              <TouchableOpacity style={styles.checkRow} onPress={() => setConfirmed((v) => !v)} activeOpacity={0.7}>
+                <View style={[styles.checkbox, confirmed && styles.checkboxChecked]}>
+                  {confirmed && <FontAwesome6 name="check" size={11} color={Colors.white} />}
                 </View>
-              )}
-              {fees > 0 && (
-                <View style={styles.confirmBreakdownRow}>
-                  <Text style={styles.confirmBreakdownLabel}>{t('transferModal.fees')} ({feeLabel})</Text>
-                  <Text style={[styles.confirmBreakdownValue, styles.confirmBreakdownValueFee]}>+ {fmtXof(fees)}</Text>
-                </View>
-              )}
-              <View style={styles.confirmBreakdownDivider} />
-              <View style={styles.confirmBreakdownRow}>
-                <Text style={styles.confirmBreakdownTotalLabel}>{t('transferModal.totalDebited')}</Text>
-                <Text style={styles.confirmBreakdownTotalValue}>
-                  {isAggOp
-                    ? (aggTotalDebitXof !== null ? fmtXof(aggTotalDebitXof) : fmtAgg(numAmount))
-                    : fmtXof(total)}
+                <Text style={[styles.checkLabel, confirmed && styles.checkLabelChecked]}>
+                  {t('transferModal.checkConfirm')}
                 </Text>
-              </View>
-            </View>
+              </TouchableOpacity>
 
-            {/* Chine : délai de réception estimé */}
-            {aggRail === 'cny' && (
-              <View style={styles.confirmDeliveryBox}>
-                <FontAwesome6 name="clock" size={14} color={Colors.primary} solid />
-                <Text style={styles.confirmDeliveryNote}>{t('transferModal.chinaDeliveryEstimate')}</Text>
-              </View>
-            )}
-
-            {/* Checkbox confirmation */}
-            <TouchableOpacity style={styles.checkRow} onPress={() => setConfirmed((v) => !v)} activeOpacity={0.7}>
-              <View style={[styles.checkbox, confirmed && styles.checkboxChecked]}>
-                {confirmed && <FontAwesome6 name="check" size={11} color={Colors.white} />}
-              </View>
-              <Text style={[styles.checkLabel, confirmed && styles.checkLabelChecked]}>
-                {t('transferModal.checkConfirm')}
-              </Text>
-            </TouchableOpacity>
+            </ScrollView>
 
             <View style={styles.confirmBtns}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setConfirmVisible(false)}>
@@ -3018,6 +3031,18 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     width: '100%',
     maxWidth: 460,
+    // Plafonnée à la hauteur disponible : au-delà, c'est le ScrollView qui
+    // prend le relais, pas le bord de l'écran qui tranche.
+    maxHeight: '100%',
+    gap: Spacing.sm,
+  },
+  confirmScroll: {
+    flexShrink: 1,
+    // Sans plancher à zéro, un conteneur flex refuse de passer sous la hauteur
+    // de son contenu et le débordement revient par la fenêtre.
+    minHeight: 0,
+  },
+  confirmScrollContent: {
     gap: Spacing.sm,
   },
   confirmHeader: {

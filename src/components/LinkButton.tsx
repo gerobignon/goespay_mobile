@@ -31,6 +31,15 @@ interface LinkButtonProps {
    * `quiet` : simple libellé souligné, pour un renvoi discret.
    */
   variant?: 'soft' | 'quiet';
+  /**
+   * `link` : teinte des actions secondaires (or sur fond sombre, bleu assombri
+   * sur fond clair).
+   * `brand` : or GOESPAY plein, le même sur les deux thèmes, pour l'action qui
+   * doit porter la couleur de la marque (« Créer un compte »). Le libellé passe
+   * en sombre sur l'or, la variante `quiet` est ignorée : l'or ne se lit pas
+   * en texte sur une carte blanche, il lui faut sa surface.
+   */
+  tone?: 'link' | 'brand';
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }
@@ -47,6 +56,7 @@ export function LinkButton({
   href,
   icon,
   variant = 'soft',
+  tone = 'link',
   disabled = false,
   style,
 }: LinkButtonProps) {
@@ -62,7 +72,8 @@ export function LinkButton({
     onPress?.();
   };
 
-  const soft = variant === 'soft';
+  const brand = tone === 'brand';
+  const soft = brand || variant === 'soft';
 
   return (
     <TouchableOpacity
@@ -73,6 +84,7 @@ export function LinkButton({
       style={[
         styles.base,
         soft ? styles.soft : styles.quiet,
+        brand && styles.brand,
         disabled && styles.disabled,
         style,
       ]}
@@ -81,11 +93,13 @@ export function LinkButton({
         <FontAwesome6
           name={icon}
           size={14}
-          color={soft ? Colors.link : Colors.textSecondary}
+          color={brand ? Colors.brandOn : soft ? Colors.link : Colors.textSecondary}
           style={styles.icon}
         />
       )}
-      <Text style={soft ? styles.softText : styles.quietText}>{title}</Text>
+      <Text style={[soft ? styles.softText : styles.quietText, brand && styles.brandText]}>
+        {title}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -106,6 +120,10 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.linkBorder,
   },
+  brand: {
+    backgroundColor: Colors.brand,
+    borderColor: Colors.brand,
+  },
   quiet: {
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.sm,
@@ -121,6 +139,10 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: FontSize.sm,
     fontFamily: Fonts.semiBold,
     textAlign: 'center',
+  },
+  brandText: {
+    color: Colors.brandOn,
+    fontFamily: Fonts.bold,
   },
   quietText: {
     color: Colors.textSecondary,

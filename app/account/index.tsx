@@ -187,23 +187,26 @@ export default function AccountScreen() {
                 </Reveal>
               ))}
 
-              {/* Logout */}
+              {/* Déconnexion : bouton plein, l'action courante et réversible.
+                  Elle portait le même rouge que la suppression de compte, sur
+                  une ligne de menu identique : deux voisines de même allure
+                  dont une seule est irréversible. */}
               <Reveal delay={menuItems.length * 45} offset={10}>
-                <Bounce style={styles.menuRow} scaleTo={0.98} onPress={handleLogout}>
-                  <View style={[styles.menuIcon, { backgroundColor: Colors.error + '22' }]}>
-                    <FontAwesome6 name="right-from-bracket" size={16} color={Colors.error} />
-                  </View>
-                  <Text style={[styles.menuLabel, { color: Colors.error }]}>{t('account.logout')}</Text>
+                <Bounce style={styles.logoutButton} scaleTo={0.98} onPress={handleLogout}>
+                  <FontAwesome6 name="right-from-bracket" size={16} color={Colors.white} />
+                  <Text style={styles.logoutLabel}>{t('account.logout')}</Text>
                 </Bounce>
               </Reveal>
 
-              {/* Suppression de compte (exigence stores) */}
+              {/* Suppression de compte (exigence stores) : gris, à l'écart. Elle
+                  n'a pas à s'attraper d'un geste distrait, et elle ouvre de
+                  toute façon une page de confirmation sur goespay.io. */}
               <Reveal delay={(menuItems.length + 1) * 45} offset={10}>
-                <Bounce style={styles.menuRow} scaleTo={0.98} onPress={handleDeleteAccount}>
-                  <View style={[styles.menuIcon, { backgroundColor: Colors.error + '22' }]}>
-                    <FontAwesome6 name="trash-can" size={16} color={Colors.error} />
+                <Bounce style={styles.deleteRow} scaleTo={0.98} onPress={handleDeleteAccount}>
+                  <View style={styles.menuIcon}>
+                    <FontAwesome6 name="trash-can" size={16} color={Colors.textMuted} />
                   </View>
-                  <Text style={[styles.menuLabel, { color: Colors.error }]}>{t('account.deleteAccount')}</Text>
+                  <Text style={[styles.menuLabel, { color: Colors.textMuted }]}>{t('account.deleteAccount')}</Text>
                   <FontAwesome6 name="arrow-up-right-from-square" size={14} color={Colors.textMuted} />
                 </Bounce>
               </Reveal>
@@ -316,6 +319,33 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: FontSize.md,
     fontFamily: Fonts.medium,
     color: Colors.text,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    minHeight: 48,
+    paddingHorizontal: Spacing.lg,
+    marginTop: Spacing.lg,
+    marginHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.pill,
+    backgroundColor: Colors.errorSolid,
+  },
+  logoutLabel: {
+    color: Colors.white,
+    fontSize: FontSize.md,
+    fontFamily: Fonts.bold,
+  },
+  // Même géométrie que les autres lignes, mais sans le rouge : la suppression
+  // se trouve, elle ne se propose pas.
+  deleteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.md,
+    marginTop: Spacing.md,
   },
   dropdownOverlay: {
     flex: 1,

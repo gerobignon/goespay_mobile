@@ -620,19 +620,23 @@ export default function DashboardScreen() {
               </TouchableOpacity>
             ))}
             <View style={styles.dropdownDivider} />
+            {/* Déconnexion : bouton plein. Suppression : gris, en dessous. Les
+                deux lignes se ressemblaient trait pour trait, même rouge
+                compris, et une seule des deux est irréversible. */}
             <TouchableOpacity
-              style={styles.dropdownItem}
+              style={styles.dropdownLogout}
+              activeOpacity={0.8}
               onPress={() => { setDropdownVisible(false); handleLogout(); }}
             >
-              <FontAwesome6 name="right-from-bracket" size={14} color={Colors.error} />
-              <Text style={[styles.dropdownLabel, { color: Colors.error }]}>{t('account.logout')}</Text>
+              <FontAwesome6 name="right-from-bracket" size={14} color={Colors.white} />
+              <Text style={styles.dropdownLogoutLabel}>{t('account.logout')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.dropdownItem}
               onPress={() => { setDropdownVisible(false); handleDeleteAccount(); }}
             >
-              <FontAwesome6 name="trash-can" size={14} color={Colors.error} />
-              <Text style={[styles.dropdownLabel, { color: Colors.error }]}>{t('account.deleteAccount')}</Text>
+              <FontAwesome6 name="trash-can" size={14} color={Colors.textMuted} />
+              <Text style={[styles.dropdownLabel, { color: Colors.textMuted }]}>{t('account.deleteAccount')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -902,6 +906,22 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: FontSize.md,
     fontFamily: Fonts.medium,
     color: Colors.text,
+  },
+  dropdownLogout: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    minHeight: 44,
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.md,
+    borderRadius: BorderRadius.pill,
+    backgroundColor: Colors.errorSolid,
+  },
+  dropdownLogoutLabel: {
+    color: Colors.white,
+    fontSize: FontSize.md,
+    fontFamily: Fonts.bold,
   },
   dropdownDivider: {
     height: 1,

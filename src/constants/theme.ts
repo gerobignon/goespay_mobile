@@ -31,6 +31,15 @@ export const DarkColors = {
   link: '#F4B228',
   linkSurface: 'rgba(244,178,40,0.14)',
   linkBorder: 'rgba(244,178,40,0.38)',
+  // Or de marque PLEIN, rigoureusement identique sur les deux thèmes. Réservé
+  // aux actions qui doivent porter la couleur GOESPAY elle-même (« Créer un
+  // compte ») : elles ne virent pas au bleu sur fond clair comme `link`. Le
+  // libellé se pose dessus en `brandOn`, sombre, pour rester lisible.
+  brand: '#F4B228',
+  brandOn: '#1a1a2e',
+  // Rouge de marque assombri, pour les boutons PLEINS dont le libellé est
+  // blanc : sur `error` vif le blanc tombe à 3,5:1, ici il passe à 5,2:1.
+  errorSolid: '#D1224B',
 };
 
 export const LightColors: ColorPalette = {
@@ -64,6 +73,11 @@ export const LightColors: ColorPalette = {
   link: '#1F57C9',
   linkSurface: 'rgba(49,118,254,0.10)',
   linkBorder: 'rgba(49,118,254,0.32)',
+  // L'or de marque, lui, ne bouge pas d'un thème à l'autre : il sert de fond,
+  // pas de texte, donc le contraste tient (or plein / libellé sombre).
+  brand: '#F4B228',
+  brandOn: '#1a1a2e',
+  errorSolid: '#D1224B',
 };
 
 // Mutable object that ThemeProvider keeps in sync with the active palette
