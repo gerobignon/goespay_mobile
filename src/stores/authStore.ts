@@ -95,17 +95,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (remember) {
       if (response.user) await cacheUser(response.user);
     }
+    // Le payload de login ne porte pas l'identité civile (date de naissance,
+    // adresse, pièce…) : seul GET /me la fournit. On le signale via
+    // `profileComplete: false` et on recharge le profil aussitôt, sinon les
+    // gardes KYC (ex. envoi vers la Chine) croient les champs absents jusqu'au
+    // prochain démarrage de l'app.
     set({
       user: response.user,
       token: response.token,
       isAuthenticated: true,
       rememberMe: remember,
-      profileComplete: true,
+      profileComplete: false,
     });
     // Hydrate la devise depuis le profil + récupère les taux
     const cs = useCurrencyStore.getState();
     await cs.hydrateFromUser(response.user?.currency, response.user?.currency_source);
     cs.fetchRates();
+    get().refreshProfile();
   },
 
   loginWithToken: async (token, user, remember = false) => {
@@ -114,10 +120,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (remember) {
       await cacheUser(user);
     }
-    set({ user, token, isAuthenticated: true, rememberMe: remember, profileComplete: true });
+    // Même logique que `login` : identité civile absente du payload → GET /me.
+    set({ user, token, isAuthenticated: true, rememberMe: remember, profileComplete: false });
     const cs = useCurrencyStore.getState();
     await cs.hydrateFromUser(user?.currency, user?.currency_source);
     cs.fetchRates();
+    get().refreshProfile();
   },
 
   logout: async () => {

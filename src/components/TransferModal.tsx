@@ -326,8 +326,10 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const afpForeign = !!afpCurrency && afpCurrency !== 'XOF' && afpCurrency !== 'XAF';
   // Chine : Klasha exige tout le senderAddress (date de naissance + province/état +
   // code postal) en plus de l'identité. Si l'un manque dans le profil KYC, on bloque
-  // tout le formulaire de retrait et on demande de compléter le KYC.
-  const chinaKycGate = isKlashaOp && aggRail === 'cny'
+  // tout le formulaire de retrait et on demande de compléter le KYC. On ne juge
+  // qu'un profil relu par GET /me (`profileComplete`) : le payload de login et le
+  // cache local ne portent pas ces champs.
+  const chinaKycGate = isKlashaOp && aggRail === 'cny' && profileComplete
     && (!(user as any)?.birthdate || !(user as any)?.state || !(user as any)?.postcode);
   // Sous-pays Fincra (XOF/XAF). Si le pays est déjà connu (pays sélectionné, ou
   // pays de l'utilisateur), on le déduit du contexte et on masque la liste.
