@@ -153,7 +153,10 @@ export default function LoginScreen() {
     } catch (error: any) {
       if (handleActivationRedirect(error)) return;
       if (handleMissingAccount(error)) return;
-      // Le compte a choisi le code par email : on l'y emmène directement.
+      // Choisir « utiliser mon mot de passe » connecte bel et bien par mot de
+      // passe : aucun code ne part. Le serveur ne renvoie otp_required que pour
+      // un compte qui n'a AUCUN mot de passe, dont le code par email est la
+      // seule porte : on l'y emmène, en lui envoyant son code.
       if (error?.response?.data?.otp_required) {
         setPassword('');
         setLoading(false);
