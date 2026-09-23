@@ -163,7 +163,7 @@ export default function AccountScreen() {
             {/* KYC button */}
             {user?.validate === 0 && (
               <Button
-                title={t('account.verifyKyc')}
+                title={(user?.kyc_level ?? 0) >= 1 ? t('kyc.upgradeBtn') : t('account.verifyKyc')}
                 icon="id-card"
                 variant="secondary"
                 onPress={() => router.push('/kyc')}

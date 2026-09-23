@@ -24,6 +24,12 @@ export interface User {
   avatar?: string;
   balance?: number;
   validate: 0 | 1 | 2;
+  // KYC à deux niveaux : 2 = complet (validate = 1), 1 = basique (Mobile Money
+  // + transferts GOESPAY, sorties plafonnées), 0 = aucun.
+  kyc_level?: 0 | 1 | 2;
+  kyc_level1_limit?: number;
+  kyc_level1_remaining?: number | null;
+  kyc_pending_level?: 1 | 2 | null; // niveau de la demande en examen (validate = 2)
   group: string;
   referral_code?: string;
   created_at?: string;

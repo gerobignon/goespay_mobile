@@ -138,12 +138,14 @@ export function CardFundModal({ visible, card, direction, onClose, onDone, onIne
    * serveur refusait déjà, mais après coup.
    */
   const typedUsd = parseFloat(amount.replace(',', '.')) || 0;
-  const available = isFund ? walletBalance : (card?.balance ?? 0);
+  // Retrait : l'émetteur garde 1 USD sur la carte, le serveur donne le retirable.
+  const withdrawable = card?.withdrawable ?? Math.max(0, (card?.balance ?? 0) - 1);
+  const available = isFund ? walletBalance : withdrawable;
   const needed = isFund ? (quote?.total_xof ?? 0) : typedUsd;
   const exceeds = needed > available;
   const availableLabel = isFund
     ? fmtXof(walletBalance, { decimals: 2 })
-    : `${(card?.balance ?? 0).toFixed(2)} ${card?.currency ?? 'USD'}`;
+    : `${withdrawable.toFixed(2)} ${card?.currency ?? 'USD'}`;
 
   return (
     <ResponsiveModal visible={visible} onClose={onClose} disableBackdropClose={step === 'sending'}>
@@ -165,10 +167,11 @@ export function CardFundModal({ visible, card, direction, onClose, onDone, onIne
                 iconStyle="solid"
               />
               <Text style={[styles.balanceText, exceeds && styles.over]}>
-                {t('cards.availableBalance')} :{' '}
+                {isFund ? t('cards.availableBalance') : t('cards.withdrawable')} :{' '}
               </Text>
               <Text style={[styles.balanceAmount, exceeds && styles.over]}>{availableLabel}</Text>
             </View>
+            {!isFund && <Text style={styles.balanceText}>{t('cards.withdrawHold')}</Text>}
 
             <Input
               label={t('cards.amountUsd')}

@@ -16,7 +16,7 @@ const PROD_API = 'https://goespay.io/api/mobile/v1';
 /** Page publique de demande de suppression de compte (exigence App Store / Play Store). */
 export const ACCOUNT_DELETION_URL = 'https://goespay.io/account-deletion';
 
-export const API_BASE_URL = PROD_API; // TEMP test emulateur, a remettre
+export const API_BASE_URL = __DEV__ ? DEV_API : PROD_API;
 
 export const OPERATORS = [
   // ─── PayDunya / Softpay ────────────────────────────────────────────────

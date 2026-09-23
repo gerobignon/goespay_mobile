@@ -873,10 +873,10 @@ export default function CardsScreen() {
   /**
    * Grille tarifaire, telle que servie par le back-office.
    *
-   * Elle ne montre QUE les frais que le client rencontre en utilisant sa carte.
-   * Les frais de conditions (conversion de devise, transaction refusée,
-   * contestation) sont volontairement absents : ils vivent dans les CGU, et les
-   * poser ici noierait les tarifs réellement utiles.
+   * Elle ne montre QUE les frais que le client rencontre en utilisant sa carte,
+   * plus la conversion de devise, qu'il subit dès qu'il paie hors USD. Les
+   * autres frais de conditions (transaction refusée, contestation) vivent dans
+   * les CGU.
    */
   const renderFeeGrid = () => {
     const grid = pricing?.card;
@@ -902,6 +902,7 @@ export default function CardsScreen() {
       [t('cards.feeWithdraw'), usd(grid.withdraw_fee_usd)],
       [t('cards.feePayment'), usd(grid.payment_fee_usd)],
       [t('cards.feeMonthly'), usd(grid.monthly_fee_usd)],
+      [t('cards.feeCrossBorder'), t('cards.feeCrossBorderValue')],
     ];
 
     const free = t('cards.free');

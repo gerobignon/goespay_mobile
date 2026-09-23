@@ -41,6 +41,8 @@ export interface VirtualCard {
   pending: boolean;
   /** Solde en USD. */
   balance: number;
+  /** Retirable vers le wallet, en USD : l'émetteur garde 1 USD sur la carte. */
+  withdrawable?: number;
   nickname: string;
   /** Adresse imposée par l'émetteur, requise par certains marchands. */
   billing_address: BillingAddress | null;

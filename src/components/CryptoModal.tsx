@@ -706,8 +706,10 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
                     }
                     return t('cryptoModal.exCryptoAmount');
                   })()}
-                  value={amount}
-                  onChangeText={(t) => setAmount(t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
+                  // Le clavier décimal français tape une virgule : on l'accepte et
+                  // on l'affiche, mais l'état garde le point pour les calculs.
+                  value={amount.replace('.', ',')}
+                  onChangeText={(t) => setAmount(t.replace(/,/g, '.').replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
                   keyboardType="decimal-pad"
                 />
 
@@ -847,7 +849,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
             ) : (
               <>
                 <Text style={styles.confirmAmountLabel}>{t('cryptoModal.amountToSellLabel')}</Text>
-                <Text style={styles.confirmAmount}>{amount}</Text>
+                <Text style={styles.confirmAmount}>{amount.replace('.', ',')}</Text>
                 <Text style={styles.confirmAmountCurrency}>{getCurrencyName(selectedCurrency)}</Text>
               </>
             )}

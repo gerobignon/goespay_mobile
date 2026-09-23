@@ -367,7 +367,15 @@ export default function DashboardScreen() {
         <SiteMessageTicker />
 
         {/* KYC Banner */}
-        {user?.validate !== 1 && (
+        {/* KYC Niveau 1 : reste disponible avant le passage au Niveau 2. */}
+        {user?.validate === 0 && (user?.kyc_level ?? 0) >= 1 && (
+          <KycBanner
+            level1Remaining={user?.kyc_level1_remaining ?? null}
+            level1Limit={user?.kyc_level1_limit}
+            onPress={() => router.push('/kyc?level=2')}
+          />
+        )}
+        {user?.validate !== 1 && !(user?.validate === 0 && (user?.kyc_level ?? 0) >= 1) && (
           <KycBanner
             status={user?.validate as 0 | 2}
             expired={user?.validate === 0 && !!user?.idexp_expired}

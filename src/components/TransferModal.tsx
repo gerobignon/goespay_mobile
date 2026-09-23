@@ -55,6 +55,7 @@ import { useCryptoSearch } from '../hooks/useCryptoSearch';
 import { noConnectionMessage } from '../utils/apiError';
 import { CloseButton } from './CloseButton';
 import { ReferralPrompt } from './ReferralPrompt';
+import { kycLevelOf, promptKycUpgrade, handleKycUpgradeError } from '../utils/kycLevel';
 
 // Zone SEPA (ISO-2), pays destinataires proposés pour un virement SEPA (EUR).
 const SEPA_COUNTRIES = [
@@ -118,7 +119,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const [saveCnyModalVisible, setSaveCnyModalVisible] = useState(false);
   const [saveCnyName, setSaveCnyName] = useState('');
   const [saveCnyLoading, setSaveCnyLoading] = useState(false);
-  const [pollingState, setPollingState] = useState<'idle' | 'pending' | 'success' | 'failed' | 'timeout'>('success'); // TEMP apercu, a remettre a 'idle'
+  const [pollingState, setPollingState] = useState<'idle' | 'pending' | 'success' | 'failed' | 'timeout'>('idle');
   const [pendingDetails, setPendingDetails] = useState<{ amount_sent: number; fees: number; phone: string; debit_xof?: number } | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollingTransferIdRef = useRef<number | null>(null);
@@ -1047,8 +1048,14 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   };
 
   const handlePressEnvoyer = () => {
-    if (user?.validate !== 1) {
+    // KYC Niveau 1 : Mobile Money seulement (plafond contrôlé par le serveur).
+    const kycLevel = kycLevelOf(user);
+    if (kycLevel === 0) {
       showAlert(t('depositModal.kycRequired3'), t('depositModal.kycRequired2'));
+      return;
+    }
+    if (kycLevel === 1 && isAggOp && aggRail !== 'mobile_money') {
+      promptKycUpgrade(t);
       return;
     }
     if (aggRateBlocking) {
@@ -1358,6 +1365,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       // (timeout passerelle, réponse mal formée, etc.). On rafraîchit le solde
       // pour refléter l'état réel et on invite l'utilisateur à vérifier l'historique.
       try { await fetchBalance(); } catch {}
+      if (handleKycUpgradeError(error, t)) return;
       const data = error?.response?.data;
       // Taux modifié depuis l'affichage : on recote immédiatement pour que
       // l'écran montre le nouveau montant avant la seconde tentative.
@@ -1471,7 +1479,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             {isAdmin && transferEnabled && !afribapayEnabled && (
               <AdminDisabledBanner message={t('admin.bannerAfribapay')} />
             )}
-            {user?.validate !== 1 && (
+            {kycLevelOf(user) === 0 && (
               <View style={styles.kycBanner}>
                 <FontAwesome6 name="triangle-exclamation" size={14} color={Colors.warning} style={{ marginRight: 8 }} />
                 <Text style={styles.kycBannerText}>{t('transferModal.kycRequired')}</Text>

@@ -130,6 +130,29 @@ export const authService = {
     return response.data;
   },
 
+  /** KYC Niveau 1 : téléphone, pays et selfie avec la pièce en main. */
+  uploadKycBasic: async (
+    data: { phone: string; country: string; resubmit?: boolean },
+    selfieUri: string | null,
+  ): Promise<{ message: string; validate: number }> => {
+    const formData = new FormData();
+    formData.append('level', '1');
+    formData.append('phone', data.phone);
+    formData.append('country', data.country);
+    if (data.resubmit) formData.append('resubmit', '1');
+    if (selfieUri) {
+      const filename = 'kyc-tof.jpg';
+      const type = 'image/jpeg';
+      if (Platform.OS === 'web') {
+        const blob = await (await fetch(selfieUri)).blob();
+        formData.append('tof', new File([blob], filename, { type }));
+      } else {
+        formData.append('tof', { uri: selfieUri, name: filename, type } as unknown as Blob);
+      }
+    }
+    return authService.postKycForm(formData);
+  },
+
   uploadKyc: async (
     data: {
       type: string;
@@ -183,7 +206,13 @@ export const authService = {
     // Fichiers : seulement si l'utilisateur en a (re)pris (sinon on garde l'existant).
     if (fileUri) await appendFile('file', fileUri);
     if (selfieUri) await appendFile('tof', selfieUri);
+    // Soumission du KYC complet (Niveau 2).
+    formData.append('level', '2');
 
+    return authService.postKycForm(formData);
+  },
+
+  postKycForm: async (formData: FormData): Promise<{ message: string; validate: number }> => {
     const response = await api.post('/me/kyc', formData, {
       headers: Platform.OS === 'web'
         ? { 'Content-Type': undefined as any }

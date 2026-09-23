@@ -18,9 +18,13 @@ interface KycBannerProps {
   daysLeft?: number | null;
   /** Incite à finir le KYC pour débloquer le bonus de bienvenue (état non validé). */
   bonus?: boolean;
+  /** KYC Niveau 1 acquis : reste disponible avant le Niveau 2 (XOF). */
+  level1Remaining?: number | null;
+  /** Plafond du Niveau 1 (XOF), pour le message de limite atteinte. */
+  level1Limit?: number;
 }
 
-export function KycBanner({ onPress, status = 0, expired = false, expiringSoon = false, daysLeft = null, bonus = false }: KycBannerProps) {
+export function KycBanner({ onPress, status = 0, expired = false, expiringSoon = false, daysLeft = null, bonus = false, level1Remaining, level1Limit = 500000 }: KycBannerProps) {
   const styles = useThemedStyles(createStyles);
   const { isDark } = useTheme();
   const { t } = useTranslation();
@@ -41,6 +45,15 @@ export function KycBanner({ onPress, status = 0, expired = false, expiringSoon =
     message = d !== null ? t('kyc.expiringSoon', { days: d }) : t('kyc.expiringSoonGeneric');
     color = Colors.warning;
     icon = 'triangle-exclamation';
+  } else if (level1Remaining !== undefined) {
+    // Reste inconnu (profil pas encore relu) : on affiche seulement le niveau.
+    const left = level1Remaining === null ? null : Math.max(0, Math.floor(level1Remaining));
+    message = left === null ? t('kyc.level1Active')
+      : left > 0
+        ? `${t('kyc.level1Active')} · ${t('kyc.level1Remaining', { amount: left.toLocaleString('fr-FR') })}`
+        : t('kyc.limitReachedText', { limit: level1Limit.toLocaleString('fr-FR') });
+    color = left === 0 ? Colors.warning : (Colors.info ?? '#3b82f6');
+    icon = left === 0 ? 'triangle-exclamation' : 'shield-halved';
   } else if (isPending) {
     message = t('kyc.pendingReview');
     color = Colors.info ?? '#3b82f6';

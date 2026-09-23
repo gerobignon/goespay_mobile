@@ -27,6 +27,7 @@ import { getApiErrorMessage } from '../utils/apiError';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts, withAlpha } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { CloseButton } from './CloseButton';
+import { kycLevelOf, handleKycUpgradeError } from '../utils/kycLevel';
 
 interface P2PTransferModalProps {
   visible: boolean;
@@ -72,7 +73,8 @@ export function P2PTransferModal({ visible, onClose }: P2PTransferModalProps) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ amount: number; balance_after: number; reference: string } | null>(null);
 
-  const kycOk = user?.validate === 1;
+  // Ouvert dès le Niveau 1 du KYC (plafond contrôlé par le serveur).
+  const kycOk = kycLevelOf(user) >= 1;
   const isAdmin = user?.group === 'admin';
   // Le transfert compte à compte suit les conditions d'accès de l'envoi.
   const p2pEnabled = useConfigStore((s) => s.p2p_enabled);
@@ -124,8 +126,9 @@ export function P2PTransferModal({ visible, onClose }: P2PTransferModalProps) {
       setStep('done');
       fetchBalance().catch(() => {});
     } catch (e: any) {
-      setError(getApiErrorMessage(e, t, t('p2p.sendFailed')));
       setStep('amount');
+      if (handleKycUpgradeError(e, t)) return;
+      setError(getApiErrorMessage(e, t, t('p2p.sendFailed')));
     } finally {
       setLoading(false);
     }

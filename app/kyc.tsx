@@ -60,7 +60,7 @@ export default function KycScreen() {
   const goBack = () => { if (router.canGoBack()) router.back(); else router.replace('/(tabs)'); };
   // Mode édition (?edit=1) : force le FORMULAIRE même si déjà validé / en attente,
   // pour permettre une re-soumission (ex. ajout de la date de naissance pour la Chine).
-  const { edit, for: purpose } = useLocalSearchParams<{ edit?: string; for?: string }>();
+  const { edit, for: purpose, level: levelParam } = useLocalSearchParams<{ edit?: string; for?: string; level?: string }>();
   const editMode = edit === '1';
   // Ouvert depuis l'alerte d'envoi vers la Chine : Klasha exige province et date
   // de naissance, elles deviennent donc obligatoires ici (le code postal reste
@@ -68,6 +68,15 @@ export default function KycScreen() {
   // l'utilisateur les laisse vides (« facultatif ») et l'alerte revient après validation.
   const chinaRequired = purpose === 'china';
   const { user, refreshProfile, profileComplete } = useAuthStore();
+  // Niveau visé : 1 = basique (téléphone, pays, selfie), 2 = complet. Un client
+  // déjà au Niveau 1, ou renvoyé ici par une fonctionnalité (edit=1), va droit au
+  // Niveau 2 ; sinon il choisit.
+  const [level, setLevel] = useState<1 | 2 | null>(
+    levelParam === '1' ? 1
+      : levelParam === '2' || editMode || (user?.kyc_level ?? 0) >= 1 ? 2
+      : null
+  );
+  const level1Limit = (user?.kyc_level1_limit ?? 500000).toLocaleString('fr-FR');
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const { t } = useTranslation();
@@ -339,7 +348,53 @@ export default function KycScreen() {
     }
   };
 
+  // Niveau 1 : téléphone, pays et selfie avec la pièce en main.
+  const handleSubmitBasic = async () => {
+    const e: Errors = {};
+    if (!country) e.country = t('kyc.errRequired');
+    if (!phone.trim()) e.phone = t('kyc.errRequired');
+    if (!selfiePreview) e.selfie = t('kyc.errSelfie');
+    setErrors(e);
+    if (Object.keys(e).length > 0) { scrollTop(); return; }
+
+    setLoading(true);
+    try {
+      await authService.uploadKycBasic({ phone: phone.trim(), country, resubmit: editMode }, selfieUri);
+      await refreshProfile();
+      showAlert(
+        t('kyc.docsSent'),
+        t('kyc.docsSentMessage'),
+        [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+      );
+    } catch (error: any) {
+      showAlert(t('common.error'), getApiErrorMessage(error, t, t('kyc.uploadError')));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   /* ─────────────────────────── Fragments ───────────────────────────────── */
+
+  const renderCountryPicker = () => renderField(
+    t('kyc.country'),
+    <Bounce
+      style={[styles.countryPicker, !!errors.country && styles.inputErrorBox] as any}
+      scaleTo={0.99}
+      onPress={() => setCountryModalVisible(true)}
+    >
+      <View style={styles.countryPickerLeft}>
+        <FontAwesome6 name="globe" size={14} color={colors.textMuted} />
+        <Text
+          style={selectedCountry ? styles.countryPickerText : styles.countryPickerPlaceholder}
+          numberOfLines={1}
+        >
+          {selectedCountry ? `${selectedCountry.name} (+${selectedCountry.phone})` : t('kyc.selectCountry')}
+        </Text>
+      </View>
+      <FontAwesome6 name="chevron-down" size={12} color={colors.textMuted} />
+    </Bounce>,
+    errors.country
+  );
 
   const renderHeader = (subtitle?: string) => (
     <View style={styles.header}>
@@ -437,7 +492,11 @@ export default function KycScreen() {
                   <FontAwesome6 name="clock" size={44} color={colors.white} />
                 </LinearGradient>
                 <Text style={styles.pendingTitle}>{t('kyc.documentsReceived')}</Text>
-                <Text style={styles.pendingText}>{t('kyc.pending')}</Text>
+                <Text style={styles.pendingText}>
+                  {user?.kyc_pending_level === 1 ? t('kyc.pendingLevel1')
+                    : (user?.kyc_level ?? 0) >= 1 ? t('kyc.pendingLevel2')
+                    : t('kyc.pending')}
+                </Text>
               </GlassCard>
             </Reveal>
             <Button
@@ -471,6 +530,162 @@ export default function KycScreen() {
             <Button title={t('common.back')} onPress={goBack} icon="arrow-left" style={{ marginTop: Spacing.xl }} />
           </View>
         </ScrollView>
+      </ScreenBackground>
+    );
+  }
+
+  // Sélecteur de pays, partagé par les deux parcours.
+  const countryModal = (
+  <ResponsiveModal visible={countryModalVisible} onClose={() => { setCountryModalVisible(false); setCountrySearch(''); }} width={420}>
+    <View style={styles.modalContainer}>
+      <View style={styles.modalHeader}>
+        <Text style={styles.modalTitle}>{t('kyc.selectCountry')}</Text>
+        <TouchableOpacity onPress={() => { setCountryModalVisible(false); setCountrySearch(''); }} hitSlop={10}>
+          <FontAwesome6 name="xmark" size={20} color={colors.textMuted} />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.modalSearchRow}>
+        <FontAwesome6 name="magnifying-glass" size={14} color={colors.textMuted} />
+        <TextInput
+          placeholder={t('kyc.searchCountry')}
+          placeholderTextColor={colors.textMuted}
+          value={countrySearch}
+          onChangeText={setCountrySearch}
+          style={styles.modalSearchInput}
+          selectionColor={colors.secondary}
+          autoCorrect={false}
+        />
+      </View>
+      <FlatList
+        data={filteredCountries}
+        keyExtractor={(item) => item.code}
+        keyboardShouldPersistTaps="handled"
+        renderItem={({ item }) => {
+          const active = item.code === country;
+          return (
+            <TouchableOpacity
+              style={[styles.countryItem, active && styles.countryItemActive]}
+              onPress={() => {
+                setCountry(item.code);
+                setErrors((p) => ({ ...p, country: '' }));
+                setCountryModalVisible(false);
+                setCountrySearch('');
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.countryItemText, active && styles.countryItemTextActive]}>{item.name}</Text>
+              <Text style={styles.countryItemPhone}>+{item.phone}</Text>
+              {active && <FontAwesome6 name="check" size={13} color={colors.primary} style={{ marginLeft: Spacing.sm }} />}
+            </TouchableOpacity>
+          );
+        }}
+      />
+    </View>
+  </ResponsiveModal>
+  );
+
+  /* ─────────────────────────── Choix du niveau ─────────────────────────── */
+
+  if (level === null) {
+    const renderLevelCard = (lvl: 1 | 2, icon: string, title: string, items: string, access: string) => (
+      <Bounce scaleTo={0.98} onPress={() => { setErrors({}); setLevel(lvl); }}>
+        <Card style={styles.sectionCard}>
+          <View style={styles.levelHead}>
+            <View style={styles.levelIcon}>
+              <FontAwesome6 name={icon} size={18} color={colors.primary} />
+            </View>
+            <Text style={styles.levelTitle}>{title}</Text>
+            <FontAwesome6 name="chevron-right" size={13} color={colors.textMuted} />
+          </View>
+          <Text style={styles.levelItems}>{items}</Text>
+          <View style={styles.levelAccess}>
+            <FontAwesome6 name="check" size={12} color={colors.positive} />
+            <Text style={styles.levelAccessText}>{access}</Text>
+          </View>
+        </Card>
+      </Bounce>
+    );
+    return (
+      <ScreenBackground>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <View style={[styles.contentWrapper, { maxWidth: contentMaxWidth }]}>
+            {renderHeader(t('kyc.chooseLevel'))}
+            <Reveal>
+              {renderLevelCard(1, 'mobile-screen-button', t('kyc.level1Title'), t('kyc.level1Items'), t('kyc.level1Access', { limit: level1Limit }))}
+              {renderLevelCard(2, 'id-card', t('kyc.level2Title'), t('kyc.level2Items'), t('kyc.level2Access'))}
+            </Reveal>
+          </View>
+        </ScrollView>
+      </ScreenBackground>
+    );
+  }
+
+  /* ─────────────────────────── Niveau 1 ────────────────────────────────── */
+
+  if (level === 1) {
+    return (
+      <ScreenBackground edges={['top']} style={{ overflow: 'hidden' }}>
+        <KeyboardAvoidingView
+          style={{ flex: 1, width: '100%' }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ScrollView
+            ref={scrollRef}
+            style={{ flex: 1, width: '100%' }}
+            contentContainerStyle={styles.scroll}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={[styles.contentWrapper, { maxWidth: contentMaxWidth }]}>
+              {renderHeader(t('kyc.level1Title'))}
+              <Reveal offset={14}>
+                <Card style={styles.sectionCard}>
+                  {renderCountryPicker()}
+                  {renderField(
+                    t('kyc.whatsapp'),
+                    <Input
+                      placeholder={t('kyc.phonePlaceholder')}
+                      value={phone}
+                      onChangeText={setPhone}
+                      keyboardType="phone-pad"
+                      prefix={prefix || undefined}
+                      error={errors.phone}
+                      containerStyle={styles.inputFlush}
+                    />
+                  )}
+                </Card>
+                <Card style={styles.sectionCard}>
+                  <Text style={styles.photoLabel}>{t('kyc.selfieWithId')}</Text>
+                  <View style={styles.guideImageWrapper}>
+                    <Image source={require('../assets/kyc_selfie_sample.jpg')} style={styles.guideImageFill} />
+                  </View>
+                  <Text style={styles.photoHint}>{t('kyc.selfieHint')}</Text>
+                  {renderPhotoPicker(selfiePreview, 'selfie', 'camera-retro', t('kyc.addSelfie'), errors.selfie)}
+                </Card>
+              </Reveal>
+            </View>
+          </ScrollView>
+
+          <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, Spacing.md) }]}>
+            <View style={[styles.footerInner, { maxWidth: contentMaxWidth }]}>
+              <Bounce
+                style={styles.footerBack}
+                scaleTo={0.95}
+                onPress={() => (levelParam || editMode ? goBack() : setLevel(null))}
+                disabled={loading}
+              >
+                <FontAwesome6 name="arrow-left" size={15} color={colors.text} />
+              </Bounce>
+              <Button
+                title={t('kyc.level1Submit')}
+                onPress={handleSubmitBasic}
+                icon="paper-plane"
+                loading={loading}
+                style={styles.footerBtn}
+              />
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+        {countryModal}
       </ScreenBackground>
     );
   }
@@ -549,26 +764,7 @@ export default function KycScreen() {
             {step === 0 && (
               <Reveal key="s0" offset={14}>
                 <Card style={styles.sectionCard}>
-                  {renderField(
-                    t('kyc.country'),
-                    <Bounce
-                      style={[styles.countryPicker, !!errors.country && styles.inputErrorBox] as any}
-                      scaleTo={0.99}
-                      onPress={() => setCountryModalVisible(true)}
-                    >
-                      <View style={styles.countryPickerLeft}>
-                        <FontAwesome6 name="globe" size={14} color={colors.textMuted} />
-                        <Text
-                          style={selectedCountry ? styles.countryPickerText : styles.countryPickerPlaceholder}
-                          numberOfLines={1}
-                        >
-                          {selectedCountry ? `${selectedCountry.name} (+${selectedCountry.phone})` : t('kyc.selectCountry')}
-                        </Text>
-                      </View>
-                      <FontAwesome6 name="chevron-down" size={12} color={colors.textMuted} />
-                    </Bounce>,
-                    errors.country
-                  )}
+                  {renderCountryPicker()}
 
                   <View style={styles.row}>
                     {renderField(
@@ -860,53 +1056,7 @@ export default function KycScreen() {
         </View>
       </KeyboardAvoidingView>
 
-      {/* Country picker modal */}
-      <ResponsiveModal visible={countryModalVisible} onClose={() => { setCountryModalVisible(false); setCountrySearch(''); }} width={420}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{t('kyc.selectCountry')}</Text>
-            <TouchableOpacity onPress={() => { setCountryModalVisible(false); setCountrySearch(''); }} hitSlop={10}>
-              <FontAwesome6 name="xmark" size={20} color={colors.textMuted} />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.modalSearchRow}>
-            <FontAwesome6 name="magnifying-glass" size={14} color={colors.textMuted} />
-            <TextInput
-              placeholder={t('kyc.searchCountry')}
-              placeholderTextColor={colors.textMuted}
-              value={countrySearch}
-              onChangeText={setCountrySearch}
-              style={styles.modalSearchInput}
-              selectionColor={colors.secondary}
-              autoCorrect={false}
-            />
-          </View>
-          <FlatList
-            data={filteredCountries}
-            keyExtractor={(item) => item.code}
-            keyboardShouldPersistTaps="handled"
-            renderItem={({ item }) => {
-              const active = item.code === country;
-              return (
-                <TouchableOpacity
-                  style={[styles.countryItem, active && styles.countryItemActive]}
-                  onPress={() => {
-                    setCountry(item.code);
-                    setErrors((p) => ({ ...p, country: '' }));
-                    setCountryModalVisible(false);
-                    setCountrySearch('');
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.countryItemText, active && styles.countryItemTextActive]}>{item.name}</Text>
-                  <Text style={styles.countryItemPhone}>+{item.phone}</Text>
-                  {active && <FontAwesome6 name="check" size={13} color={colors.primary} style={{ marginLeft: Spacing.sm }} />}
-                </TouchableOpacity>
-              );
-            }}
-          />
-        </View>
-      </ResponsiveModal>
+      {countryModal}
     </ScreenBackground>
   );
 }
@@ -1440,6 +1590,42 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     justifyContent: 'center',
   },
   // Barre d'action fixe
+  levelHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  levelIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: withAlpha(Colors.primary, 0.12),
+  },
+  levelTitle: {
+    flex: 1,
+    fontSize: FontSize.md,
+    fontFamily: Fonts.bold,
+    color: Colors.text,
+  },
+  levelItems: {
+    marginTop: Spacing.sm,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+  },
+  levelAccess: {
+    marginTop: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+  },
+  levelAccessText: {
+    flex: 1,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+    color: Colors.text,
+  },
   footer: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.border,

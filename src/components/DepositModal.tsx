@@ -51,6 +51,7 @@ import { CryptoLogo } from './CryptoLogo';
 import { CryptoSearchField } from './CryptoSearchField';
 import { useCryptoSearch } from '../hooks/useCryptoSearch';
 import { CloseButton } from './CloseButton';
+import { kycLevelOf, handleKycUpgradeError, promptKycUpgrade } from '../utils/kycLevel';
 
 // Combinaison USSD Orange Money pour générer le code OTP de paiement, par
 // opérateur (Softpay orange-money-* ET AfribaPay orange-*-afp). Codes officiels
@@ -364,7 +365,9 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // Filter operators by user's country (admins and unvalidated users see all)
   const userCountry = user?.country ?? '';
   const isAdmin = user?.group === 'admin';
-  const isKycValidated = user?.validate === 1;
+  // Niveau 1 du KYC suffit pour déposer (Mobile Money) ; le serveur refuse les
+  // autres moyens et l'app propose alors le Niveau 2.
+  const isKycValidated = kycLevelOf(user) >= 1;
   const afribapayEnabled = useConfigStore((s) => s.afribapay_enabled);
   const depositEnabled = useConfigStore((s) => s.deposit_enabled);
   // Blocage ciblé de CE user (admin → détail user) : bandeau + message perso.
@@ -1023,6 +1026,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
       setOtp('');
     } catch (error: any) {
       if (cardWindow && !cardWindow.closed) cardWindow.close();
+      if (handleKycUpgradeError(error, t)) return;
       showAlert(t('common.error'), getApiErrorMessage(error, t, t('depositModal.depositError')));
     } finally {
       setLoading(false);
@@ -1174,7 +1178,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
             {isAdmin && depositEnabled && !afribapayEnabled && (
               <AdminDisabledBanner message={t('admin.bannerAfribapay')} />
             )}
-            {user?.validate !== 1 && (
+            {!isKycValidated && (
               <View style={styles.kycBanner}>
                 <FontAwesome6 name="triangle-exclamation" size={14} color={Colors.warning} style={{ marginRight: 8 }} />
                 <Text style={styles.kycBannerText}>{t('depositModal.kycRequired')}</Text>
@@ -1455,7 +1459,9 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                           title={t('depositModal.vaCreate')}
                           icon="building-columns"
                           onPress={user?.validate !== 1
-                            ? () => showAlert(t('depositModal.kycRequired3'), t('depositModal.kycRequired2'))
+                            ? () => (isKycValidated
+                              ? promptKycUpgrade(t)
+                              : showAlert(t('depositModal.kycRequired3'), t('depositModal.kycRequired2')))
                             : requestVirtualAccount}
                           loading={vaCreating}
                           disabled={!!vaOffer?.requires_bvn && vaBvn.length !== 11}
@@ -1649,7 +1655,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
 
                 <Button
                   title={t('depositModal.deposit')}
-                  onPress={user?.validate !== 1 ? () => showAlert(t('depositModal.kycRequired3'), t('depositModal.kycRequired2')) : handleDeposit}
+                  onPress={!isKycValidated ? () => showAlert(t('depositModal.kycRequired3'), t('depositModal.kycRequired2')) : handleDeposit}
                   icon="arrow-down"
                   loading={loading}
                   disabled={!amount || fincraRateBlocking || (showPhoneField && !phone) || (showPhoneField && needsOtp && !otp.trim()) || (!!fincraZoneList && !fincraZoneCountry)}

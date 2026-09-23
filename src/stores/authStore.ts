@@ -33,6 +33,7 @@ const CACHEABLE_USER_FIELDS = [
   'avatar',
   'balance',
   'validate',
+  'kyc_level',
   'group',
   'referral_code',
   'created_at',
