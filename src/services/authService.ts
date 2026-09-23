@@ -77,7 +77,9 @@ export const authService = {
   },
 
   changePassword: async (data: {
-    current_password: string;
+    current_password?: string;
+    /** Code email : remplace le mot de passe actuel pour un premier mot de passe. */
+    code?: string;
     password: string;
     password_confirmation: string;
   }): Promise<{ message: string }> => {

@@ -9,6 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
@@ -31,6 +32,32 @@ export type CoachStep = {
 };
 
 type Rect = { x: number; y: number; width: number; height: number };
+
+/**
+ * Position d'une cible dans le repère du voile (Modal plein écran, qui part du
+ * haut de l'écran).
+ *
+ * Android : `measureInWindow` ajoute le décalage de viewport de la racine
+ * (Fabric, RootShadowNode::getTransform), calculé par
+ * RootViewUtil.getViewportOffset comme position dans la fenêtre MOINS le haut
+ * de getWindowVisibleDisplayFrame. En edge-to-edge la racine commence en
+ * y = 0 mais le cadre visible commence sous la barre d'état : chaque mesure
+ * remonte donc de la hauteur de la barre d'état et le cadre se dessinait
+ * au-dessus de sa cible. `measure` renvoie pageX/pageY sans ce décalage,
+ * c'est-à-dire exactement le repère du Modal.
+ *
+ * iOS et web : `measureInWindow` est déjà dans le bon repère (sur le web,
+ * pageY inclurait en plus le défilement du document).
+ */
+const measureTarget = (node: View, done: (r: Rect) => void) => {
+  if (Platform.OS === 'android') {
+    node.measure((_x, _y, width, height, pageX, pageY) =>
+      done({ x: pageX, y: pageY, width, height }),
+    );
+    return;
+  }
+  node.measureInWindow((x, y, width, height) => done({ x, y, width, height }));
+};
 
 const storageKey = (key: string) => `coachmarks_seen_${key}`;
 
@@ -111,6 +138,7 @@ export function Coachmarks({
   const { colors } = useTheme();
   const { t } = useTranslation();
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
@@ -134,12 +162,15 @@ export function Coachmarks({
         setRect(null);
         return;
       }
-      node.measureInWindow((x, y, w, h) => {
+      measureTarget(node, ({ x, y, width: w, height: h }) => {
         if ((!w || !h) && attempt < 4) {
           setTimeout(() => measure(attempt + 1), 140);
           return;
         }
-        const tooHigh = y < 70;
+        // Trop haut = masqué par la barre d'état ou l'encoche, pas simplement
+        // en haut d'écran : un en-tête déjà en place ne doit pas déclencher de
+        // défilement.
+        const tooHigh = y < insets.top;
         const tooLow = y + h > height - 260;
         if (onScrollBy && (tooHigh || tooLow) && attempt < 3) {
           onScrollBy(y - height * 0.32);
@@ -149,7 +180,7 @@ export function Coachmarks({
         setRect({ x, y, width: w, height: h });
       });
     },
-    [step, height, onScrollBy, tour.nodes],
+    [step, height, insets.top, onScrollBy, tour.nodes],
   );
 
   useEffect(() => {

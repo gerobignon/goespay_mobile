@@ -45,6 +45,7 @@ import { TransferModal } from '../../src/components/TransferModal';
 import { P2PTransferModal } from '../../src/components/P2PTransferModal';
 import type { SavedBank } from '../../src/services/walletService';
 import { CryptoModal } from '../../src/components/CryptoModal';
+import { CRYPTO_AVAILABLE } from '../../src/constants/features';
 import { TransactionItem } from '../../src/components/TransactionItem';
 import { TransactionDetailModal, type TxType } from '../../src/components/TransactionDetailModal';
 import {
@@ -106,7 +107,8 @@ export default function DashboardScreen() {
   // pays du user. Les flags /config crypto_*_enabled portent DÉJÀ cette logique
   // par pays (api_mobile.php → RoutingResolver::cryptoBuy/SellEnabledFor =
   // corridor nowpayments-<cc>). On ne dépend donc plus de la liste statique COUNTRIES.
-  const isCryptoUser = isAdmin || user?.group === 'crypto' || crypto_buy_enabled || crypto_sell_enabled;
+  // CRYPTO_AVAILABLE : absent du binaire iOS (licence d'échange App Store 3.1.5(iii)).
+  const isCryptoUser = CRYPTO_AVAILABLE && (isAdmin || user?.group === 'crypto' || crypto_buy_enabled || crypto_sell_enabled);
   // L'admin voit tous les services même désactivés (un bandeau s'affiche dans le modal concerné).
   // Conditions vérifiées AVANT rendu : tant que /config n'a pas répondu (isLoaded
   // false), on ne rend AUCUNE action (skeleton à la place). Évite le flash
@@ -118,7 +120,7 @@ export default function DashboardScreen() {
   // message perso. L'enforcement reste backend.
   const showDeposit = isAdmin || (configLoaded && (deposit_enabled || deposit_blocked));
   const showTransfer = isAdmin || (configLoaded && (transfer_enabled || transfer_blocked));
-  const showCrypto = isAdmin || (configLoaded && isCryptoUser && (crypto_buy_enabled || crypto_sell_enabled));
+  const showCrypto = CRYPTO_AVAILABLE && (isAdmin || (configLoaded && isCryptoUser && (crypto_buy_enabled || crypto_sell_enabled)));
   // Transfert compte à compte : interne au wallet, il ne dépend d'aucun corridor
   // ni d'un blocage payout : seul son propre kill-switch le masque.
   const showP2P = isAdmin || (configLoaded && (p2p_enabled || p2p_blocked));

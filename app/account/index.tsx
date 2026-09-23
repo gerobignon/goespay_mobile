@@ -32,6 +32,7 @@ import { useTheme } from '../../src/components/ThemeProvider';
 import VerifiedBadge from '../../src/components/VerifiedBadge';
 import { Reveal, Bounce } from '../../src/components/anim';
 import { useTranslation } from 'react-i18next';
+import { CRYPTO_AVAILABLE } from '../../src/constants/features';
 
 export default function AccountScreen() {
   const router = useRouter();
@@ -102,7 +103,8 @@ export default function AccountScreen() {
   // les flags /config crypto_*_enabled (cohérent avec l'accueil et l'historique).
   const cryptoBuyEnabled = useConfigStore((s) => s.crypto_buy_enabled);
   const cryptoSellEnabled = useConfigStore((s) => s.crypto_sell_enabled);
-  const isCryptoUser = user?.group === 'admin' || user?.group === 'crypto' || cryptoBuyEnabled || cryptoSellEnabled;
+  // CRYPTO_AVAILABLE : absent du binaire iOS (licence d'échange App Store 3.1.5(iii)).
+  const isCryptoUser = CRYPTO_AVAILABLE && (user?.group === 'admin' || user?.group === 'crypto' || cryptoBuyEnabled || cryptoSellEnabled);
   const menuItems = getAccountMenuItems(t, { isCryptoUser, isSuperAdmin: user?.id === 1 });
 
   return (

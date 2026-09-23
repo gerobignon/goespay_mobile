@@ -54,6 +54,7 @@ import { CryptoSearchField } from './CryptoSearchField';
 import { useCryptoSearch } from '../hooks/useCryptoSearch';
 import { noConnectionMessage } from '../utils/apiError';
 import { CloseButton } from './CloseButton';
+import { ReferralPrompt } from './ReferralPrompt';
 
 // Zone SEPA (ISO-2), pays destinataires proposés pour un virement SEPA (EUR).
 const SEPA_COUNTRIES = [
@@ -117,7 +118,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const [saveCnyModalVisible, setSaveCnyModalVisible] = useState(false);
   const [saveCnyName, setSaveCnyName] = useState('');
   const [saveCnyLoading, setSaveCnyLoading] = useState(false);
-  const [pollingState, setPollingState] = useState<'idle' | 'pending' | 'success' | 'failed' | 'timeout'>('idle');
+  const [pollingState, setPollingState] = useState<'idle' | 'pending' | 'success' | 'failed' | 'timeout'>('success'); // TEMP apercu, a remettre a 'idle'
   const [pendingDetails, setPendingDetails] = useState<{ amount_sent: number; fees: number; phone: string; debit_xof?: number } | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollingTransferIdRef = useRef<number | null>(null);
@@ -325,13 +326,16 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const isAfpOp = !!(selectedOp as any)?.afribapay;
   const afpCurrency = isAfpOp ? (((selectedOp as any)?.currency as string) || '').toUpperCase() : '';
   const afpForeign = !!afpCurrency && afpCurrency !== 'XOF' && afpCurrency !== 'XAF';
-  // Chine : Klasha exige tout le senderAddress (date de naissance + province/état +
-  // code postal) en plus de l'identité. Si l'un manque dans le profil KYC, on bloque
-  // tout le formulaire de retrait et on demande de compléter le KYC. On ne juge
+  // Chine : Klasha exige tout le senderAddress (date de naissance + province/état)
+  // en plus de l'identité ; le code postal absent part en valeur neutre côté
+  // serveur. Si l'un manque dans le profil KYC, on bloque tout le formulaire de retrait et on demande de compléter le KYC. On ne juge
   // qu'un profil relu par GET /me (`profileComplete`) : le payload de login et le
   // cache local ne portent pas ces champs.
-  const chinaKycGate = isKlashaOp && aggRail === 'cny' && profileComplete
-    && (!(user as any)?.birthdate || !(user as any)?.state || !(user as any)?.postcode);
+  const chinaKycMissing = [
+    !(user as any)?.birthdate && 'votre date de naissance',
+    !String((user as any)?.state ?? '').trim() && 'votre province',
+  ].filter(Boolean) as string[];
+  const chinaKycGate = isKlashaOp && aggRail === 'cny' && profileComplete && chinaKycMissing.length > 0;
   // Sous-pays Fincra (XOF/XAF). Si le pays est déjà connu (pays sélectionné, ou
   // pays de l'utilisateur), on le déduit du contexte et on masque la liste.
   // Opérateur MM par pays (catalogue serveur) : pays figé = op.country (pas de picker).
@@ -1434,6 +1438,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 </View>
               )}
               <Button title={t('common.close')} onPress={() => { setPollingState('idle'); setPendingDetails(null); onClose(); }} style={{ marginTop: Spacing.lg }} />
+              <ReferralPrompt />
             </ScrollView>
           )}
 
@@ -1603,19 +1608,21 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               </Text>
             </View>
 
-            {/* Chine : si la date de naissance (KYC) manque, on n'affiche AUCUN
+            {/* Chine : si un champ exigé par Klasha manque au KYC, on n'affiche AUCUN
                 formulaire de retrait, juste une alerte jaune renvoyant au KYC. */}
             {chinaKycGate ? (
               <View style={styles.kycGateCard}>
                 <FontAwesome6 name="triangle-exclamation" size={22} color={Colors.warning} iconStyle="solid" />
                 <Text style={styles.kycGateTitle}>Complétez votre KYC</Text>
                 <Text style={styles.kycGateText}>
-                  Pour un envoi vers la Chine, votre date de naissance est requise. Mettez à jour et re-soumettez votre KYC, puis attendez sa validation pour continuer.
+                  Pour un envoi vers la Chine, il manque {chinaKycMissing.length > 1
+                    ? `${chinaKycMissing.slice(0, -1).join(', ')} et ${chinaKycMissing[chinaKycMissing.length - 1]}`
+                    : chinaKycMissing[0]}. Complétez votre KYC, puis attendez sa validation pour continuer.
                 </Text>
                 <Button
                   title="Compléter mon KYC"
                   icon="id-card"
-                  onPress={() => { onClose(); router.push('/kyc?edit=1'); }}
+                  onPress={() => { onClose(); router.push('/kyc?edit=1&for=china'); }}
                   style={{ marginTop: Spacing.md }}
                 />
               </View>

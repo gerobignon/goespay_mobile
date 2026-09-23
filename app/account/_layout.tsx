@@ -21,6 +21,7 @@ import VerifiedBadge from '../../src/components/VerifiedBadge';
 import { Colors, DarkColors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
 import { API_BASE_URL } from '../../src/constants/config';
 import { getAccountMenuItems } from '../../src/constants/accountMenu';
+import { CRYPTO_AVAILABLE } from '../../src/constants/features';
 
 export default function AccountLayout() {
   const { isDesktop } = useResponsive();
@@ -67,7 +68,8 @@ function DesktopAccountLayout() {
     ? { uri: user.avatar.startsWith('http') ? user.avatar : `${API_BASE_URL.replace('/api/mobile/v1', '')}${user.avatar}` }
     : null;
 
-  const isCryptoUser = user?.group === 'admin' || user?.group === 'crypto';
+  // CRYPTO_AVAILABLE : absent du binaire iOS (licence d'échange App Store 3.1.5(iii)).
+  const isCryptoUser = CRYPTO_AVAILABLE && (user?.group === 'admin' || user?.group === 'crypto');
 
   const menuItems = getAccountMenuItems(t, { isCryptoUser, isSuperAdmin: user?.id === 1 });
 

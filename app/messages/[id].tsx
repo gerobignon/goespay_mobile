@@ -94,8 +94,10 @@ export default function ConversationScreen() {
   // Ouvrir les emojis ferme le clavier : sa hauteur est déjà retombée à zéro
   // quand le panneau s'affiche. On garde la dernière mesure pour lui donner
   // exactement la place que le clavier occupait, pas de saut de mise en page.
+  // Le panneau se pose au-dessus de la réserve d'encoche (seule marge restante
+  // clavier fermé) : on la déduit pour que la saisie ne bouge pas d'un pixel.
   const lastKeyboardRef = useRef(0);
-  if (keyboardInset > 180) lastKeyboardRef.current = keyboardInset;
+  if (keyboardInset > 180) lastKeyboardRef.current = keyboardInset - insets.bottom;
 
   // Web : on impose au conteneur la hauteur RÉELLEMENT visible, moins la barre
   // d'état déjà réservée par ScreenBackground. Avec le défilement du document

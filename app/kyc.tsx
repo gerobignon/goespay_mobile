@@ -60,8 +60,13 @@ export default function KycScreen() {
   const goBack = () => { if (router.canGoBack()) router.back(); else router.replace('/(tabs)'); };
   // Mode édition (?edit=1) : force le FORMULAIRE même si déjà validé / en attente,
   // pour permettre une re-soumission (ex. ajout de la date de naissance pour la Chine).
-  const { edit } = useLocalSearchParams<{ edit?: string }>();
+  const { edit, for: purpose } = useLocalSearchParams<{ edit?: string; for?: string }>();
   const editMode = edit === '1';
+  // Ouvert depuis l'alerte d'envoi vers la Chine : Klasha exige province et date
+  // de naissance, elles deviennent donc obligatoires ici (le code postal reste
+  // facultatif, le serveur envoie une valeur neutre). Sinon
+  // l'utilisateur les laisse vides (« facultatif ») et l'alerte revient après validation.
+  const chinaRequired = purpose === 'china';
   const { user, refreshProfile, profileComplete } = useAuthStore();
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
@@ -183,7 +188,10 @@ export default function KycScreen() {
       // Ils ne sont exigés qu'au moment d'un envoi vers la Chine, qui renvoie
       // alors vers ce formulaire. Saisis, ils doivent rester cohérents.
       const d = parseInt(birthDay, 10), m = parseInt(birthMonth, 10), y = parseInt(birthYear, 10);
-      const birthTouched = !!birthDay || !!birthMonth || !!birthYear;
+      if (chinaRequired) {
+        if (!stateProv.trim()) e.state = req;
+      }
+      const birthTouched = chinaRequired || !!birthDay || !!birthMonth || !!birthYear;
       if (birthTouched) {
         if (!birthDay || !birthMonth || birthYear.length !== 4) e.birthdate = t('kyc.errBirthdate');
         else if (isNaN(d) || d < 1 || d > 31 || isNaN(m) || m < 1 || m > 12 || y < 1900 || y > new Date().getFullYear()) {
@@ -578,7 +586,7 @@ export default function KycScreen() {
                   </View>
 
                   {renderField(
-                    `${t('kyc.state')} ${t('kyc.optionalSuffix')}`,
+                    `${t('kyc.state')}${chinaRequired ? '' : ` ${t('kyc.optionalSuffix')}`}`,
                     <Input placeholder={t('kyc.statePlaceholder')} value={stateProv} onChangeText={setStateProv} error={errors.state} containerStyle={styles.inputFlush} />
                   )}
 
@@ -590,7 +598,7 @@ export default function KycScreen() {
                   <View style={styles.divider} />
 
                   {renderField(
-                    `${t('kyc.birthdate')} ${t('kyc.optionalSuffix')}`,
+                    `${t('kyc.birthdate')}${chinaRequired ? '' : ` ${t('kyc.optionalSuffix')}`}`,
                     <View style={styles.dateRow}>
                       <Input
                         placeholder="JJ"

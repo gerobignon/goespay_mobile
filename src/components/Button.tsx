@@ -19,6 +19,8 @@ interface ButtonProps {
   title: string;
   onPress: () => void;
   icon?: string;
+  /** Icône de marque Font Awesome (WhatsApp...), pas une icône d'interface. */
+  iconBrand?: boolean;
   variant?: 'primary' | 'secondary' | 'outline';
   loading?: boolean;
   disabled?: boolean;
@@ -30,6 +32,7 @@ export function Button({
   title,
   onPress,
   icon,
+  iconBrand = false,
   variant = 'primary',
   loading = false,
   disabled = false,
@@ -71,6 +74,7 @@ export function Button({
           {icon && (
             <FontAwesome6
               name={icon}
+              brand={iconBrand}
               size={16}
               color={variant === 'outline' ? Colors.primary : Colors.white}
               style={styles.icon}

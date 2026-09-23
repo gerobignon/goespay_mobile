@@ -25,6 +25,7 @@ import { useResponsive } from '../../src/hooks/useResponsive';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useTranslation } from 'react-i18next';
 import { useConfigStore } from '../../src/stores/configStore';
+import { CRYPTO_AVAILABLE } from '../../src/constants/features';
 
 // 8 colonnes sur 12 à 1200px max
 const DESKTOP_MAX_WIDTH = 1100;
@@ -66,9 +67,10 @@ export default function HistoryScreen() {
   // Éligibilité crypto : groupe `crypto` OU corridor crypto (NowPayments/futur)
   // actif en payin (vente) et/ou payout (achat) pour le pays, porté par les flags
   // /config crypto_*_enabled. Plus de dépendance à la liste statique COUNTRIES.
-  const isCryptoUser = isAdmin || user?.group === 'crypto' || crypto_buy_enabled || crypto_sell_enabled;
+  // CRYPTO_AVAILABLE : absent du binaire iOS (licence d'échange App Store 3.1.5(iii)).
+  const isCryptoUser = CRYPTO_AVAILABLE && (isAdmin || user?.group === 'crypto' || crypto_buy_enabled || crypto_sell_enabled);
   // crypto_buy_enabled est prioritaire : si off, seuls les admins voient le filtre Crypto.
-  const showCrypto = isAdmin || (isCryptoUser && crypto_buy_enabled);
+  const showCrypto = CRYPTO_AVAILABLE && (isAdmin || (isCryptoUser && crypto_buy_enabled));
   const filteredFilterKeys = FILTER_KEYS.filter((f) => f.key !== 'crypto' || showCrypto);
   const [activeFilter, setActiveFilter] = useState<string | undefined>(undefined);
   const [refreshing, setRefreshing] = useState(false);

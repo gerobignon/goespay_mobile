@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
 import { isAccountMissing, accountMissingEmail } from '../../src/utils/accountMissing';
+import { savePendingLoginCode, readPendingLoginCode, clearPendingLoginCode } from '../../src/utils/pendingLoginCode';
 
 /**
  * Étapes de connexion. Par défaut on saisit son email et on reçoit un code à
@@ -46,6 +47,27 @@ export default function LoginScreen() {
   const [twoFaCode, setTwoFaCode] = useState('');
   const submittingRef = useRef(false);
   const loginWithToken = useAuthStore((s) => s.loginWithToken);
+  // Tant qu'on ne sait pas si un code est en attente, on n'affiche pas l'étape
+  // email : elle clignoterait avant de céder la place à la saisie du code.
+  const [restoring, setRestoring] = useState(true);
+
+  // Retour depuis la messagerie après une relance de l'app : on reprend sur la
+  // saisie du code déjà envoyé au lieu d'en redemander un (qui annulerait le
+  // premier). Voir src/utils/pendingLoginCode.ts.
+  useEffect(() => {
+    let cancelled = false;
+    readPendingLoginCode().then((pendingEmail) => {
+      if (cancelled) return;
+      if (pendingEmail) {
+        setEmail(pendingEmail);
+        setStep('code');
+      }
+      setRestoring(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
@@ -71,6 +93,7 @@ export default function LoginScreen() {
    */
   const handleMissingAccount = (error: any): boolean => {
     if (!isAccountMissing(error)) return false;
+    clearPendingLoginCode();
     router.push({
       pathname: '/(auth)/register',
       params: { email: accountMissingEmail(error, email) },
@@ -83,6 +106,8 @@ export default function LoginScreen() {
 
   /** Une session ouverte (avec ou sans 2FA) : on entre dans l'app. */
   const openSession = async (response: { token?: string; user?: any; two_factor_required?: boolean; temp_token?: string }) => {
+    // Le code email est consommé : plus rien à reprendre.
+    clearPendingLoginCode();
     if (response.two_factor_required && response.temp_token) {
       setTempToken(response.temp_token);
       setStep('2fa');
@@ -99,6 +124,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await authService.requestLoginCode(email.trim());
+      await savePendingLoginCode(email.trim());
       setCode('');
       setStep('code');
       if (!silent) {
@@ -110,6 +136,7 @@ export default function LoginScreen() {
       // Le compte se connecte par mot de passe et ne reçoit aucun code : on l'y
       // emmène directement, symétrique de otp_required plus bas.
       if (error?.response?.data?.password_required) {
+        clearPendingLoginCode();
         setStep('password');
         return;
       }
@@ -190,6 +217,7 @@ export default function LoginScreen() {
   };
 
   const backToEmail = () => {
+    clearPendingLoginCode();
     setStep('email');
     setCode('');
     setTwoFaCode('');
@@ -214,7 +242,7 @@ export default function LoginScreen() {
             <Text style={styles.subtitle}>{t('auth.login.subtitle')}</Text>
           </View>
 
-          <GlassCard>
+          {!restoring && <GlassCard>
             {step === 'email' && (
               <>
                 <Input
@@ -350,7 +378,7 @@ export default function LoginScreen() {
                 />
               </>
             )}
-          </GlassCard>
+          </GlassCard>}
         </ScrollView>
       </KeyboardAvoidingView>
     </ScreenBackground>

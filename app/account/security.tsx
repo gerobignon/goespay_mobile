@@ -84,6 +84,8 @@ export default function SecurityScreen() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  /** Code email exigé par le serveur pour un PREMIER mot de passe. */
+  const [pwCode, setPwCode] = useState('');
   const [pwLoading, setPwLoading] = useState(false);
 
   // 2FA
@@ -225,7 +227,7 @@ export default function SecurityScreen() {
   };
 
   const handleClosePwModal = () => {
-    const hasData = !!currentPassword || !!newPassword || !!confirmPassword;
+    const hasData = !!currentPassword || !!newPassword || !!confirmPassword || !!pwCode;
     if (hasData) {
       showAlert(t('account.cancelChange'), t('account.infoLost'), [
         { text: t('common.continue') },
@@ -235,6 +237,7 @@ export default function SecurityScreen() {
             setCurrentPassword('');
             setNewPassword('');
             setConfirmPassword('');
+            setPwCode('');
           }
         },
       ]);
@@ -269,13 +272,18 @@ export default function SecurityScreen() {
   };
 
   const handleChangePassword = async () => {
-    // Premier mot de passe d'un compte « code email » : rien à confirmer,
-    // il n'en a pas encore.
+    // Premier mot de passe d'un compte « code email » : pas de mot de passe
+    // actuel à donner, le serveur exige à la place un code reçu par email.
     if (hasPassword && !currentPassword.trim()) {
       showAlert(t('common.error'), t('account.enterCurrentPassword'));
       return;
     }
-    if (newPassword.length < 6) {
+    if (!hasPassword && pwCode.length !== 6) {
+      showAlert(t('common.error'), t('account.twoFaEnterCode'));
+      return;
+    }
+    // Même règle que le serveur (goesPasswordRules) : 8 caractères, une lettre, un chiffre.
+    if (newPassword.length < 8 || !/[A-Za-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
       showAlert(t('common.error'), t('account.passwordMinLength'));
       return;
     }
@@ -285,15 +293,16 @@ export default function SecurityScreen() {
     }
     setPwLoading(true);
     try {
-      await authService.changePassword({
-        current_password: currentPassword,
-        password: newPassword,
-        password_confirmation: confirmPassword,
-      });
+      await authService.changePassword(
+        hasPassword
+          ? { current_password: currentPassword, password: newPassword, password_confirmation: confirmPassword }
+          : { code: pwCode, password: newPassword, password_confirmation: confirmPassword }
+      );
       showAlert(t('common.success'), hasPassword ? t('account.passwordChanged') : t('account.passwordCreated'));
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      setPwCode('');
       setPwModalVisible(false);
       await refreshProfile();
     } catch (error: any) {
@@ -697,7 +706,7 @@ export default function SecurityScreen() {
             <CloseButton onPress={handleClosePwModal} color={Colors.textMuted} />
           </View>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {hasPassword && (
+            {hasPassword ? (
               <Input
                 label={t('account.currentPassword')}
                 placeholder="••••••••"
@@ -705,6 +714,17 @@ export default function SecurityScreen() {
                 onChangeText={setCurrentPassword}
                 secureTextEntry
               />
+            ) : (
+              <View style={{ marginBottom: Spacing.md }}>
+                <Text style={styles.twoFaInstruction}>{t('account.twoFaEnterCode')}</Text>
+                <OtpInput value={pwCode} onChange={setPwCode} />
+                <Button
+                  title={t('auth.login.sendCode')}
+                  onPress={handleSendIdentityCode}
+                  variant="outline"
+                  style={{ marginTop: Spacing.md }}
+                />
+              </View>
             )}
             <Input
               label={t('account.newPassword')}

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Keyboard, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export interface KeyboardViewport {
   /** Hauteur occupée par le clavier, en points (natif). */
@@ -36,6 +37,14 @@ export function useKeyboardInset(): KeyboardViewport {
   const [keyboard, setKeyboard] = useState(0);
   const [viewportHeight, setViewportHeight] = useState<number | null>(null);
   const [offsetTop, setOffsetTop] = useState(0);
+  // Android annonce la hauteur du clavier barre de navigation DÉDUITE
+  // (ReactRootView : ime.bottom - systemBars.bottom). L'app étant dessinée bord
+  // à bord, cette barre recouvre elle aussi le bas de l'écran : sans la rajouter,
+  // la saisie restait coincée sous le clavier, entièrement avec la navigation
+  // à trois boutons. iOS, lui, compte déjà la zone du home indicator.
+  const bottomBar = useSafeAreaInsets().bottom;
+  const bottomBarRef = useRef(bottomBar);
+  bottomBarRef.current = bottomBar;
 
   useEffect(() => {
     if (Platform.OS === 'web') {
@@ -67,7 +76,10 @@ export function useKeyboardInset(): KeyboardViewport {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
-    const show = Keyboard.addListener(showEvent, (e) => setKeyboard(e.endCoordinates?.height ?? 0));
+    const show = Keyboard.addListener(showEvent, (e) => {
+      const height = e.endCoordinates?.height ?? 0;
+      setKeyboard(Platform.OS === 'android' && height > 0 ? height + bottomBarRef.current : height);
+    });
     const hide = Keyboard.addListener(hideEvent, () => setKeyboard(0));
 
     return () => {

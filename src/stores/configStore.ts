@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import api from '../services/api';
+import { STABLECOIN_CODES } from './stablecoinDefaults';
 
 interface FeatureFlags {
   deposit_enabled: boolean;
@@ -120,7 +121,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   crypto_sell_min_receive: 1000,
   crypto_min_buy_xof: {},
   crypto_min_sell_xof: {},
-  stablecoin_codes: ['PM', 'PAYEER', 'USDT.TRC20', 'BUSD.BEP20', 'USDT', 'BUSD'],
+  stablecoin_codes: STABLECOIN_CODES,
   mobile_money_countries: ['BJ', 'BF', 'CI', 'TG', 'SN', 'ML', 'CM'],
   transaction_alerts: {
     deposit:     { message: '', level: 'info' },

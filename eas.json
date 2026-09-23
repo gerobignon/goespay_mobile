@@ -35,7 +35,7 @@
     "production": {
       "android": {
         "serviceAccountKeyPath": "./google-play-service-account.json",
-        "track": "internal",
+        "track": "production",
         "releaseStatus": "completed",
         "changesNotSentForReview": false
       },

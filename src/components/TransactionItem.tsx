@@ -12,6 +12,7 @@ import { useCatalogStore } from '../stores/catalogStore';
 import { formatAmount, formatDate, useFormatXof } from '../utils/format';
 import { resolveOperatorDisplay } from '../utils/operatorDisplay';
 import { getStatusIcon, normalizeStatut } from '../utils/transactionStatus';
+import { cryptoLogoFor } from '../utils/cryptoIcons';
 import type { Transaction } from '../types';
 
 interface TransactionItemProps {
@@ -21,17 +22,6 @@ interface TransactionItemProps {
   /** Position dans la liste : pilote le décalage de l'apparition en cascade. */
   index?: number;
 }
-
-const CRYPTO_LOGOS: Record<string, ImageSourcePropType> = {
-  BTC:  require('../../assets/crypto/btc.png'),
-  ETH:  require('../../assets/crypto/eth.png'),
-  USDT: require('../../assets/crypto/usdt.png'),
-  USDT_BEP20: require('../../assets/crypto/busdt.png'),
-  TRX:  require('../../assets/crypto/trx.png'),
-  LTC:  require('../../assets/crypto/ltc.png'),
-  BNB:  require('../../assets/crypto/bnb.png'),
-  BUSD: require('../../assets/crypto/busd.png'),
-};
 
 const PAYMENT_MODE_LOGOS: Record<string, ImageSourcePropType> = {
   // Dépôts mobiles (codes courts)
@@ -88,17 +78,7 @@ export function getTransactionLogo(transaction: Transaction): ImageSourcePropTyp
     return PAYMENT_MODE_LOGOS[specialType] ?? null;
   }
   
-  if (transaction.type === 'crypto') {
-    let key = (transaction.currency_src ?? '').toUpperCase();
-    // Normaliser: remplacer les points et tirets par des underscores
-    key = key.replace(/[.-]/g, '_');
-    // Chercher d'abord la clé complète normalisée
-    if (CRYPTO_LOGOS[key]) return CRYPTO_LOGOS[key];
-    // Chercher la base (ex: USDT dans USDT_TRC20)
-    const baseCrypto = key.split('_')[0];
-    if (CRYPTO_LOGOS[baseCrypto]) return CRYPTO_LOGOS[baseCrypto];
-    return null;
-  }
+  if (transaction.type === 'crypto') return cryptoLogoFor(transaction.currency_src);
   if (transaction.mode) {
     const mode = transaction.mode.toLowerCase();
     // Try OPERATORS first
