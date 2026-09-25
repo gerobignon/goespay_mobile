@@ -19,3 +19,9 @@ AddType font/otf .otf
 <FilesMatch "index\.html$">
   Header set Cache-Control "no-cache, no-store, must-revalidate"
 </FilesMatch>
+
+# Fichier d'association iOS (Universal Links) : sans extension, Apple l'attend en JSON.
+<Files "apple-app-site-association">
+  ForceType application/json
+  Header set Cache-Control "no-cache"
+</Files>

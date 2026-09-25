@@ -132,6 +132,10 @@ export interface RegisterRequest {
   surname: string;
   email: string;
   parrain_code?: string;
+  /** Facultatif : sans mot de passe, la connexion se fait par code email. */
+  password?: string;
+  password_confirmation?: string;
+  hp_field?: string;
 }
 
 export interface AffiliationStats {

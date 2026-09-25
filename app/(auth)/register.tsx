@@ -19,6 +19,7 @@ import { authService } from '../../src/services/authService';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../../src/constants/theme';
 import { showAlert } from '../../src/stores/alertStore';
 import { logSignUp } from '../../src/services/metaEvents';
+import { savePendingActivation } from '../../src/utils/pendingActivation';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
@@ -33,6 +34,10 @@ export default function RegisterScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [parrainCode, setParrainCode] = useState('');
+  // Mot de passe facultatif : sans lui, la connexion se fait par code email.
+  const [withPassword, setWithPassword] = useState(false);
+  const [password, setPassword] = useState('');
+  const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -53,12 +58,16 @@ export default function RegisterScreen() {
   const nameRef = useRef<TextInput>(null);
   const emailRef = useRef<TextInput>(null);
   const parrainRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const passwordConfirmationRef = useRef<TextInput>(null);
 
   const fieldRefs: Record<string, React.RefObject<TextInput | null>> = {
     surname: surnameRef,
     name: nameRef,
     email: emailRef,
     parrain_code: parrainRef,
+    password: passwordRef,
+    password_confirmation: passwordConfirmationRef,
   };
 
   const handleRegister = async () => {
@@ -73,25 +82,40 @@ export default function RegisterScreen() {
       emailRef.current?.focus();
       return;
     }
+    if (withPassword) {
+      // Même politique que le serveur (goesPasswordRules).
+      if (password.length < 8 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+        setFieldErrors({ password: t('auth.register.passwordRules') });
+        passwordRef.current?.focus();
+        return;
+      }
+      if (password !== passwordConfirmation) {
+        setFieldErrors({ password_confirmation: t('auth.register.passwordMismatch') });
+        passwordConfirmationRef.current?.focus();
+        return;
+      }
+    }
 
     setLoading(true);
     try {
-      // Pas de mot de passe à l'inscription : la connexion se fait par code
-      // reçu par email, et un mot de passe se définit plus tard si on le veut.
-      await authService.register({
+      // Le mot de passe est facultatif : sans lui, la connexion se fait par
+      // code reçu par email, et il se définit plus tard dans Sécurité.
+      const response = await authService.register({
         surname: surname.trim(),
         name: name.trim(),
         email: email.trim(),
         parrain_code: parrainCode.trim() || undefined,
+        ...(withPassword ? { password, password_confirmation: passwordConfirmation } : {}),
         hp_field: '',
-      } as any);
+      });
       // Conversion suivie par les campagnes Meta : compte créé.
       logSignUp('email');
-      showAlert(
-        t('auth.register.successTitle', 'Inscription réussie'),
-        t('auth.register.successMessage', 'Un code de vérification a été envoyé à votre adresse email.'),
-        [{ text: 'OK', onPress: () => router.replace({ pathname: '/(auth)/activation', params: { email: email.trim() } }) }]
-      );
+      // Le jeton permet à l'écran d'activation d'ouvrir la session dès que
+      // l'adresse est vérifiée, même après une relance de l'app.
+      if (response.signup_token) {
+        await savePendingActivation(email.trim(), response.signup_token);
+      }
+      router.replace({ pathname: '/(auth)/activation', params: { email: email.trim() } });
     } catch (error: any) {
       const data = error?.response?.data;
       const errors = data?.errors;
@@ -175,6 +199,50 @@ export default function RegisterScreen() {
               maxLength={32}
               error={fieldErrors.parrain_code}
             />
+
+            {withPassword ? (
+              <>
+                <Input
+                  ref={passwordRef}
+                  label={t('auth.register.password')}
+                  placeholder={t('auth.register.passwordPlaceholder')}
+                  value={password}
+                  onChangeText={(v) => { setPassword(v); setFieldErrors((e) => ({ ...e, password: '' })); }}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoComplete="new-password"
+                  error={fieldErrors.password}
+                />
+                <Input
+                  ref={passwordConfirmationRef}
+                  label={t('auth.register.confirmPassword')}
+                  placeholder={t('auth.register.passwordPlaceholder')}
+                  value={passwordConfirmation}
+                  onChangeText={(v) => { setPasswordConfirmation(v); setFieldErrors((e) => ({ ...e, password_confirmation: '' })); }}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoComplete="new-password"
+                  error={fieldErrors.password_confirmation}
+                />
+                <LinkButton
+                  title={t('auth.register.withoutPassword')}
+                  onPress={() => {
+                    setWithPassword(false);
+                    setPassword('');
+                    setPasswordConfirmation('');
+                    setFieldErrors((e) => ({ ...e, password: '', password_confirmation: '' }));
+                  }}
+                  variant="quiet"
+                />
+              </>
+            ) : (
+              <LinkButton
+                title={t('auth.register.setPassword')}
+                onPress={() => setWithPassword(true)}
+                icon="lock"
+                variant="quiet"
+              />
+            )}
 
             <Button
               title={t('auth.register.submit')}

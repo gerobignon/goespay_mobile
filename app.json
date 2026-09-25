@@ -16,13 +16,16 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "io.goespay.app",
-      "buildNumber": "11",
+      "buildNumber": "12",
       "infoPlist": {
         "NSCameraUsageDescription": "GOESPAY a besoin de la caméra pour vérifier votre identité (KYC).",
         "NSPhotoLibraryUsageDescription": "GOESPAY a besoin d'accéder à vos photos quand vous changez de photo de profil.",
         "NSFaceIDUsageDescription": "GOESPAY utilise Face ID pour déverrouiller l'application.",
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "associatedDomains": [
+        "applinks:app.goespay.io"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -42,7 +45,24 @@
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_MEDIA_VIDEO"
       ],
-      "versionCode": 22
+      "versionCode": 23,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "app.goespay.io",
+              "pathPrefix": "/auth-link"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",

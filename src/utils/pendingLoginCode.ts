@@ -10,12 +10,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * qui annule le précédent côté serveur, repartait le lire, et bouclait.
  *
  * On range donc l'adresse et l'heure d'envoi, et l'écran de connexion reprend
- * directement sur la saisie du code tant que celui-ci est encore valide.
+ * directement sur la saisie du code tant que celui-ci est encore valide. Le
+ * serveur renvoie d'ailleurs le même code tant qu'il n'a pas servi.
  */
 const KEY = 'goespay_pending_login_code';
 
-/** Durée de vie du code côté serveur (goesSendLoginCode : 10 minutes). */
-const CODE_TTL_MS = 10 * 60 * 1000;
+/** Durée de vie du code côté serveur (goesSendLoginCode : 30 minutes). */
+const CODE_TTL_MS = 30 * 60 * 1000;
 
 interface PendingLoginCode {
   email: string;

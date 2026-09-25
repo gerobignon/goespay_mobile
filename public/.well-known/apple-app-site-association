@@ -1,0 +1,16 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "7T6979FP8P.io.goespay.app",
+        "appIDs": ["7T6979FP8P.io.goespay.app"],
+        "paths": ["/auth-link", "/auth-link/*"],
+        "components": [
+          { "/": "/auth-link", "comment": "Lien de connexion reçu par email" },
+          { "/": "/auth-link/*" }
+        ]
+      }
+    ]
+  }
+}

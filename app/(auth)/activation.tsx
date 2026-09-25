@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, AppState } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { GlassCard } from '../../src/components/GlassCard';
@@ -10,6 +10,9 @@ import { OtpInput } from '../../src/components/OtpInput';
 import { Button } from '../../src/components/Button';
 import { LinkButton } from '../../src/components/LinkButton';
 import { authService } from '../../src/services/authService';
+import { useAuthStore } from '../../src/stores/authStore';
+import { readPendingActivation, clearPendingActivation } from '../../src/utils/pendingActivation';
+import type { LoginResponse } from '../../src/types';
 import { showAlert } from '../../src/stores/alertStore';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useTranslation } from 'react-i18next';
@@ -27,15 +30,86 @@ export default function ActivationScreen() {
   const [newEmail, setNewEmail] = useState('');
   const [changingEmail, setChangingEmail] = useState(false);
   const [currentEmail, setCurrentEmail] = useState(email || '');
+  const loginWithToken = useAuthStore((s) => s.loginWithToken);
+  // Jeton remis à l'inscription par ce même appareil : il ouvre la session dès
+  // que l'adresse est vérifiée, par le code ou par le lien de l'email.
+  const [signupToken, setSignupToken] = useState<string | null>(null);
+  const openingRef = useRef(false);
+
+  useEffect(() => {
+    readPendingActivation().then((pending) => {
+      if (!pending) return;
+      if (!email) setCurrentEmail(pending.email);
+      if (!email || pending.email.toLowerCase() === email.toLowerCase()) {
+        setSignupToken(pending.signupToken);
+      }
+    });
+  }, [email]);
+
+  /**
+   * Adresse vérifiée : on entre dans l'app comme après une connexion. Une 2FA
+   * ne peut pas exister sur un compte qui vient d'être créé ; si la réponse en
+   * réclame une, on passe par l'écran de connexion qui sait la demander.
+   */
+  const openSession = useCallback(async (response: LoginResponse) => {
+    if (openingRef.current) return;
+    openingRef.current = true;
+    await clearPendingActivation();
+    if (response.token && response.user) {
+      await loginWithToken(response.token, response.user, true);
+      return;
+    }
+    router.replace('/(auth)/login');
+  }, [loginWithToken, router]);
+
+  // Lien cliqué dans l'email (sur ce téléphone ou ailleurs) : on le détecte en
+  // interrogeant le serveur à intervalle régulier et au retour dans l'app.
+  useEffect(() => {
+    if (!signupToken) return;
+    let stopped = false;
+    const check = async () => {
+      if (stopped || openingRef.current) return;
+      try {
+        const response = await authService.activationStatus(signupToken);
+        if (!stopped && response.activated !== false && (response.token || response.two_factor_required)) {
+          await openSession(response);
+        }
+      } catch (error: any) {
+        // Jeton inconnu ou expiré : plus rien à attendre, le code reste possible.
+        if (error?.response?.status === 422) {
+          stopped = true;
+          setSignupToken(null);
+          clearPendingActivation();
+        }
+      }
+    };
+    const timer = setInterval(check, 4000);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') check();
+    });
+    check();
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+      sub.remove();
+    };
+  }, [signupToken, openSession]);
 
   const handleVerify = async () => {
     if (!code.trim() || code.trim().length !== 6) {
-      showAlert('Erreur', 'Veuillez entrer le code à 6 chiffres.');
+      showAlert(t('common.error'), t('auth.login.enter6digits', 'Entrez un code à 6 chiffres.'));
       return;
     }
+    if (openingRef.current) return;
     setLoading(true);
     try {
-      await authService.verifyEmail(currentEmail, code.trim());
+      const response = await authService.verifyEmail(currentEmail, code.trim(), signupToken);
+      if (response.token || response.two_factor_required) {
+        await openSession(response);
+        return;
+      }
+      // Serveur sans ouverture de session (ou compte déjà actif) : connexion classique.
+      await clearPendingActivation();
       showAlert(
         t('auth.activation.activated', 'Compte activé'),
         t('auth.activation.activatedMessage', 'Votre adresse email a été vérifiée. Vous pouvez maintenant vous connecter.'),
@@ -103,6 +177,8 @@ export default function ActivationScreen() {
         {t('auth.activation.codeSentTo', 'Un code de vérification a été envoyé à')}{' '}
         <Text style={styles.emailText}>{currentEmail}</Text>
       </Text>
+      <Text style={styles.hint}>{t('auth.activation.linkOrSpam')}</Text>
+      <Text style={styles.hint}>{t('auth.login.alreadyHaveCode')}</Text>
 
       <View style={styles.form}>
         <OtpInput value={code} onChange={setCode} onComplete={handleVerify} />
@@ -150,7 +226,12 @@ export default function ActivationScreen() {
 
       <LinkButton
         title={t('auth.forgotPassword.backToLogin')}
-        href="/(auth)/login"
+        onPress={async () => {
+          // Choix explicite de quitter l'activation : la connexion ne doit pas
+          // nous y renvoyer (voir la reprise dans login.tsx).
+          await clearPendingActivation();
+          router.replace('/(auth)/login');
+        }}
         variant="quiet"
         style={{ marginTop: Spacing.sm }}
       />
@@ -182,6 +263,14 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   emailText: {
     color: Colors.text,
     fontFamily: Fonts.bold,
+  },
+  hint: {
+    fontSize: FontSize.sm,
+    color: Colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginTop: -Spacing.sm,
+    marginBottom: Spacing.lg,
   },
   form: {
     width: '100%',

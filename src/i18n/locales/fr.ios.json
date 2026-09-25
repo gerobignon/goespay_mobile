@@ -115,14 +115,16 @@
       "usePassword": "Utiliser mon mot de passe",
       "useCode": "Recevoir un code par email",
       "codeTitle": "Code de connexion",
-      "codeHint": "Entrez le code à 6 chiffres envoyé à {{email}}.",
+      "codeHint": "Entrez le code à 6 chiffres envoyé à {{email}}. Pensez à regarder dans les spams.",
       "codeSentTitle": "Code envoyé",
       "codeSentMessage": "Un code à 6 chiffres a été envoyé à {{email}}.",
       "codeSendError": "Impossible d'envoyer le code.",
       "enter6digits": "Entrez un code à 6 chiffres.",
       "incorrectCode": "Code incorrect.",
       "resendCode": "Renvoyer le code",
-      "invalidEmail": "L'adresse email n'est pas valide."
+      "invalidEmail": "L'adresse email n'est pas valide.",
+      "haveCode": "J'ai déjà un code",
+      "alreadyHaveCode": "Si vous avez déjà un code, entrez-le ici."
     },
     "register": {
       "title": "Créer votre compte",
@@ -144,7 +146,11 @@
       "submit": "Créer mon compte",
       "alreadyAccount": "Déjà un compte ? Connexion",
       "termsAccept": "En créant votre compte, vous acceptez nos",
-      "termsLink": "conditions d'utilisation"
+      "termsLink": "conditions d'utilisation",
+      "setPassword": "Définir un mot de passe (facultatif)",
+      "withoutPassword": "Continuer sans mot de passe",
+      "passwordRules": "8 caractères minimum, avec au moins une lettre et un chiffre.",
+      "passwordMismatch": "Les mots de passe ne correspondent pas."
     },
     "forgotPassword": {
       "title": "Mot de passe oublié",
@@ -176,7 +182,8 @@
       "emailChangeError": "Erreur lors du changement d'email.",
       "changeEmail": "Changer l'adresse email",
       "newEmail": "Nouvelle adresse email",
-      "confirmChange": "Confirmer le changement"
+      "confirmChange": "Confirmer le changement",
+      "linkOrSpam": "Saisissez le code ou cliquez sur le lien de l'email. Pensez à regarder dans les spams."
     },
     "pin": {
       "secureAccount": "Sécurisez votre compte",
@@ -206,6 +213,11 @@
       "resetPin": "Réinitialiser le PIN",
       "resetWarning": "Cette action vous reconnectera à votre compte. Vous devrez configurer un nouveau PIN.",
       "lockedFor": "Trop d’essais. Réessayez dans {{delay}}."
+    },
+    "link": {
+      "checking": "Connexion en cours…",
+      "invalidTitle": "Lien expiré",
+      "invalidMessage": "Ce lien de connexion a expiré ou a déjà servi. Demandez un nouveau code."
     }
   },
   "tabs": {

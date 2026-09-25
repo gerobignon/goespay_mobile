@@ -25,6 +25,7 @@ import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
 import { isAccountMissing, accountMissingEmail } from '../../src/utils/accountMissing';
 import { savePendingLoginCode, readPendingLoginCode, clearPendingLoginCode } from '../../src/utils/pendingLoginCode';
+import { readPendingActivation } from '../../src/utils/pendingActivation';
 
 /**
  * Étapes de connexion. Par défaut on saisit son email et on reçoit un code à
@@ -52,18 +53,27 @@ export default function LoginScreen() {
   const [restoring, setRestoring] = useState(true);
 
   // Retour depuis la messagerie après une relance de l'app : on reprend sur la
-  // saisie du code déjà envoyé au lieu d'en redemander un (qui annulerait le
-  // premier). Voir src/utils/pendingLoginCode.ts.
+  // saisie du code déjà envoyé au lieu de repartir de l'email. Voir
+  // src/utils/pendingLoginCode.ts.
+  // Même chose pour une inscription dont l'adresse n'est pas encore vérifiée :
+  // on retourne sur l'activation, qui ouvrira la session toute seule.
   useEffect(() => {
     let cancelled = false;
-    readPendingLoginCode().then((pendingEmail) => {
+    (async () => {
+      const activation = await readPendingActivation();
+      if (cancelled) return;
+      if (activation) {
+        router.replace({ pathname: '/(auth)/activation', params: { email: activation.email } });
+        return;
+      }
+      const pendingEmail = await readPendingLoginCode();
       if (cancelled) return;
       if (pendingEmail) {
         setEmail(pendingEmail);
         setStep('code');
       }
       setRestoring(false);
-    });
+    })();
     return () => {
       cancelled = true;
     };
@@ -144,6 +154,20 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  /**
+   * Code déjà reçu (il reste valable 30 minutes et le serveur renvoie le même
+   * tant qu'il n'a pas servi) : on va droit à la saisie, sans nouvel envoi.
+   */
+  const goToCodeEntry = async () => {
+    if (!emailValid) {
+      showAlert(t('common.error'), t('auth.login.invalidEmail', "L'adresse email n'est pas valide."));
+      return;
+    }
+    await savePendingLoginCode(email.trim());
+    setCode('');
+    setStep('code');
   };
 
   const handleVerifyCode = async () => {
@@ -265,6 +289,11 @@ export default function LoginScreen() {
 
                 <View style={styles.actions}>
                   <LinkButton
+                    title={t('auth.login.haveCode')}
+                    onPress={goToCodeEntry}
+                    icon="hashtag"
+                  />
+                  <LinkButton
                     title={t('auth.login.usePassword')}
                     onPress={() => setStep('password')}
                     icon="key"
@@ -283,6 +312,7 @@ export default function LoginScreen() {
               <>
                 <Text style={styles.stepTitle}>{t('auth.login.codeTitle')}</Text>
                 <Text style={styles.stepHint}>{t('auth.login.codeHint', { email: email.trim() })}</Text>
+                <Text style={styles.stepHint}>{t('auth.login.alreadyHaveCode')}</Text>
                 <OtpInput value={code} onChange={setCode} onComplete={handleVerifyCode} />
                 <Button
                   title={t('auth.login.submit')}

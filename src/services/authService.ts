@@ -26,18 +26,34 @@ export const authService = {
     return response.data;
   },
 
+  /** Lien de connexion de l'email : ouvre la session sur cet appareil. */
+  verifyLoginLink: async (token: string): Promise<LoginResponse> => {
+    const response = await api.post<LoginResponse>('/auth/verify-link', { token });
+    return response.data;
+  },
+
   verify2faLogin: async (tempToken: string, code: string): Promise<LoginResponse> => {
     const response = await api.post<LoginResponse>('/auth/2fa-verify', { temp_token: tempToken, code });
     return response.data;
   },
 
-  register: async (data: RegisterRequest): Promise<{ message: string; email: string }> => {
+  register: async (data: RegisterRequest): Promise<{ message: string; email: string; signup_token?: string }> => {
     const response = await api.post('/auth/register', data);
     return response.data;
   },
 
-  verifyEmail: async (email: string, code: string): Promise<{ message: string }> => {
-    const response = await api.post('/auth/verify-email', { email, code });
+  /** Valide le code d'activation ; le serveur ouvre la session dans la foulée. */
+  verifyEmail: async (email: string, code: string, signupToken?: string | null): Promise<LoginResponse & { message?: string }> => {
+    const response = await api.post('/auth/verify-email', { email, code, signup_token: signupToken || undefined });
+    return response.data;
+  },
+
+  /**
+   * Adresse vérifiée ailleurs (lien de l'email) ? Avec le jeton remis à
+   * l'inscription, la réponse porte alors la session.
+   */
+  activationStatus: async (signupToken: string): Promise<LoginResponse & { activated?: boolean }> => {
+    const response = await api.post('/auth/activation-status', { signup_token: signupToken });
     return response.data;
   },
 

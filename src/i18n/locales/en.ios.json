@@ -115,14 +115,16 @@
       "usePassword": "Use my password",
       "useCode": "Get a code by email",
       "codeTitle": "Sign-in code",
-      "codeHint": "Enter the 6-digit code sent to {{email}}.",
+      "codeHint": "Enter the 6-digit code sent to {{email}}. Check your spam folder too.",
       "codeSentTitle": "Code sent",
       "codeSentMessage": "A 6-digit code has been sent to {{email}}.",
       "codeSendError": "Could not send the code.",
       "enter6digits": "Enter a 6-digit code.",
       "incorrectCode": "Incorrect code.",
       "resendCode": "Resend code",
-      "invalidEmail": "The email address is not valid."
+      "invalidEmail": "The email address is not valid.",
+      "haveCode": "I already have a code",
+      "alreadyHaveCode": "If you already have a code, enter it here."
     },
     "register": {
       "title": "Create your account",
@@ -144,7 +146,11 @@
       "submit": "Create my account",
       "alreadyAccount": "Already have an account? Sign in",
       "termsAccept": "By creating your account, you accept our",
-      "termsLink": "terms of use"
+      "termsLink": "terms of use",
+      "setPassword": "Set a password (optional)",
+      "withoutPassword": "Continue without a password",
+      "passwordRules": "At least 8 characters, with at least one letter and one digit.",
+      "passwordMismatch": "Passwords do not match."
     },
     "forgotPassword": {
       "title": "Forgot password",
@@ -176,7 +182,8 @@
       "emailChangeError": "Error changing email.",
       "changeEmail": "Change email address",
       "newEmail": "New email address",
-      "confirmChange": "Confirm change"
+      "confirmChange": "Confirm change",
+      "linkOrSpam": "Enter the code or click the link in the email. Check your spam folder too."
     },
     "pin": {
       "secureAccount": "Secure your account",
@@ -206,6 +213,11 @@
       "resetPin": "Reset PIN",
       "resetWarning": "This will reconnect your account. You will need to set up a new PIN.",
       "lockedFor": "Too many attempts. Try again in {{delay}}."
+    },
+    "link": {
+      "checking": "Signing you in…",
+      "invalidTitle": "Link expired",
+      "invalidMessage": "This sign-in link has expired or was already used. Request a new code."
     }
   },
   "tabs": {
