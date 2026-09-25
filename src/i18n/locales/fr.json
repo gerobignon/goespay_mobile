@@ -119,6 +119,7 @@
       "useCode": "Recevoir un code par email",
       "codeTitle": "Code de connexion",
       "codeHint": "Entrez le code à 6 chiffres envoyé à {{email}}. Pensez à regarder dans les spams.",
+      "codeAlreadySent": "Un code vous a déjà été envoyé à {{email}}. Utilisez-le ou renvoyez-le.",
       "codeSentTitle": "Code envoyé",
       "codeSentMessage": "Un code à 6 chiffres a été envoyé à {{email}}.",
       "codeSendError": "Impossible d'envoyer le code.",
@@ -126,7 +127,6 @@
       "incorrectCode": "Code incorrect.",
       "resendCode": "Renvoyer le code",
       "invalidEmail": "L'adresse email n'est pas valide.",
-      "haveCode": "J'ai déjà un code",
       "alreadyHaveCode": "Si vous avez déjà un code, entrez-le ici."
     },
     "register": {

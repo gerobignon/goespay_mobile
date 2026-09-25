@@ -46,6 +46,9 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [tempToken, setTempToken] = useState('');
   const [twoFaCode, setTwoFaCode] = useState('');
+  // Le serveur n'a rien renvoyé : un code encore valable attend déjà dans la
+  // boîte mail, l'étape code invite à l'utiliser.
+  const [codeAlreadySent, setCodeAlreadySent] = useState(false);
   const submittingRef = useRef(false);
   const loginWithToken = useAuthStore((s) => s.loginWithToken);
   // Tant qu'on ne sait pas si un code est en attente, on n'affiche pas l'étape
@@ -126,18 +129,24 @@ export default function LoginScreen() {
     await loginWithToken(response.token!, response.user!, true);
   };
 
-  const handleRequestCode = async (silent = false) => {
+  /**
+   * Demande un code. Si un code envoyé il y a moins de 30 minutes est encore
+   * valable, le serveur n'envoie rien (`existing`) et l'étape code invite à
+   * l'utiliser ; `resend` force l'envoi (bouton « Renvoyer le code »).
+   */
+  const handleRequestCode = async (resend = false) => {
     if (!emailValid) {
       showAlert(t('common.error'), t('auth.login.invalidEmail', "L'adresse email n'est pas valide."));
       return;
     }
     setLoading(true);
     try {
-      await authService.requestLoginCode(email.trim());
+      const { existing } = await authService.requestLoginCode(email.trim(), resend);
       await savePendingLoginCode(email.trim());
       setCode('');
+      setCodeAlreadySent(!!existing);
       setStep('code');
-      if (!silent) {
+      if (!existing) {
         showAlert(t('auth.login.codeSentTitle'), t('auth.login.codeSentMessage', { email: email.trim() }));
       }
     } catch (error: any) {
@@ -154,20 +163,6 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
-  };
-
-  /**
-   * Code déjà reçu (il reste valable 30 minutes et le serveur renvoie le même
-   * tant qu'il n'a pas servi) : on va droit à la saisie, sans nouvel envoi.
-   */
-  const goToCodeEntry = async () => {
-    if (!emailValid) {
-      showAlert(t('common.error'), t('auth.login.invalidEmail', "L'adresse email n'est pas valide."));
-      return;
-    }
-    await savePendingLoginCode(email.trim());
-    setCode('');
-    setStep('code');
   };
 
   const handleVerifyCode = async () => {
@@ -244,6 +239,7 @@ export default function LoginScreen() {
     clearPendingLoginCode();
     setStep('email');
     setCode('');
+    setCodeAlreadySent(false);
     setTwoFaCode('');
     setTempToken('');
     setPassword('');
@@ -289,11 +285,6 @@ export default function LoginScreen() {
 
                 <View style={styles.actions}>
                   <LinkButton
-                    title={t('auth.login.haveCode')}
-                    onPress={goToCodeEntry}
-                    icon="hashtag"
-                  />
-                  <LinkButton
                     title={t('auth.login.usePassword')}
                     onPress={() => setStep('password')}
                     icon="key"
@@ -311,8 +302,9 @@ export default function LoginScreen() {
             {step === 'code' && (
               <>
                 <Text style={styles.stepTitle}>{t('auth.login.codeTitle')}</Text>
-                <Text style={styles.stepHint}>{t('auth.login.codeHint', { email: email.trim() })}</Text>
-                <Text style={styles.stepHint}>{t('auth.login.alreadyHaveCode')}</Text>
+                <Text style={styles.stepHint}>
+                  {t(codeAlreadySent ? 'auth.login.codeAlreadySent' : 'auth.login.codeHint', { email: email.trim() })}
+                </Text>
                 <OtpInput value={code} onChange={setCode} onComplete={handleVerifyCode} />
                 <Button
                   title={t('auth.login.submit')}

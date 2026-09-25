@@ -14,9 +14,13 @@ export const authService = {
     return response.data;
   },
 
-  /** Demande le code de connexion à 6 chiffres envoyé par email (méthode par défaut). */
-  requestLoginCode: async (email: string): Promise<{ message: string }> => {
-    const response = await api.post('/auth/request-code', { email, hp_field: '' });
+  /**
+   * Demande le code de connexion à 6 chiffres envoyé par email (méthode par défaut).
+   * `existing` : un code encore valable a déjà été envoyé, rien n'est parti ;
+   * `resend` force un nouvel envoi.
+   */
+  requestLoginCode: async (email: string, resend = false): Promise<{ message: string; existing?: boolean }> => {
+    const response = await api.post('/auth/request-code', { email, resend, hp_field: '' });
     return response.data;
   },
 

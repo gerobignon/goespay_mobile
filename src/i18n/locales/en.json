@@ -119,6 +119,7 @@
       "useCode": "Get a code by email",
       "codeTitle": "Sign-in code",
       "codeHint": "Enter the 6-digit code sent to {{email}}. Check your spam folder too.",
+      "codeAlreadySent": "A code has already been sent to {{email}}. Use it or resend it.",
       "codeSentTitle": "Code sent",
       "codeSentMessage": "A 6-digit code has been sent to {{email}}.",
       "codeSendError": "Could not send the code.",
@@ -126,7 +127,6 @@
       "incorrectCode": "Incorrect code.",
       "resendCode": "Resend code",
       "invalidEmail": "The email address is not valid.",
-      "haveCode": "I already have a code",
       "alreadyHaveCode": "If you already have a code, enter it here."
     },
     "register": {

@@ -2,7 +2,7 @@
   "expo": {
     "name": "GOESPAY",
     "slug": "goespay",
-    "version": "1.2.5",
+    "version": "1.2.6",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -45,7 +45,7 @@
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_MEDIA_VIDEO"
       ],
-      "versionCode": 23,
+      "versionCode": 24,
       "intentFilters": [
         {
           "action": "VIEW",
