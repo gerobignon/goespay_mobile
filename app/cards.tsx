@@ -1056,7 +1056,9 @@ export default function CardsScreen() {
         visible={!!fundFor}
         card={fundFor?.card ?? null}
         direction={fundFor?.direction ?? 'fund'}
-        onClose={() => setFundFor(null)}
+        // Une recharge ou un retrait peut rester en attente de l'émetteur : la
+        // liste est relue à la fermeture pour montrer ce qui a été tranché depuis.
+        onClose={() => { setFundFor(null); load(); }}
         onDone={(card) => { if (card) applyCard(card); }}
         onIneligible={onIneligible}
       />

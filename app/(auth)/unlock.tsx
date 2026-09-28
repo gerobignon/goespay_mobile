@@ -399,9 +399,9 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   buttonsContainer: {
     marginTop: Spacing.lg,
     gap: Spacing.md,
-    alignSelf: 'stretch',
+    alignSelf: 'center',
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 460,
   },
   // Action secondaire : même forme que les autres boutons, teinte neutre.
   logoutBtn: {

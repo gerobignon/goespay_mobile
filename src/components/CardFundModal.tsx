@@ -107,8 +107,11 @@ export function CardFundModal({ visible, card, direction, onClose, onDone, onIne
         ? await cardService.fund(card.id, quote.amount_usd, idemKey)
         : await cardService.withdraw(card.id, quote.amount_usd, idemKey);
 
-      // Le serveur répond « wait » quand l'issue lui est inconnue.
+      // Le serveur répond « wait » quand l'issue lui est inconnue, et pour
+      // tout retrait vers le solde : il n'est crédité qu'une fois confirmé
+      // par l'émetteur. La carte, elle, est déjà à jour.
       if (res.status === 'wait') {
+        if (res.card) onDone(res.card);
         setStep('unknown');
       } else {
         setStep('success');

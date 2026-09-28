@@ -102,13 +102,14 @@ export function resolveOperatorDisplay(
   // Carte virtuelle USD : mouvements entre le portefeuille et la carte. Sans ce
   // cas, le repli générique ne lit que « card » et affiche « Carte bancaire »,
   // soit un moyen de paiement au lieu de l'opération.
-  const vcard = mode.toLowerCase().match(/^maplerad-card-(fund|withdraw|issue|fee)$/);
+  const vcard = mode.toLowerCase().match(/^maplerad-card-(fund|withdraw|issue|fee|reversal)$/);
   if (vcard) {
     const VCARD_LABEL: Record<string, string> = {
       fund: 'Recharge de carte',
       withdraw: 'Retrait de carte',
       issue: 'Création de carte',
       fee: 'Frais de carte',
+      reversal: 'Retrait de carte annulé',
     };
     return { name: VCARD_LABEL[vcard[1]], flag: '', op: null };
   }
