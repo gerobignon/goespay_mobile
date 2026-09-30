@@ -23,6 +23,7 @@ import { savePendingActivation } from '../../src/utils/pendingActivation';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
+import { sanitizePersonNameInput } from '../../src/utils/personName';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -162,7 +163,7 @@ export default function RegisterScreen() {
               label={t('auth.register.surname')}
               placeholder={t('auth.register.surnamePlaceholder')}
               value={surname}
-              onChangeText={(v) => { setSurname(v); setFieldErrors((e) => ({ ...e, surname: '' })); }}
+              onChangeText={(v) => { setSurname(sanitizePersonNameInput(v)); setFieldErrors((e) => ({ ...e, surname: '' })); }}
               autoCapitalize="words"
               error={fieldErrors.surname}
             />
@@ -172,7 +173,7 @@ export default function RegisterScreen() {
               label={t('auth.register.name')}
               placeholder={t('auth.register.namePlaceholder')}
               value={name}
-              onChangeText={(v) => { setName(v); setFieldErrors((e) => ({ ...e, name: '' })); }}
+              onChangeText={(v) => { setName(sanitizePersonNameInput(v)); setFieldErrors((e) => ({ ...e, name: '' })); }}
               autoCapitalize="words"
               error={fieldErrors.name}
             />

@@ -72,6 +72,22 @@ export interface ApiPingResult {
   backendAdmin: boolean;
 }
 
+/**
+ * Mise à jour obligatoire (natif seulement) : le serveur compare la version
+ * installée à celle publiée sur le store. Toute erreur laisse passer.
+ */
+export async function checkAppUpdate(platform: string, version: string): Promise<{ required: boolean; storeUrl: string | null }> {
+  try {
+    const res = await api.get('/app-version', { params: { platform, version }, timeout: 15000 });
+    return {
+      required: res.data?.update_required === true,
+      storeUrl: typeof res.data?.store_url === 'string' ? res.data.store_url : null,
+    };
+  } catch {
+    return { required: false, storeUrl: null };
+  }
+}
+
 export async function checkApiConnection(): Promise<ApiPingResult> {
   try {
     // Le cookie admin est joint par l'intercepteur, dans l'en-tête X-Admin-Token.

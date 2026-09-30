@@ -107,7 +107,7 @@ export default function DashboardScreen() {
   // pays du user. Les flags /config crypto_*_enabled portent DÉJÀ cette logique
   // par pays (api_mobile.php → RoutingResolver::cryptoBuy/SellEnabledFor =
   // corridor nowpayments-<cc>). On ne dépend donc plus de la liste statique COUNTRIES.
-  // CRYPTO_AVAILABLE : absent du binaire iOS (licence d'échange App Store 3.1.5(iii)).
+  // CRYPTO_AVAILABLE : absent des binaires iOS et Android (licence d'échange exigée par les stores).
   const isCryptoUser = CRYPTO_AVAILABLE && (isAdmin || user?.group === 'crypto' || crypto_buy_enabled || crypto_sell_enabled);
   // L'admin voit tous les services même désactivés (un bandeau s'affiche dans le modal concerné).
   // Conditions vérifiées AVANT rendu : tant que /config n'a pas répondu (isLoaded

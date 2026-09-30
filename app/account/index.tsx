@@ -103,7 +103,7 @@ export default function AccountScreen() {
   // les flags /config crypto_*_enabled (cohérent avec l'accueil et l'historique).
   const cryptoBuyEnabled = useConfigStore((s) => s.crypto_buy_enabled);
   const cryptoSellEnabled = useConfigStore((s) => s.crypto_sell_enabled);
-  // CRYPTO_AVAILABLE : absent du binaire iOS (licence d'échange App Store 3.1.5(iii)).
+  // CRYPTO_AVAILABLE : absent des binaires iOS et Android (licence d'échange exigée par les stores).
   const isCryptoUser = CRYPTO_AVAILABLE && (user?.group === 'admin' || user?.group === 'crypto' || cryptoBuyEnabled || cryptoSellEnabled);
   const menuItems = getAccountMenuItems(t, { isCryptoUser, isSuperAdmin: user?.id === 1 });
 

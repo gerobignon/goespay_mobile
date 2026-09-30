@@ -1,6 +1,7 @@
 /**
- * Variante iOS : la liste des devises est toujours vide, l'app iOS n'offrant
- * aucun service d'échange de crypto-monnaies. Voir `cryptoStore.ios.ts`.
+ * Variante native (iOS et Android) : la liste des devises est toujours vide,
+ * les apps natives n'offrant aucun service d'échange de crypto-monnaies. Voir
+ * `cryptoStore.native.ts`.
  */
 import type { CryptoDir, CryptoRate } from '../stores/cryptoStore';
 

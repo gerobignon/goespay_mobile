@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Stack, usePathname, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, Image, ActivityIndicator, StyleSheet, TouchableOpacity, Platform, Animated } from 'react-native';
+import { View, Text, Image, ActivityIndicator, StyleSheet, TouchableOpacity, Platform, Animated, AppState, Linking } from 'react-native';
+import Constants from 'expo-constants';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';import * as Notifications from 'expo-notifications';
 import { useAuthStore } from '../src/stores/authStore';
 import { usePinStore } from '../src/stores/pinStore';
 import { useMessagingLockStore } from '../src/stores/messagingLockStore';
-import { checkApiConnection } from '../src/services/api';
+import { checkApiConnection, checkAppUpdate } from '../src/services/api';
 import {
   registerForPushNotifications,
   sendPushTokenToServer,
@@ -84,6 +85,8 @@ function RootInner() {
   const [apiStatus, setApiStatus] = useState<'checking' | 'ok' | 'error' | 'maintenance'>('checking');
   const [isMounted, setIsMounted] = useState(false);
   const [showOfflineBanner, setShowOfflineBanner] = useState(false);
+  // Natif : lien store quand la version installée est dépassée (écran bloquant).
+  const [updateStoreUrl, setUpdateStoreUrl] = useState<string | null>(null);
   const notifListenerRef = useRef<Notifications.Subscription | null>(null);
   const responseListenerRef = useRef<Notifications.Subscription | null>(null);
   const coldStartHandledRef = useRef(false);
@@ -422,6 +425,27 @@ function RootInner() {
     };
   }, []);
 
+  // Mise à jour obligatoire : vérifiée au lancement et à chaque retour au premier plan.
+  useEffect(() => {
+    if (Platform.OS === 'web' || __DEV__) return;
+    const version = Constants.expoConfig?.version;
+    if (!version) return;
+    const platform = Platform.OS;
+    const check = async () => {
+      const { required, storeUrl } = await checkAppUpdate(platform, version);
+      setUpdateStoreUrl(required
+        ? storeUrl ?? (platform === 'ios'
+          ? 'https://apps.apple.com/app/id6810420540'
+          : 'https://play.google.com/store/apps/details?id=io.goespay.app')
+        : null);
+    };
+    check();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') check();
+    });
+    return () => sub.remove();
+  }, []);
+
   // Plan C checkout hébergé : détecter ?reference=FCD-xxx (Fincra) ou KLD-xxx (Klasha
   // « Open Banking » / Payment Link) dans l'URL après redirect du checkout hébergé.
   useEffect(() => {
@@ -621,6 +645,10 @@ function RootInner() {
     );
   }
 
+  if (updateStoreUrl && fontsLoaded) {
+    return <UpdateRequiredScreen storeUrl={updateStoreUrl} />;
+  }
+
   if (apiStatus === 'maintenance') {
     return <MaintenanceScreen onRetry={retry} />;
   }
@@ -747,6 +775,34 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontFamily: Fonts.semiBold,
   },
 });
+
+function UpdateRequiredScreen({ storeUrl }: { storeUrl: string }) {
+  const { t } = useTranslation();
+  return (
+    <View style={mStyles.container}>
+      <StatusBar style="light" />
+      <View style={[mStyles.circle, mStyles.circleTop]} />
+      <View style={[mStyles.circle, mStyles.circleBottom]} />
+
+      <View style={mStyles.content}>
+        <Image source={require('../assets/logo_min.png')} style={mStyles.logo} resizeMode="contain" />
+        <View style={mStyles.iconWrapper}>
+          <FontAwesome6 name="arrows-rotate" size={36} color="#fff" />
+        </View>
+        <Text style={mStyles.title}>{t('layout.updateTitle')}</Text>
+        <Text style={[mStyles.subtitle, { marginBottom: 36 }]}>{t('layout.updateText')}</Text>
+        <TouchableOpacity
+          style={mStyles.retryBtn}
+          onPress={() => Linking.openURL(storeUrl).catch(() => {})}
+          activeOpacity={0.8}
+        >
+          <FontAwesome6 name="download" size={15} color="#fff" />
+          <Text style={mStyles.retryText}>{t('layout.updateButton')}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
 
 function MaintenanceScreen({ onRetry }: { onRetry: () => void }) {
   const pulseAnim = useRef(new Animated.Value(1)).current;

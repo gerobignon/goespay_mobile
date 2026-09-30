@@ -42,6 +42,7 @@ import { showAlert } from '../../src/stores/alertStore';
 import SettingsRow from '../../src/components/SettingsRow';
 import { LocalAuthModal } from '../../src/components/LocalAuthModal';
 import { useMessagingLock } from '../../src/hooks/useMessagingLock';
+import { useMessagingLockStore } from '../../src/stores/messagingLockStore';
 import { useMessagingAccess } from '../../src/hooks/useMessagingAccess';
 import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
@@ -132,6 +133,8 @@ export default function SecurityScreen() {
     await setLockMethod(null);
     await setMethod(null);
     setCurrentLockMethod(null);
+    // Le verrou de la messagerie s'appuie sur celui de l'appareil : il tombe avec.
+    await useMessagingLockStore.getState().setEnabled(false);
     showAlert(t('common.success'), t('account.webauthnDisabled'));
   };
 
@@ -154,6 +157,19 @@ export default function SecurityScreen() {
     showAlert(t('common.success'), t('account.biometricEnabled'));
   };
 
+  // Le verrou restant obligatoire sur natif, lever la biométrie revient à
+  // poser un code PIN : la bascule n'a lieu qu'une fois le code confirmé.
+  const handleBioRow = () => {
+    if (currentLockMethod === 'biometric') {
+      showAlert(t('account.biometric'), t('account.biometricDisableMessage'), [
+        { text: t('account.pinDisable'), style: 'destructive', onPress: handleSwitchToPin },
+        { text: t('common.cancel') },
+      ]);
+      return;
+    }
+    handleSwitchToBio();
+  };
+
   // Le verrou est obligatoire sur natif, optionnel sur web : là seulement on
   // propose de le retirer.
   const handleDisablePin = async () => {
@@ -161,6 +177,7 @@ export default function SecurityScreen() {
     await setLockMethod(null);
     await setMethod(null);
     setCurrentLockMethod(null);
+    await useMessagingLockStore.getState().setEnabled(false);
     showAlert(t('common.success'), t('account.pinDisabled'));
   };
 
@@ -454,14 +471,16 @@ export default function SecurityScreen() {
           />
         )}
 
-        {/* Biométrie */}
-        {bioAvailable && (
+        {/* Biométrie : gardée visible tant qu'elle est le verrou actif, même si
+            l'appareil n'a plus d'empreinte ni de visage enregistré, sinon on ne
+            pourrait plus la remplacer depuis cette ligne. */}
+        {(bioAvailable || currentLockMethod === 'biometric') && (
           <SettingsRow
             icon="fingerprint"
             iconColor={currentLockMethod === 'biometric' ? Colors.secondary : Colors.textMuted}
             label={t('account.biometric')}
             description={currentLockMethod === 'biometric' ? t('account.biometricActive') : t('account.biometricInactive')}
-            onPress={handleSwitchToBio}
+            onPress={handleBioRow}
             trailing={currentLockMethod === 'biometric' ? (
               <FontAwesome6 name="circle-check" size={16} color={Colors.secondary} />
             ) : undefined}

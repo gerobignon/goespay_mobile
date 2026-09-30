@@ -1,11 +1,11 @@
 import type { ImageSourcePropType } from 'react-native';
 
 /**
- * Logos des crypto-monnaies historiques, embarqués dans le binaire.
+ * Logos des crypto-monnaies historiques, embarqués dans le bundle web.
  *
- * Isolés ici pour que la variante `cryptoIcons.ios.ts` puisse les retirer du
- * bundle iOS : l'app iOS n'offre aucun service d'échange de crypto-monnaies
- * (règle App Store 3.1.5(iii)) et ne doit donc en embarquer aucune image.
+ * Isolés ici pour que la variante `cryptoIcons.native.ts` puisse les retirer
+ * des bundles iOS et Android : les apps natives n'offrent aucun service
+ * d'échange de crypto-monnaies et ne doivent donc en embarquer aucune image.
  */
 const CRYPTO_LOGOS: Record<string, ImageSourcePropType> = {
   BTC:  require('../../assets/crypto/btc.png'),

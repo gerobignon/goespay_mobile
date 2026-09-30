@@ -66,8 +66,10 @@ export default function KycScreen() {
   // de naissance, elles deviennent donc obligatoires ici (le code postal reste
   // facultatif, le serveur envoie une valeur neutre). Sinon
   // l'utilisateur les laisse vides (« facultatif ») et l'alerte revient après validation.
-  const chinaRequired = purpose === 'china';
   const { user, refreshProfile, profileComplete } = useAuthStore();
+  // Re-soumission d'un KYC complet déjà accordé : elle ne sert qu'à compléter le
+  // profil, le serveur exige donc aussi ces deux champs (422 sinon).
+  const chinaRequired = purpose === 'china' || (editMode && user?.validate === 1);
   // Niveau visé : 1 = basique (téléphone, pays, selfie), 2 = complet. Un client
   // déjà au Niveau 1, ou renvoyé ici par une fonctionnalité (edit=1), va droit au
   // Niveau 2 ; sinon il choisit.
@@ -286,7 +288,9 @@ export default function KycScreen() {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') { showAlert(t('common.error'), t('kyc.cameraPermission')); return; }
-      const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.8 });
+      // Sans recadrage : le recadreur Android plante quand il échoue sans renvoyer
+      // d'image, et la photo brute suffit à la vérification.
+      const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
       if (!result.canceled && result.assets[0]) await applyPhoto(result.assets[0].uri, target);
     } catch {
       showAlert(t('common.error'), t('kyc.cameraUnavailable'));

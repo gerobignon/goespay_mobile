@@ -1,15 +1,16 @@
 /**
- * Variante iOS du magasin crypto : coquille vide.
+ * Variante native (iOS et Android) du magasin crypto : coquille vide.
  *
- * L'app iOS n'offre aucun service d'échange de crypto-monnaies (règle App Store
- * 3.1.5(iii) : licence exigée dans chaque pays de distribution). Metro résout ce
- * fichier à la place de `cryptoStore.ts` quand la cible est iOS, si bien que le
- * magasin réel, ses appels à l'API et le nom du prestataire ne sont pas
- * embarqués dans le binaire.
+ * Les apps natives n'offrent aucun service d'échange de crypto-monnaies : les
+ * stores exigent une licence d'échange dans chaque pays de distribution (App
+ * Store 3.1.5(iii), règles Google Play sur les produits financiers). Metro
+ * résout ce fichier à la place de `cryptoStore.ts` quand la cible est iOS ou
+ * Android, si bien que le magasin réel, ses appels à l'API et le nom du
+ * prestataire ne sont pas embarqués dans les binaires.
  *
  * Les écrans partagés compilent contre `cryptoStore.ts` : ce fichier n'existe
  * que pour l'exécution, et doit donc en garder exactement les signatures.
- * Android et la PWA continuent d'utiliser le magasin réel.
+ * Seule la PWA continue d'utiliser le magasin réel.
  */
 import { create } from 'zustand';
 
@@ -30,7 +31,7 @@ export interface CryptoRate {
 
 export type CryptoDir = 'buy' | 'sell';
 
-/** Aucune devise n'est proposable sur iOS. */
+/** Aucune devise n'est proposable dans les apps natives. */
 export const isCryptoDirAllowed = (_rate: CryptoRate, _dir: CryptoDir): boolean => false;
 
 interface CryptoState {

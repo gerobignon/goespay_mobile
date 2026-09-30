@@ -1,10 +1,12 @@
 /**
- * Génère les traductions iOS à partir des traductions de référence.
+ * Génère les traductions natives (iOS et Android) à partir des traductions de référence.
  *
- * L'app iOS n'offre aucun service d'échange de crypto-monnaies (règle App Store
- * 3.1.5(iii)) : les libellés des parcours d'achat et de vente ne doivent donc
- * pas se trouver dans le binaire. Ce script écrit `fr.ios.json` et `en.ios.json`
- * amputés de ces clés ; `src/i18n/resources.ios.ts` les charge à leur place.
+ * Les apps iOS et Android n'offrent aucun service d'échange de crypto-monnaies
+ * (licence d'échange exigée par les stores) : les libellés des parcours d'achat
+ * et de vente ne doivent donc pas se trouver dans les binaires. Ce script écrit
+ * `fr.native.json` et `en.native.json` amputés de ces clés ;
+ * `src/i18n/resources.native.ts` les charge à leur place. Seule la PWA garde
+ * les traductions complètes.
  *
  * Il est rejoué automatiquement à chaque démarrage de Metro (voir
  * `metro.config.js`), donc les fichiers générés ne peuvent pas dériver de la
@@ -13,8 +15,8 @@
  * Ce qui est retiré : tout ce qui sert à ACHETER ou VENDRE.
  * Ce qui reste : les libellés qui nomment une opération déjà inscrite à
  * l'historique d'un client (`transaction.crypto`, `transaction.buyType`,
- * `transaction.sellType`, `messages.kind_crypto`). Un client venu d'Android
- * doit continuer de lire son propre historique sur iOS.
+ * `transaction.sellType`, `messages.kind_crypto`). Un client qui a acheté de la
+ * crypto doit continuer de lire son propre historique dans l'app.
  */
 const fs = require('fs');
 const path = require('path');
@@ -62,7 +64,7 @@ function stripCrypto(source) {
 let changed = 0;
 for (const lang of LANGUAGES) {
   const sourcePath = path.join(LOCALES_DIR, `${lang}.json`);
-  const targetPath = path.join(LOCALES_DIR, `${lang}.ios.json`);
+  const targetPath = path.join(LOCALES_DIR, `${lang}.native.json`);
   const source = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
   const next = JSON.stringify(stripCrypto(source), null, 2) + '\n';
   const current = fs.existsSync(targetPath) ? fs.readFileSync(targetPath, 'utf8') : null;
@@ -73,7 +75,7 @@ for (const lang of LANGUAGES) {
 }
 
 if (require.main === module && changed > 0) {
-  console.log(`[gen-ios-locales] ${changed} fichier(s) de traduction iOS régénéré(s).`);
+  console.log(`[gen-native-locales] ${changed} fichier(s) de traduction native régénéré(s).`);
 }
 
 module.exports = { stripCrypto, DROP_SECTIONS, DROP_KEYS };

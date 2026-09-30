@@ -421,7 +421,8 @@
     "pinDisable": "Désactiver",
     "pinDisabled": "Code PIN désactivé.",
     "biometric": "Face ID / Touch ID",
-    "biometricActive": "Actif",
+    "biometricActive": "Actif, appuyez pour désactiver",
+    "biometricDisableMessage": "Un code PIN remplacera la biométrie.",
     "biometricInactive": "Inactif, appuyez pour activer",
     "biometricEnabled": "Biométrie activée.",
     "password": "Mot de passe",
@@ -1008,7 +1009,10 @@
   },
   "layout": {
     "connectionError": "Connexion impossible",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "updateTitle": "Mise à jour requise",
+    "updateText": "Une nouvelle version de GOESPAY est disponible. Mettez l'application à jour pour continuer.",
+    "updateButton": "Mettre à jour"
   },
   "affiliation": {
     "title": "Affiliation",

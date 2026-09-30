@@ -1,6 +1,6 @@
 /**
- * Variante iOS : la recherche de devises crypto n'existe pas dans le binaire
- * iOS. Voir `cryptoStore.ios.ts`.
+ * Variante native (iOS et Android) : la recherche de devises crypto n'existe
+ * pas dans les binaires. Voir `cryptoStore.native.ts`.
  */
 interface CryptoSearchFieldProps {
   value: string;

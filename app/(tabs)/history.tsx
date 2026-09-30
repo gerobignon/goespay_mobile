@@ -67,7 +67,7 @@ export default function HistoryScreen() {
   // Éligibilité crypto : groupe `crypto` OU corridor crypto (NowPayments/futur)
   // actif en payin (vente) et/ou payout (achat) pour le pays, porté par les flags
   // /config crypto_*_enabled. Plus de dépendance à la liste statique COUNTRIES.
-  // CRYPTO_AVAILABLE : absent du binaire iOS (licence d'échange App Store 3.1.5(iii)).
+  // CRYPTO_AVAILABLE : absent des binaires iOS et Android (licence d'échange exigée par les stores).
   const isCryptoUser = CRYPTO_AVAILABLE && (isAdmin || user?.group === 'crypto' || crypto_buy_enabled || crypto_sell_enabled);
   // crypto_buy_enabled est prioritaire : si off, seuls les admins voient le filtre Crypto.
   const showCrypto = CRYPTO_AVAILABLE && (isAdmin || (isCryptoUser && crypto_buy_enabled));

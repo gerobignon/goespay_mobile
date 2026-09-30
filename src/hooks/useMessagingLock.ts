@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useMessagingLockStore } from '../stores/messagingLockStore';
-import { requireLocalLock } from '../utils/localAuth';
+import { hasLocalLock, requireLocalLock } from '../utils/localAuth';
 
 /**
  * Interrupteur du verrou de la messagerie, partagé par Réglages › Sécurité et
@@ -30,6 +30,13 @@ export function useMessagingLock() {
 
   const toggle = () => {
     if (enabled) {
+      // Plus aucun verrou d'appareil (code retiré, clé révoquée) : rien à
+      // redemander, et la fenêtre de confirmation n'aurait aucun moyen de
+      // réussir. On lève le réglage directement.
+      if (!hasLocalLock()) {
+        setEnabled(false);
+        return;
+      }
       setAskConfirm(true);
       return;
     }

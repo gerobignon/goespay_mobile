@@ -1,8 +1,8 @@
 import type { ImageSourcePropType } from 'react-native';
 
 /**
- * Variante iOS : aucune image de crypto-monnaie n'est embarquée dans le
- * binaire. Voir `cryptoStore.ios.ts`.
+ * Variante native (iOS et Android) : aucune image de crypto-monnaie n'est
+ * embarquée dans les binaires. Voir `cryptoStore.native.ts`.
  */
 export function cryptoLogoFor(_currencySrc?: string | null): ImageSourcePropType | null {
   return null;

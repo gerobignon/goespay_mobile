@@ -1,6 +1,6 @@
 /**
  * Route « Adresses enregistrées ». L'écran vit dans `src/screens` pour que Metro
- * puisse lui substituer une variante iOS : le binaire iOS n'embarque aucune
- * fonctionnalité crypto (règle App Store 3.1.5(iii)).
+ * puisse lui substituer une variante native : les binaires iOS et Android
+ * n'embarquent aucune fonctionnalité crypto.
  */
 export { default } from '../../src/screens/SavedWalletsScreen';

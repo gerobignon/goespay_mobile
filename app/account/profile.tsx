@@ -27,6 +27,7 @@ import { useTheme } from '../../src/components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { getApiErrorMessage } from '../../src/utils/apiError';
+import { sanitizePersonNameInput } from '../../src/utils/personName';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -143,13 +144,13 @@ export default function ProfileScreen() {
                 <Input
                   label={t('account.firstName')}
                   value={form.name}
-                  onChangeText={(v) => setField('name', v)}
+                  onChangeText={(v) => setField('name', sanitizePersonNameInput(v))}
                   editable={!isReadonly}
                 />
                 <Input
                   label={t('account.lastName')}
                   value={form.surname}
-                  onChangeText={(v) => setField('surname', v)}
+                  onChangeText={(v) => setField('surname', sanitizePersonNameInput(v))}
                   editable={!isReadonly}
                 />
                 <Input
