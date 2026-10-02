@@ -946,7 +946,7 @@
   },
   "pwa": {
     "title": "Installer GOESPAY",
-    "subtitle": "Accès rapide depuis votre écran d'accueil, sans passer par le navigateur.",
+    "subtitle": "Sur votre téléphone depuis les stores, ou sur cet ordinateur.",
     "install": "Installer",
     "howTo": "Voir comment",
     "browser": "votre navigateur",
@@ -992,9 +992,11 @@
       }
     }
   },
-  "androidApp": {
-    "title": "GOESPAY pour Android",
-    "subtitle": "Sur Google Play",
+  "nativeApp": {
+    "titleAndroid": "GOESPAY pour Android",
+    "titleIos": "GOESPAY pour iPhone",
+    "subtitlePlay": "Sur Google Play",
+    "subtitleAppStore": "Sur l'App Store",
     "install": "Installer"
   },
   "countries": {
@@ -1157,6 +1159,7 @@
     "fundDone": "Carte rechargée.",
     "withdrawDone": "Montant transféré vers votre solde.",
     "pendingConfirm": "Opération en cours de confirmation. Le résultat s'affichera d'ici quelques minutes.",
+    "withdrawPendingConfirm": "Retrait en cours de confirmation. Le crédit sur votre solde peut prendre quelques minutes, vous pouvez fermer cette fenêtre.",
     "fundError": "La recharge a échoué.",
     "withdrawError": "Le retrait a échoué.",
     "quoteError": "Taux indisponible pour le moment.",

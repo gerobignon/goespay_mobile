@@ -4,7 +4,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Colors, Spacing, FontSize, Fonts, BorderRadius, Shadow, type ColorPalette } from '../constants/theme';
 import { useThemedStyles } from '../hooks/useThemedStyles';
-import { nativeAppTakesOverPwaPrompt } from '../utils/nativeAppPromo';
+import { mobileStore, openStore } from '../utils/nativeAppPromo';
 
 const SESSION_KEY = 'goespay_pwa_install_dismissed';
 
@@ -45,9 +45,9 @@ export const PwaInstallBanner: React.FC = () => {
     if (Platform.OS !== 'web') return;
     if (typeof window === 'undefined') return;
     if (info.isStandalone) return;
-    // Sur Android, c'est l'application du Play Store qu'on met en avant
-    // (bandeau haut) : pas de seconde invitation à installer la PWA.
-    if (nativeAppTakesOverPwaPrompt()) return;
+    // Sur mobile, ce sont les applications des stores qu'on met en avant
+    // (NativeAppBanner) : la PWA ne s'installe plus que sur ordinateur.
+    if (mobileStore()) return;
     try {
       if (window.sessionStorage.getItem(SESSION_KEY) === '1') return;
     } catch {}
@@ -138,6 +138,14 @@ export const PwaInstallBanner: React.FC = () => {
             <Text style={styles.subtitle} numberOfLines={2}>{t('pwa.subtitle')}</Text>
           </View>
           <View style={styles.btnCol}>
+            <TouchableOpacity style={styles.storeBtn} onPress={() => openStore('appstore')} activeOpacity={0.85}>
+              <FontAwesome6 name="apple" size={14} color={Colors.text} iconStyle="brands" />
+              <Text style={styles.storeBtnText}>App Store</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.storeBtn} onPress={() => openStore('play')} activeOpacity={0.85}>
+              <FontAwesome6 name="google-play" size={13} color={Colors.text} iconStyle="brands" />
+              <Text style={styles.storeBtnText}>Google Play</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.installBtn} onPress={install} activeOpacity={0.85}>
               <FontAwesome6 name={canDirectInstall ? 'download' : 'circle-info'} size={13} color="#fff" />
               <Text style={styles.installBtnText}>
@@ -239,7 +247,7 @@ const createStyles = (C: ColorPalette) => StyleSheet.create({
     borderWidth: 1,
     borderColor: C.border,
     ...Shadow.card,
-    maxWidth: 560,
+    maxWidth: 820,
     alignSelf: 'center',
     width: '100%',
   },
@@ -254,7 +262,17 @@ const createStyles = (C: ColorPalette) => StyleSheet.create({
   textCol: { flex: 1, minWidth: 0 },
   title: { fontFamily: Fonts.bold, fontSize: FontSize.sm, color: C.text },
   subtitle: { fontFamily: Fonts.regular, fontSize: FontSize.xs, color: C.textMuted, marginTop: 2 },
-  btnCol: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  btnCol: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 6 },
+  storeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: C.border,
+    paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: BorderRadius.md,
+  },
+  storeBtnText: { fontFamily: Fonts.semiBold, fontSize: FontSize.xs, color: C.text },
   installBtn: {
     flexDirection: 'row',
     alignItems: 'center',

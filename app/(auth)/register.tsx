@@ -18,7 +18,6 @@ import { LinkButton } from '../../src/components/LinkButton';
 import { authService } from '../../src/services/authService';
 import { Colors, type ColorPalette, Spacing, FontSize, Fonts } from '../../src/constants/theme';
 import { showAlert } from '../../src/stores/alertStore';
-import { logSignUp } from '../../src/services/metaEvents';
 import { savePendingActivation } from '../../src/utils/pendingActivation';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useTranslation } from 'react-i18next';
@@ -109,8 +108,6 @@ export default function RegisterScreen() {
         ...(withPassword ? { password, password_confirmation: passwordConfirmation } : {}),
         hp_field: '',
       });
-      // Conversion suivie par les campagnes Meta : compte créé.
-      logSignUp('email');
       // Le jeton permet à l'écran d'activation d'ouvrir la session dès que
       // l'adresse est vérifiée, même après une relance de l'app.
       if (response.signup_token) {

@@ -946,7 +946,7 @@
   },
   "pwa": {
     "title": "Install GOESPAY",
-    "subtitle": "Quick access from your home screen, no browser tab needed.",
+    "subtitle": "On your phone from the stores, or on this computer.",
     "install": "Install",
     "howTo": "How to install",
     "browser": "your browser",
@@ -992,9 +992,11 @@
       }
     }
   },
-  "androidApp": {
-    "title": "GOESPAY for Android",
-    "subtitle": "On Google Play",
+  "nativeApp": {
+    "titleAndroid": "GOESPAY for Android",
+    "titleIos": "GOESPAY for iPhone",
+    "subtitlePlay": "On Google Play",
+    "subtitleAppStore": "On the App Store",
     "install": "Install"
   },
   "countries": {
@@ -1157,6 +1159,7 @@
     "fundDone": "Card topped up.",
     "withdrawDone": "Amount moved to your balance.",
     "pendingConfirm": "Operation being confirmed. The result will appear within a few minutes.",
+    "withdrawPendingConfirm": "Withdrawal being confirmed. The credit to your balance may take a few minutes, you can close this window.",
     "fundError": "The top-up failed.",
     "withdrawError": "The withdrawal failed.",
     "quoteError": "Rate unavailable right now.",

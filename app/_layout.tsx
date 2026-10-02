@@ -22,10 +22,8 @@ import { API_BASE_URL } from '../src/constants/config';
 import { CustomAlert } from '../src/components/CustomAlert';
 import { PwaInstallBanner } from '../src/components/PwaInstallBanner';
 import { NotifOptInBanner } from '../src/components/NotifOptInBanner';
-import { AndroidAppBanner } from '../src/components/AndroidAppBanner';
+import { NativeAppBanner } from '../src/components/NativeAppBanner';
 import { walletService } from '../src/services/walletService';
-// Mesure Meta (attribution des campagnes) : sans effet sur le web.
-import { initMetaEvents } from '../src/services/metaEvents';
 import { showAlert } from '../src/stores/alertStore';
 import { useWalletStore } from '../src/stores/walletStore';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
@@ -228,7 +226,6 @@ function RootInner() {
 
   useEffect(() => {
     setIsMounted(true);
-    initMetaEvents();
     loadToken();
     initialize();
     // Réglage local du verrou messagerie : lu au démarrage pour que l'onglet
@@ -688,7 +685,7 @@ function RootInner() {
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       {showOfflineBanner && Platform.OS === 'web' && <OfflineAdminBanner />}
-      <AndroidAppBanner />
+      <NativeAppBanner />
       <Stack screenOptions={{ headerShown: false }} />
       <CustomAlert />
       <NotifOptInBanner />

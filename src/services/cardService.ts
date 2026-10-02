@@ -204,13 +204,19 @@ export const cardService = {
     return response.data;
   },
 
-  fund: async (id: number, amountUsd: number, idempotencyKey?: string): Promise<{ status: string; card?: VirtualCard; wallet?: number }> => {
+  fund: async (id: number, amountUsd: number, idempotencyKey?: string): Promise<{ status: string; card?: VirtualCard; wallet?: number; deposit_id?: number }> => {
     const response = await api.post(`/maplerad/cards/${id}/fund`, { amount_usd: amountUsd }, withIdempotency(idempotencyKey, { timeout: 70000 }));
     return response.data;
   },
 
-  withdraw: async (id: number, amountUsd: number, idempotencyKey?: string): Promise<{ status: string; card?: VirtualCard; wallet?: number }> => {
+  withdraw: async (id: number, amountUsd: number, idempotencyKey?: string): Promise<{ status: string; card?: VirtualCard; wallet?: number; deposit_id?: number }> => {
     const response = await api.post(`/maplerad/cards/${id}/withdraw`, { amount_usd: amountUsd }, withIdempotency(idempotencyKey, { timeout: 70000 }));
+    return response.data;
+  },
+
+  /** Suivi d'un retrait en attente : le serveur relit l'émetteur et tente la clôture. */
+  withdrawStatus: async (id: number, depositId: number): Promise<{ status: 'wait' | 'success' | 'fail'; card?: VirtualCard; wallet?: number }> => {
+    const response = await api.get(`/maplerad/cards/${id}/withdraw/${depositId}`, { timeout: 45000 });
     return response.data;
   },
 

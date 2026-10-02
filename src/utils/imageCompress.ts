@@ -9,7 +9,7 @@ import * as FileSystem from 'expo-file-system/legacy';
  * de côté et pèsent bien au-delà des 4 Mo acceptés par l'API. Toute image qui
  * dépasse la dimension attendue est donc ramenée à cette dimension (plus grand
  * côté borné, ratio conservé, aucun recadrage : les images très allongées
- * passent aussi), puis recompressée tant que le poids reste au-dessus de la
+ * passent aussi, sauf demande de recadrage carré), puis recompressée tant que le poids reste au-dessus de la
  * limite. Un seul point de passage pour tous les sélecteurs de l'app.
  */
 
@@ -31,6 +31,8 @@ export type CompressOptions = {
   height?: number;
   /** Plus grand côté visé. */
   maxEdge?: number;
+  /** Recadrage carré centré (photo de profil). */
+  square?: boolean;
 };
 
 /** Poids du fichier en octets, ou `null` si la plateforme ne sait pas le dire. */
@@ -53,7 +55,7 @@ async function fileSize(uri: string): Promise<number | null> {
  * quelle : c'est alors le backend qui tranche.
  */
 export async function compressImage(uri: string, options: CompressOptions = {}): Promise<string> {
-  const { maxEdge = MAX_EDGE_DEFAULT } = options;
+  const { maxEdge = MAX_EDGE_DEFAULT, square = false } = options;
   let { width, height } = options;
 
   // Le sélecteur ne donne pas toujours les dimensions : une passe à vide les
@@ -68,21 +70,32 @@ export async function compressImage(uri: string, options: CompressOptions = {}):
     }
   }
 
+  const actions: ImageManipulator.Action[] = [];
+  if (square && width !== height) {
+    const side = Math.min(width, height);
+    actions.push({
+      crop: {
+        originX: Math.floor((width - side) / 2),
+        originY: Math.floor((height - side) / 2),
+        width: side,
+        height: side,
+      },
+    });
+    width = height = side;
+  }
+
   // Plus grand côté borné, ratio conservé. Image déjà plus petite : simple
   // recompression.
-  const resize =
-    Math.max(width, height) > maxEdge
-      ? width >= height
-        ? { width: maxEdge }
-        : { height: maxEdge }
-      : null;
+  if (Math.max(width, height) > maxEdge) {
+    actions.push({ resize: width >= height ? { width: maxEdge } : { height: maxEdge } });
+  }
 
   let last = uri;
   for (const compress of QUALITIES) {
     try {
       const out = await ImageManipulator.manipulateAsync(
         uri,
-        resize ? [{ resize }] : [],
+        actions,
         { compress, format: ImageManipulator.SaveFormat.JPEG }
       );
       last = out.uri;

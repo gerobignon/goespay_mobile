@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ImageBackground, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ImageBackground, Linking, Platform } from 'react-native';
 import { ACCOUNT_DELETION_URL } from '../../src/constants/config';
 import { Stack, Slot, useRouter, useSegments } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
@@ -46,7 +46,13 @@ function DesktopAccountLayout() {
   const handleAvatarPick = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') return;
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      // L'outil de recadrage natif d'Android plante (CropImageContract) : recadrage carré fait par compressImage.
+      allowsEditing: Platform.OS !== 'android',
+      aspect: [1, 1],
+      quality: 0.8,
+    });
     if (!result.canceled && result.assets[0]) {
       try {
         const asset = result.assets[0];
@@ -54,6 +60,7 @@ function DesktopAccountLayout() {
           width: asset.width,
           height: asset.height,
           maxEdge: MAX_EDGE_AVATAR,
+          square: true,
         });
         const result2 = await authService.uploadAvatar(uri);
         const currentUser = useAuthStore.getState().user;

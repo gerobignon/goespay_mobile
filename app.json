@@ -94,29 +94,16 @@
         "expo-build-properties",
         {
           "android": {
-            "enableProguardInReleaseBuilds": true
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "-keep class kotlin.Metadata { *; }\n-keepattributes RuntimeVisibleAnnotations,RuntimeVisibleParameterAnnotations,AnnotationDefault,Signature,InnerClasses,EnclosingMethod\n-keep class kotlin.reflect.jvm.internal.** { *; }\n-keep class expo.modules.kotlin.records.** { *; }\n-keep class expo.modules.kotlin.types.** { *; }"
           }
         }
       ],
       "expo-web-browser",
-      [
-        "react-native-fbsdk-next",
-        {
-          "appID": "1363695929087767",
-          "clientToken": "0f2ffa0e64f00387a0f2d8f6c3dcab08",
-          "displayName": "GOESPAY",
-          "scheme": "fb1363695929087767",
-          "isAutoInitEnabled": true,
-          "autoLogAppEventsEnabled": true,
-          "advertiserIDCollectionEnabled": true
-        }
-      ],
-      [
-        "expo-tracking-transparency",
-        {
-          "userTrackingPermission": "GOESPAY utilise cet identifiant pour mesurer l’efficacité de ses publicités et ne vous montrer que des annonces utiles."
-        }
-      ]
+      "./plugins/withPodsDeploymentTarget",
+      "./plugins/withSceneLifecycle",
+      "./plugins/withR8Optimize"
     ],
     "extra": {
       "router": {},

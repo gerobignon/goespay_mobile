@@ -8,6 +8,7 @@ import {
   Image,
   ImageBackground,
   Linking,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { RefreshableScrollView } from '../../src/components/Refreshable';
@@ -76,7 +77,13 @@ export default function AccountScreen() {
   const handleAvatarPick = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') return;
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      // L'outil de recadrage natif d'Android plante (CropImageContract) : recadrage carré fait par compressImage.
+      allowsEditing: Platform.OS !== 'android',
+      aspect: [1, 1],
+      quality: 0.8,
+    });
     if (!result.canceled && result.assets[0]) {
       try {
         const asset = result.assets[0];
@@ -84,6 +91,7 @@ export default function AccountScreen() {
           width: asset.width,
           height: asset.height,
           maxEdge: MAX_EDGE_AVATAR,
+          square: true,
         });
         const result2 = await authService.uploadAvatar(uri);
         const currentUser = useAuthStore.getState().user;

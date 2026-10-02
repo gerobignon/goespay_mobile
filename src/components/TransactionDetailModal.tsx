@@ -422,7 +422,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
             {tx.note && <TransactionDetailRow label={t('transaction.note')} value={tx.note} />}
             <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
             {tx.updated_at && tx.updated_at !== tx.created_at && (
-              <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.updated_at)} />
+              <TransactionDetailRow label={t('transaction.updatedAt')} value={formatDate(tx.updated_at)} />
             )}
           </Card>
         </>
@@ -524,7 +524,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
             <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '-'} mono color={status.color} />
             <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
             {tx.updated_at && tx.updated_at !== tx.created_at && (
-              <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.updated_at)} />
+              <TransactionDetailRow label={t('transaction.updatedAt')} value={formatDate(tx.updated_at)} />
             )}
           </Card>
         </>
@@ -591,7 +591,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
             <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '-'} mono color={status.color} />
             <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
             {tx.updated_at && tx.updated_at !== tx.created_at && (
-              <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.updated_at)} />
+              <TransactionDetailRow label={t('transaction.updatedAt')} value={formatDate(tx.updated_at)} />
             )}
           </Card>
         </>
@@ -694,7 +694,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
             <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '-'} mono color={status.color} />
             <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
             {tx.updated_at && tx.updated_at !== tx.created_at && (
-              <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.updated_at)} />
+              <TransactionDetailRow label={t('transaction.updatedAt')} value={formatDate(tx.updated_at)} />
             )}
           </Card>
         </>

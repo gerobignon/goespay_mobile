@@ -51,6 +51,11 @@ export function CardFundModal({ visible, card, direction, onClose, onDone, onIne
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const quoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Retrait en attente de confirmation de l'émetteur, suivi tant que la modale est ouverte.
+  const [pendingDeposit, setPendingDeposit] = useState<number | null>(null);
+  // onDone change à chaque rendu du parent : sans ref, le polling repartirait de zéro.
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
 
   const isFund = direction === 'fund';
   // Clé de soumission : rejouée telle quelle si l'on retente après une erreur
@@ -64,8 +69,47 @@ export function CardFundModal({ visible, card, direction, onClose, onDone, onIne
       setQuote(null);
       setError(null);
       setBusy(false);
+      setPendingDeposit(null);
     }
   }, [visible]);
+
+  // Polling du retrait en attente : le serveur relit les mouvements de la carte
+  // à chaque appel, le crédit tombe dès que l'émetteur le confirme.
+  useEffect(() => {
+    if (!visible || !card || step !== 'unknown' || !pendingDeposit) return;
+    const cardId = card.id;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const startedAt = Date.now();
+    const tick = async () => {
+      try {
+        const res = await cardService.withdrawStatus(cardId, pendingDeposit);
+        if (stopped) return;
+        if (res.status === 'success') {
+          if (res.card) onDoneRef.current(res.card);
+          fetchBalance().catch(() => {});
+          setStep('success');
+          return;
+        }
+        if (res.status === 'fail') {
+          if (res.card) onDoneRef.current(res.card);
+          setError(t('cards.withdrawError'));
+          setStep('failed');
+          return;
+        }
+      } catch {
+        // Réseau capricieux : on réessaie au prochain tour.
+      }
+      if (!stopped && Date.now() - startedAt < 15 * 60 * 1000) {
+        timer = setTimeout(tick, 15000);
+      }
+    };
+    timer = setTimeout(tick, 10000);
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [visible, card?.id, step, pendingDeposit, fetchBalance, t]);
 
   // Devis rafraîchi à la frappe, avec une pause pour ne pas appeler à chaque touche.
   useEffect(() => {
@@ -112,6 +156,7 @@ export function CardFundModal({ visible, card, direction, onClose, onDone, onIne
       // par l'émetteur. La carte, elle, est déjà à jour.
       if (res.status === 'wait') {
         if (res.card) onDone(res.card);
+        if (!isFund && res.deposit_id) setPendingDeposit(res.deposit_id);
         setStep('unknown');
       } else {
         setStep('success');
@@ -239,7 +284,8 @@ export function CardFundModal({ visible, card, direction, onClose, onDone, onIne
         {step === 'unknown' && (
           <View style={styles.state}>
             <FontAwesome6 name="clock" size={64} color={Colors.pending} />
-            <Text style={styles.stateText}>{t('cards.pendingConfirm')}</Text>
+            <Text style={styles.stateText}>{isFund ? t('cards.pendingConfirm') : t('cards.withdrawPendingConfirm')}</Text>
+            {!isFund && pendingDeposit != null && <ActivityIndicator color={Colors.pending} />}
             <Button title={t('common.close')} onPress={onClose} />
           </View>
         )}

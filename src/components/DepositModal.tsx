@@ -18,7 +18,6 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { Input } from './Input';
 import { Button } from './Button';
 import { walletService, type VirtualAccount, type VirtualAccountsResponse } from '../services/walletService';
-import { logDepositStarted, logDepositCompleted } from '../services/metaEvents';
 import api from '../services/api';
 import { useWalletStore } from '../stores/walletStore';
 import { useAuthStore } from '../stores/authStore';
@@ -85,6 +84,14 @@ const AFRIBAPAY_PAYIN_FEE: Record<string, number> = {
   'orange-bf-afp': 0.03,    // 3 %
 };
 
+// Frais PayDunya (compte marchand « frais payés par le client ») : PayDunya ajoute
+// ses frais AU-DESSUS de la facture (10 000 saisis → 10 300 débités, 10 000 reversés),
+// donc brut = ceil(net × (1 + taux)), pas une division comme AfribaPay. L'OTP Orange
+// Burkina (*144*4*6*montant#) est lié au montant : il doit couvrir ce brut.
+const PAYDUNYA_PAYIN_FEE: Record<string, number> = {
+  'orange-money-burkina': 0.03,    // 3 %
+};
+
 interface DepositModalProps {
   visible: boolean;
   onClose: () => void;
@@ -116,9 +123,6 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [pollingState, setPollingState] = useState<'idle' | 'pending' | 'success' | 'failed' | 'timeout'>('idle');
-  // Recharge en cours de confirmation, retenue pour la mesure Meta : le polling
-  // aboutit alors que le formulaire est déjà vidé, l'état local ne dit plus rien.
-  const trackedDepositRef = useRef<{ amountXof: number; operator: string } | null>(null);
   const [pollingMessage, setPollingMessage] = useState('');
   // Si Safari bloque window.open malgré le user-gesture (cas connu avec RN Web),
   // on expose un vrai <a target="_blank"> dans la modal, cliquable manuellement.
@@ -303,17 +307,6 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
     }
     return false;
   }, [fetchBalance, stopPolling]);
-
-  // Issue de la recharge → mesure Meta. Le succès est la conversion optimisée
-  // par les campagnes ; un échec libère simplement le suivi.
-  useEffect(() => {
-    if (pollingState !== 'success' && pollingState !== 'failed' && pollingState !== 'timeout') return;
-    const tracked = trackedDepositRef.current;
-    trackedDepositRef.current = null;
-    if (tracked && pollingState === 'success') {
-      logDepositCompleted(tracked.amountXof, tracked.operator);
-    }
-  }, [pollingState]);
 
   const startPolling = useCallback((depositId: number) => {
     let attempts = 0;
@@ -712,7 +705,11 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // Frais AfribaPay (client) : même principe, le montant saisi est le net crédité,
   // le total débité sur le téléphone est le brut (ceil, miroir du backend).
   const afpFeeRate = AFRIBAPAY_PAYIN_FEE[operator] ?? 0;
-  const afpGrossLive = afpFeeRate > 0 && numInputLive > 0 ? Math.ceil(numInputLive / (1 - afpFeeRate)) : null;
+  const pdyFeeRate = PAYDUNYA_PAYIN_FEE[operator] ?? 0;
+  const afpGrossLive = numInputLive <= 0 ? null
+    : afpFeeRate > 0 ? Math.ceil(numInputLive / (1 - afpFeeRate))
+    : pdyFeeRate > 0 ? Math.ceil(numInputLive * (1 + pdyFeeRate))
+    : null;
   const afpFeeLive = afpGrossLive !== null ? afpGrossLive - numInputLive : null;
   const fincraRateBlocking =
     isForeignRail && numInputLive > 0
@@ -733,7 +730,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
     const raw = ORANGE_OTP_USSD[operator];
     if (!raw) return null;
     // « montant » = montant réellement débité sur le téléphone : le BRUT quand
-    // le corridor porte des frais client (AfribaPay), sinon le net.
+    // le corridor porte des frais client (AfribaPay, PayDunya Orange BF), sinon le net.
     const debited = afpGrossLive ?? numAmountXofLive;
     return debited && debited > 0 ? raw.replace('montant', String(debited)) : raw;
   })();
@@ -878,7 +875,6 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
       showAlert(t('common.error'), t('account.enterPhoneNumber'));
       return;
     }
-    trackedDepositRef.current = { amountXof: numAmountXof, operator };
     setLoading(true);
     setBankTransferInfo(null);
     setManualPaymentUrl(null);
@@ -1015,7 +1011,6 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                   : redirectUrl ? t('depositModal.waitingConfirmation')
                   : t('depositModal.checkPhone');
         setPollingMessage(msg);
-        logDepositStarted(numAmountXof, operator);
         startPolling(result.deposit_id);
       } else {
         await fetchBalance();
@@ -1046,8 +1041,6 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
       }
       pollingRefRef.current = fincraOtpStep.reference;
       setPollingMessage(t('depositModal.waitingConfirmation'));
-      const tracked = trackedDepositRef.current;
-      if (tracked) logDepositStarted(tracked.amountXof, tracked.operator);
       startPolling(fincraOtpStep.depositId);
       setFincraOtpStep(null);
       setFincraOtpInput('');
