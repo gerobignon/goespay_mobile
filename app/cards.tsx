@@ -995,13 +995,6 @@ export default function CardsScreen() {
             </View>
           )}
 
-          {eligibility?.reason === 'issuing_off' && (
-            <View style={styles.gateCard}>
-              <FontAwesome6 name="circle-info" size={22} color={Colors.textMuted} iconStyle="solid" />
-              <Text style={styles.gateTitle}>{t('cards.issuingOff')}</Text>
-            </View>
-          )}
-
           {eligibility?.reason === 'kyc' && (
             <View style={styles.gateCard}>
               <FontAwesome6 name="id-card" size={22} color={Colors.warning} iconStyle="solid" />
@@ -1021,6 +1014,10 @@ export default function CardsScreen() {
             <Button
               title={liveCards.length > 0 ? t('cards.orderAnother') : t('cards.order')}
               onPress={() => {
+                if (eligibility?.issuing_off) {
+                  showAlert(t('cards.issuingOffTitle'), t('cards.issuingOff'));
+                  return;
+                }
                 if (!requireLocalLock(t, (route) => router.push(route as any), t('security.cardLockMessage'))) return;
                 setOrderOpen(true);
               }}

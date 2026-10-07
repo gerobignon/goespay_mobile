@@ -1310,6 +1310,7 @@
     "kycRequired": "Finalisez votre KYC pour générer votre carte virtuelle.",
     "countryUnavailable": "La carte virtuelle n'est pas disponible dans votre pays.",
     "issuingOff": "La création de cartes est momentanément suspendue.",
+    "issuingOffTitle": "Création suspendue",
     "profileIncomplete": "Profil incomplet",
     "completeProfile": "Compléter",
     "field_name": "Prénom",
