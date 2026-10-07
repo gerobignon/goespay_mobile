@@ -28,6 +28,7 @@ import { useTranslation } from 'react-i18next';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { getApiErrorMessage } from '../../src/utils/apiError';
 import { sanitizePersonNameInput } from '../../src/utils/personName';
+import { startAccountDeletion } from '../../src/utils/accountDeletion';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -36,6 +37,7 @@ export default function ProfileScreen() {
   const { isDark } = useTheme();
   const { user, setUser, profileComplete, refreshProfile } = useAuthStore();
   const { t } = useTranslation();
+  const [showDanger, setShowDanger] = useState(false);
 
   const isReadonly = user?.validate === 1;
 
@@ -224,6 +226,33 @@ export default function ProfileScreen() {
                   />
                 )}
               </View>
+
+              {/* Zone dangereuse : suppression du compte, sous un repli fermé
+                  par défaut, même cadre que celle des cartes. */}
+              <View style={styles.dangerBlock}>
+                <TouchableOpacity
+                  style={styles.dangerHead}
+                  onPress={() => setShowDanger((v) => !v)}
+                  activeOpacity={0.7}
+                >
+                  <FontAwesome6 name="triangle-exclamation" size={13} color={Colors.error} iconStyle="solid" />
+                  <Text style={styles.dangerTitle}>{t('account.dangerZone')}</Text>
+                  <FontAwesome6 name={showDanger ? 'chevron-up' : 'chevron-down'} size={12} color={Colors.error} />
+                </TouchableOpacity>
+
+                {showDanger && (
+                  <View style={styles.dangerBody}>
+                    <TouchableOpacity
+                      style={styles.dangerBtn}
+                      onPress={() => startAccountDeletion(t, user?.email ?? '')}
+                      activeOpacity={0.8}
+                    >
+                      <FontAwesome6 name="trash-can" size={13} color={Colors.error} />
+                      <Text style={styles.dangerBtnText}>{t('account.deleteAccount')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
     </>
   );
 
@@ -293,4 +322,34 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.surfaceBorder,
   },
+  dangerBlock: {
+    marginTop: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.error + '44',
+    overflow: 'hidden',
+  },
+  dangerHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    backgroundColor: Colors.error + '0f',
+  },
+  dangerTitle: { flex: 1, fontSize: FontSize.md, color: Colors.error, fontFamily: Fonts.semiBold },
+  dangerBody: { padding: Spacing.md },
+  dangerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    minHeight: 44,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.error + '66',
+    backgroundColor: Colors.error + '14',
+  },
+  dangerBtnText: { fontSize: FontSize.md, fontFamily: Fonts.semiBold, color: Colors.error },
 });

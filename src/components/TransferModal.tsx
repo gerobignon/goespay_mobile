@@ -56,6 +56,25 @@ import { noConnectionMessage } from '../utils/apiError';
 import { CloseButton } from './CloseButton';
 import { ReferralPrompt } from './ReferralPrompt';
 import { kycLevelOf, promptKycUpgrade, handleKycUpgradeError } from '../utils/kycLevel';
+import { useStoreReviewOnClose, type ReviewStatus } from '../stores/storeReviewStore';
+
+type PollOpts = { transferId?: number; aggRef?: string; isWire?: boolean };
+
+// Même aiguillage que checkStatus, pour le suivi après fermeture du modal.
+async function transferReviewStatus(opts: PollOpts): Promise<ReviewStatus> {
+  const res = opts.aggRef
+    ? (opts.aggRef.startsWith('KLC-')
+        ? await walletService.getKlashaCnyStatus(opts.aggRef)
+        : opts.isWire
+          ? await walletService.getKlashaWireStatus(opts.aggRef)
+          : opts.aggRef.startsWith('KLW-')
+            ? await walletService.getKlashaPayoutStatus(opts.aggRef)
+            : await walletService.getFincraPayoutStatus(opts.aggRef))
+    : await walletService.getTransferStatus(opts.transferId!);
+  if (res.statut === 'success') return 'success';
+  if (res.statut === 'fail' || res.statut === 'failed') return 'fail';
+  return 'pending';
+}
 
 // Zone SEPA (ISO-2), pays destinataires proposés pour un virement SEPA (EUR).
 const SEPA_COUNTRIES = [
@@ -88,6 +107,7 @@ interface TransferModalProps {
 
 export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCrypto, prefillPhone, prefillOperator, prefillBank }: TransferModalProps) {
   const { t } = useTranslation();
+  const review = useStoreReviewOnClose(visible);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
@@ -769,11 +789,13 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       if (res.statut === 'success') {
         stopPolling();
         setPollingState('success');
+        review.success();
         fetchBalance().catch(() => {});
         return true;
       } else if (res.statut === 'fail' || res.statut === 'failed') {
         stopPolling();
         setPollingState('failed');
+        review.clear();
         fetchBalance().catch(() => {});
         return true;
       }
@@ -792,6 +814,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     let attempts = 0;
     const MAX_ATTEMPTS = 60; // 5 min max (toutes les 5s)
     setPollingState('pending');
+    review.pending(() => transferReviewStatus(opts));
     pollingTransferIdRef.current = opts.transferId ?? null;
     pollingAggRefRef.current = opts.aggRef ?? null;
     pollingIsWireRef.current = !!opts.isWire;

@@ -9,7 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTopBannerHeight, useWindowInsets } from './NativeAppBanner';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
@@ -138,7 +138,10 @@ export function Coachmarks({
   const { colors } = useTheme();
   const { t } = useTranslation();
   const { width, height } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
+  const windowInsets = useWindowInsets();
+  const bannerHeight = useTopBannerHeight();
+  // Coordonnées fenêtre : le bandeau stores (encoche comprise) masque le haut.
+  const topLimit = Math.max(windowInsets.top, bannerHeight);
 
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
@@ -170,7 +173,7 @@ export function Coachmarks({
         // Trop haut = masqué par la barre d'état ou l'encoche, pas simplement
         // en haut d'écran : un en-tête déjà en place ne doit pas déclencher de
         // défilement.
-        const tooHigh = y < insets.top;
+        const tooHigh = y < topLimit;
         const tooLow = y + h > height - 260;
         if (onScrollBy && (tooHigh || tooLow) && attempt < 3) {
           onScrollBy(y - height * 0.32);
@@ -180,7 +183,7 @@ export function Coachmarks({
         setRect({ x, y, width: w, height: h });
       });
     },
-    [step, height, insets.top, onScrollBy, tour.nodes],
+    [step, height, topLimit, onScrollBy, tour.nodes],
   );
 
   useEffect(() => {

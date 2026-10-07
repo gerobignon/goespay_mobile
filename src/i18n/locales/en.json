@@ -535,9 +535,21 @@
     "passwordMismatch": "Passwords do not match.",
     "passwordChanged": "Password changed successfully.",
     "logoutTitle": "Sign out",
+    "dangerZone": "Danger zone",
     "deleteAccount": "Delete my account",
-    "deleteAccountMessage": "The deletion request is made on goespay.io. Your account and personal data are deleted after verification.",
+    "deleteAccountMessage": "A confirmation link will be sent to your email. Once confirmed, the account is deleted {{days}} days later. Signing in before that date cancels the deletion.",
+    "deleteAccountMessageNow": "A confirmation link will be sent to your email. Once confirmed, the account is deleted immediately.",
     "deleteAccountConfirm": "Continue",
+    "deletionLinkSentTitle": "Check your email",
+    "deletionLinkSentMessage": "Confirmation link sent to {{email}}, valid until {{date}}.",
+    "deletionLinkSentLoggedOut": "Confirmation link sent to {{email}}, valid until {{date}}. You have been signed out.",
+    "deletionCancelRequest": "Cancel request",
+    "deletionCancelledTitle": "Request cancelled",
+    "deletionCancelledMessage": "Your account remains active.",
+    "deletionBlockedTitle": "Deletion not possible",
+    "deletionLoginCancelledTitle": "Deletion cancelled",
+    "deletionLoginCancelledMessage": "You signed in again: your account deletion is cancelled.",
+    "deletionClose": "Close",
     "logoutMessage": "Do you want to sign out?",
     "passwordMinPlaceholder": "Min. 8 characters, letter and number",
     "loginMethod": "Sign-in method",
@@ -1531,5 +1543,10 @@
     "confirmMessagesTitle": "Open messages",
     "messagesLockMessage": "Set up a code or biometrics to lock messages.",
     "messagesLockDisableTitle": "Disable the messages lock"
+  },
+  "storeReview": {
+    "title": "Happy with GOESPAY?",
+    "text": "Leave us 5 stars and a review on the store.",
+    "later": "Later"
   }
 }

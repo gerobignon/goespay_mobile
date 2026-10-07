@@ -1,6 +1,6 @@
 import React, { ReactNode, useEffect, useRef } from 'react';
 import { Modal, View, StyleSheet, Pressable, Platform, KeyboardAvoidingView, Animated } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useWindowInsets } from './NativeAppBanner';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 import { useResponsive } from '../hooks/useResponsive';
@@ -23,7 +23,7 @@ export function ResponsiveModal({ visible, onClose, children, width, disableBack
   const { isWide, modalWidth } = useResponsive();
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
+  const insets = useWindowInsets();
 
   // Pop d'ouverture (desktop/large) : scale + fondu du panneau à chaque ouverture.
   const pop = useRef(new Animated.Value(0)).current;

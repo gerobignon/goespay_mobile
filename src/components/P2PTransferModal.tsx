@@ -28,6 +28,7 @@ import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts, with
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { CloseButton } from './CloseButton';
 import { kycLevelOf, handleKycUpgradeError } from '../utils/kycLevel';
+import { useStoreReviewOnClose } from '../stores/storeReviewStore';
 
 interface P2PTransferModalProps {
   visible: boolean;
@@ -56,6 +57,7 @@ const initialsOf = (name: string): string =>
  * hors zone monétaire de l'émetteur, l'app affiche simplement son message.
  */
 export function P2PTransferModal({ visible, onClose }: P2PTransferModalProps) {
+  const review = useStoreReviewOnClose(visible);
   const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
@@ -124,6 +126,7 @@ export function P2PTransferModal({ visible, onClose }: P2PTransferModalProps) {
       const res = await walletService.sendP2P({ recipient_id: recipient.id, amount: numericAmount }, idemKey);
       setResult({ amount: res.amount, balance_after: res.balance_after, reference: res.reference });
       setStep('done');
+      review.success();
       fetchBalance().catch(() => {});
     } catch (e: any) {
       setStep('amount');

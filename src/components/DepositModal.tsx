@@ -51,6 +51,21 @@ import { CryptoSearchField } from './CryptoSearchField';
 import { useCryptoSearch } from '../hooks/useCryptoSearch';
 import { CloseButton } from './CloseButton';
 import { kycLevelOf, handleKycUpgradeError, promptKycUpgrade } from '../utils/kycLevel';
+import { useStoreReviewOnClose, type ReviewStatus } from '../stores/storeReviewStore';
+
+// Même aiguillage que checkStatus, pour le suivi après fermeture du modal.
+async function depositReviewStatus(depositId: number, ref: string | null): Promise<ReviewStatus> {
+  if (ref && (ref.startsWith('FCD-') || ref.startsWith('KLD-'))) {
+    const res = ref.startsWith('KLD-')
+      ? await walletService.getKlashaDepositStatus(ref)
+      : await walletService.getFincraDepositStatus(ref);
+    return res.status === 'success' ? 'success' : res.status === 'fail' ? 'fail' : 'pending';
+  }
+  const res = await walletService.getDepositStatus(depositId);
+  if (res.statut === 'success') return 'success';
+  if (res.statut === 'fail' || res.statut === 'failed') return 'fail';
+  return 'pending';
+}
 
 // Combinaison USSD Orange Money pour générer le code OTP de paiement, par
 // opérateur (Softpay orange-money-* ET AfribaPay orange-*-afp). Codes officiels
@@ -104,6 +119,7 @@ interface DepositModalProps {
 
 export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false, onSellCrypto }: DepositModalProps) {
   const { t } = useTranslation();
+  const review = useStoreReviewOnClose(visible);
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const { isDesktop, isWide } = useResponsive();
@@ -274,9 +290,9 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
           : await walletService.getFincraDepositStatus(fincraRef);
         consecutiveErrorsRef.current = 0;
         if (fRes.status === 'success') {
-          stopPolling(); setPollingState('success'); fetchBalance().catch(() => {}); return true;
+          stopPolling(); setPollingState('success'); review.success(); fetchBalance().catch(() => {}); return true;
         } else if (fRes.status === 'fail') {
-          stopPolling(); setPollingState('failed');
+          stopPolling(); setPollingState('failed'); review.clear();
           setPollingMessage(fRes.user_error || t('depositModal.paymentFailed'));
           return true;
         }
@@ -287,11 +303,13 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
       if (res.statut === 'success') {
         stopPolling();
         setPollingState('success');
+        review.success();
         fetchBalance().catch(() => {});
         return true;
       } else if (res.statut === 'fail' || res.statut === 'failed') {
         stopPolling();
         setPollingState('failed');
+        review.clear();
         setPollingMessage(res.user_error || t('depositModal.paymentFailed'));
         return true;
       }
@@ -312,6 +330,8 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
     let attempts = 0;
     const MAX_ATTEMPTS = 60; // 5 min max (toutes les 5s)
     setPollingState('pending');
+    const ref = pollingRefRef.current;
+    review.pending(() => depositReviewStatus(depositId, ref));
     pollingDepositIdRef.current = depositId;
     consecutiveErrorsRef.current = 0;
 

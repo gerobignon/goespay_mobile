@@ -536,9 +536,21 @@
     "passwordChanged": "Mot de passe modifié avec succès.",
     "logoutTitle": "Déconnexion",
     "logoutMessage": "Voulez-vous vous déconnecter ?",
+    "dangerZone": "Zone dangereuse",
     "deleteAccount": "Supprimer mon compte",
-    "deleteAccountMessage": "La demande de suppression se fait sur goespay.io. Votre compte et vos données personnelles sont supprimés après vérification.",
+    "deleteAccountMessage": "Un lien de confirmation vous sera envoyé par mail. Une fois confirmé, le compte est supprimé {{days}} jours plus tard. Vous reconnecter avant cette date annule la suppression.",
+    "deleteAccountMessageNow": "Un lien de confirmation vous sera envoyé par mail. Une fois confirmé, le compte est supprimé immédiatement.",
     "deleteAccountConfirm": "Continuer",
+    "deletionLinkSentTitle": "Vérifiez vos mails",
+    "deletionLinkSentMessage": "Lien de confirmation envoyé à {{email}}, valable jusqu'au {{date}}.",
+    "deletionLinkSentLoggedOut": "Lien de confirmation envoyé à {{email}}, valable jusqu'au {{date}}. Vous avez été déconnecté.",
+    "deletionCancelRequest": "Annuler la demande",
+    "deletionCancelledTitle": "Demande annulée",
+    "deletionCancelledMessage": "Votre compte reste actif.",
+    "deletionBlockedTitle": "Suppression impossible",
+    "deletionLoginCancelledTitle": "Suppression annulée",
+    "deletionLoginCancelledMessage": "Vous vous êtes reconnecté : la suppression de votre compte est annulée.",
+    "deletionClose": "Fermer",
     "passwordMinPlaceholder": "Min. 8 caractères, lettre et chiffre",
     "loginMethod": "Méthode de connexion",
     "loginMethodOtp": "Code reçu par email",
@@ -1531,5 +1543,10 @@
     "confirmMessagesTitle": "Accéder à la messagerie",
     "messagesLockMessage": "Configurez un code ou la biométrie pour verrouiller la messagerie.",
     "messagesLockDisableTitle": "Désactiver le verrou de la messagerie"
+  },
+  "storeReview": {
+    "title": "Satisfait de GOESPAY ?",
+    "text": "Laissez-nous 5 étoiles et un avis sur le store.",
+    "later": "Plus tard"
   }
 }

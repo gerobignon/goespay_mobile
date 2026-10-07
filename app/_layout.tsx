@@ -20,6 +20,7 @@ import { useThemedStyles } from '../src/hooks/useThemedStyles';
 import { useWebAutoLock } from '../src/hooks/useWebAutoLock';
 import { API_BASE_URL } from '../src/constants/config';
 import { CustomAlert } from '../src/components/CustomAlert';
+import { StoreReviewPrompt } from '../src/components/StoreReviewPrompt';
 import { PwaInstallBanner } from '../src/components/PwaInstallBanner';
 import { NotifOptInBanner } from '../src/components/NotifOptInBanner';
 import { NativeAppBanner } from '../src/components/NativeAppBanner';
@@ -685,9 +686,11 @@ function RootInner() {
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       {showOfflineBanner && Platform.OS === 'web' && <OfflineAdminBanner />}
-      <NativeAppBanner />
-      <Stack screenOptions={{ headerShown: false }} />
+      <NativeAppBanner>
+        <Stack screenOptions={{ headerShown: false }} />
+      </NativeAppBanner>
       <CustomAlert />
+      <StoreReviewPrompt />
       <NotifOptInBanner />
       <PwaInstallBanner />
     </>

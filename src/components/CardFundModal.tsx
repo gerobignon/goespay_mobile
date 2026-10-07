@@ -13,6 +13,7 @@ import { useFormatXof } from '../utils/format';
 import { useWalletStore } from '../stores/walletStore';
 import { getApiErrorMessage } from '../utils/apiError';
 import { CloseButton } from './CloseButton';
+import { useStoreReviewOnClose } from '../stores/storeReviewStore';
 
 type Direction = 'fund' | 'withdraw';
 type Step = 'form' | 'confirm' | 'sending' | 'success' | 'failed' | 'unknown';
@@ -39,6 +40,7 @@ interface Props {
  * tranchera, et le solde du wallet est rétabli si la recharge n'a pas eu lieu.
  */
 export function CardFundModal({ visible, card, direction, onClose, onDone, onIneligible }: Props) {
+  const review = useStoreReviewOnClose(visible);
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();
   const fmtXof = useFormatXof();
@@ -89,6 +91,7 @@ export function CardFundModal({ visible, card, direction, onClose, onDone, onIne
           if (res.card) onDoneRef.current(res.card);
           fetchBalance().catch(() => {});
           setStep('success');
+          review.success();
           return;
         }
         if (res.status === 'fail') {
@@ -160,6 +163,7 @@ export function CardFundModal({ visible, card, direction, onClose, onDone, onIne
         setStep('unknown');
       } else {
         setStep('success');
+        review.success();
         onDone(res.card);
       }
       fetchBalance().catch(() => {});

@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Image,
   ImageBackground,
-  Linking,
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -23,7 +22,7 @@ import { authService } from '../../src/services/authService';
 import { Button } from '../../src/components/Button';
 import { Colors, DarkColors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
-import { API_BASE_URL, ACCOUNT_DELETION_URL } from '../../src/constants/config';
+import { API_BASE_URL } from '../../src/constants/config';
 import { getAccountMenuItems } from '../../src/constants/accountMenu';
 import { showAlert } from '../../src/stores/alertStore';
 import { DesktopHeader } from '../../src/components/DesktopHeader';
@@ -64,13 +63,6 @@ export default function AccountScreen() {
           usePinStore.setState({ lockMethod: null, isSetupDone: false, isLocked: false });
         }
       },
-    ]);
-  };
-
-  const handleDeleteAccount = () => {
-    showAlert(t('account.deleteAccount'), t('account.deleteAccountMessage'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      { text: t('account.deleteAccountConfirm'), style: 'destructive', onPress: () => Linking.openURL(ACCOUNT_DELETION_URL) },
     ]);
   };
 
@@ -197,27 +189,12 @@ export default function AccountScreen() {
                 </Reveal>
               ))}
 
-              {/* Déconnexion : bouton plein, l'action courante et réversible.
-                  Elle portait le même rouge que la suppression de compte, sur
-                  une ligne de menu identique : deux voisines de même allure
-                  dont une seule est irréversible. */}
+              {/* Déconnexion : bouton plein. La suppression du compte est dans
+                  Informations personnelles, en zone dangereuse. */}
               <Reveal delay={menuItems.length * 45} offset={10}>
                 <Bounce style={styles.logoutButton} scaleTo={0.98} onPress={handleLogout}>
                   <FontAwesome6 name="right-from-bracket" size={16} color={Colors.white} />
                   <Text style={styles.logoutLabel}>{t('account.logout')}</Text>
-                </Bounce>
-              </Reveal>
-
-              {/* Suppression de compte (exigence stores) : gris, à l'écart. Elle
-                  n'a pas à s'attraper d'un geste distrait, et elle ouvre de
-                  toute façon une page de confirmation sur goespay.io. */}
-              <Reveal delay={(menuItems.length + 1) * 45} offset={10}>
-                <Bounce style={styles.deleteRow} scaleTo={0.98} onPress={handleDeleteAccount}>
-                  <View style={styles.menuIcon}>
-                    <FontAwesome6 name="trash-can" size={16} color={Colors.textMuted} />
-                  </View>
-                  <Text style={[styles.menuLabel, { color: Colors.textMuted }]}>{t('account.deleteAccount')}</Text>
-                  <FontAwesome6 name="arrow-up-right-from-square" size={14} color={Colors.textMuted} />
                 </Bounce>
               </Reveal>
             </View>
@@ -346,16 +323,6 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.white,
     fontSize: FontSize.md,
     fontFamily: Fonts.bold,
-  },
-  // Même géométrie que les autres lignes, mais sans le rouge : la suppression
-  // se trouve, elle ne se propose pas.
-  deleteRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    gap: Spacing.md,
-    marginTop: Spacing.md,
   },
   dropdownOverlay: {
     flex: 1,

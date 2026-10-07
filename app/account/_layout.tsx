@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ImageBackground, Linking, Platform } from 'react-native';
-import { ACCOUNT_DELETION_URL } from '../../src/constants/config';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ImageBackground, Platform } from 'react-native';
 import { Stack, Slot, useRouter, useSegments } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -80,13 +79,6 @@ function DesktopAccountLayout() {
 
   const menuItems = getAccountMenuItems(t, { isCryptoUser, isSuperAdmin: user?.id === 1 });
 
-  const handleDeleteAccount = () => {
-    showAlert(t('account.deleteAccount'), t('account.deleteAccountMessage'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      { text: t('account.deleteAccountConfirm'), style: 'destructive', onPress: () => Linking.openURL(ACCOUNT_DELETION_URL) },
-    ]);
-  };
-
   const handleLogout = () => {
     showAlert(t('account.logoutTitle'), t('account.logoutMessage'), [
       { text: t('common.cancel'), style: 'cancel' },
@@ -161,19 +153,11 @@ function DesktopAccountLayout() {
                   );
                 })}
 
-                {/* Déconnexion : bouton plein. Suppression : gris, en retrait.
-                    Les deux portaient le même rouge sur la même ligne de menu,
-                    au risque de prendre l'une pour l'autre. */}
+                {/* Déconnexion : bouton plein. La suppression du compte est dans
+                    Informations personnelles, en zone dangereuse. */}
                 <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
                   <FontAwesome6 name="right-from-bracket" size={14} color={Colors.white} />
                   <Text style={styles.logoutLabel}>{t('account.logout')}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.deleteRow} onPress={handleDeleteAccount} activeOpacity={0.7}>
-                  <View style={styles.menuIcon}>
-                    <FontAwesome6 name="trash-can" size={14} color={Colors.textMuted} />
-                  </View>
-                  <Text style={[styles.menuLabel, { color: Colors.textMuted }]}>{t('account.deleteAccount')}</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -311,15 +295,6 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     color: Colors.white,
     fontSize: FontSize.sm,
     fontFamily: Fonts.bold,
-  },
-  deleteRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
-    gap: Spacing.sm,
-    borderRadius: BorderRadius.sm,
-    marginTop: Spacing.sm,
   },
   content: {
     flex: 1,

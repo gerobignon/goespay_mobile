@@ -10,7 +10,7 @@ import {
   useWindowDimensions,
   Platform,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useWindowInsets } from './NativeAppBanner';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useAuthImage } from './AuthImage';
 
@@ -39,7 +39,7 @@ const DISMISS_DY = 110;
  */
 export function ImageLightbox({ uri, onClose }: { uri: string | null; onClose: () => void }) {
   const { width, height } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
+  const insets = useWindowInsets();
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   // Une pièce jointe est servie par une route API sous jeton : on affiche la
   // source résolue (en-tête sur natif, object URL sur web), pas l'URL brute.

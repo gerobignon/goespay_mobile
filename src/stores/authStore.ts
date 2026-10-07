@@ -7,6 +7,7 @@ import { setLockMethod } from '../services/secureAuthService';
 import { clearCredentials } from '../services/secureAuthService';
 import { useCurrencyStore } from './currencyStore';
 import { usePinStore } from './pinStore';
+import { notifyDeletionCancelledOnLogin } from '../utils/accountDeletion';
 
 const REMEMBER_KEY = 'remember_me';
 const CACHED_USER_KEY = 'cached_user';
@@ -113,6 +114,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await cs.hydrateFromUser(response.user?.currency, response.user?.currency_source);
     cs.fetchRates();
     get().refreshProfile();
+    notifyDeletionCancelledOnLogin(response.user);
   },
 
   loginWithToken: async (token, user, remember = false) => {
@@ -127,6 +129,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await cs.hydrateFromUser(user?.currency, user?.currency_source);
     cs.fetchRates();
     get().refreshProfile();
+    // Reconnexion qui annule une suppression de compte programmée.
+    notifyDeletionCancelledOnLogin(user);
   },
 
   logout: async () => {

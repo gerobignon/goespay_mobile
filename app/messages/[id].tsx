@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTopBannerHeight } from '../../src/components/NativeAppBanner';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
@@ -91,6 +92,7 @@ export default function ConversationScreen() {
   const composerRef = useRef<ChatComposerHandle>(null);
   const { keyboard: keyboardInset, viewportHeight } = useKeyboardInset();
   const insets = useSafeAreaInsets();
+  const bannerHeight = useTopBannerHeight();
   // Ouvrir les emojis ferme le clavier : sa hauteur est déjà retombée à zéro
   // quand le panneau s'affiche. On garde la dernière mesure pour lui donner
   // exactement la place que le clavier occupait, pas de saut de mise en page.
@@ -100,7 +102,7 @@ export default function ConversationScreen() {
   if (keyboardInset > 180) lastKeyboardRef.current = keyboardInset - insets.bottom;
 
   // Web : on impose au conteneur la hauteur RÉELLEMENT visible, moins la barre
-  // d'état déjà réservée par ScreenBackground. Avec le défilement du document
+  // d'état déjà réservée par ScreenBackground et du bandeau stores. Avec le défilement du document
   // verrouillé, la saisie reste en bas de l'écran quoi qu'il arrive.
   //
   // Surtout pas `position: fixed` : il se cale sur le premier ancêtre porteur
@@ -121,7 +123,7 @@ export default function ConversationScreen() {
   const webViewportStyle =
     Platform.OS === 'web' && viewportHeight && !isDesktop
       ? ({
-          height: Math.max(320, viewportHeight - insets.top),
+          height: Math.max(320, viewportHeight - insets.top - bannerHeight),
           flexGrow: 0,
           flexShrink: 0,
           flexBasis: 'auto',

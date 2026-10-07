@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import api from './api';
 import type {
+  AccountDeletionStatus,
   LoginMethod,
   LoginRequest,
   LoginResponse,
@@ -266,6 +267,24 @@ export const authService = {
 
   verify2fa: async (code: string): Promise<{ valid: boolean; recovery_used?: boolean }> => {
     const response = await api.post('/2fa/verify', { code });
+    return response.data;
+  },
+
+  // ─── Suppression du compte ────────────────────────────────────────────────
+
+  getAccountDeletion: async (): Promise<AccountDeletionStatus> => {
+    const response = await api.get<AccountDeletionStatus>('/me/account-deletion');
+    return response.data;
+  },
+
+  /** Envoie le lien de confirmation par mail (409 + blockers si une précondition manque). */
+  requestAccountDeletion: async (): Promise<AccountDeletionStatus> => {
+    const response = await api.post<AccountDeletionStatus>('/me/account-deletion');
+    return response.data;
+  },
+
+  cancelAccountDeletion: async (): Promise<AccountDeletionStatus> => {
+    const response = await api.delete<AccountDeletionStatus>('/me/account-deletion');
     return response.data;
   },
 };

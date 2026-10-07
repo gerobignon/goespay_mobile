@@ -9,7 +9,6 @@ import {
   ImageBackground,
   Modal,
   Platform,
-  Linking,
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
@@ -38,7 +37,7 @@ import {
   Fonts,
   withAlpha,
 } from '../../src/constants/theme';
-import { API_BASE_URL, ACCOUNT_DELETION_URL } from '../../src/constants/config';
+import { API_BASE_URL } from '../../src/constants/config';
 import { getAccountMenuItems } from '../../src/constants/accountMenu';
 import { DepositModal } from '../../src/components/DepositModal';
 import { TransferModal } from '../../src/components/TransferModal';
@@ -205,13 +204,6 @@ export default function DashboardScreen() {
       return;
     }
     router.push(`/transaction/${type === 'deposit' ? 'deposit' : type === 'transfer' ? 'transfer' : type === 'crypto' ? 'crypto' : 'withdraw'}/${tx.id}`);
-  };
-
-  const handleDeleteAccount = () => {
-    showAlert(t('account.deleteAccount'), t('account.deleteAccountMessage'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      { text: t('account.deleteAccountConfirm'), style: 'destructive', onPress: () => Linking.openURL(ACCOUNT_DELETION_URL) },
-    ]);
   };
 
   const handleLogout = () => {
@@ -637,9 +629,8 @@ export default function DashboardScreen() {
               </TouchableOpacity>
             ))}
             <View style={styles.dropdownDivider} />
-            {/* Déconnexion : bouton plein. Suppression : gris, en dessous. Les
-                deux lignes se ressemblaient trait pour trait, même rouge
-                compris, et une seule des deux est irréversible. */}
+            {/* Déconnexion : bouton plein. La suppression du compte est dans
+                Informations personnelles, en zone dangereuse. */}
             <TouchableOpacity
               style={styles.dropdownLogout}
               activeOpacity={0.8}
@@ -647,13 +638,6 @@ export default function DashboardScreen() {
             >
               <FontAwesome6 name="right-from-bracket" size={14} color={Colors.white} />
               <Text style={styles.dropdownLogoutLabel}>{t('account.logout')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.dropdownItem}
-              onPress={() => { setDropdownVisible(false); handleDeleteAccount(); }}
-            >
-              <FontAwesome6 name="trash-can" size={14} color={Colors.textMuted} />
-              <Text style={[styles.dropdownLabel, { color: Colors.textMuted }]}>{t('account.deleteAccount')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>

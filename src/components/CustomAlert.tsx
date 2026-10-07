@@ -196,6 +196,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   button: {
     flex: 1,
     paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.pill,
     alignItems: 'center',
     justifyContent: 'center',
@@ -205,6 +206,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: FontSize.sm,
     fontFamily: Fonts.bold,
     color: Colors.white,
+    textAlign: 'center',
   },
   cancelButton: {
     backgroundColor: Colors.inputBg,

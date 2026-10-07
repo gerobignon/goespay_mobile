@@ -41,9 +41,34 @@ export interface User {
   login_method?: LoginMethod;
   /** Le compte a-t-il un mot de passe utilisable ? */
   has_password?: boolean;
+  /** Posé par le serveur à la connexion qui vient d'annuler une suppression programmée. */
+  deletion_cancelled?: boolean;
 }
 
 export type LoginMethod = 'otp' | 'password';
+
+/** Obstacle à la suppression du compte, message déjà traduit par le serveur. */
+export interface AccountDeletionBlocker {
+  code: 'balance_not_zero' | 'pending_transactions' | 'active_card' | 'active_virtual_account' | 'open_debt' | string;
+  message: string;
+}
+
+/** État de la suppression du compte (GET me/account-deletion). */
+export interface AccountDeletionStatus {
+  state: 'active' | 'link_sent' | 'pending_deletion' | 'closed';
+  available: boolean;
+  link_sent_at: string | null;
+  link_expires_at: string | null;
+  requested_at: string | null;
+  scheduled_at: string | null;
+  closed_at: string | null;
+  can_request: boolean;
+  blockers: AccountDeletionBlocker[];
+  /** Délai avant suppression, en jours (0 : immédiate). */
+  delay_days?: number;
+  email?: string;
+  message?: string;
+}
 
 export interface Transaction {
   id: number;
