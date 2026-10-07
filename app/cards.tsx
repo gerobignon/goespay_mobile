@@ -1013,8 +1013,16 @@ export default function CardsScreen() {
           {eligibility?.can_order && (
             <Button
               title={liveCards.length > 0 ? t('cards.orderAnother') : t('cards.order')}
-              onPress={() => {
-                if (eligibility?.issuing_off) {
+              onPress={async () => {
+                // L'éligibilité n'est lue qu'à l'ouverture de l'écran : on la relit
+                // au clic pour qu'une coupure posée entre-temps soit annoncée ici.
+                let fresh = eligibility;
+                try {
+                  const res = await cardService.list();
+                  setData(res);
+                  fresh = res.eligibility;
+                } catch {}
+                if (fresh?.issuing_off) {
                   showAlert(t('cards.issuingOffTitle'), t('cards.issuingOff'));
                   return;
                 }
