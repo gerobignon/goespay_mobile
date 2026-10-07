@@ -1309,6 +1309,7 @@
     "actionError": "The operation failed.",
     "kycRequired": "Complete your KYC to generate your virtual card.",
     "countryUnavailable": "Virtual cards are not available in your country.",
+    "issuingOff": "Card creation is temporarily suspended.",
     "profileIncomplete": "Incomplete profile",
     "completeProfile": "Complete",
     "field_name": "First name",

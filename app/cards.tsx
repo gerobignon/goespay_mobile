@@ -995,6 +995,13 @@ export default function CardsScreen() {
             </View>
           )}
 
+          {eligibility?.reason === 'issuing_off' && (
+            <View style={styles.gateCard}>
+              <FontAwesome6 name="circle-info" size={22} color={Colors.textMuted} iconStyle="solid" />
+              <Text style={styles.gateTitle}>{t('cards.issuingOff')}</Text>
+            </View>
+          )}
+
           {eligibility?.reason === 'kyc' && (
             <View style={styles.gateCard}>
               <FontAwesome6 name="id-card" size={22} color={Colors.warning} iconStyle="solid" />

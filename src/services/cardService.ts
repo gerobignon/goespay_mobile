@@ -91,7 +91,7 @@ export interface CardEligibility {
   country_ok: boolean;
   can_order: boolean;
   /** 'profile' = KYC validé, mais l'émetteur exige des champs absents du dossier. */
-  reason: 'country' | 'kyc' | 'profile' | null;
+  reason: 'issuing_off' | 'country' | 'kyc' | 'profile' | null;
   /** Champs KYC à compléter avant de pouvoir commander. */
   missing: string[];
   /** Le dossier doit être re-soumis, puis validé à nouveau. */
