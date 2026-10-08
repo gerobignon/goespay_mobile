@@ -226,6 +226,12 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   useEffect(() => {
     if (visible && !profileComplete) refreshProfileForWire();
   }, [visible, profileComplete]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Frais résolus au tarif du client (taux personnalisé) : relus à chaque
+  // ouverture, sinon un réglage admin récent n'apparaît qu'après l'exécution.
+  const refreshConfig = useConfigStore((s) => s.fetchConfig);
+  useEffect(() => {
+    if (visible) refreshConfig();
+  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
   const countryFees = useConfigStore((s) => s.country_fees);
   const outgoingFees = useConfigStore((s) => s.outgoing_fees);
   const transferMin = useConfigStore((s) => s.transfer_min);

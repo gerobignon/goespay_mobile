@@ -354,6 +354,13 @@ export const walletService = {
     return response.data;
   },
 
+  // Total débité sur le téléphone (frais client compris) pour un dépôt de
+  // `amount` XOF : montant à composer quand l'OTP Orange est lié au montant.
+  getOtpAmount: async (moyen: string, amount: number): Promise<{ amount: number; total: number; fee: number }> => {
+    const response = await api.post('/deposit/otp-amount', { moyen, amount });
+    return response.data;
+  },
+
   getDepositStatus: async (depositId: number): Promise<{ deposit_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; type: string; user_error?: string | null }> => {
     const response = await api.get(`/deposit/status/${depositId}`);
     return response.data;

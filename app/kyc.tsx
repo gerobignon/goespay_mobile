@@ -127,9 +127,13 @@ export default function KycScreen() {
   // memoire, le formulaire s'ouvrirait vide. On redemande GET /me puis on
   // preremplit une seule fois, sans toucher a ce qui a deja ete saisi.
   const prefilled = useRef(profileComplete);
+  // Photos déjà envoyées : on n'affiche que celles du profil relu à l'ouverture.
+  // Le profil en mémoire peut dater d'avant un refus, qui a supprimé les photos
+  // côté serveur ; les montrer laisserait croire qu'il n'y a rien à reprendre.
+  const [photosFresh, setPhotosFresh] = useState(false);
   useEffect(() => {
-    if (!profileComplete) refreshProfile();
-  }, [profileComplete]);
+    refreshProfile().finally(() => setPhotosFresh(true));
+  }, []);
   useEffect(() => {
     if (!profileComplete || prefilled.current || !user) return;
     prefilled.current = true;
@@ -173,8 +177,8 @@ export default function KycScreen() {
   }, [countrySearch]);
 
   // Aperçus effectifs : nouvelle photo prise, sinon celle déjà envoyée.
-  const idPreview = fileUri ?? user?.kyc_file_url ?? null;
-  const selfiePreview = selfieUri ?? user?.kyc_tof_url ?? null;
+  const idPreview = fileUri ?? (photosFresh ? user?.kyc_file_url : null) ?? null;
+  const selfiePreview = selfieUri ?? (photosFresh ? user?.kyc_tof_url : null) ?? null;
 
   const STEPS = [
     { label: t('kyc.identity'), icon: 'user-large' },

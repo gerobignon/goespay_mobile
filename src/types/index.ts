@@ -206,6 +206,8 @@ export interface DepositRequest {
   moyen: string;
   tel: string;
   otp?: string;
+  /** Total pour lequel l'OTP a été généré (OTP Orange lié au montant). */
+  otp_amount?: number;
 }
 
 export interface TransferRequest {

@@ -99,13 +99,10 @@ const AFRIBAPAY_PAYIN_FEE: Record<string, number> = {
   'orange-bf-afp': 0.03,    // 3 %
 };
 
-// Frais PayDunya (compte marchand « frais payés par le client ») : PayDunya ajoute
-// ses frais AU-DESSUS de la facture (10 000 saisis → 10 300 débités, 10 000 reversés),
-// donc brut = ceil(net × (1 + taux)), pas une division comme AfribaPay. L'OTP Orange
-// Burkina (*144*4*6*montant#) est lié au montant : il doit couvrir ce brut.
-const PAYDUNYA_PAYIN_FEE: Record<string, number> = {
-  'orange-money-burkina': 0.03,    // 3 %
-};
+// OTP Orange lié au montant (*144*4*6*montant#) : le code n'est valable que
+// pour le total exact débité, frais compris. Ce total vient du serveur
+// (/deposit/otp-amount), jamais d'un taux codé ici.
+const isAmountBoundOtp = (op: string) => !!ORANGE_OTP_USSD[op]?.includes('montant');
 
 interface DepositModalProps {
   visible: boolean;
@@ -725,10 +722,25 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // Frais AfribaPay (client) : même principe, le montant saisi est le net crédité,
   // le total débité sur le téléphone est le brut (ceil, miroir du backend).
   const afpFeeRate = AFRIBAPAY_PAYIN_FEE[operator] ?? 0;
-  const pdyFeeRate = PAYDUNYA_PAYIN_FEE[operator] ?? 0;
+  // OTP lié au montant : total débité lu sur le serveur (barème de l'agrégateur).
+  const amountBound = isAmountBoundOtp(operator) && numInputLive > 0;
+  const [otpTotal, setOtpTotal] = useState<{ key: string; total: number } | null>(null);
+  const otpTotalKey = `${operator}:${numInputLive}`;
+  useEffect(() => {
+    if (!amountBound) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      walletService.getOtpAmount(operator, numInputLive)
+        .then((r) => { if (!cancelled) setOtpTotal({ key: otpTotalKey, total: r.total }); })
+        .catch(() => { if (!cancelled) setOtpTotal(null); });
+    }, 400);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [amountBound, otpTotalKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const otpTotalLive = amountBound && otpTotal?.key === otpTotalKey ? otpTotal.total : null;
+  const otpTotalBlocking = amountBound && otpTotalLive === null;
   const afpGrossLive = numInputLive <= 0 ? null
+    : amountBound ? (otpTotalLive !== null && otpTotalLive !== numInputLive ? otpTotalLive : null)
     : afpFeeRate > 0 ? Math.ceil(numInputLive / (1 - afpFeeRate))
-    : pdyFeeRate > 0 ? Math.ceil(numInputLive * (1 + pdyFeeRate))
     : null;
   const afpFeeLive = afpGrossLive !== null ? afpGrossLive - numInputLive : null;
   const fincraRateBlocking =
@@ -749,10 +761,11 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const otpUssd: string | null = (() => {
     const raw = ORANGE_OTP_USSD[operator];
     if (!raw) return null;
-    // « montant » = montant réellement débité sur le téléphone : le BRUT quand
-    // le corridor porte des frais client (AfribaPay, PayDunya Orange BF), sinon le net.
-    const debited = afpGrossLive ?? numAmountXofLive;
-    return debited && debited > 0 ? raw.replace('montant', String(debited)) : raw;
+    // « montant » = total débité sur le téléphone, fourni par le serveur.
+    if (isAmountBoundOtp(operator)) {
+      return otpTotalLive ? raw.replace('montant', String(otpTotalLive)) : raw;
+    }
+    return raw;
   })();
 
   // Charge les numéros enregistrés pour cet opérateur dès qu'un opérateur non-card est sélectionné
@@ -860,7 +873,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
     const idemKey = depositIdempotencyKey();
     const numInput = parseFloat(amount) || 0;   // saisi dans railCurrency
     // Taux du rail étranger indisponible → on refuse (pas de crédit hasardeux).
-    if (fincraRateBlocking) {
+    if (fincraRateBlocking || otpTotalBlocking) {
       showAlert(t('common.error'), t('common.rateUnavailable'));
       return;
     }
@@ -992,6 +1005,8 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
         const payload: any = { amount: numAmount, moyen: operator };
         if (!isCard) payload.tel = phone.trim();
         if (needsOtp && otp) payload.otp = otp;
+        // Total pour lequel l'OTP a été généré : le serveur refuse s'il a changé.
+        if (otpTotalLive !== null) payload.otp_amount = otpTotalLive;
         result = await walletService.deposit(payload, idemKey);
       }
 
@@ -1671,7 +1686,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                   onPress={!isKycValidated ? () => showAlert(t('depositModal.kycRequired3'), t('depositModal.kycRequired2')) : handleDeposit}
                   icon="arrow-down"
                   loading={loading}
-                  disabled={!amount || fincraRateBlocking || (showPhoneField && !phone) || (showPhoneField && needsOtp && !otp.trim()) || (!!fincraZoneList && !fincraZoneCountry)}
+                  disabled={!amount || fincraRateBlocking || otpTotalBlocking || (showPhoneField && !phone) || (showPhoneField && needsOtp && !otp.trim()) || (!!fincraZoneList && !fincraZoneCountry)}
                   style={{ marginTop: Spacing.lg }}
                 />
                 </>
