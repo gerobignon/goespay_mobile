@@ -187,6 +187,11 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // Alipay (WALLET)
   const [cnyWalletAccount, setCnyWalletAccount] = useState('');           // email ou mobile
   const [cnyWalletAccountId, setCnyWalletAccountId] = useState<'MOBILE' | 'EMAIL'>('MOBILE');
+  // Alipay / WeChat traités à la main : nom complet, WeChat ID, motif.
+  const [cnyFullName, setCnyFullName] = useState('');
+  const [cnyWechatId, setCnyWechatId] = useState('');
+  const [cnyPurpose, setCnyPurpose] = useState<'' | 'GOODS' | 'SERVICES' | 'FAMILY' | 'OTHER'>('');
+  const [cnyPurposeOther, setCnyPurposeOther] = useState('');
 
   // Picker de banques + résolution de compte (Fincra bank_transfer)
   const [aggBanks, setAggBanks] = useState<{ code: string; name: string; swiftCode?: string }[]>([]);
@@ -337,6 +342,12 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // Wallet chinois : Alipay (défaut) ou WeChat, porte le serviceCode + le libellé.
   const cnyServiceCode: 'ALIPAY' | 'WECHAT' = ((selectedOp as any)?.cnyServiceCode) ?? 'ALIPAY';
   const cnyWalletLabel = cnyServiceCode === 'WECHAT' ? 'WeChat' : 'Alipay';
+  // Tuile servie à la main (agrégateur Manual China) : formulaire propre.
+  const isCnyManual = !!(selectedOp as any)?.cnyManual;
+  const userFullName = `${user?.name ?? ''} ${user?.surname ?? ''}`.trim();
+  useEffect(() => {
+    if (isCnyManual && !cnyFullName) setCnyFullName(userFullName);
+  }, [isCnyManual]);
   // WeChat = téléphone uniquement (pas d'email) → force MOBILE.
   useEffect(() => {
     if (cnyServiceCode === 'WECHAT') setCnyWalletAccountId('MOBILE');
@@ -362,7 +373,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     !(user as any)?.birthdate && 'votre date de naissance',
     !String((user as any)?.state ?? '').trim() && 'votre province',
   ].filter(Boolean) as string[];
-  const chinaKycGate = isKlashaOp && aggRail === 'cny' && profileComplete && chinaKycMissing.length > 0;
+  const chinaKycGate = isKlashaOp && aggRail === 'cny' && !isCnyManual && profileComplete && chinaKycMissing.length > 0;
   // Sous-pays Fincra (XOF/XAF). Si le pays est déjà connu (pays sélectionné, ou
   // pays de l'utilisateur), on le déduit du contexte et on masque la liste.
   // Opérateur MM par pays (catalogue serveur) : pays figé = op.country (pas de picker).
@@ -603,6 +614,10 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     setCnyCardHolder('');
     setCnyWalletAccount('');
     setCnyWalletAccountId('MOBILE');
+    setCnyFullName('');
+    setCnyWechatId('');
+    setCnyPurpose('');
+    setCnyPurposeOther('');
     setResolvedHolder(null);
     setResolveError(null);
     setResolving(false);
@@ -1143,7 +1158,15 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       }
       // CNY (Chine, C2C) : champs bénéficiaire requis selon la méthode
       // (l'expéditeur vient du profil KYC, côté backend).
-      if (aggRail === 'cny') {
+      if (aggRail === 'cny' && isCnyManual) {
+        const ok = !!cnyFullName.trim() && !!cnyWalletAccount.trim()
+          && (cnyServiceCode !== 'WECHAT' || !!cnyWechatId.trim())
+          && !!cnyPurpose && (cnyPurpose !== 'OTHER' || !!cnyPurposeOther.trim());
+        if (!ok) {
+          showAlert(t('common.error'), t('transferModal.cnyFieldsRequired'));
+          return;
+        }
+      } else if (aggRail === 'cny') {
         // Bénéficiaire requis (noms) commun ; le reste dépend du service.
         const namesOk = !!cnyFirstName.trim() && !!cnyLastName.trim();
         let ok = namesOk;
@@ -1218,11 +1241,20 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
         // L'expéditeur (le user) est auto-rempli côté backend depuis le profil KYC.
         // Réf KLC-, polling CNY dédié. ──
         if (isKlashaOp && aggRail === 'cny') {
-          const ben: any = {
+          const ben: any = isCnyManual ? {
+            fullName: cnyFullName.trim(),
+            accountNumber: cnyWalletAccount.trim(),
+            accountId: cnyWalletAccountId,
+            wechatId: cnyServiceCode === 'WECHAT' ? cnyWechatId.trim() : undefined,
+            purpose: cnyPurpose,
+            purposeOther: cnyPurpose === 'OTHER' ? cnyPurposeOther.trim() : undefined,
+          } : {
             receiverFirstName: cnyFirstName.trim(),
             receiverLastName: cnyLastName.trim(),
           };
-          if (cnyService === 'BANK_ACCOUNT') {
+          if (isCnyManual) {
+            // Champs déjà posés ci-dessus.
+          } else if (cnyService === 'BANK_ACCOUNT') {
             ben.receiverIdNumber = cnyIdNumber.trim();
             ben.receiverMobileNumber = cnyMobile.trim();
             ben.receiverRelationship = cnyRelationship;
@@ -1256,6 +1288,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           // Purge le bénéficiaire (PII) après envoi → pas de réutilisation silencieuse.
           setCnyFirstName(''); setCnyLastName(''); setCnyIdNumber(''); setCnyMobile('');
           setCnyCardNumber(''); setCnyCardHolder(''); setCnyWalletAccount('');
+          setCnyFullName(''); setCnyWechatId(''); setCnyPurpose(''); setCnyPurposeOther('');
           setBankCode(''); setBankName(''); setBankAccountNumber(''); setBankAccountHolder('');
           setPendingDetails({
             amount_sent: numAmount,
@@ -2083,7 +2116,52 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                     />
                   </>
                 )}
-                {aggRail === 'cny' && (
+                {aggRail === 'cny' && isCnyManual && (
+                  <>
+                    <Input
+                      label="Nom complet du bénéficiaire *"
+                      placeholder={`Tel qu'enregistré sur ${cnyWalletLabel}`}
+                      value={cnyFullName}
+                      onChangeText={setCnyFullName}
+                    />
+                    {cnyServiceCode === 'WECHAT' ? (
+                      <>
+                        <Input label="WeChat ID *" placeholder="WeChat ID" value={cnyWechatId} onChangeText={setCnyWechatId} autoCapitalize="none" />
+                        <Input label="Téléphone WeChat *" placeholder="ex: +8613699262597" value={cnyWalletAccount} onChangeText={setCnyWalletAccount} keyboardType="phone-pad" />
+                      </>
+                    ) : (
+                      <>
+                        <View style={styles.cnyChipsRow}>
+                          {([['MOBILE', 'Téléphone'], ['EMAIL', 'Email']] as const).map(([val, label]) => (
+                            <TouchableOpacity key={val} style={[styles.cnyChip, cnyWalletAccountId === val && styles.cnyChipActive]} onPress={() => setCnyWalletAccountId(val)}>
+                              <Text style={[styles.cnyChipText, cnyWalletAccountId === val && styles.cnyChipTextActive]}>{label}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                        <Input
+                          label={cnyWalletAccountId === 'EMAIL' ? 'Email Alipay *' : 'Téléphone Alipay *'}
+                          placeholder={cnyWalletAccountId === 'EMAIL' ? 'email@exemple.com' : 'ex: +8613699262597'}
+                          value={cnyWalletAccount}
+                          onChangeText={setCnyWalletAccount}
+                          keyboardType={cnyWalletAccountId === 'EMAIL' ? 'email-address' : 'phone-pad'}
+                          autoCapitalize="none"
+                        />
+                      </>
+                    )}
+                    <Text style={styles.fieldLabel}>Motif du transfert *</Text>
+                    <View style={styles.cnyChipsRow}>
+                      {([['GOODS', 'Achat de marchandises'], ['SERVICES', 'Services'], ['FAMILY', 'Soutien familial'], ['OTHER', 'Autre']] as const).map(([val, label]) => (
+                        <TouchableOpacity key={val} style={[styles.cnyChip, cnyPurpose === val && styles.cnyChipActive]} onPress={() => setCnyPurpose(val)}>
+                          <Text style={[styles.cnyChipText, cnyPurpose === val && styles.cnyChipTextActive]}>{label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    {cnyPurpose === 'OTHER' && (
+                      <Input label="Précisez le motif *" placeholder="Motif" value={cnyPurposeOther} onChangeText={setCnyPurposeOther} />
+                    )}
+                  </>
+                )}
+                {aggRail === 'cny' && !isCnyManual && (
                   <>
                     {/* La méthode (virement / UnionPay / Alipay) est portée par la tuile
                         choisie en haut → pas de sélecteur ici. */}
@@ -2224,7 +2302,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               <Text style={styles.savedErrorText}>{savedPhonesLoadError}</Text>
             )}
 
-            {aggRail === 'cny' && savedBanks.filter((b) => (b.rail || '') === 'cny' && (b.meta as any)?.service === cnyService && (cnyService !== 'WALLET' || (b.meta as any)?.service_code === cnyServiceCode)).length > 0 && (
+            {aggRail === 'cny' && !isCnyManual && savedBanks.filter((b) => (b.rail || '') === 'cny' && (b.meta as any)?.service === cnyService && (cnyService !== 'WALLET' || (b.meta as any)?.service_code === cnyServiceCode)).length > 0 && (
               <View style={styles.savedBlock}>
                 <Text style={styles.savedLabel}>{t('transferModal.savedBanks')}</Text>
                 <View style={styles.savedList}>
@@ -2293,7 +2371,10 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       || (aggRail === 'SWIFT' && (!bankAccountHolder || !iban || !swiftCode || !bankCountry))
                       || (aggRail === 'SEPA' && (!bankAccountHolder || !iban))
                       || (aggRail === 'wire' && (!bankAccountHolder || (!bankAccountNumber && !iban) || !bankName || !swiftCode || !bankCountry))
-                      || (aggRail === 'cny' && (!cnyFirstName || !cnyLastName))
+                      || (aggRail === 'cny' && isCnyManual && (!cnyFullName.trim() || !cnyWalletAccount.trim()
+                        || (cnyServiceCode === 'WECHAT' && !cnyWechatId.trim())
+                        || !cnyPurpose || (cnyPurpose === 'OTHER' && !cnyPurposeOther.trim())))
+                      || (aggRail === 'cny' && !isCnyManual && (!cnyFirstName || !cnyLastName))
                       || (aggRail === 'cny' && cnyService === 'BANK_ACCOUNT' && (!cnyIdNumber || !cnyMobile || !bankCode || !bankName || !bankAccountNumber || !bankAccountHolder))
                       || (aggRail === 'cny' && cnyService === 'BANK_CARD' && (!bankCode || !bankName || !cnyCardNumber || !cnyCardHolder))
                       || (aggRail === 'cny' && cnyService === 'WALLET' && !cnyWalletAccount)
@@ -2369,11 +2450,16 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 {(() => {
                   // Décomposition propre des champs destinataire selon le rail.
                   const isMM = !isAggOp || aggRail === 'mobile_money';
-                  const primary = isMM
+                  const primary = isCnyManual
+                    ? (cnyFullName.trim() || ', ')
+                    : isMM
                     ? (phone || ', ')
                     : (bankAccountHolder || bankAccountNumber || iban || ', ');
                   const secondaryParts: string[] = [];
-                  if (!isMM) {
+                  if (isCnyManual) {
+                    if (cnyWechatId.trim()) secondaryParts.push(cnyWechatId.trim());
+                    if (cnyWalletAccount.trim()) secondaryParts.push(cnyWalletAccount.trim());
+                  } else if (!isMM) {
                     if (bankAccountHolder && (bankAccountNumber || iban)) {
                       secondaryParts.push(bankAccountNumber || iban);
                     }

@@ -110,6 +110,8 @@ export interface CatalogOperator {
   cnyService?: 'BANK_ACCOUNT' | 'BANK_CARD' | 'WALLET';
   // Marque du wallet chinois (WALLET) : Alipay ou WeChat → serviceCode Klasha.
   cnyServiceCode?: 'ALIPAY' | 'WECHAT';
+  // Tuile Chine servie à la main (formulaire nom complet / WeChat ID / motif).
+  cnyManual?: boolean;
   aggregator: string;
   logo: any;
   // Montant minimum d'envoi (devise du corridor), piloté par l'admin Marchés.
@@ -297,6 +299,7 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
           cnyService: isKlashaAgg ? klashaCnyService(r.code) : undefined,
           // Wallet chinois (Alipay/WeChat) → serviceCode Klasha.
           cnyServiceCode: isKlashaAgg ? klashaCnyServiceCode(r.code) : undefined,
+          cnyManual: (r as any).manual === true || undefined,
           // Drapeau : celui du pays catalogue, sinon dérivé du code ISO (US/EU/GB/NG…
           // pays des rails internationaux souvent sans emoji stocké en base).
           flag: countryByCode[r.country]?.flag || flagFromCode(r.country),

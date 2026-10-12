@@ -136,9 +136,12 @@ export function resolveOperatorDisplay(
   // Klasha Chine : klasha-cny + variantes corridor (klasha-cny-bt / -card / -wallet
   // / -wechat). Libellé propre 🇨🇳 SANS jamais laisser fuiter « klasha » ni « cny »
   // sur le reçu / l'historique.
-  const cny = mode.match(/^klasha-cny(?:-(bt|bank|card|wallet|wechat))?$/i);
+  // Envois Alipay / WeChat traités à la main : manual-cny-alipay / -wechat.
+  const cny = mode.match(/^klasha-cny(?:-(bt|bank|card|wallet|wechat))?$/i)
+    || mode.match(/^manual-cny-(alipay|wechat)$/i);
   if (cny) {
-    const svc = (cny[1] || '').toLowerCase();
+    const raw = (cny[1] || '').toLowerCase();
+    const svc = raw === 'alipay' ? 'wallet' : raw;
     // Le drapeau 🇨🇳 porte déjà le contexte « Chine » → pas de « Chine » dans le texte.
     const name = svc === 'card' ? 'UnionPay'
       : svc === 'wallet' ? 'Alipay'

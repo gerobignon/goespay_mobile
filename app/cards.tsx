@@ -61,7 +61,7 @@ const REVEAL_SECONDS = 60;
  * Google Play, Amazon...) : la carte est émise aux États-Unis, une adresse
  * africaine y fait échouer la vérification AVS.
  */
-const US_BILLING_ADDRESS_LINES = ['1 Sansome St', 'San Francisco, CA, 94104', 'US'];
+const US_BILLING_ADDRESS_LINES = ['1 Sansome St', 'San Francisco, California, 94104', 'US'];
 const US_BILLING_ADDRESS = US_BILLING_ADDRESS_LINES.join(', ');
 
 export default function CardsScreen() {
