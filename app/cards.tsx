@@ -1010,7 +1010,23 @@ export default function CardsScreen() {
 
           {eligibility?.reason === 'profile' && renderKycUpdate()}
 
-          {eligibility?.can_order && (
+          {/* Pièce d'un type que l'émetteur n'honore plus : le dossier est à
+              re-soumettre avec un passeport ou un permis. */}
+          {!!eligibility?.identity_hold && eligibility?.can_order && (
+            <View style={styles.gateCard}>
+              <FontAwesome6 name="id-card" size={22} color={Colors.warning} iconStyle="solid" />
+              <Text style={styles.gateTitle}>{t('cards.identityOnHoldTitle')}</Text>
+              <Text style={styles.gateText}>{t('cards.identityOnHold')}</Text>
+              <Button
+                title={t('cards.completeKyc')}
+                icon="id-card"
+                onPress={() => router.push('/kyc?edit=1')}
+                style={{ marginTop: Spacing.md }}
+              />
+            </View>
+          )}
+
+          {eligibility?.can_order && !eligibility?.identity_hold && (
             <Button
               title={liveCards.length > 0 ? t('cards.orderAnother') : t('cards.order')}
               onPress={async () => {

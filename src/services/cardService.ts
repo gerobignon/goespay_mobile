@@ -94,6 +94,8 @@ export interface CardEligibility {
   reason: 'country' | 'kyc' | 'profile' | null;
   /** Création de cartes suspendue par l'admin : annoncée au clic sur « Commander ». */
   issuing_off?: boolean;
+  /** Type de pièce du dossier suspendu chez l'émetteur : la commande est refusée (503). */
+  identity_hold?: boolean;
   /** Champs KYC à compléter avant de pouvoir commander. */
   missing: string[];
   /** Le dossier doit être re-soumis, puis validé à nouveau. */

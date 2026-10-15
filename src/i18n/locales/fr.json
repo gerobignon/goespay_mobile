@@ -1323,6 +1323,8 @@
     "countryUnavailable": "La carte virtuelle n'est pas disponible dans votre pays.",
     "issuingOff": "La création de cartes est momentanément suspendue.",
     "issuingOffTitle": "Création suspendue",
+    "identityOnHold": "Carte indisponible avec une carte d'identité nationale pour le moment. Passeport ou permis de conduire acceptés.",
+    "identityOnHoldTitle": "Pièce non prise en charge",
     "profileIncomplete": "Profil incomplet",
     "completeProfile": "Compléter",
     "field_name": "Prénom",
