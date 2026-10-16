@@ -189,6 +189,8 @@ export const authService = {
       country?: string;
       telegram?: string;
       resubmit?: boolean; // re-soumission d'un KYC déjà validé/en attente
+      last_name?: string;  // seulement s'ils sont corrigés (écart avec la pièce)
+      first_name?: string;
     },
     fileUri: string | null,   // null = garder le document déjà uploadé (re-soumission)
     selfieUri: string | null  // null = garder le selfie déjà uploadé
@@ -224,6 +226,8 @@ export const authService = {
     if (data.country) formData.append('country', data.country);
     if (data.telegram) formData.append('telegram', data.telegram);
     if (data.resubmit) formData.append('resubmit', '1');
+    if (data.last_name) formData.append('last_name', data.last_name);
+    if (data.first_name) formData.append('first_name', data.first_name);
     // Fichiers : seulement si l'utilisateur en a (re)pris (sinon on garde l'existant).
     if (fileUri) await appendFile('file', fileUri);
     if (selfieUri) await appendFile('tof', selfieUri);

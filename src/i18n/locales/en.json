@@ -906,6 +906,9 @@
     "creditNote": "After network confirmation, crediting may take up to 30 minutes."
   },
   "kyc": {
+    "fixTitle": "Information to correct",
+    "lastName": "Last name",
+    "firstName": "First name(s)",
     "chooseLevel": "Choose your level",
     "level1Title": "Level 1: basic verification",
     "level1Items": "Phone, country and a selfie holding your ID",

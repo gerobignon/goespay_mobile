@@ -1247,6 +1247,8 @@
     "orderAnother": "Commander une autre carte",
     "verifyIdentity": "Vérifier mon identité",
     "completeKyc": "Compléter mon dossier",
+    "docMismatchTitle": "Pièce non conforme",
+    "docMismatchMessage": "Votre pièce d'identité ne correspond pas à votre profil ({{fields}}). Refaites votre KYC avec des informations identiques à la pièce, puis attendez sa validation.",
     "kycUpdateTitle": "Complétez votre dossier",
     "kycUpdateMessage": "Informations requises : {{fields}}. Mettez à jour et re-soumettez votre dossier, puis attendez sa validation.",
     "manage": "Gérer",

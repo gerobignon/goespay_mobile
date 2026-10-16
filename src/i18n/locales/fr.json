@@ -906,6 +906,9 @@
     "creditNote": "Après confirmation réseau, le crédit peut prendre jusqu'à 30 minutes."
   },
   "kyc": {
+    "fixTitle": "Informations à corriger",
+    "lastName": "Nom",
+    "firstName": "Prénom(s)",
     "chooseLevel": "Choisissez votre niveau",
     "level1Title": "Niveau 1 : vérification basique",
     "level1Items": "Téléphone, pays et selfie avec votre pièce en main",

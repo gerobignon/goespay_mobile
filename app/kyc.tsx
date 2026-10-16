@@ -87,7 +87,25 @@ export default function KycScreen() {
 
   const DOC_TYPES = DOC_TYPES_KEYS.map((d) => ({ ...d, label: t(d.key) }));
 
+  // Écarts trouvés entre la pièce et le profil (lecture automatique) : en
+  // modification, seuls ces champs restent ouverts, les autres sont figés.
+  const corrections = editMode ? (user?.kyc_corrections ?? null) : null;
+  const fixHints: Errors = {};
+  if (corrections) {
+    const keyOf: Record<string, string> = { file: 'idPhoto', last_name: 'lastName', first_name: 'firstName' };
+    for (const [f, msg] of Object.entries(corrections.details)) fixHints[keyOf[f] ?? f] = msg;
+  }
+  /** Champ figé : un écart existe ailleurs, et celui-ci est déjà rempli. */
+  const isLocked = (field: string, value?: string | null) =>
+    !!corrections && !corrections.fields.includes(field) && !!(value ?? '').toString().trim();
+  const hint = (key: string) => errors[key] || fixHints[key];
+  /** Nom et prénom d'un compte validé : identité figée, sauf écart relevé sur la pièce. */
+  const nameLocked = (field: string, value?: string | null) =>
+    user?.validate === 1 ? !(corrections?.fields ?? []).includes(field) && !!(value ?? '').trim() : isLocked(field, value);
+
   // Personal info state (pre-filled from user)
+  const [lastName, setLastName] = useState(user?.surname ?? '');
+  const [firstName, setFirstName] = useState(user?.name ?? '');
   const [country, setCountry] = useState(user?.country ?? '');
   const [city, setCity] = useState(user?.city ?? '');
   const [stateProv, setStateProv] = useState(user?.state ?? '');
@@ -118,7 +136,14 @@ export default function KycScreen() {
 
   // Assistant : étape courante + erreurs affichées (elles n'apparaissent qu'après
   // une tentative de passage à l'étape suivante, jamais pendant la frappe).
-  const [step, setStep] = useState(0);
+  // En correction, on ouvre directement l'étape du premier champ à reprendre.
+  const [step, setStep] = useState(() => {
+    const f = (editMode ? user?.kyc_corrections?.fields : null) ?? [];
+    if (f.some((x) => ['last_name', 'first_name', 'birthdate'].includes(x))) return 0;
+    if (f.some((x) => ['idnumber', 'idexp'].includes(x))) return 1;
+    if (f.includes('file')) return 2;
+    return 0;
+  });
   const [errors, setErrors] = useState<Errors>({});
   const scrollRef = useRef<ScrollView>(null);
   const progress = useRef(new Animated.Value(0)).current;
@@ -138,6 +163,8 @@ export default function KycScreen() {
     if (!profileComplete || prefilled.current || !user) return;
     prefilled.current = true;
     const keep = (current: string, next?: string | null) => current || next || '';
+    setLastName((v) => keep(v, user.surname));
+    setFirstName((v) => keep(v, user.name));
     setCountry((v) => keep(v, user.country));
     setCity((v) => keep(v, user.city));
     setStateProv((v) => keep(v, user.state));
@@ -334,6 +361,9 @@ export default function KycScreen() {
           country,
           telegram: telegram.trim(),
           resubmit: editMode,
+          // Nom et prénom : envoyés seulement s'ils ont changé (écart avec la pièce).
+          last_name: editMode && lastName.trim() !== (user?.surname ?? '') ? lastName.trim() : undefined,
+          first_name: editMode && firstName.trim() !== (user?.name ?? '') ? firstName.trim() : undefined,
         },
         fileUri,
         selfieUri
@@ -355,6 +385,8 @@ export default function KycScreen() {
       const serverErrors = error?.response?.status === 422 ? error?.response?.data?.errors : null;
       if (serverErrors && typeof serverErrors === 'object') {
         const fieldOf: Record<string, { key: string; step: number }> = {
+          last_name: { key: 'lastName', step: 0 },
+          first_name: { key: 'firstName', step: 0 },
           birthdate: { key: 'birthdate', step: 0 },
           idnumber: { key: 'idnumber', step: 1 },
           idexp: { key: 'idexp', step: 1 },
@@ -419,8 +451,9 @@ export default function KycScreen() {
   const renderCountryPicker = () => renderField(
     t('kyc.country'),
     <Bounce
-      style={[styles.countryPicker, !!errors.country && styles.inputErrorBox] as any}
+      style={[styles.countryPicker, !!errors.country && styles.inputErrorBox, isLocked('country', country) && styles.locked] as any}
       scaleTo={0.99}
+      disabled={isLocked('country', country)}
       onPress={() => setCountryModalVisible(true)}
     >
       <View style={styles.countryPickerLeft}>
@@ -464,12 +497,14 @@ export default function KycScreen() {
     target: Exclude<PhotoTarget, null>,
     icon: string,
     addLabel: string,
-    error?: string
+    error?: string,
+    locked = false
   ) => (
     <>
       <Bounce
-        style={[styles.imagePicker, preview ? styles.imagePickerFilled : null, !!error && styles.imagePickerError] as any}
+        style={[styles.imagePicker, preview ? styles.imagePickerFilled : null, !!error && styles.imagePickerError, locked && styles.locked] as any}
         scaleTo={0.98}
+        disabled={locked}
         onPress={() => capturePhoto(target)}
       >
         {preview ? (
@@ -701,7 +736,7 @@ export default function KycScreen() {
                     <Image source={require('../assets/kyc_selfie_sample.jpg')} style={styles.guideImageFill} />
                   </View>
                   <Text style={styles.photoHint}>{t('kyc.selfieHint')}</Text>
-                  {renderPhotoPicker(selfiePreview, 'selfie', 'camera-retro', t('kyc.addSelfie'), errors.selfie)}
+                  {renderPhotoPicker(selfiePreview, 'selfie', 'camera-retro', t('kyc.addSelfie'), errors.selfie, isLocked('selfie', selfiePreview))}
                 </Card>
               </Reveal>
             </View>
@@ -802,22 +837,53 @@ export default function KycScreen() {
               })}
             </View>
 
+            {/* Écarts relevés entre la pièce et le profil : quoi corriger, et où. */}
+            {corrections && (
+              <View style={styles.fixBox}>
+                <View style={styles.fixHead}>
+                  <FontAwesome6 name="triangle-exclamation" size={15} color={colors.warning} />
+                  <Text style={styles.fixTitle}>{t('kyc.fixTitle')}</Text>
+                </View>
+                {Object.values(corrections.details).map((d) => (
+                  <Text key={d} style={styles.fixLine}>{'\u2022'} {d}</Text>
+                ))}
+              </View>
+            )}
+
             {/* ── Étape 1 : identité ── */}
             {step === 0 && (
               <Reveal key="s0" offset={14}>
                 <Card style={styles.sectionCard}>
+                  {/* Nom et prénom : affichés en modification, ouverts seulement
+                      s'ils sont en écart avec la pièce. */}
+                  {editMode && (
+                    <View style={styles.row}>
+                      {renderField(
+                        t('kyc.lastName'),
+                        <Input value={lastName} onChangeText={setLastName} editable={!nameLocked('last_name', lastName)} error={hint('lastName')} containerStyle={StyleSheet.flatten([styles.inputFlush, nameLocked('last_name', lastName) && styles.locked])} />,
+                        undefined,
+                        styles.col
+                      )}
+                      {renderField(
+                        t('kyc.firstName'),
+                        <Input value={firstName} onChangeText={setFirstName} editable={!nameLocked('first_name', firstName)} error={hint('firstName')} containerStyle={StyleSheet.flatten([styles.inputFlush, nameLocked('first_name', firstName) && styles.locked])} />,
+                        undefined,
+                        styles.col
+                      )}
+                    </View>
+                  )}
                   {renderCountryPicker()}
 
                   <View style={styles.row}>
                     {renderField(
                       t('kyc.city'),
-                      <Input placeholder={t('kyc.cityPlaceholder')} value={city} onChangeText={setCity} error={errors.city} containerStyle={styles.inputFlush} />,
+                      <Input placeholder={t('kyc.cityPlaceholder')} value={city} onChangeText={setCity} error={errors.city} editable={!isLocked('city', city)} containerStyle={StyleSheet.flatten([styles.inputFlush, isLocked('city', city) && styles.locked])} />,
                       undefined,
                       styles.col
                     )}
                     {renderField(
                       `${t('kyc.postcode')} ${t('kyc.optionalSuffix')}`,
-                      <Input placeholder={t('kyc.postcodePlaceholder')} value={postcode} onChangeText={setPostcode} error={errors.postcode} containerStyle={styles.inputFlush} />,
+                      <Input placeholder={t('kyc.postcodePlaceholder')} value={postcode} onChangeText={setPostcode} error={errors.postcode} editable={!isLocked('postcode', postcode)} containerStyle={StyleSheet.flatten([styles.inputFlush, isLocked('postcode', postcode) && styles.locked])} />,
                       undefined,
                       styles.col
                     )}
@@ -825,12 +891,12 @@ export default function KycScreen() {
 
                   {renderField(
                     `${t('kyc.state')}${chinaRequired ? '' : ` ${t('kyc.optionalSuffix')}`}`,
-                    <Input placeholder={t('kyc.statePlaceholder')} value={stateProv} onChangeText={setStateProv} error={errors.state} containerStyle={styles.inputFlush} />
+                    <Input placeholder={t('kyc.statePlaceholder')} value={stateProv} onChangeText={setStateProv} error={errors.state} editable={!isLocked('state', stateProv)} containerStyle={StyleSheet.flatten([styles.inputFlush, isLocked('state', stateProv) && styles.locked])} />
                   )}
 
                   {renderField(
                     t('kyc.address'),
-                    <Input placeholder={t('kyc.addressPlaceholder')} value={address} onChangeText={setAddress} error={errors.address} containerStyle={styles.inputFlush} />
+                    <Input placeholder={t('kyc.addressPlaceholder')} value={address} onChangeText={setAddress} error={errors.address} editable={!isLocked('address', address)} containerStyle={StyleSheet.flatten([styles.inputFlush, isLocked('address', address) && styles.locked])} />
                   )}
 
                   <View style={styles.divider} />
@@ -853,7 +919,8 @@ export default function KycScreen() {
                         keyboardType="number-pad"
                         maxLength={2}
                         textAlign="center"
-                        containerStyle={styles.dateCell}
+                        editable={!isLocked('birthdate', birthYear)}
+                        containerStyle={StyleSheet.flatten([styles.dateCell, isLocked('birthdate', birthYear) && styles.locked])}
                       />
                       <Text style={styles.dateSep}>/</Text>
                       <Input
@@ -871,7 +938,8 @@ export default function KycScreen() {
                         keyboardType="number-pad"
                         maxLength={2}
                         textAlign="center"
-                        containerStyle={styles.dateCell}
+                        editable={!isLocked('birthdate', birthYear)}
+                        containerStyle={StyleSheet.flatten([styles.dateCell, isLocked('birthdate', birthYear) && styles.locked])}
                       />
                       <Text style={styles.dateSep}>/</Text>
                       <Input
@@ -881,10 +949,11 @@ export default function KycScreen() {
                         keyboardType="number-pad"
                         maxLength={4}
                         textAlign="center"
-                        containerStyle={styles.dateCellWide}
+                        editable={!isLocked('birthdate', birthYear)}
+                        containerStyle={StyleSheet.flatten([styles.dateCellWide, isLocked('birthdate', birthYear) && styles.locked])}
                       />
                     </View>,
-                    errors.birthdate
+                    hint('birthdate')
                   )}
 
                   {renderField(
@@ -896,13 +965,14 @@ export default function KycScreen() {
                       keyboardType="phone-pad"
                       prefix={prefix || undefined}
                       error={errors.phone}
-                      containerStyle={styles.inputFlush}
+                      editable={!isLocked('phone', phone)}
+                      containerStyle={StyleSheet.flatten([styles.inputFlush, isLocked('phone', phone) && styles.locked])}
                     />
                   )}
 
                   {renderField(
                     t('kyc.telegramOptional'),
-                    <Input placeholder="@username" value={telegram} onChangeText={setTelegram} containerStyle={styles.inputFlush} />
+                    <Input placeholder="@username" value={telegram} onChangeText={setTelegram} editable={!isLocked('telegram', telegram)} containerStyle={StyleSheet.flatten([styles.inputFlush, isLocked('telegram', telegram) && styles.locked])} />
                   )}
                 </Card>
               </Reveal>
@@ -919,7 +989,8 @@ export default function KycScreen() {
                       return (
                         <Bounce
                           key={dt.value}
-                          style={[styles.docTypeBtn, active ? styles.docTypeBtnActive : null] as any}
+                          style={[styles.docTypeBtn, active ? styles.docTypeBtnActive : null, isLocked('type', docType) && styles.locked] as any}
+                          disabled={isLocked('type', docType)}
                           onPress={() => { setDocType(dt.value); setErrors((p) => ({ ...p, docType: '' })); }}
                         >
                           {active && (
@@ -937,7 +1008,7 @@ export default function KycScreen() {
 
                   {renderField(
                     t('kyc.idNumber'),
-                    <Input placeholder={t('kyc.idNumberPlaceholder')} value={idnumber} onChangeText={setIdnumber} error={errors.idnumber} containerStyle={styles.inputFlush} />
+                    <Input placeholder={t('kyc.idNumberPlaceholder')} value={idnumber} onChangeText={setIdnumber} error={hint('idnumber')} editable={!isLocked('idnumber', idnumber)} containerStyle={StyleSheet.flatten([styles.inputFlush, isLocked('idnumber', idnumber) && styles.locked])} />
                   )}
 
                   {country === 'NG' && renderField(
@@ -949,7 +1020,8 @@ export default function KycScreen() {
                       keyboardType="number-pad"
                       maxLength={11}
                       error={errors.bvn}
-                      containerStyle={styles.inputFlush}
+                      editable={!isLocked('bvn', bvn)}
+                      containerStyle={StyleSheet.flatten([styles.inputFlush, isLocked('bvn', bvn) && styles.locked])}
                     />
                   )}
 
@@ -971,7 +1043,8 @@ export default function KycScreen() {
                         keyboardType="number-pad"
                         maxLength={2}
                         textAlign="center"
-                        containerStyle={styles.dateCell}
+                        editable={!isLocked('idexp', idexpYear)}
+                        containerStyle={StyleSheet.flatten([styles.dateCell, isLocked('idexp', idexpYear) && styles.locked])}
                       />
                       <Text style={styles.dateSep}>/</Text>
                       <Input
@@ -981,10 +1054,11 @@ export default function KycScreen() {
                         keyboardType="number-pad"
                         maxLength={4}
                         textAlign="center"
-                        containerStyle={styles.dateCellWide}
+                        editable={!isLocked('idexp', idexpYear)}
+                        containerStyle={StyleSheet.flatten([styles.dateCellWide, isLocked('idexp', idexpYear) && styles.locked])}
                       />
                     </View>,
-                    errors.idexp
+                    hint('idexp')
                   )}
                 </Card>
               </Reveal>
@@ -999,7 +1073,7 @@ export default function KycScreen() {
                     <Image source={require('../assets/kyc_id_sample.jpg')} style={styles.guideImageFill} />
                   </View>
                   <Text style={styles.photoHint}>{t('kyc.idHint')}</Text>
-                  {renderPhotoPicker(idPreview, 'id', 'id-card', t('kyc.addId'), errors.idPhoto)}
+                  {renderPhotoPicker(idPreview, 'id', 'id-card', t('kyc.addId'), hint('idPhoto'), isLocked('file', idPreview))}
 
                   <View style={styles.divider} />
 
@@ -1245,6 +1319,35 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   inputFlush: {
     marginBottom: 0,
+  },
+  // Champ figé en correction : seul ce qui est en écart avec la pièce s'ouvre.
+  locked: {
+    opacity: 0.5,
+  },
+  fixBox: {
+    marginTop: Spacing.md,
+    padding: Spacing.md,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.warning,
+    backgroundColor: Colors.surface,
+    gap: 6,
+  },
+  fixHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  fixTitle: {
+    fontSize: FontSize.md,
+    fontFamily: Fonts.bold,
+    color: Colors.text,
+  },
+  fixLine: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.medium,
+    color: Colors.text,
+    lineHeight: 20,
   },
   inputErrorBox: {
     borderColor: Colors.error,

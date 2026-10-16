@@ -243,11 +243,15 @@ export default function CardsScreen() {
   const onIneligible = (e: any) => {
     const missing = (e?.response?.data?.missing ?? []) as string[];
     const docMismatch = e?.response?.data?.reason === 'kyc_redo';
+    // Pièce non conforme : le serveur détaille chaque écart et ce que porte la pièce.
+    const serverMsg = String(e?.response?.data?.error ?? '');
     showAlert(
       t(docMismatch ? 'cards.docMismatchTitle' : 'cards.kycUpdateTitle'),
-      t(docMismatch ? 'cards.docMismatchMessage' : 'cards.kycUpdateMessage', {
-        fields: missing.map((f) => fieldLabel(f)).join(', '),
-      }),
+      docMismatch && serverMsg
+        ? serverMsg
+        : t(docMismatch ? 'cards.docMismatchMessage' : 'cards.kycUpdateMessage', {
+            fields: missing.map((f) => fieldLabel(f)).join(', '),
+          }),
       [
         { text: t('common.cancel'), style: 'cancel' },
         { text: t('cards.completeKyc'), onPress: () => router.push('/kyc?edit=1') },
@@ -938,9 +942,11 @@ export default function CardsScreen() {
       <FontAwesome6 name="triangle-exclamation" size={22} color={Colors.warning} iconStyle="solid" />
       <Text style={styles.gateTitle}>{t(eligibility?.doc_mismatch ? 'cards.docMismatchTitle' : 'cards.kycUpdateTitle')}</Text>
       <Text style={styles.gateText}>
-        {t(eligibility?.doc_mismatch ? 'cards.docMismatchMessage' : 'cards.kycUpdateMessage', {
-          fields: (eligibility?.missing ?? []).map((f) => fieldLabel(f)).join(', '),
-        })}
+        {eligibility?.doc_mismatch_message
+          ? eligibility.doc_mismatch_message
+          : t(eligibility?.doc_mismatch ? 'cards.docMismatchMessage' : 'cards.kycUpdateMessage', {
+              fields: (eligibility?.missing ?? []).map((f) => fieldLabel(f)).join(', '),
+            })}
       </Text>
       <Button
         title={t('cards.completeKyc')}

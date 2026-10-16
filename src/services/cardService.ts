@@ -102,6 +102,8 @@ export interface CardEligibility {
   needs_kyc_update: boolean;
   /** La pièce d'identité lue ne correspond pas au profil : le KYC est à refaire. */
   doc_mismatch?: boolean;
+  /** Détail des écarts (ce que porte la pièce), prêt à afficher. */
+  doc_mismatch_message?: string | null;
   /** Âge minimum exigé par l'émetteur. Piloté côté serveur, jamais écrit en dur. */
   min_age?: number;
 }

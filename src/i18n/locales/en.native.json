@@ -1247,6 +1247,8 @@
     "orderAnother": "Order another card",
     "verifyIdentity": "Verify my identity",
     "completeKyc": "Complete my file",
+    "docMismatchTitle": "ID does not match",
+    "docMismatchMessage": "Your ID does not match your profile ({{fields}}). Redo your KYC with information identical to your ID, then wait for approval.",
     "kycUpdateTitle": "Complete your file",
     "kycUpdateMessage": "Required information: {{fields}}. Update and resubmit your file, then wait for validation.",
     "manage": "Manage",
