@@ -235,6 +235,9 @@ export const authService = {
 
   postKycForm: async (formData: FormData): Promise<{ message: string; validate: number }> => {
     const response = await api.post('/me/kyc', formData, {
+      // Le serveur lit la pièce avant d'accepter le dossier : l'envoi des
+      // photos plus cette lecture dépassent le délai général de 30 s.
+      timeout: 90000,
       headers: Platform.OS === 'web'
         ? { 'Content-Type': undefined as any }
         : { 'Content-Type': 'multipart/form-data' },

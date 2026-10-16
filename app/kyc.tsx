@@ -350,6 +350,32 @@ export default function KycScreen() {
         data: error?.response?.data,
         message: error?.message,
       });
+      // Contrôle de la pièce refusé : chaque motif va sous son champ, et le
+      // formulaire revient à la première étape à corriger.
+      const serverErrors = error?.response?.status === 422 ? error?.response?.data?.errors : null;
+      if (serverErrors && typeof serverErrors === 'object') {
+        const fieldOf: Record<string, { key: string; step: number }> = {
+          birthdate: { key: 'birthdate', step: 0 },
+          idnumber: { key: 'idnumber', step: 1 },
+          idexp: { key: 'idexp', step: 1 },
+          file: { key: 'idPhoto', step: 2 },
+        };
+        const e: Errors = {};
+        let firstStep = STEP_COUNT;
+        for (const [name, msgs] of Object.entries(serverErrors)) {
+          const target = fieldOf[name];
+          const msg = Array.isArray(msgs) ? String(msgs[0] ?? '') : String(msgs ?? '');
+          if (target && msg) {
+            e[target.key] = msg;
+            firstStep = Math.min(firstStep, target.step);
+          }
+        }
+        if (firstStep < STEP_COUNT) {
+          setErrors(e);
+          setStep(firstStep);
+          scrollTop();
+        }
+      }
       showAlert(t('common.error'), getApiErrorMessage(error, t, t('kyc.uploadError')));
     } finally {
       setLoading(false);
@@ -375,6 +401,13 @@ export default function KycScreen() {
         [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
       );
     } catch (error: any) {
+      // Selfie refusé par le contrôle (pas de pièce en main, flou) : le motif
+      // va sous la photo.
+      const tofError = error?.response?.status === 422 ? error?.response?.data?.errors?.tof : null;
+      if (tofError) {
+        setErrors({ selfie: String(Array.isArray(tofError) ? tofError[0] : tofError) });
+        scrollTop();
+      }
       showAlert(t('common.error'), getApiErrorMessage(error, t, t('kyc.uploadError')));
     } finally {
       setLoading(false);
@@ -616,7 +649,8 @@ export default function KycScreen() {
     return (
       <ScreenBackground>
         <ScrollView contentContainerStyle={styles.scroll}>
-          <View style={[styles.contentWrapper, { maxWidth: contentMaxWidth }]}>
+          {/* overflow visible : sinon l'ombre de la dernière carte est rognée */}
+          <View style={[styles.contentWrapper, { maxWidth: contentMaxWidth, overflow: 'visible' }]}>
             {renderHeader(t('kyc.chooseLevel'))}
             <Reveal>
               {renderLevelCard(1, 'mobile-screen-button', t('kyc.level1Title'), t('kyc.level1Items'), t('kyc.level1Access', { limit: level1Limit }))}
