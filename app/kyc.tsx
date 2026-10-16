@@ -90,18 +90,23 @@ export default function KycScreen() {
   // Écarts trouvés entre la pièce et le profil (lecture automatique) : en
   // modification, seuls ces champs restent ouverts, les autres sont figés.
   const corrections = editMode ? (user?.kyc_corrections ?? null) : null;
+  // Écarts renvoyés par le contrôle d'un NOUVEL envoi (ex. pièce ajoutée, puis
+  // lue) : ils ouvrent leur champ à leur tour et restent affichés d'une étape
+  // à l'autre. Clés serveur : last_name, first_name, birthdate, idnumber, idexp, file.
+  const [serverFixes, setServerFixes] = useState<Record<string, string>>({});
+  const fixDetails: Record<string, string> = { ...(corrections?.details ?? {}), ...serverFixes };
+  const fixFields = Object.keys(fixDetails);
+  const fixing = editMode && fixFields.length > 0;
   const fixHints: Errors = {};
-  if (corrections) {
-    const keyOf: Record<string, string> = { file: 'idPhoto', last_name: 'lastName', first_name: 'firstName' };
-    for (const [f, msg] of Object.entries(corrections.details)) fixHints[keyOf[f] ?? f] = msg;
-  }
+  const keyOf: Record<string, string> = { file: 'idPhoto', last_name: 'lastName', first_name: 'firstName' };
+  for (const [f, msg] of Object.entries(fixDetails)) fixHints[keyOf[f] ?? f] = msg;
   /** Champ figé : un écart existe ailleurs, et celui-ci est déjà rempli. */
   const isLocked = (field: string, value?: string | null) =>
-    !!corrections && !corrections.fields.includes(field) && !!(value ?? '').toString().trim();
+    fixing && !fixFields.includes(field) && !!(value ?? '').toString().trim();
   const hint = (key: string) => errors[key] || fixHints[key];
   /** Nom et prénom d'un compte validé : identité figée, sauf écart relevé sur la pièce. */
   const nameLocked = (field: string, value?: string | null) =>
-    user?.validate === 1 ? !(corrections?.fields ?? []).includes(field) && !!(value ?? '').trim() : isLocked(field, value);
+    user?.validate === 1 ? !fixFields.includes(field) && !!(value ?? '').trim() : isLocked(field, value);
 
   // Personal info state (pre-filled from user)
   const [lastName, setLastName] = useState(user?.surname ?? '');
@@ -393,16 +398,20 @@ export default function KycScreen() {
           file: { key: 'idPhoto', step: 2 },
         };
         const e: Errors = {};
+        const fixes: Record<string, string> = {};
         let firstStep = STEP_COUNT;
         for (const [name, msgs] of Object.entries(serverErrors)) {
           const target = fieldOf[name];
           const msg = Array.isArray(msgs) ? String(msgs[0] ?? '') : String(msgs ?? '');
           if (target && msg) {
             e[target.key] = msg;
+            fixes[name] = msg;
             firstStep = Math.min(firstStep, target.step);
           }
         }
         if (firstStep < STEP_COUNT) {
+          // En modification : ces champs s'ouvrent, en plus de ceux déjà signalés.
+          if (editMode) setServerFixes((prev) => ({ ...prev, ...fixes }));
           setErrors(e);
           setStep(firstStep);
           scrollTop();
@@ -838,13 +847,13 @@ export default function KycScreen() {
             </View>
 
             {/* Écarts relevés entre la pièce et le profil : quoi corriger, et où. */}
-            {corrections && (
+            {fixing && (
               <View style={styles.fixBox}>
                 <View style={styles.fixHead}>
                   <FontAwesome6 name="triangle-exclamation" size={15} color={colors.warning} />
                   <Text style={styles.fixTitle}>{t('kyc.fixTitle')}</Text>
                 </View>
-                {Object.values(corrections.details).map((d) => (
+                {Object.values(fixDetails).map((d) => (
                   <Text key={d} style={styles.fixLine}>{'\u2022'} {d}</Text>
                 ))}
               </View>
