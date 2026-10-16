@@ -81,7 +81,16 @@ export function CardOrderModal({ visible, pricing, onClose, onOrdered, onIneligi
     quoteTimer.current = setTimeout(() => {
       cardService.issueQuote(value)
         .then((q) => { setQuote(q); setError(null); })
-        .catch((e) => { setQuote(null); setError(getApiErrorMessage(e, t, t('cards.quoteError'))); })
+        .catch((e) => {
+          setQuote(null);
+          // Pièce non conforme au profil (contrôle au premier devis) : retour au KYC.
+          if (e?.response?.data?.missing?.length) {
+            onClose();
+            onIneligible(e);
+            return;
+          }
+          setError(getApiErrorMessage(e, t, t('cards.quoteError')));
+        })
         .finally(() => setQuoting(false));
     }, 450);
     return () => {

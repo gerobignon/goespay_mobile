@@ -100,6 +100,8 @@ export interface CardEligibility {
   missing: string[];
   /** Le dossier doit être re-soumis, puis validé à nouveau. */
   needs_kyc_update: boolean;
+  /** La pièce d'identité lue ne correspond pas au profil : le KYC est à refaire. */
+  doc_mismatch?: boolean;
   /** Âge minimum exigé par l'émetteur. Piloté côté serveur, jamais écrit en dur. */
   min_age?: number;
 }
