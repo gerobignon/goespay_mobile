@@ -215,12 +215,17 @@ export default function AffiliationScreen() {
     );
   };
 
-  const renderBonusProgress = (label: string, current: number, target: number, valueText: string) => {
+  const renderBonusProgress = (step: number, label: string, current: number, target: number, valueText: string) => {
     const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
     const done = current >= target;
     return (
       <View>
         <View style={styles.bonusProgressHead}>
+          <View style={[styles.bonusStep, done && { backgroundColor: Colors.success }]}>
+            {done
+              ? <FontAwesome6 name="check" size={10} color={Colors.white} />
+              : <Text style={styles.bonusStepText}>{step}</Text>}
+          </View>
           <Text style={styles.bonusProgressLabel}>{label}</Text>
           <Text style={[styles.bonusProgressValue, done && { color: Colors.success }]}>{valueText}</Text>
         </View>
@@ -247,35 +252,48 @@ export default function AffiliationScreen() {
       {bonus && bonus.state !== 'none' && (
         <Reveal delay={0} offset={14}>
           <View style={styles.bonusCard}>
-            <View style={styles.bonusHeader}>
-              <View style={styles.bonusIcon}>
-                <FontAwesome6 name="gift" size={16} color={Colors.warning} />
-              </View>
+            {/* Le montant d'abord : c'est lui qui donne envie de lire la suite. */}
+            <View style={styles.bonusHero}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.bonusTitle}>{t('affiliation.bonusTitle', 'Bonus de bienvenue')}</Text>
-                <Text style={styles.bonusSubtitle}>
-                  {bonus.state === 'unlocked'
-                    ? t('affiliation.bonusUnlocked', { amount: fmtXof(bonus.amount), defaultValue: `${fmtXof(bonus.amount)} crédités sur votre solde` })
-                    : t('affiliation.bonusBlocked', { amount: fmtXof(bonus.amount), defaultValue: `Débloquez ${fmtXof(bonus.amount)} en remplissant les 2 conditions` })}
-                </Text>
+                <Text style={styles.bonusAmount}>{fmtXof(bonus.amount)}</Text>
+                <View style={[styles.bonusPill, bonus.state === 'unlocked' && { backgroundColor: Colors.success + '22' }]}>
+                  <FontAwesome6
+                    name={bonus.state === 'unlocked' ? 'circle-check' : 'lock'}
+                    size={11}
+                    color={bonus.state === 'unlocked' ? Colors.success : Colors.warning}
+                  />
+                  <Text style={[styles.bonusPillText, bonus.state === 'unlocked' && { color: Colors.success }]}>
+                    {bonus.state === 'unlocked'
+                      ? t('affiliation.bonusUnlocked', 'Crédités sur votre solde')
+                      : t('affiliation.bonusBlocked', 'Sur votre compte, bloqués')}
+                  </Text>
+                </View>
               </View>
-              <FontAwesome6
-                name={bonus.state === 'unlocked' ? 'circle-check' : 'lock'}
-                size={16}
-                color={bonus.state === 'unlocked' ? Colors.success : Colors.textMuted}
-              />
+              <View style={styles.bonusIcon}>
+                <FontAwesome6 name="gift" size={26} color={Colors.warning} />
+              </View>
             </View>
 
             {bonus.state === 'blocked' && (
               <View style={styles.bonusProgressList}>
+                <Text style={styles.bonusHowTo}>{t('affiliation.bonusHowTo', 'Pour les débloquer :')}</Text>
                 {renderBonusProgress(
-                  t('affiliation.bonusVolume', 'Volume de transactions'),
+                  1,
+                  t('affiliation.bonusVolumeGoal', {
+                    amount: fmtXof(bonus.volume.target),
+                    defaultValue: `Envoyer ${fmtXof(bonus.volume.target)} au total`,
+                  }),
                   bonus.volume.current,
                   bonus.volume.target,
                   `${fmtXof(bonus.volume.current, { withCode: false })} / ${fmtXof(bonus.volume.target, { withCode: false })}`,
                 )}
                 {renderBonusProgress(
-                  t('affiliation.bonusFilleuls', 'Filleuls actifs (KYC + 1 transaction)'),
+                  2,
+                  t('affiliation.bonusFilleulsGoal', {
+                    count: bonus.filleuls.target,
+                    defaultValue: `Parrainer ${bonus.filleuls.target} amis actifs (KYC + 1 transaction)`,
+                  }),
                   bonus.filleuls.current,
                   bonus.filleuls.target,
                   `${bonus.filleuls.current} / ${bonus.filleuls.target}`,
@@ -607,53 +625,89 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   bonusCard: {
     backgroundColor: Colors.card,
     borderRadius: 16,
-    padding: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.warning + '55',
     marginBottom: Spacing.md,
+    overflow: 'hidden',
   },
-  bonusHeader: {
+  bonusHero: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.md,
+    padding: Spacing.lg,
+    backgroundColor: Colors.warning + '1A',
   },
   bonusIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.warning + '22',
+    backgroundColor: Colors.warning + '26',
   },
   bonusTitle: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+    color: Colors.text,
+  },
+  bonusAmount: {
+    fontSize: FontSize.xxl + 4,
+    fontFamily: Fonts.bold,
+    color: Colors.warning,
+    marginTop: 2,
+  },
+  bonusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginTop: Spacing.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.pill,
+    backgroundColor: Colors.warning + '22',
+  },
+  bonusPillText: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+    color: Colors.warning,
+  },
+  bonusProgressList: {
+    padding: Spacing.lg,
+    gap: Spacing.md,
+  },
+  bonusHowTo: {
     fontSize: FontSize.md,
     fontFamily: Fonts.bold,
     color: Colors.text,
   },
-  bonusSubtitle: {
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.medium,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-  bonusProgressList: {
-    marginTop: Spacing.md,
-    gap: Spacing.md,
-  },
   bonusProgressHead: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: Spacing.sm,
     marginBottom: Spacing.xs,
+  },
+  bonusStep: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.warning,
+  },
+  bonusStepText: {
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.bold,
+    color: '#0F172A',
   },
   bonusProgressLabel: {
     flex: 1,
-    fontSize: FontSize.xs,
+    fontSize: FontSize.sm,
     fontFamily: Fonts.medium,
     color: Colors.text,
   },
   bonusProgressValue: {
-    fontSize: FontSize.xs,
+    fontSize: FontSize.sm,
     fontFamily: Fonts.semiBold,
     color: Colors.textMuted,
   },

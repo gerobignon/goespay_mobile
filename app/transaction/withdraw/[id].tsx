@@ -16,6 +16,7 @@ import { walletService } from '../../../src/services/walletService';
 import { Card } from '../../../src/components/Card';
 import { TransactionDetailRow } from '../../../src/components/TransactionDetailRow';
 import { OperatorLogo } from '../../../src/components/OperatorLogo';
+import { TransferProof } from '../../../src/components/TransferProof';
 import { resolveOperatorDisplay } from '../../../src/utils/operatorDisplay';
 import TransactionHero from '../../../src/components/TransactionHero';
 import ClaimNoteModal from '../../../src/components/ClaimNoteModal';
@@ -204,6 +205,7 @@ export default function WithdrawDetailScreen() {
                   mono
                 />
                 <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '-'} copyable mono />
+                <TransferProof uri={tx.proof_url} reference={tx.reference} />
                 {tx.statut === 'success' && (
                   <>
                     <TransactionDetailRow label={t('transaction.balanceBefore')} value={exactXof(tx.avant)} mono />

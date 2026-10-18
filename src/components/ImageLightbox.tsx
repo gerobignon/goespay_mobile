@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useWindowInsets } from './NativeAppBanner';
 import { FontAwesome6 } from '@expo/vector-icons';
@@ -37,7 +38,17 @@ const DISMISS_DY = 110;
  * fichier, sinon les bornes seraient fausses pour une image plus étroite ou
  * plus large que l'écran.
  */
-export function ImageLightbox({ uri, onClose }: { uri: string | null; onClose: () => void }) {
+export function ImageLightbox({
+  uri,
+  onClose,
+  onShare,
+}: {
+  uri: string | null;
+  onClose: () => void;
+  /** Bouton de partage affiché à côté de la croix quand il est fourni. */
+  onShare?: () => Promise<void> | void;
+}) {
+  const [sharing, setSharing] = useState(false);
   const { width, height } = useWindowDimensions();
   const insets = useWindowInsets();
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
@@ -313,6 +324,23 @@ export function ImageLightbox({ uri, onClose }: { uri: string | null; onClose: (
         >
           <FontAwesome6 name="xmark" size={18} color="#fff" />
         </TouchableOpacity>
+
+        {onShare && (
+          <TouchableOpacity
+            style={[styles.close, styles.share, { top: Math.max(insets.top, 12) + 8 }]}
+            onPress={async () => {
+              if (sharing) return;
+              setSharing(true);
+              try { await onShare(); } finally { setSharing(false); }
+            }}
+            hitSlop={16}
+            disabled={sharing}
+          >
+            {sharing
+              ? <ActivityIndicator size="small" color="#fff" />
+              : <FontAwesome6 name="share-nodes" size={17} color="#fff" />}
+          </TouchableOpacity>
+        )}
       </View>
     </Modal>
   );
@@ -320,6 +348,7 @@ export function ImageLightbox({ uri, onClose }: { uri: string | null; onClose: (
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: 'rgba(0,0,0,0.96)', overflow: 'hidden' },
+  share: { right: 16 + 44 + 10 },
   close: {
     position: 'absolute',
     right: 16,

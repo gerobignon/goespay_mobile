@@ -28,6 +28,7 @@ import { downloadInvoice } from '../utils/invoice';
 import { normalizeStatut, getStatusIcon } from '../utils/transactionStatus';
 import type { Transaction } from '../types';
 import { CloseButton } from './CloseButton';
+import { TransferProof } from './TransferProof';
 
 function getCryptoStatus(statut: string | number, t: (key: string) => string): { label: string; color: string; icon: string } {
   const norm = normalizeStatut(statut, 'crypto');
@@ -520,6 +521,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
             <TransactionDetailRow label={t('transaction.operator')} value={resolveOperatorView(tx.mode, tx.currency_dest)?.name ?? '-'} valueNode={<OperatorValue mode={tx.mode} currencyDest={tx.currency_dest} />} />
             <TransactionDetailRow label={t('transaction.receiver')} value={tx.phone ?? '-'} copyable mono />
             <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '-'} copyable mono />
+            <TransferProof uri={tx.proof_url} reference={tx.reference} />
             <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '-'} mono />
             <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '-'} mono color={status.color} />
             <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
