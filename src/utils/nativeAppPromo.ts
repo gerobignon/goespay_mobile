@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { webReferralCode } from './deferredReferral';
 
 /**
  * Promotion des applications natives (Google Play, App Store) depuis le web
@@ -66,10 +67,21 @@ export async function hasNativeAppInstalled(): Promise<boolean> {
   }
 }
 
+/**
+ * Lien Google Play portant le code de parrainage du clic : l'application le
+ * relit au premier lancement par l'Install Referrer (cf. deferredReferral).
+ */
+export function androidStoreUrl(): string {
+  const code = webReferralCode();
+  if (!code) return ANDROID_STORE_URL;
+  return `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE}` +
+    '&referrer=' + encodeURIComponent(`ref=${code}&utm_source=web&utm_medium=referral`);
+}
+
 /** Ouvre la fiche du store (app du store si présente, sinon navigateur). */
 export function openStore(store: NativeStore): void {
   if (!isWeb()) return;
-  const url = store === 'play' ? ANDROID_STORE_URL : IOS_STORE_URL;
+  const url = store === 'play' ? androidStoreUrl() : IOS_STORE_URL;
   try {
     const win = window.open(url, '_blank', 'noopener');
     if (!win) window.location.href = url;

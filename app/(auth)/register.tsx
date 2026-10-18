@@ -23,6 +23,7 @@ import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
 import { sanitizePersonNameInput } from '../../src/utils/personName';
+import { clearDeferredReferral, recordWebReferralClick, resolveDeferredReferral } from '../../src/utils/deferredReferral';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -43,7 +44,16 @@ export default function RegisterScreen() {
   useEffect(() => {
     if (params.ref && typeof params.ref === 'string') {
       setParrainCode(params.ref);
+      // Web : le clic est gardé pour l'application installée ensuite.
+      recordWebReferralClick(params.ref);
+      return;
     }
+    // Application native : code du lien de parrainage cliqué avant l'installation.
+    let active = true;
+    resolveDeferredReferral().then((code) => {
+      if (active && code) setParrainCode((current) => current || code);
+    });
+    return () => { active = false; };
   }, [params.ref]);
 
   // Adresse arrivée depuis la connexion (« aucun compte pour cette adresse ») :
@@ -113,6 +123,7 @@ export default function RegisterScreen() {
       if (response.signup_token) {
         await savePendingActivation(email.trim(), response.signup_token);
       }
+      await clearDeferredReferral();
       router.replace({ pathname: '/(auth)/activation', params: { email: email.trim() } });
     } catch (error: any) {
       const data = error?.response?.data;

@@ -39,6 +39,7 @@ import {
   type PendingRoute,
 } from '../src/utils/pendingRoute';
 import { takeStoredNotificationUrl } from '../src/utils/webNotificationTarget';
+import { resolveDeferredReferral } from '../src/utils/deferredReferral';
 
 /** Charge utile d'une notification push, telle qu'envoyée par le backend. */
 type NotificationData = Record<string, string | undefined>;
@@ -233,6 +234,9 @@ function RootInner() {
     // Messages s'ouvre sans temps mort, verrou armé ou non.
     useMessagingLockStore.getState().load();
     initLanguage();
+    // Premier lancement après un lien de parrainage : le code est cherché tant
+    // que l'appareil est encore sur le réseau du clic (cf. deferredReferral).
+    resolveDeferredReferral();
     // Patch viewport meta on web pour activer env(safe-area-inset-*) sur iOS notch/PWA
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       const meta = document.querySelector('meta[name="viewport"]');
