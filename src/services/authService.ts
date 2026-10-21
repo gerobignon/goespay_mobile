@@ -193,7 +193,8 @@ export const authService = {
       first_name?: string;
     },
     fileUri: string | null,   // null = garder le document déjà uploadé (re-soumission)
-    selfieUri: string | null  // null = garder le selfie déjà uploadé
+    selfieUri: string | null, // null = garder le selfie déjà uploadé
+    versoUri: string | null = null // verso (carte d'identité, permis) ; null = garder l'existant
   ): Promise<{ message: string; validate: number }> => {
     const formData = new FormData();
     const appendFile = async (key: string, uri: string) => {
@@ -231,6 +232,7 @@ export const authService = {
     // Fichiers : seulement si l'utilisateur en a (re)pris (sinon on garde l'existant).
     if (fileUri) await appendFile('file', fileUri);
     if (selfieUri) await appendFile('tof', selfieUri);
+    if (versoUri) await appendFile('verso', versoUri);
     // Soumission du KYC complet (Niveau 2).
     formData.append('level', '2');
 

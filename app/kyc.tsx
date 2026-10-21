@@ -39,14 +39,19 @@ import { ALL_COUNTRIES } from '../src/constants/countries';
 import { getApiErrorMessage } from '../src/utils/apiError';
 import { useTranslation } from 'react-i18next';
 
+// `back` : la pièce a un verso à photographier (le passeport n'en a pas).
+// `front`/`addFront`/`selfie` : libellés des prises de vue propres à la pièce.
 const DOC_TYPES_KEYS = [
-  { value: 'Passport', key: 'kyc.passport', icon: 'passport' },
-  { value: 'Identity card', key: 'kyc.identityCard', icon: 'id-card' },
-  { value: "Driver's license", key: 'kyc.driverLicense', icon: 'car' },
+  { value: 'Passport', key: 'kyc.passport', icon: 'passport', back: false,
+    front: 'kyc.passportPhoto', addFront: 'kyc.addPassport', selfie: 'kyc.selfieWithPassport' },
+  { value: 'Identity card', key: 'kyc.identityCard', icon: 'id-card', back: true,
+    front: 'kyc.front', addFront: 'kyc.addFront', selfie: 'kyc.selfieWithIdCardFront' },
+  { value: "Driver's license", key: 'kyc.driverLicense', icon: 'car', back: true,
+    front: 'kyc.front', addFront: 'kyc.addFront', selfie: 'kyc.selfieWithLicenseFront' },
 ];
 
-/** Cible d'une prise de vue (pièce ou selfie), pilote la feuille caméra/galerie. */
-type PhotoTarget = 'id' | 'selfie' | null;
+/** Cible d'une prise de vue (recto, verso ou selfie), pilote la feuille caméra/galerie. */
+type PhotoTarget = 'id' | 'verso' | 'selfie' | null;
 
 /** Erreurs de saisie, par nom de champ. */
 type Errors = Record<string, string>;
@@ -136,6 +141,7 @@ export default function KycScreen() {
   // KYC docs state, type de pièce prérempli depuis la précédente soumission.
   const [docType, setDocType] = useState(user?.kyc_type ?? '');
   const [fileUri, setFileUri] = useState<string | null>(null);
+  const [versoUri, setVersoUri] = useState<string | null>(null);
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -210,7 +216,12 @@ export default function KycScreen() {
 
   // Aperçus effectifs : nouvelle photo prise, sinon celle déjà envoyée.
   const idPreview = fileUri ?? (photosFresh ? user?.kyc_file_url : null) ?? null;
+  const versoPreview = versoUri ?? (photosFresh ? user?.kyc_verso_url : null) ?? null;
   const selfiePreview = selfieUri ?? (photosFresh ? user?.kyc_tof_url : null) ?? null;
+
+  // Pièce choisie : verso exigé ou non, et libellés des prises de vue.
+  const docSpec = DOC_TYPES_KEYS.find((d) => d.value === docType);
+  const needsBack = !!docSpec?.back;
 
   const STEPS = [
     { label: t('kyc.identity'), icon: 'user-large' },
@@ -264,6 +275,7 @@ export default function KycScreen() {
     }
     if (i === 2) {
       if (!idPreview) e.idPhoto = t('kyc.errIdPhoto');
+      if (needsBack && !versoPreview) e.verso = t('kyc.errBack');
       if (!selfiePreview) e.selfie = t('kyc.errSelfie');
     }
     return e;
@@ -314,8 +326,8 @@ export default function KycScreen() {
 
   const applyPhoto = async (uri: string, target: Exclude<PhotoTarget, null>) => {
     const compressed = await compressImage(uri, { maxEdge: MAX_EDGE_DOCUMENT });
-    (target === 'id' ? setFileUri : setSelfieUri)(compressed);
-    setErrors((prev) => ({ ...prev, [target === 'id' ? 'idPhoto' : 'selfie']: '' }));
+    ({ id: setFileUri, verso: setVersoUri, selfie: setSelfieUri })[target](compressed);
+    setErrors((prev) => ({ ...prev, [({ id: 'idPhoto', verso: 'verso', selfie: 'selfie' })[target]]: '' }));
   };
 
   // Caméra exclusivement : aucune photo issue de la galerie n'est acceptée pour
@@ -371,7 +383,8 @@ export default function KycScreen() {
           first_name: editMode && firstName.trim() !== (user?.name ?? '') ? firstName.trim() : undefined,
         },
         fileUri,
-        selfieUri
+        selfieUri,
+        needsBack ? versoUri : null
       );
       await refreshProfile();
       showAlert(
@@ -396,6 +409,7 @@ export default function KycScreen() {
           idnumber: { key: 'idnumber', step: 1 },
           idexp: { key: 'idexp', step: 1 },
           file: { key: 'idPhoto', step: 2 },
+          verso: { key: 'verso', step: 2 },
         };
         const e: Errors = {};
         const fixes: Record<string, string> = {};
@@ -1077,16 +1091,24 @@ export default function KycScreen() {
             {step === 2 && (
               <Reveal key="s2" offset={14}>
                 <Card style={styles.sectionCard}>
-                  <Text style={styles.photoLabel}>{t('kyc.idPhoto')}</Text>
+                  <Text style={styles.photoLabel}>{t(docSpec?.front ?? 'kyc.idPhoto')}</Text>
                   <View style={styles.guideImageDocWrapper}>
                     <Image source={require('../assets/kyc_id_sample.jpg')} style={styles.guideImageFill} />
                   </View>
                   <Text style={styles.photoHint}>{t('kyc.idHint')}</Text>
-                  {renderPhotoPicker(idPreview, 'id', 'id-card', t('kyc.addId'), hint('idPhoto'), isLocked('file', idPreview))}
+                  {renderPhotoPicker(idPreview, 'id', 'id-card', t(docSpec?.addFront ?? 'kyc.addId'), hint('idPhoto'), isLocked('file', idPreview))}
+
+                  {needsBack && (
+                    <>
+                      <View style={styles.divider} />
+                      <Text style={styles.photoLabel}>{t('kyc.back')}</Text>
+                      {renderPhotoPicker(versoPreview, 'verso', 'id-card', t('kyc.addBack'), hint('verso'), isLocked('file', versoPreview))}
+                    </>
+                  )}
 
                   <View style={styles.divider} />
 
-                  <Text style={styles.photoLabel}>{t('kyc.selfieWithId')}</Text>
+                  <Text style={styles.photoLabel}>{t(docSpec?.selfie ?? 'kyc.selfieWithId')}</Text>
                   <View style={styles.guideImageWrapper}>
                     <Image source={require('../assets/kyc_selfie_sample.jpg')} style={styles.guideImageFill} />
                   </View>
@@ -1130,7 +1152,7 @@ export default function KycScreen() {
 
                 {renderSummaryCard(t('kyc.stepPhotos'), 2, (
                   <View style={styles.thumbRow}>
-                    {[idPreview, selfiePreview].map((uri, i) => (
+                    {(needsBack ? [idPreview, versoPreview, selfiePreview] : [idPreview, selfiePreview]).map((uri, i) => (
                       <View key={i} style={styles.thumbWrap}>
                         {uri ? <AuthImage uri={uri} style={styles.thumb} /> : <View style={styles.thumb} />}
                         <View style={styles.thumbBadge}>

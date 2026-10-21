@@ -18,6 +18,7 @@ export interface User {
   kyc_type?: string;            // type de pièce KYC précédemment soumis
   kyc_file_url?: string | null; // document KYC déjà uploadé
   kyc_tof_url?: string | null;  // selfie KYC déjà uploadé
+  kyc_verso_url?: string | null; // verso de la pièce KYC déjà uploadé
   // Écarts trouvés entre la pièce lue et le profil : en modification, seuls ces
   // champs s'ouvrent. Clés : last_name, first_name, birthdate, idnumber, idexp, file.
   kyc_corrections?: { fields: string[]; details: Record<string, string> } | null;
