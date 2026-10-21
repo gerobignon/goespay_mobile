@@ -238,6 +238,8 @@ export default function KycScreen() {
     const e: Errors = {};
     const req = t('kyc.errRequired');
     if (i === 0) {
+      if (!lastName.trim()) e.lastName = req;
+      if (!firstName.trim()) e.firstName = req;
       if (!country) e.country = req;
       if (!city.trim()) e.city = req;
       if (!address.trim()) e.address = req;
@@ -378,9 +380,10 @@ export default function KycScreen() {
           country,
           telegram: telegram.trim(),
           resubmit: editMode,
-          // Nom et prénom : envoyés seulement s'ils ont changé (écart avec la pièce).
-          last_name: editMode && lastName.trim() !== (user?.surname ?? '') ? lastName.trim() : undefined,
-          first_name: editMode && firstName.trim() !== (user?.name ?? '') ? firstName.trim() : undefined,
+          // Nom et prénom : envoyés seulement s'ils ont changé (faute de saisie,
+          // écart relevé sur la pièce).
+          last_name: lastName.trim() !== (user?.surname ?? '') ? lastName.trim() : undefined,
+          first_name: firstName.trim() !== (user?.name ?? '') ? firstName.trim() : undefined,
         },
         fileUri,
         selfieUri,
@@ -877,24 +880,23 @@ export default function KycScreen() {
             {step === 0 && (
               <Reveal key="s0" offset={14}>
                 <Card style={styles.sectionCard}>
-                  {/* Nom et prénom : affichés en modification, ouverts seulement
-                      s'ils sont en écart avec la pièce. */}
-                  {editMode && (
-                    <View style={styles.row}>
-                      {renderField(
-                        t('kyc.lastName'),
-                        <Input value={lastName} onChangeText={setLastName} editable={!nameLocked('last_name', lastName)} error={hint('lastName')} containerStyle={StyleSheet.flatten([styles.inputFlush, nameLocked('last_name', lastName) && styles.locked])} />,
-                        undefined,
-                        styles.col
-                      )}
-                      {renderField(
-                        t('kyc.firstName'),
-                        <Input value={firstName} onChangeText={setFirstName} editable={!nameLocked('first_name', firstName)} error={hint('firstName')} containerStyle={StyleSheet.flatten([styles.inputFlush, nameLocked('first_name', firstName) && styles.locked])} />,
-                        undefined,
-                        styles.col
-                      )}
-                    </View>
-                  )}
+                  {/* Nom et prénom : modifiables tant que le compte n'est pas
+                      validé, pour corriger une faute signalée par la lecture de
+                      la pièce. Validé : ouverts seulement s'ils sont en écart. */}
+                  <View style={styles.row}>
+                    {renderField(
+                      t('kyc.lastName'),
+                      <Input value={lastName} onChangeText={setLastName} editable={!nameLocked('last_name', lastName)} error={hint('lastName')} containerStyle={StyleSheet.flatten([styles.inputFlush, nameLocked('last_name', lastName) && styles.locked])} />,
+                      undefined,
+                      styles.col
+                    )}
+                    {renderField(
+                      t('kyc.firstName'),
+                      <Input value={firstName} onChangeText={setFirstName} editable={!nameLocked('first_name', firstName)} error={hint('firstName')} containerStyle={StyleSheet.flatten([styles.inputFlush, nameLocked('first_name', firstName) && styles.locked])} />,
+                      undefined,
+                      styles.col
+                    )}
+                  </View>
                   {renderCountryPicker()}
 
                   <View style={styles.row}>
@@ -1130,6 +1132,8 @@ export default function KycScreen() {
 
                 {renderSummaryCard(t('kyc.identity'), 0, (
                   <>
+                    {renderSummaryRow(t('kyc.lastName'), lastName)}
+                    {renderSummaryRow(t('kyc.firstName'), firstName)}
                     {renderSummaryRow(t('kyc.country'), selectedCountry?.name)}
                     {renderSummaryRow(t('kyc.city'), city)}
                     {renderSummaryRow(t('kyc.postcode'), postcode)}
