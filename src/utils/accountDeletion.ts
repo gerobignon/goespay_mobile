@@ -4,6 +4,7 @@ import { authService } from '../services/authService';
 import { showAlert } from '../stores/alertStore';
 import { usePinStore } from '../stores/pinStore';
 import type { AccountDeletionBlocker, AccountDeletionStatus } from '../types';
+import { formatXof } from './format';
 
 /**
  * Parcours « Supprimer mon compte », partagé par le menu Compte (mobile),
@@ -113,11 +114,17 @@ export async function startAccountDeletion(t: TFunction, email: string) {
     return;
   }
 
+  const message = status.delay_days === 0
+    ? t('account.deleteAccountMessageNow')
+    : t('account.deleteAccountMessage', { days: status.delay_days ?? 30 });
+  // Solde trop faible pour être retiré : il ne bloque pas, mais il est perdu.
+  const residual = status.residual_balance ?? 0;
+
   showAlert(
     t('account.deleteAccount'),
-    status.delay_days === 0
-      ? t('account.deleteAccountMessageNow')
-      : t('account.deleteAccountMessage', { days: status.delay_days ?? 30 }),
+    residual > 0
+      ? `${message}\n\n${t('account.deletionResidualBalance', { amount: formatXof(residual) })}`
+      : message,
     [
       { text: t('common.cancel'), style: 'cancel' },
       { text: t('account.deleteAccountConfirm'), style: 'destructive', onPress: () => sendLink(email, t) },

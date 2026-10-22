@@ -1019,19 +1019,14 @@ export default function CardsScreen() {
 
           {eligibility?.reason === 'profile' && renderKycUpdate()}
 
-          {/* Pièce d'un type que l'émetteur n'honore plus : le dossier est à
-              re-soumettre avec un passeport ou un permis. */}
+          {/* Pièce que l'émetteur n'honore pas pour la carte seulement : elle
+              reste valable pour tout le reste. Pas de renvoi vers le KYC, une
+              re-soumission remettrait le compte en attente de validation. */}
           {!!eligibility?.identity_hold && eligibility?.can_order && (
             <View style={styles.gateCard}>
               <FontAwesome6 name="id-card" size={22} color={Colors.warning} iconStyle="solid" />
               <Text style={styles.gateTitle}>{t('cards.identityOnHoldTitle')}</Text>
               <Text style={styles.gateText}>{t('cards.identityOnHold')}</Text>
-              <Button
-                title={t('cards.completeKyc')}
-                icon="id-card"
-                onPress={() => router.push('/kyc?edit=1')}
-                style={{ marginTop: Spacing.md }}
-              />
             </View>
           )}
 

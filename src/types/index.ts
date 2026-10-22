@@ -51,6 +51,19 @@ export interface User {
 
 export type LoginMethod = 'otp' | 'password';
 
+/**
+ * Lecture de la pièce dès sa prise de vue (POST me/kyc/read), au format du
+ * formulaire KYC : birthdate AAAA-MM-JJ, idexp MM/AAAA, type = valeur de l'app.
+ * Un champ non lu est absent.
+ */
+export interface KycDocumentRead {
+  /** false = lecture automatique non configurée sur le serveur. */
+  enabled?: boolean;
+  fields: Partial<Record<'last_name' | 'first_name' | 'birthdate' | 'idnumber' | 'idexp' | 'type', string>>;
+  /** Motifs à reprendre tout de suite : file (photo floue), idexp (pièce expirée). */
+  errors: Record<string, string[]>;
+}
+
 /** Obstacle à la suppression du compte, message déjà traduit par le serveur. */
 export interface AccountDeletionBlocker {
   code: 'balance_not_zero' | 'pending_transactions' | 'active_card' | 'active_virtual_account' | 'open_debt' | string;
@@ -70,6 +83,8 @@ export interface AccountDeletionStatus {
   blockers: AccountDeletionBlocker[];
   /** Délai avant suppression, en jours (0 : immédiate). */
   delay_days?: number;
+  /** Solde perdu à la clôture, en XOF (0 : aucun). */
+  residual_balance?: number;
   email?: string;
   message?: string;
 }

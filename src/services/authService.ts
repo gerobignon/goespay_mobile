@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import api from './api';
 import type {
   AccountDeletionStatus,
+  KycDocumentRead,
   LoginMethod,
   LoginRequest,
   LoginResponse,
@@ -237,6 +238,30 @@ export const authService = {
     formData.append('level', '2');
 
     return authService.postKycForm(formData);
+  },
+
+  /**
+   * Lecture de la pièce dès sa prise de vue : de quoi préremplir le formulaire.
+   * Rien n'est enregistré ; le dépôt reprend cette lecture pour la même photo.
+   */
+  readKycDocument: async (fileUri: string, type: string): Promise<KycDocumentRead> => {
+    const formData = new FormData();
+    const filename = 'kyc-file.jpg';
+    const mime = 'image/jpeg';
+    if (Platform.OS === 'web') {
+      const blob = await (await fetch(fileUri)).blob();
+      formData.append('file', new File([blob], filename, { type: mime }));
+    } else {
+      formData.append('file', { uri: fileUri, name: filename, type: mime } as unknown as Blob);
+    }
+    if (type) formData.append('type', type);
+    const response = await api.post<KycDocumentRead>('/me/kyc/read', formData, {
+      timeout: 90000,
+      headers: Platform.OS === 'web'
+        ? { 'Content-Type': undefined as any }
+        : { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
   },
 
   postKycForm: async (formData: FormData): Promise<{ message: string; validate: number }> => {

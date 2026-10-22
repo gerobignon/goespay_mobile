@@ -12,6 +12,7 @@ import {
   Platform,
   Animated,
   Easing,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -37,6 +38,7 @@ import { useThemedStyles } from '../src/hooks/useThemedStyles';
 import { showAlert } from '../src/stores/alertStore';
 import { ALL_COUNTRIES } from '../src/constants/countries';
 import { getApiErrorMessage } from '../src/utils/apiError';
+import { withKnownAccents } from '../src/utils/personName';
 import { useTranslation } from 'react-i18next';
 
 // `back` : la pièce a un verso à photographier (le passeport n'en a pas).
@@ -150,9 +152,8 @@ export default function KycScreen() {
   // En correction, on ouvre directement l'étape du premier champ à reprendre.
   const [step, setStep] = useState(() => {
     const f = (editMode ? user?.kyc_corrections?.fields : null) ?? [];
-    if (f.some((x) => ['last_name', 'first_name', 'birthdate'].includes(x))) return 0;
-    if (f.some((x) => ['idnumber', 'idexp'].includes(x))) return 1;
-    if (f.includes('file')) return 2;
+    if (f.some((x) => ['file', 'idnumber', 'idexp'].includes(x))) return 0;
+    if (f.some((x) => ['last_name', 'first_name', 'birthdate'].includes(x))) return 1;
     return 0;
   });
   const [errors, setErrors] = useState<Errors>({});
@@ -223,10 +224,11 @@ export default function KycScreen() {
   const docSpec = DOC_TYPES_KEYS.find((d) => d.value === docType);
   const needsBack = !!docSpec?.back;
 
+  // La pièce d'abord : sa lecture préremplit l'identité qui suit.
   const STEPS = [
-    { label: t('kyc.identity'), icon: 'user-large' },
     { label: t('kyc.document'), icon: 'id-card' },
-    { label: t('kyc.stepPhotos'), icon: 'camera' },
+    { label: t('kyc.identity'), icon: 'user-large' },
+    { label: t('kyc.step2'), icon: 'camera' },
     { label: t('kyc.stepReview'), icon: 'circle-check' },
   ];
 
@@ -238,6 +240,23 @@ export default function KycScreen() {
     const e: Errors = {};
     const req = t('kyc.errRequired');
     if (i === 0) {
+      if (!docType) e.docType = t('kyc.errDocType');
+      if (!idPreview) e.idPhoto = t('kyc.errIdPhoto');
+      if (needsBack && !versoPreview) e.verso = t('kyc.errBack');
+      if (!idnumber.trim()) e.idnumber = req;
+      const m = parseInt(idexpMonth, 10);
+      if (!idexpMonth || !idexpYear) e.idexp = req;
+      else if (isNaN(m) || m < 1 || m > 12) e.idexp = t('kyc.errMonth');
+      else if (idexpYear.length !== 4) e.idexp = t('kyc.errYear');
+      else {
+        const now = new Date();
+        const y = parseInt(idexpYear, 10);
+        if (y < now.getFullYear() || (y === now.getFullYear() && m < now.getMonth() + 1)) {
+          e.idexp = t('kyc.errExpiryPast');
+        }
+      }
+    }
+    if (i === 1) {
       if (!lastName.trim()) e.lastName = req;
       if (!firstName.trim()) e.firstName = req;
       if (!country) e.country = req;
@@ -258,26 +277,9 @@ export default function KycScreen() {
           e.birthdate = t('kyc.errBirthdate');
         }
       }
-    }
-    if (i === 1) {
-      if (!docType) e.docType = t('kyc.errDocType');
-      if (!idnumber.trim()) e.idnumber = req;
       if (bvn.trim() && bvn.trim().length !== 11) e.bvn = t('kyc.errBvn');
-      const m = parseInt(idexpMonth, 10);
-      if (!idexpMonth || !idexpYear) e.idexp = req;
-      else if (isNaN(m) || m < 1 || m > 12) e.idexp = t('kyc.errMonth');
-      else if (idexpYear.length !== 4) e.idexp = t('kyc.errYear');
-      else {
-        const now = new Date();
-        const y = parseInt(idexpYear, 10);
-        if (y < now.getFullYear() || (y === now.getFullYear() && m < now.getMonth() + 1)) {
-          e.idexp = t('kyc.errExpiryPast');
-        }
-      }
     }
     if (i === 2) {
-      if (!idPreview) e.idPhoto = t('kyc.errIdPhoto');
-      if (needsBack && !versoPreview) e.verso = t('kyc.errBack');
       if (!selfiePreview) e.selfie = t('kyc.errSelfie');
     }
     return e;
@@ -330,6 +332,51 @@ export default function KycScreen() {
     const compressed = await compressImage(uri, { maxEdge: MAX_EDGE_DOCUMENT });
     ({ id: setFileUri, verso: setVersoUri, selfie: setSelfieUri })[target](compressed);
     setErrors((prev) => ({ ...prev, [({ id: 'idPhoto', verso: 'verso', selfie: 'selfie' })[target]]: '' }));
+    if (target === 'id') readDocument(compressed);
+  };
+
+  /* ─────────────────────────── Lecture de la pièce ─────────────────────── */
+
+  // Le recto est lu dès la prise de vue : nom, prénom, date de naissance,
+  // numéro, expiration et type se remplissent, et une photo floue ou une pièce
+  // expirée se signale tout de suite. Un champ figé n'est jamais réécrit.
+  const [reading, setReading] = useState(false);
+  const [readState, setReadState] = useState<'filled' | 'failed' | null>(null);
+  const readSeq = useRef(0);
+
+  const readDocument = async (uri: string) => {
+    const seq = ++readSeq.current;
+    setReading(true);
+    setReadState(null);
+    try {
+      const res = await authService.readKycDocument(uri, docType);
+      // Photo reprise entre-temps : seule la dernière lecture compte.
+      if (seq !== readSeq.current || res.enabled === false) return;
+      const { last_name: ln, first_name: fn, birthdate: bd, idnumber: num, idexp: exp, type } = res.fields ?? {};
+      const known = `${lastName} ${firstName}`;
+      if (ln) setLastName((v) => (nameLocked('last_name', v) ? v : withKnownAccents(ln, known)));
+      if (fn) setFirstName((v) => (nameLocked('first_name', v) ? v : withKnownAccents(fn, known)));
+      if (num) setIdnumber((v) => (isLocked('idnumber', v) ? v : num));
+      if (type && !isLocked('type', docType)) setDocType(type);
+      const b = bd?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (b && !isLocked('birthdate', birthYear)) { setBirthDay(b[3]); setBirthMonth(b[2]); setBirthYear(b[1]); }
+      const x = exp?.match(/^(\d{2})\/(\d{4})$/);
+      if (x && !isLocked('idexp', idexpYear)) { setIdexpMonth(x[1]); setIdexpYear(x[2]); }
+
+      const first = (k: string) => String(res.errors?.[k]?.[0] ?? '');
+      setErrors((p) => ({
+        ...p,
+        idPhoto: first('file'),
+        idexp: first('idexp'),
+        ...(num ? { idnumber: '' } : {}),
+        ...(type ? { docType: '' } : {}),
+      }));
+      setReadState(ln || fn || bd || num || exp ? 'filled' : first('file') ? null : 'failed');
+    } catch {
+      if (seq === readSeq.current) setReadState('failed');
+    } finally {
+      if (seq === readSeq.current) setReading(false);
+    }
   };
 
   // Caméra exclusivement : aucune photo issue de la galerie n'est acceptée pour
@@ -406,13 +453,16 @@ export default function KycScreen() {
       const serverErrors = error?.response?.status === 422 ? error?.response?.data?.errors : null;
       if (serverErrors && typeof serverErrors === 'object') {
         const fieldOf: Record<string, { key: string; step: number }> = {
-          last_name: { key: 'lastName', step: 0 },
-          first_name: { key: 'firstName', step: 0 },
-          birthdate: { key: 'birthdate', step: 0 },
-          idnumber: { key: 'idnumber', step: 1 },
-          idexp: { key: 'idexp', step: 1 },
-          file: { key: 'idPhoto', step: 2 },
-          verso: { key: 'verso', step: 2 },
+          file: { key: 'idPhoto', step: 0 },
+          verso: { key: 'verso', step: 0 },
+          idnumber: { key: 'idnumber', step: 0 },
+          idexp: { key: 'idexp', step: 0 },
+          last_name: { key: 'lastName', step: 1 },
+          first_name: { key: 'firstName', step: 1 },
+          birthdate: { key: 'birthdate', step: 1 },
+          state: { key: 'state', step: 1 },
+          phone: { key: 'phone', step: 1 },
+          bvn: { key: 'bvn', step: 1 },
         };
         const e: Errors = {};
         const fixes: Record<string, string> = {};
@@ -564,6 +614,20 @@ export default function KycScreen() {
     <View style={styles.sumRow} key={label}>
       <Text style={styles.sumLabel}>{label}</Text>
       <Text style={styles.sumValue} numberOfLines={1}>{value || '-'}</Text>
+    </View>
+  );
+
+  // Vignettes du récapitulatif, de même taille quel que soit leur nombre.
+  const renderThumbs = (uris: (string | null)[]) => (
+    <View style={styles.thumbRow}>
+      {uris.map((uri, i) => (
+        <View key={i} style={styles.thumbWrap}>
+          {uri ? <AuthImage uri={uri} style={styles.thumb} /> : <View style={styles.thumb} />}
+          <View style={styles.thumbBadge}>
+            <FontAwesome6 name="check" size={9} color={colors.white} />
+          </View>
+        </View>
+      ))}
     </View>
   );
 
@@ -876,27 +940,129 @@ export default function KycScreen() {
               </View>
             )}
 
-            {/* ── Étape 1 : identité ── */}
+            {/* ── Étape 1 : pièce, lue dès la prise de vue ── */}
             {step === 0 && (
               <Reveal key="s0" offset={14}>
                 <Card style={styles.sectionCard}>
+                  <Text style={styles.fieldLabel}>{t('kyc.documentType')}</Text>
+                  <View style={styles.docTypeContainer}>
+                    {DOC_TYPES.map((dt) => {
+                      const active = docType === dt.value;
+                      return (
+                        <Bounce
+                          key={dt.value}
+                          style={[styles.docTypeBtn, active ? styles.docTypeBtnActive : null, isLocked('type', docType) && styles.locked] as any}
+                          disabled={isLocked('type', docType)}
+                          onPress={() => { setDocType(dt.value); setErrors((p) => ({ ...p, docType: '' })); }}
+                        >
+                          {active && (
+                            <View style={styles.docTypeCheck}>
+                              <FontAwesome6 name="check" size={9} color={colors.white} />
+                            </View>
+                          )}
+                          <FontAwesome6 name={dt.icon} size={20} color={active ? colors.primary : colors.textMuted} />
+                          <Text style={[styles.docTypeText, active && styles.docTypeTextActive]}>{dt.label}</Text>
+                        </Bounce>
+                      );
+                    })}
+                  </View>
+                  {!!errors.docType && <Text style={styles.fieldError}>{errors.docType}</Text>}
+
+                  <View style={styles.divider} />
+
+                  <Text style={styles.photoLabel}>{t(docSpec?.front ?? 'kyc.idPhoto')}</Text>
+                  <View style={styles.guideImageDocWrapper}>
+                    <Image source={require('../assets/kyc_id_sample.jpg')} style={styles.guideImageFill} />
+                  </View>
+                  <Text style={styles.photoHint}>{t('kyc.idHint')}</Text>
+                  {renderPhotoPicker(idPreview, 'id', 'id-card', t(docSpec?.addFront ?? 'kyc.addId'), hint('idPhoto'), isLocked('file', idPreview))}
+                  {reading ? (
+                    <View style={styles.readRow}>
+                      <ActivityIndicator size="small" color={colors.primary} />
+                      <Text style={styles.readText}>{t('kyc.reading')}</Text>
+                    </View>
+                  ) : readState === 'filled' ? (
+                    <View style={styles.readRow}>
+                      <FontAwesome6 name="check" size={13} color={colors.positive} />
+                      <Text style={styles.readText}>{t('kyc.readFilled')}</Text>
+                    </View>
+                  ) : readState === 'failed' ? (
+                    <View style={styles.readRow}>
+                      <FontAwesome6 name="circle-info" size={13} color={colors.textMuted} />
+                      <Text style={styles.readText}>{t('kyc.readFailed')}</Text>
+                    </View>
+                  ) : null}
+
+                  {needsBack && (
+                    <>
+                      <View style={styles.divider} />
+                      <Text style={styles.photoLabel}>{t('kyc.back')}</Text>
+                      {renderPhotoPicker(versoPreview, 'verso', 'id-card', t('kyc.addBack'), hint('verso'), isLocked('file', versoPreview))}
+                    </>
+                  )}
+                </Card>
+
+                <Card style={styles.sectionCard}>
+                  {renderField(
+                    t('kyc.idNumber'),
+                    <Input placeholder={t('kyc.idNumberPlaceholder')} value={idnumber} onChangeText={setIdnumber} error={hint('idnumber')} editable={!isLocked('idnumber', idnumber)} containerStyle={StyleSheet.flatten([styles.inputFlush, isLocked('idnumber', idnumber) && styles.locked])} />
+                  )}
+
+                  {renderField(
+                    t('kyc.expiryDate'),
+                    <View style={styles.dateRow}>
+                      <Input
+                        placeholder="MM"
+                        value={idexpMonth}
+                        onChangeText={(v) => {
+                          const digits = v.replace(/[^0-9]/g, '').slice(0, 2);
+                          if (digits.length === 2) {
+                            const n = parseInt(digits, 10);
+                            if (n < 1) { setIdexpMonth('01'); return; }
+                            if (n > 12) { setIdexpMonth('12'); return; }
+                          }
+                          setIdexpMonth(digits);
+                        }}
+                        keyboardType="number-pad"
+                        maxLength={2}
+                        textAlign="center"
+                        editable={!isLocked('idexp', idexpYear)}
+                        containerStyle={StyleSheet.flatten([styles.dateCell, isLocked('idexp', idexpYear) && styles.locked])}
+                      />
+                      <Text style={styles.dateSep}>/</Text>
+                      <Input
+                        placeholder="AAAA"
+                        value={idexpYear}
+                        onChangeText={(v) => setIdexpYear(v.replace(/[^0-9]/g, '').slice(0, 4))}
+                        keyboardType="number-pad"
+                        maxLength={4}
+                        textAlign="center"
+                        editable={!isLocked('idexp', idexpYear)}
+                        containerStyle={StyleSheet.flatten([styles.dateCellWide, isLocked('idexp', idexpYear) && styles.locked])}
+                      />
+                    </View>,
+                    hint('idexp')
+                  )}
+                </Card>
+              </Reveal>
+            )}
+
+            {/* ── Étape 2 : identité, préremplie par la lecture de la pièce ── */}
+            {step === 1 && (
+              <Reveal key="s1" offset={14}>
+                <Card style={styles.sectionCard}>
                   {/* Nom et prénom : modifiables tant que le compte n'est pas
                       validé, pour corriger une faute signalée par la lecture de
-                      la pièce. Validé : ouverts seulement s'ils sont en écart. */}
-                  <View style={styles.row}>
-                    {renderField(
-                      t('kyc.lastName'),
-                      <Input value={lastName} onChangeText={setLastName} editable={!nameLocked('last_name', lastName)} error={hint('lastName')} containerStyle={StyleSheet.flatten([styles.inputFlush, nameLocked('last_name', lastName) && styles.locked])} />,
-                      undefined,
-                      styles.col
-                    )}
-                    {renderField(
-                      t('kyc.firstName'),
-                      <Input value={firstName} onChangeText={setFirstName} editable={!nameLocked('first_name', firstName)} error={hint('firstName')} containerStyle={StyleSheet.flatten([styles.inputFlush, nameLocked('first_name', firstName) && styles.locked])} />,
-                      undefined,
-                      styles.col
-                    )}
-                  </View>
+                      la pièce. Validé : ouverts seulement s'ils sont en écart.
+                      Pleine largeur : plusieurs prénoms ne tiennent pas en demi-colonne. */}
+                  {renderField(
+                    t('kyc.lastName'),
+                    <Input value={lastName} onChangeText={setLastName} editable={!nameLocked('last_name', lastName)} error={hint('lastName')} containerStyle={StyleSheet.flatten([styles.inputFlush, nameLocked('last_name', lastName) && styles.locked])} />
+                  )}
+                  {renderField(
+                    t('kyc.firstName'),
+                    <Input value={firstName} onChangeText={setFirstName} editable={!nameLocked('first_name', firstName)} error={hint('firstName')} containerStyle={StyleSheet.flatten([styles.inputFlush, nameLocked('first_name', firstName) && styles.locked])} />
+                  )}
                   {renderCountryPicker()}
 
                   <View style={styles.row}>
@@ -981,6 +1147,20 @@ export default function KycScreen() {
                     hint('birthdate')
                   )}
 
+                  {country === 'NG' && renderField(
+                    `${t('kyc.bvn')} ${t('kyc.optionalSuffix')}`,
+                    <Input
+                      placeholder={t('kyc.bvnPlaceholder')}
+                      value={bvn}
+                      onChangeText={(v) => setBvn(v.replace(/\D/g, '').slice(0, 11))}
+                      keyboardType="number-pad"
+                      maxLength={11}
+                      error={errors.bvn}
+                      editable={!isLocked('bvn', bvn)}
+                      containerStyle={StyleSheet.flatten([styles.inputFlush, isLocked('bvn', bvn) && styles.locked])}
+                    />
+                  )}
+
                   {renderField(
                     t('kyc.whatsapp'),
                     <Input
@@ -1003,113 +1183,10 @@ export default function KycScreen() {
               </Reveal>
             )}
 
-            {/* ── Étape 2 : document ── */}
-            {step === 1 && (
-              <Reveal key="s1" offset={14}>
-                <Card style={styles.sectionCard}>
-                  <Text style={styles.fieldLabel}>{t('kyc.documentType')}</Text>
-                  <View style={styles.docTypeContainer}>
-                    {DOC_TYPES.map((dt) => {
-                      const active = docType === dt.value;
-                      return (
-                        <Bounce
-                          key={dt.value}
-                          style={[styles.docTypeBtn, active ? styles.docTypeBtnActive : null, isLocked('type', docType) && styles.locked] as any}
-                          disabled={isLocked('type', docType)}
-                          onPress={() => { setDocType(dt.value); setErrors((p) => ({ ...p, docType: '' })); }}
-                        >
-                          {active && (
-                            <View style={styles.docTypeCheck}>
-                              <FontAwesome6 name="check" size={9} color={colors.white} />
-                            </View>
-                          )}
-                          <FontAwesome6 name={dt.icon} size={20} color={active ? colors.primary : colors.textMuted} />
-                          <Text style={[styles.docTypeText, active && styles.docTypeTextActive]}>{dt.label}</Text>
-                        </Bounce>
-                      );
-                    })}
-                  </View>
-                  {!!errors.docType && <Text style={styles.fieldError}>{errors.docType}</Text>}
-
-                  {renderField(
-                    t('kyc.idNumber'),
-                    <Input placeholder={t('kyc.idNumberPlaceholder')} value={idnumber} onChangeText={setIdnumber} error={hint('idnumber')} editable={!isLocked('idnumber', idnumber)} containerStyle={StyleSheet.flatten([styles.inputFlush, isLocked('idnumber', idnumber) && styles.locked])} />
-                  )}
-
-                  {country === 'NG' && renderField(
-                    `${t('kyc.bvn')} ${t('kyc.optionalSuffix')}`,
-                    <Input
-                      placeholder={t('kyc.bvnPlaceholder')}
-                      value={bvn}
-                      onChangeText={(v) => setBvn(v.replace(/\D/g, '').slice(0, 11))}
-                      keyboardType="number-pad"
-                      maxLength={11}
-                      error={errors.bvn}
-                      editable={!isLocked('bvn', bvn)}
-                      containerStyle={StyleSheet.flatten([styles.inputFlush, isLocked('bvn', bvn) && styles.locked])}
-                    />
-                  )}
-
-                  {renderField(
-                    t('kyc.expiryDate'),
-                    <View style={styles.dateRow}>
-                      <Input
-                        placeholder="MM"
-                        value={idexpMonth}
-                        onChangeText={(v) => {
-                          const digits = v.replace(/[^0-9]/g, '').slice(0, 2);
-                          if (digits.length === 2) {
-                            const n = parseInt(digits, 10);
-                            if (n < 1) { setIdexpMonth('01'); return; }
-                            if (n > 12) { setIdexpMonth('12'); return; }
-                          }
-                          setIdexpMonth(digits);
-                        }}
-                        keyboardType="number-pad"
-                        maxLength={2}
-                        textAlign="center"
-                        editable={!isLocked('idexp', idexpYear)}
-                        containerStyle={StyleSheet.flatten([styles.dateCell, isLocked('idexp', idexpYear) && styles.locked])}
-                      />
-                      <Text style={styles.dateSep}>/</Text>
-                      <Input
-                        placeholder="AAAA"
-                        value={idexpYear}
-                        onChangeText={(v) => setIdexpYear(v.replace(/[^0-9]/g, '').slice(0, 4))}
-                        keyboardType="number-pad"
-                        maxLength={4}
-                        textAlign="center"
-                        editable={!isLocked('idexp', idexpYear)}
-                        containerStyle={StyleSheet.flatten([styles.dateCellWide, isLocked('idexp', idexpYear) && styles.locked])}
-                      />
-                    </View>,
-                    hint('idexp')
-                  )}
-                </Card>
-              </Reveal>
-            )}
-
-            {/* ── Étape 3 : photos ── */}
+            {/* ── Étape 3 : selfie ── */}
             {step === 2 && (
               <Reveal key="s2" offset={14}>
                 <Card style={styles.sectionCard}>
-                  <Text style={styles.photoLabel}>{t(docSpec?.front ?? 'kyc.idPhoto')}</Text>
-                  <View style={styles.guideImageDocWrapper}>
-                    <Image source={require('../assets/kyc_id_sample.jpg')} style={styles.guideImageFill} />
-                  </View>
-                  <Text style={styles.photoHint}>{t('kyc.idHint')}</Text>
-                  {renderPhotoPicker(idPreview, 'id', 'id-card', t(docSpec?.addFront ?? 'kyc.addId'), hint('idPhoto'), isLocked('file', idPreview))}
-
-                  {needsBack && (
-                    <>
-                      <View style={styles.divider} />
-                      <Text style={styles.photoLabel}>{t('kyc.back')}</Text>
-                      {renderPhotoPicker(versoPreview, 'verso', 'id-card', t('kyc.addBack'), hint('verso'), isLocked('file', versoPreview))}
-                    </>
-                  )}
-
-                  <View style={styles.divider} />
-
                   <Text style={styles.photoLabel}>{t(docSpec?.selfie ?? 'kyc.selfieWithId')}</Text>
                   <View style={styles.guideImageWrapper}>
                     <Image source={require('../assets/kyc_selfie_sample.jpg')} style={styles.guideImageFill} />
@@ -1130,7 +1207,18 @@ export default function KycScreen() {
                   <Text style={styles.reviewTitle}>{t('kyc.reviewTitle')}</Text>
                 </View>
 
-                {renderSummaryCard(t('kyc.identity'), 0, (
+                {renderSummaryCard(t('kyc.document'), 0, (
+                  <>
+                    {renderSummaryRow(t('kyc.documentType'), docLabel)}
+                    {renderSummaryRow(t('kyc.idNumber'), idnumber)}
+                    {renderSummaryRow(t('kyc.expiryDate'), `${idexpMonth}/${idexpYear}`)}
+                    <View style={styles.sumThumbs}>
+                      {renderThumbs(needsBack ? [idPreview, versoPreview] : [idPreview])}
+                    </View>
+                  </>
+                ))}
+
+                {renderSummaryCard(t('kyc.identity'), 1, (
                   <>
                     {renderSummaryRow(t('kyc.lastName'), lastName)}
                     {renderSummaryRow(t('kyc.firstName'), firstName)}
@@ -1140,32 +1228,13 @@ export default function KycScreen() {
                     {renderSummaryRow(t('kyc.state'), stateProv)}
                     {renderSummaryRow(t('kyc.address'), address)}
                     {renderSummaryRow(t('kyc.birthdate'), (birthDay && birthMonth && birthYear) ? `${birthDay}/${birthMonth}/${birthYear}` : '')}
+                    {country === 'NG' && renderSummaryRow(t('kyc.bvn'), bvn)}
                     {renderSummaryRow(t('kyc.whatsapp'), `${prefix} ${phone}`.trim())}
                     {!!telegram.trim() && renderSummaryRow('Telegram', telegram)}
                   </>
                 ))}
 
-                {renderSummaryCard(t('kyc.document'), 1, (
-                  <>
-                    {renderSummaryRow(t('kyc.documentType'), docLabel)}
-                    {renderSummaryRow(t('kyc.idNumber'), idnumber)}
-                    {country === 'NG' && renderSummaryRow(t('kyc.bvn'), bvn)}
-                    {renderSummaryRow(t('kyc.expiryDate'), `${idexpMonth}/${idexpYear}`)}
-                  </>
-                ))}
-
-                {renderSummaryCard(t('kyc.stepPhotos'), 2, (
-                  <View style={styles.thumbRow}>
-                    {(needsBack ? [idPreview, versoPreview, selfiePreview] : [idPreview, selfiePreview]).map((uri, i) => (
-                      <View key={i} style={styles.thumbWrap}>
-                        {uri ? <AuthImage uri={uri} style={styles.thumb} /> : <View style={styles.thumb} />}
-                        <View style={styles.thumbBadge}>
-                          <FontAwesome6 name="check" size={9} color={colors.white} />
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                ))}
+                {renderSummaryCard(t('kyc.step2'), 2, renderThumbs([selfiePreview]))}
               </Reveal>
             )}
 
@@ -1191,6 +1260,8 @@ export default function KycScreen() {
                 title={t('common.next')}
                 onPress={goNext}
                 icon="arrow-right"
+                // La lecture de la pièce remplit l'étape suivante : on l'attend.
+                loading={step === 0 && reading}
                 style={styles.footerBtn}
               />
             ) : (
@@ -1596,6 +1667,19 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     lineHeight: 18,
     marginBottom: Spacing.sm,
   },
+  // État de la lecture de la pièce, sous la photo du recto.
+  readRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  readText: {
+    flex: 1,
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.medium,
+  },
   imagePicker: {
     height: 180,
     backgroundColor: Colors.inputBg,
@@ -1746,8 +1830,11 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.sm,
   },
+  sumThumbs: {
+    marginTop: Spacing.sm,
+  },
   thumbWrap: {
-    flex: 1,
+    width: '31%',
     aspectRatio: 4 / 3,
     borderRadius: BorderRadius.md,
     overflow: 'hidden',

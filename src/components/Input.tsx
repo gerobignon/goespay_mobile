@@ -98,6 +98,9 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   input: {
     flex: 1,
+    // Web : l'<input> garde sa largeur native (~20 caractères) et déborde
+    // d'une colonne étroite tant qu'on ne l'autorise pas à rétrécir.
+    minWidth: 0,
     color: Colors.text,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
