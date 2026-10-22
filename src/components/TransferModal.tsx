@@ -20,7 +20,7 @@ import { useRouter } from 'expo-router';
 import { Input } from './Input';
 import { Button } from './Button';
 import { ResponsiveModal } from './ResponsiveModal';
-import { walletService, type FincraRail, type SavedBank } from '../services/walletService';
+import { walletService, MOTIF_MAX_LENGTH, type FincraRail, type SavedBank } from '../services/walletService';
 import { useWalletStore } from '../stores/walletStore';
 import { useAuthStore } from '../stores/authStore';
 import { useIdempotencyKey } from '../utils/idempotency';
@@ -120,6 +120,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const [cryptoOpen, setCryptoOpen] = useState(false);
   // « Autres » : rails internationaux Fincra (zones XOF/XAF + USD/EUR/GBP) en payout.
   const [phone, setPhone] = useState('');
+  // Motif facultatif (hors Chine manuelle, qui a son propre motif obligatoire).
+  const [motif, setMotif] = useState('');
   const [loading, setLoading] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
@@ -396,6 +398,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const numAmountInput = parseFloat(amount) || 0;
   const isCny = aggRail === 'cny';
   const numAmountCny = isCny ? numAmountInput : 0;
+  // La Chine manuelle porte déjà un motif obligatoire (chips), pas de doublon.
+  const showMotif = !(isCny && isCnyManual);
   const userCountry = user?.country?.toUpperCase();
   // Frais = A→B : source = pays du user, destination = pays de l'opérateur visé
   // (= corridor.country_code côté backend). On affiche le frais résolu par le
@@ -618,6 +622,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     setCnyWechatId('');
     setCnyPurpose('');
     setCnyPurposeOther('');
+    setMotif('');
     setResolvedHolder(null);
     setResolveError(null);
     setResolving(false);
@@ -1193,6 +1198,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
 
   const handleTransfer = async () => {
     const idemKey = transferIdempotencyKey();
+    const motifToSend = showMotif ? (motif.trim() || undefined) : undefined;
     setConfirmVisible(false);
     setLoading(true);
     try {
@@ -1223,9 +1229,11 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               phone: (user as any)?.phone || undefined,
               email: (user as any)?.email || undefined,
             },
+            motif: motifToSend,
           }, idemKey);
           await fetchBalance();
           setAmount('');
+          setMotif('');
           setPendingDetails({
             amount_sent: numAmount,
             fees: Number(result.fees) || 0,
@@ -1282,9 +1290,11 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             // Wallet : ALIPAY | WECHAT (ignoré par le backend hors WALLET).
             serviceCode: cnyService === 'WALLET' ? cnyServiceCode : undefined,
             beneficiary: ben,
+            motif: motifToSend,
           }, idemKey);
           await fetchBalance();
           setAmount('');
+          setMotif('');
           // Purge le bénéficiaire (PII) après envoi → pas de réutilisation silencieuse.
           setCnyFirstName(''); setCnyLastName(''); setCnyIdNumber(''); setCnyMobile('');
           setCnyCardNumber(''); setCnyCardHolder(''); setCnyWalletAccount('');
@@ -1372,10 +1382,12 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             ? `${user?.name ?? ''} ${user?.surname ?? ''}`.trim() || undefined
             : undefined,
           beneficiary,
+          motif: motifToSend,
         } as any, idemKey);
 
         await fetchBalance();
         setAmount('');
+        setMotif('');
         // Garde la sélection Fincra pour permettre un second envoi rapide.
         // debit_xof : montant réellement débité du wallet (XOF). Utilisé dans
         // le success screen pour afficher le total en devise utilisateur, pas
@@ -1397,6 +1409,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
         amount: numAmount,
         moyen: operator,
         tel: normalizedPhone,
+        motif: motifToSend,
       }, idemKey);
       const existing = savedPhones.find((item) => item.tel.replace(/\s+/g, '') === normalizedPhone);
       if (!existing && normalizedPhone) {
@@ -1405,6 +1418,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       }
       await fetchBalance();
       setAmount('');
+      setMotif('');
       setOperator('');
       setPhone('');
 
@@ -2353,6 +2367,17 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
               </View>
             )}
 
+            {showMotif && (
+              <Input
+                label={t('transferModal.motifLabel')}
+                placeholder={t('transferModal.motifPlaceholder')}
+                value={motif}
+                onChangeText={setMotif}
+                maxLength={MOTIF_MAX_LENGTH}
+                containerStyle={{ marginTop: Spacing.md }}
+              />
+            )}
+
             <Button
               title={t('common.send')}
               onPress={handlePressEnvoyer}
@@ -2488,6 +2513,13 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                   </View>
                 )}
               </View>
+
+              {showMotif && !!motif.trim() && (
+                <View style={styles.confirmCard}>
+                  <Text style={styles.confirmCardLabel}>{t('transaction.motif')}</Text>
+                  <Text style={styles.confirmSecondary}>{motif.trim()}</Text>
+                </View>
+              )}
 
               {/* Card breakdown */}
               <View style={styles.confirmCard}>

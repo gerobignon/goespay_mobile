@@ -100,6 +100,8 @@ export interface Transaction {
   mode?: string;
   reference?: string;
   note?: string;
+  /** Motif saisi à l'envoi (envoi, transfert P2P, ou crédit P2P reçu). */
+  motif?: string | null;
   de?: string;
   phone?: string;
   receiver_id?: number;
@@ -235,6 +237,7 @@ export interface TransferRequest {
   amount: number;
   moyen: string;
   tel: string;
+  motif?: string;
 }
 
 export interface PaginatedResponse<T> {

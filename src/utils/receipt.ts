@@ -65,6 +65,8 @@ function buildRows(tx: Transaction, type: 'deposit' | 'withdraw' | 'transfer' | 
     if (tx.phone) rows.push({ label: 'Destinataire', value: tx.phone });
     if (tx.receiver_name) rows.push({ label: 'Destinataire', value: tx.receiver_name });
     if (tx.receiver_email) rows.push({ label: 'Email', value: tx.receiver_email });
+    // Texte libre du client : échappé, la ligne est injectée telle quelle dans le HTML.
+    if (tx.motif) rows.push({ label: 'Motif', value: escapeHtml(tx.motif) });
     if (tx.reference) rows.push({ label: 'Référence', value: tx.reference });
     if (tx.avant != null) rows.push({ label: 'Solde avant', value: formatXof(tx.avant) });
     if (tx.apres != null) rows.push({ label: 'Solde après', value: formatXof(tx.apres) });
@@ -79,6 +81,10 @@ function buildRows(tx: Transaction, type: 'deposit' | 'withdraw' | 'transfer' | 
   }
 
   return rows;
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 }
 
 export async function shareReceipt(tx: Transaction, type: 'deposit' | 'withdraw' | 'transfer' | 'crypto') {

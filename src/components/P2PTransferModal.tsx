@@ -19,7 +19,7 @@ import { KycBanner } from './KycBanner';
 import { BlockedBanner } from './BlockedBanner';
 import { AdminDisabledBanner } from './AdminDisabledBanner';
 import { useConfigStore } from '../stores/configStore';
-import { walletService, type P2PRecipient } from '../services/walletService';
+import { walletService, MOTIF_MAX_LENGTH, type P2PRecipient } from '../services/walletService';
 import { useWalletStore } from '../stores/walletStore';
 import { useAuthStore } from '../stores/authStore';
 import { useFormatXof } from '../utils/format';
@@ -71,6 +71,7 @@ export function P2PTransferModal({ visible, onClose }: P2PTransferModalProps) {
   const [identifier, setIdentifier] = useState('');
   const [recipient, setRecipient] = useState<P2PRecipient | null>(null);
   const [amount, setAmount] = useState('');
+  const [motif, setMotif] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ amount: number; balance_after: number; reference: string } | null>(null);
@@ -93,6 +94,7 @@ export function P2PTransferModal({ visible, onClose }: P2PTransferModalProps) {
     setIdentifier('');
     setRecipient(null);
     setAmount('');
+    setMotif('');
     setError(null);
     setResult(null);
   }, [visible]);
@@ -123,7 +125,11 @@ export function P2PTransferModal({ visible, onClose }: P2PTransferModalProps) {
     setLoading(true);
     setError(null);
     try {
-      const res = await walletService.sendP2P({ recipient_id: recipient.id, amount: numericAmount }, idemKey);
+      const res = await walletService.sendP2P({
+        recipient_id: recipient.id,
+        amount: numericAmount,
+        motif: motif.trim() || undefined,
+      }, idemKey);
       setResult({ amount: res.amount, balance_after: res.balance_after, reference: res.reference });
       setStep('done');
       review.success();
@@ -224,6 +230,13 @@ export function P2PTransferModal({ visible, onClose }: P2PTransferModalProps) {
                     <Text style={styles.balanceHint}>
                       {t('p2p.available')} : {fmtXof(balance)}
                     </Text>
+                    <Input
+                      label={t('transferModal.motifLabel')}
+                      placeholder={t('transferModal.motifPlaceholder')}
+                      value={motif}
+                      onChangeText={setMotif}
+                      maxLength={MOTIF_MAX_LENGTH}
+                    />
                     <Button
                       title={t('common.next')}
                       onPress={() => { setError(null); setStep('confirm'); }}
@@ -241,6 +254,12 @@ export function P2PTransferModal({ visible, onClose }: P2PTransferModalProps) {
                         <Text style={styles.summaryLabel}>{t('p2p.fees')}</Text>
                         <Text style={styles.summaryValue}>{fmtXof(0)}</Text>
                       </View>
+                      {!!motif.trim() && (
+                        <View style={styles.summaryRow}>
+                          <Text style={styles.summaryLabel}>{t('transaction.motif')}</Text>
+                          <Text style={styles.summaryValue}>{motif.trim()}</Text>
+                        </View>
+                      )}
                       <View style={[styles.summaryRow, styles.summaryTotal]}>
                         <Text style={styles.summaryTotalLabel}>{t('p2p.debited')}</Text>
                         <Text style={styles.summaryTotalValue}>{fmtXof(numericAmount)}</Text>

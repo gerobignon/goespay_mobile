@@ -420,6 +420,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
             <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '-'} copyable mono />
             <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '-'} mono />
             <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '-'} mono color={status.color} />
+            {tx.motif ? <TransactionDetailRow label={t('transaction.motif')} value={tx.motif} /> : null}
             {tx.note && <TransactionDetailRow label={t('transaction.note')} value={tx.note} />}
             <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
             {tx.updated_at && tx.updated_at !== tx.created_at && (
@@ -520,6 +521,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
             })()}
             <TransactionDetailRow label={t('transaction.operator')} value={resolveOperatorView(tx.mode, tx.currency_dest)?.name ?? '-'} valueNode={<OperatorValue mode={tx.mode} currencyDest={tx.currency_dest} />} />
             <TransactionDetailRow label={t('transaction.receiver')} value={tx.phone ?? '-'} copyable mono />
+            {tx.motif ? <TransactionDetailRow label={t('transaction.motif')} value={tx.motif} /> : null}
             <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '-'} copyable mono />
             <TransferProof uri={tx.proof_url} reference={tx.reference} />
             <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '-'} mono />
@@ -588,6 +590,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
             <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={getStatusIcon(normalizeStatut(tx.statut))} />
             <TransactionDetailRow label={t('transaction.receiver')} value={tx.receiver_name ?? '-'} />
             <TransactionDetailRow label="Email" value={tx.receiver_email ?? '-'} copyable />
+            {tx.motif ? <TransactionDetailRow label={t('transaction.motif')} value={tx.motif} /> : null}
             <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '-'} copyable mono />
             <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '-'} mono />
             <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '-'} mono color={status.color} />

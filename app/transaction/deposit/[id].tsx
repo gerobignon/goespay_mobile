@@ -277,6 +277,7 @@ export default function DepositDetailScreen() {
               />
             </>
           )}
+          {tx.motif ? <TransactionDetailRow label={t('transaction.motif')} value={tx.motif} /> : null}
           {tx.note && <TransactionDetailRow label={t('transaction.note')} value={tx.note} />}
           <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
           {tx.updated_at && tx.updated_at !== tx.created_at && (

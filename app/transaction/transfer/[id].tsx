@@ -144,6 +144,7 @@ export default function TransferDetailScreen() {
           />
           <TransactionDetailRow label={t('transaction.receiver')} value={tx.receiver_name ?? '-'} />
           <TransactionDetailRow label="Email" value={tx.receiver_email ?? '-'} copyable />
+          {tx.motif ? <TransactionDetailRow label={t('transaction.motif')} value={tx.motif} /> : null}
           <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '-'} copyable mono />
           {tx.statut === 'success' && (
             <>

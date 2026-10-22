@@ -9,6 +9,9 @@ import type {
 
 export type FincraRail = 'mobile_money' | 'bank_transfer' | 'SWIFT' | 'SEPA' | 'wire' | 'cny';
 
+/** Longueur maximale du motif d'un envoi (alignée sur le backend). */
+export const MOTIF_MAX_LENGTH = 140;
+
 /** Compte bancaire permanent attribué au client (réutilisable, tous montants). */
 export interface VirtualAccount {
   id: number;
@@ -114,6 +117,7 @@ export interface FincraPayoutRequest {
   operator?: string;
   country?: string;
   beneficiary?: FincraBeneficiary;
+  motif?: string;        // motif facultatif, conservé sur l'envoi (jamais transmis à l'agrégateur)
 }
 
 export interface FincraPayoutResponse {
@@ -150,6 +154,7 @@ export interface KlashaWireRequest {
   currency: string;    // USD | EUR | GBP
   amount_xof: number;  // XOF débité du wallet
   beneficiary: KlashaWireBeneficiary;
+  motif?: string;
 }
 
 // Service de payout Chine : virement bancaire, carte UnionPay, ou wallet Alipay.
@@ -187,6 +192,7 @@ export interface KlashaCnyRequest {
   // Wallet chinois (service WALLET) : Alipay (défaut) ou WeChat → serviceCode Klasha.
   serviceCode?: 'ALIPAY' | 'WECHAT';
   beneficiary: KlashaCnyBeneficiary;
+  motif?: string;
   // L'expéditeur (identité + date de naissance + adresse) vient du profil KYC,
   // côté backend → non transmis ici.
 }
@@ -392,7 +398,7 @@ export const walletService = {
     return response.data.recipient;
   },
 
-  sendP2P: async (payload: { recipient_id: number; amount: number }, idempotencyKey?: string): Promise<P2PTransferResult> => {
+  sendP2P: async (payload: { recipient_id: number; amount: number; motif?: string }, idempotencyKey?: string): Promise<P2PTransferResult> => {
     const response = await api.post('/transfer/p2p', payload, withIdempotency(idempotencyKey, { timeout: 60000 }));
     return response.data;
   },

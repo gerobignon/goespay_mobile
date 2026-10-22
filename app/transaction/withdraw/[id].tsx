@@ -204,6 +204,7 @@ export default function WithdrawDetailScreen() {
                   copyable
                   mono
                 />
+                {tx.motif ? <TransactionDetailRow label={t('transaction.motif')} value={tx.motif} /> : null}
                 <TransactionDetailRow label={t('transaction.reference')} value={tx.reference ?? '-'} copyable mono />
                 <TransferProof uri={tx.proof_url} reference={tx.reference} />
                 {tx.statut === 'success' && (
