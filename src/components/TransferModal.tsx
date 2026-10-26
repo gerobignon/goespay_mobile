@@ -44,6 +44,7 @@ import { useTransferQuote } from '../stores/transferQuoteStore';
 import { formatFincraPhone, resolveFincraZone } from '../utils/fincraPhone';
 import { AdminDisabledBanner } from './AdminDisabledBanner';
 import { BlockedBanner } from './BlockedBanner';
+import { FailureReasonBanner } from './FailureReasonBanner';
 import { TransactionAlertBanner } from './TransactionAlertBanner';
 import { GatewayBadge } from './GatewayBadge';
 import { CountryPickerStep } from './CountryPickerStep';
@@ -142,6 +143,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const [saveCnyName, setSaveCnyName] = useState('');
   const [saveCnyLoading, setSaveCnyLoading] = useState(false);
   const [pollingState, setPollingState] = useState<'idle' | 'pending' | 'success' | 'failed' | 'timeout'>('idle');
+  // Motif d'échec reconnu par le serveur (ex. numéro incorrect ou mauvais réseau).
+  const [failReason, setFailReason] = useState<string | null>(null);
   const [pendingDetails, setPendingDetails] = useState<{ amount_sent: number; fees: number; phone: string; debit_xof?: number } | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollingTransferIdRef = useRef<number | null>(null);
@@ -820,6 +823,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
         return true;
       } else if (res.statut === 'fail' || res.statut === 'failed') {
         stopPolling();
+        setFailReason(res.user_error || null);
         setPollingState('failed');
         review.clear();
         fetchBalance().catch(() => {});
@@ -1063,6 +1067,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     if (pollingState !== 'idle') {
       stopPolling();
       setPollingState('idle');
+      setFailReason(null);
       onClose();
       return;
     }
@@ -1530,8 +1535,15 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             <View style={styles.pollingContainer}>
               <FontAwesome6 name="circle-xmark" size={64} color={Colors.error ?? '#e53935'} />
               <Text style={[styles.pollingTitle, { color: Colors.error ?? '#e53935' }]}>{t('transferModal.transferFailedTitle')}</Text>
-              <Text style={styles.pollingMessage}>{t('transferModal.transferFailedMsg')}</Text>
-              <Button title={t('common.close')} onPress={() => { setPollingState('idle'); onClose(); }} style={{ marginTop: Spacing.lg }} />
+              {failReason ? (
+                <>
+                  <FailureReasonBanner message={failReason} />
+                  <Text style={styles.pollingMessage}>{t('transferModal.balanceUnchanged')}</Text>
+                </>
+              ) : (
+                <Text style={styles.pollingMessage}>{t('transferModal.transferFailedMsg')}</Text>
+              )}
+              <Button title={t('common.close')} onPress={() => { setPollingState('idle'); setFailReason(null); onClose(); }} style={{ marginTop: Spacing.lg }} />
             </View>
           )}
 

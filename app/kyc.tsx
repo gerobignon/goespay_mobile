@@ -67,13 +67,18 @@ export default function KycScreen() {
   const goBack = () => { if (router.canGoBack()) router.back(); else router.replace('/(tabs)'); };
   // Mode édition (?edit=1) : force le FORMULAIRE même si déjà validé / en attente,
   // pour permettre une re-soumission (ex. ajout de la date de naissance pour la Chine).
-  const { edit, for: purpose, level: levelParam } = useLocalSearchParams<{ edit?: string; for?: string; level?: string }>();
+  const { edit, for: purpose, level: levelParam, doc: docParam } = useLocalSearchParams<{ edit?: string; for?: string; level?: string; doc?: string }>();
   const editMode = edit === '1';
   // Ouvert depuis l'alerte d'envoi vers la Chine : Klasha exige province et date
   // de naissance, elles deviennent donc obligatoires ici (le code postal reste
   // facultatif, le serveur envoie une valeur neutre). Sinon
   // l'utilisateur les laisse vides (« facultatif ») et l'alerte revient après validation.
   const { user, refreshProfile, profileComplete } = useAuthStore();
+  // Pièce réclamée par l'écran appelant (?doc=Passport depuis une carte
+  // d'identité refusée par l'émetteur de cartes). Nouvelle pièce : son numéro
+  // et sa date d'expiration ne sont pas ceux de l'ancienne, on ne les reprend pas.
+  const requestedDoc = DOC_TYPES_KEYS.some((d) => d.value === docParam) ? (docParam as string) : '';
+  const docSwitch = !!requestedDoc && requestedDoc !== (user?.kyc_type ?? '');
   // Re-soumission d'un KYC complet déjà accordé : elle ne sert qu'à compléter le
   // profil, le serveur exige donc aussi ces deux champs (422 sinon).
   const chinaRequired = purpose === 'china' || (editMode && user?.validate === 1);
@@ -123,7 +128,7 @@ export default function KycScreen() {
   const [stateProv, setStateProv] = useState(user?.state ?? '');
   const [postcode, setPostcode] = useState(user?.postcode ?? '');
   const [address, setAddress] = useState(user?.address ?? '');
-  const [idnumber, setIdnumber] = useState(user?.idnumber ?? '');
+  const [idnumber, setIdnumber] = useState(docSwitch ? '' : (user?.idnumber ?? ''));
   // BVN (Nigeria) : facultatif ici, exigé plus tard pour les cartes et les
   // comptes virtuels NGN, qui renvoient vers ce formulaire.
   const [bvn, setBvn] = useState(user?.bvn ?? '');
@@ -134,14 +139,15 @@ export default function KycScreen() {
   const [birthYear, setBirthYear] = useState(bparts ? bparts[1] : '');
   // Date d'expiration : mois + année séparés. Prérempli depuis le profil, que la
   // valeur stockée soit « MM/YYYY » ou « JJ/MM/YYYY » → [2]=mois, [3]=année.
-  const existingParts = (user?.idexp ?? '').match(/^(?:(\d{1,2})\/)?(\d{1,2})\/(\d{4})$/);
+  const existingParts = (docSwitch ? '' : (user?.idexp ?? '')).match(/^(?:(\d{1,2})\/)?(\d{1,2})\/(\d{4})$/);
   const [idexpMonth, setIdexpMonth] = useState(existingParts ? existingParts[2] : '');
   const [idexpYear, setIdexpYear] = useState(existingParts ? existingParts[3] : '');
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [telegram, setTelegram] = useState(user?.telegram ?? '');
 
-  // KYC docs state, type de pièce prérempli depuis la précédente soumission.
-  const [docType, setDocType] = useState(user?.kyc_type ?? '');
+  // KYC docs state, type de pièce prérempli depuis la précédente soumission,
+  // sauf quand l'écran appelant en réclame un autre (requestedDoc).
+  const [docType, setDocType] = useState(requestedDoc || (user?.kyc_type ?? ''));
   const [fileUri, setFileUri] = useState<string | null>(null);
   const [versoUri, setVersoUri] = useState<string | null>(null);
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
@@ -182,7 +188,7 @@ export default function KycScreen() {
     setStateProv((v) => keep(v, user.state));
     setPostcode((v) => keep(v, user.postcode));
     setAddress((v) => keep(v, user.address));
-    setIdnumber((v) => keep(v, user.idnumber));
+    if (!docSwitch) setIdnumber((v) => keep(v, user.idnumber));
     setBvn((v) => keep(v, user.bvn));
     setPhone((v) => keep(v, user.phone));
     setTelegram((v) => keep(v, user.telegram));
@@ -193,7 +199,7 @@ export default function KycScreen() {
       setBirthMonth((v) => keep(v, b[2]));
       setBirthYear((v) => keep(v, b[1]));
     }
-    const e = (user.idexp ?? '').match(/^(?:(\d{1,2})\/)?(\d{1,2})\/(\d{4})$/);
+    const e = docSwitch ? null : (user.idexp ?? '').match(/^(?:(\d{1,2})\/)?(\d{1,2})\/(\d{4})$/);
     if (e) {
       setIdexpMonth((v) => keep(v, e[2]));
       setIdexpYear((v) => keep(v, e[3]));

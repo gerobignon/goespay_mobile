@@ -403,7 +403,7 @@ export const walletService = {
     return response.data;
   },
 
-  getTransferStatus: async (transferId: number): Promise<{ transfer_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; amount_sent: number; mode: string }> => {
+  getTransferStatus: async (transferId: number): Promise<{ transfer_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; amount_sent: number; mode: string; user_error?: string | null }> => {
     const response = await api.get(`/transfer/status/${transferId}`);
     return response.data;
   },
@@ -413,7 +413,7 @@ export const walletService = {
     return response.data;
   },
 
-  getFincraPayoutStatus: async (reference: string): Promise<{ transfer_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; amount_sent: number; mode: string }> => {
+  getFincraPayoutStatus: async (reference: string): Promise<{ transfer_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; amount_sent: number; mode: string; user_error?: string | null }> => {
     const response = await api.get(`/payout/fincra/status/${encodeURIComponent(reference)}`);
     return response.data;
   },
@@ -508,7 +508,7 @@ export const walletService = {
     return response.data;
   },
 
-  getKlashaPayoutStatus: async (reference: string): Promise<{ transfer_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; amount_sent: number; mode: string }> => {
+  getKlashaPayoutStatus: async (reference: string): Promise<{ transfer_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; amount_sent: number; mode: string; user_error?: string | null }> => {
     const response = await api.get(`/payout/klasha/status/${encodeURIComponent(reference)}`);
     return response.data;
   },
@@ -551,7 +551,7 @@ export const walletService = {
   },
 
   // Statut d'un wire (par notre réf KLW-) : le backend poll Klasha par sa transactionReference.
-  getKlashaWireStatus: async (reference: string): Promise<{ transfer_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; amount_sent: number; mode: string }> => {
+  getKlashaWireStatus: async (reference: string): Promise<{ transfer_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; amount_sent: number; mode: string; user_error?: string | null }> => {
     const response = await api.get(`/transfer/klasha/wire/status/${encodeURIComponent(reference)}`);
     return response.data;
   },
@@ -589,7 +589,7 @@ export const walletService = {
   },
 
   // Statut d'un payout CNY (par notre réf KLC-) : terminal posé par le webhook Klasha.
-  getKlashaCnyStatus: async (reference: string): Promise<{ transfer_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; amount_sent: number; mode: string }> => {
+  getKlashaCnyStatus: async (reference: string): Promise<{ transfer_id: number; statut: 'wait' | 'success' | 'fail' | 'failed'; amount: number; amount_sent: number; mode: string; user_error?: string | null }> => {
     const response = await api.get(`/transfer/klasha/cny/status/${encodeURIComponent(reference)}`);
     return response.data;
   },

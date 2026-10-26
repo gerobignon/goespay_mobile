@@ -29,6 +29,7 @@ import { normalizeStatut, getStatusIcon } from '../utils/transactionStatus';
 import type { Transaction } from '../types';
 import { CloseButton } from './CloseButton';
 import { TransferProof } from './TransferProof';
+import { FailureReasonBanner } from './FailureReasonBanner';
 
 function getCryptoStatus(statut: string | number, t: (key: string) => string): { label: string; color: string; icon: string } {
   const norm = normalizeStatut(statut, 'crypto');
@@ -482,6 +483,8 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
               </View>
             </View>
           )}
+
+          {tx.statut === 'fail' && <FailureReasonBanner message={tx.user_error} />}
 
           <Card style={styles.flatCard}>
             <Hero

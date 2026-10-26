@@ -114,6 +114,8 @@ export interface Transaction {
   meta?: { account_name?: string; bank?: string; [k: string]: any } | null;
   /** Envoi Chine manuel : capture du virement (route API sous jeton). */
   proof_url?: string | null;
+  /** Motif d'échec reconnu par le serveur, déjà traduit (null si non reconnu). */
+  user_error?: string | null;
   address?: string;
   cp_id?: string;
   cp_hash?: string;
