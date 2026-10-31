@@ -50,7 +50,7 @@ import { CryptoLogo } from './CryptoLogo';
 import { CryptoSearchField } from './CryptoSearchField';
 import { useCryptoSearch } from '../hooks/useCryptoSearch';
 import { CloseButton } from './CloseButton';
-import { kycLevelOf, handleKycUpgradeError, promptKycUpgrade } from '../utils/kycLevel';
+import { kycLevelOf, handleKycError, promptKycUpgrade } from '../utils/kycLevel';
 import { useStoreReviewOnClose, type ReviewStatus } from '../stores/storeReviewStore';
 
 // Même aiguillage que checkStatus, pour le suivi après fermeture du modal.
@@ -536,6 +536,17 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
     'orange-gn', 'orange-ci-afp', 'orange-bf-afp', 'orange-sn-afp',
   ].includes(operator);
   const selectedOp = OPERATORS_SRC.find((op) => op.id === operator);
+  // Dépôts Fincra et Klasha (tuiles fincra:true, Klasha compris) : Niveau 2
+  // obligatoire sur tous les rails, Mobile Money compris. Le serveur refuse
+  // aussi ; l'app propose le passage au Niveau 2 dès le choix du moyen.
+  const needsLevel2 = (op: any) => !!op?.fincra && kycLevelOf(user) < 2;
+  const pickOperator = (id: string) => {
+    if (id && id !== operator && needsLevel2(OPERATORS_SRC.find((op) => op.id === id))) {
+      promptKycUpgrade(t);
+      return;
+    }
+    setOperator(id);
+  };
   const isFincra = !!(selectedOp as any)?.fincra;
   // Klasha réutilise l'UI Fincra ; ce flag route les appels API vers /deposit/klasha.
   const isKlasha = !!(selectedOp as any)?.klasha;
@@ -1056,7 +1067,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
       setOtp('');
     } catch (error: any) {
       if (cardWindow && !cardWindow.closed) cardWindow.close();
-      if (handleKycUpgradeError(error, t)) return;
+      if (handleKycError(error, t)) return;
       showAlert(t('common.error'), getApiErrorMessage(error, t, t('depositModal.depositError')));
     } finally {
       setLoading(false);
@@ -1082,6 +1093,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
       setAmount('');
       setPhone('');
     } catch (error: any) {
+      if (handleKycError(error, t)) return;
       showAlert(t('common.error'), getApiErrorMessage(error, t, t('depositModal.depositError')));
     } finally {
       setLoading(false);
@@ -1303,7 +1315,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                       styles.operatorChip,
                       operator === op.id && styles.operatorChipSelected,
                     ]}
-                    onPress={() => setOperator(op.id)}
+                    onPress={() => pickOperator(op.id)}
                   >
                     <OperatorLogo op={op as any} size={24} style={styles.operatorChipLogo as any} />
                     <Text
@@ -1359,7 +1371,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                       styles.operatorRow,
                       operator === op.id && styles.operatorRowSelected,
                     ]}
-                    onPress={() => setOperator(operator === op.id ? '' : op.id)}
+                    onPress={() => pickOperator(operator === op.id ? '' : op.id)}
                   >
                     <OperatorLogo op={op as any} size={32} style={styles.operatorRowLogo as any} />
                     <Text
@@ -1683,7 +1695,9 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
 
                 <Button
                   title={t('depositModal.deposit')}
-                  onPress={!isKycValidated ? () => showAlert(t('depositModal.kycRequired3'), t('depositModal.kycRequired2')) : handleDeposit}
+                  onPress={needsLevel2(selectedOp)
+                    ? () => promptKycUpgrade(t)
+                    : !isKycValidated ? () => showAlert(t('depositModal.kycRequired3'), t('depositModal.kycRequired2')) : handleDeposit}
                   icon="arrow-down"
                   loading={loading}
                   disabled={!amount || fincraRateBlocking || otpTotalBlocking || (showPhoneField && !phone) || (showPhoneField && needsOtp && !otp.trim()) || (!!fincraZoneList && !fincraZoneCountry)}

@@ -34,3 +34,27 @@ export function handleKycUpgradeError(error: any, t: (key: string, opts?: any) =
   promptKycUpgrade(t, typeof data?.error === 'string' ? data.error : undefined);
   return true;
 }
+
+/** Alerte « KYC requis » (compte sans aucun niveau) avec accès au parcours KYC. */
+export function promptKycRequired(t: (key: string, opts?: any) => string, message?: string) {
+  showAlert(
+    t('depositModal.kycRequired3'),
+    message || t('kyc.blockedRequired'),
+    [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('kyc.startBtn'), onPress: () => router.push('/kyc') },
+    ],
+  );
+}
+
+/**
+ * Erreur API « KYC requis » (code kyc_required) ou « Niveau 2 requis » : affiche
+ * l'alerte qui mène au bon parcours et renvoie true.
+ */
+export function handleKycError(error: any, t: (key: string, opts?: any) => string): boolean {
+  if (handleKycUpgradeError(error, t)) return true;
+  const data = error?.response?.data;
+  if (error?.response?.status !== 403 || data?.code !== 'kyc_required') return false;
+  promptKycRequired(t, typeof data?.error === 'string' ? data.error : undefined);
+  return true;
+}

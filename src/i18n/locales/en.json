@@ -932,6 +932,7 @@
     "upgradeText": "This operation requires full verification.",
     "limitReachedText": "You have reached the Level 1 limit of {{limit}} FCFA.",
     "upgradeBtn": "Upgrade to Level 2",
+    "startBtn": "Verify my identity",
     "stepOf": "Step {{n}} of {{total}}",
     "stepReview": "Review",
     "reviewTitle": "All set",

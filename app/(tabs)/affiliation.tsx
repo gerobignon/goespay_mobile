@@ -28,6 +28,7 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { useWalletStore } from '../../src/stores/walletStore';
 import { showAlert } from '../../src/stores/alertStore';
 import { affiliationService } from '../../src/services/affiliationService';
+import { kycLevelOf, promptKycRequired, handleKycError } from '../../src/utils/kycLevel';
 import { formatAmount, formatDate, useFormatXof, useCurrencyCode } from '../../src/utils/format';
 import type { AffiliationStats, AffiliationChild, AffiliationHistoryItem, WelcomeBonus } from '../../src/types';
 
@@ -189,6 +190,11 @@ export default function AffiliationScreen() {
 
   const handleClaim = () => {
     if (!stats || stats.unpayed <= 0) return;
+    // Encaissement des commissions : Niveau 1 du KYC au minimum.
+    if (kycLevelOf(user) < 1) {
+      promptKycRequired(t);
+      return;
+    }
     const idemKey = claimIdempotencyKey();
     showAlert(
       t('affiliation.claimTitle', 'Réclamer les commissions'),
@@ -204,6 +210,7 @@ export default function AffiliationScreen() {
               showAlert(t('common.success'), res.message);
               await Promise.all([loadAll(), fetchBalance()]);
             } catch (e: any) {
+              if (handleKycError(e, t)) return;
               const msg = e?.response?.data?.error || e?.response?.data?.message || t('common.error');
               showAlert(t('common.error'), msg);
             } finally {
