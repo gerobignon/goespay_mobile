@@ -58,6 +58,13 @@ Operators are a hardcoded `OPERATORS` list in `config.ts` (the offline fallback;
 - Fincra is multi-rail (`mobile_money` | `bank_transfer` | `SWIFT` | `SEPA`) and multi-currency; `FINCRA_ZONES` maps XOF/XAF zones to country pickers + phone prefixes. Fincra phone/account helpers are in `src/utils/fincraPhone.ts`.
 - **Klasha** is the 4th aggregator; its per-country availability is **server-driven** via the catalog/corridor routing (no hardcoded Klasha operators in `config.ts`, it's enabled per country from the backend).
 
+### KYC capture (live camera only)
+Product rule (31/10/2026): **no KYC without a live camera**, on any platform. Never `launchImageLibraryAsync` for an ID or selfie.
+
+Native uses `ImagePicker.launchCameraAsync` in `app/kyc.tsx`. Web never uses `launchCameraAsync` (on web it only opens an `<input type="file" capture>`, a file picker on desktop): phones and tablets get the in-page getUserMedia camera `src/components/KycCamera.tsx` (rear for documents, front for the selfie; `KycCamera.native.tsx` is an unused stub).
+
+Desktop web gets no KYC at all: `/kyc` shows a QR code to `https://app.goespay.io/kyc` (route params only, no token). Device detection lives in `src/utils/kycDevice.ts` (`isDesktopWeb`, tablets count as phones). `/kyc` is a universal link (AASA in `public/.well-known`, Android intent filter in `app.json`) and survives login through the pending route in `app/_layout.tsx`.
+
 ### Operator display & receipts
 - `src/utils/operatorDisplay.ts` (`resolveOperatorDisplay(mode)`) is the **single resolver** turning a raw payment-mode string (e.g. `fincra-bank_transfer`, `klasha-mm-…`) into a clean `{ name, flag, logo }` (precise operator + rail + catalog lookup, falling back to the raw code). It is shared by history, transaction detail, **and** the PDF receipt (`src/utils/receipt.ts`) / invoice (`src/utils/invoice.ts`) : never re-parse mode strings ad hoc.
 

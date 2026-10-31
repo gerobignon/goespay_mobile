@@ -11,7 +11,8 @@
           "/auth-link",
           "/auth-link/*",
           "/register",
-          "/register/*"
+          "/register/*",
+          "/kyc"
         ],
         "components": [
           {
@@ -24,6 +25,10 @@
           {
             "/": "/register",
             "comment": "Lien de parrainage"
+          },
+          {
+            "/": "/kyc",
+            "comment": "QR code du KYC affiché sur ordinateur"
           }
         ]
       }

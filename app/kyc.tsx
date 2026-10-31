@@ -21,7 +21,10 @@ import { ResponsiveModal } from '../src/components/ResponsiveModal';
 import { useResponsive } from '../src/hooks/useResponsive';
 import { FontAwesome6 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import QRCode from 'react-native-qrcode-svg';
 import { compressImage, MAX_EDGE_DOCUMENT } from '../src/utils/imageCompress';
+import { KycCamera } from '../src/components/KycCamera';
+import { hasLiveCamera, isDesktopWeb, kycPhoneUrl } from '../src/utils/kycDevice';
 import { authService } from '../src/services/authService';
 import { useAuthStore } from '../src/stores/authStore';
 import { AuthImage } from '../src/components/AuthImage';
@@ -152,6 +155,17 @@ export default function KycScreen() {
   const [versoUri, setVersoUri] = useState<string | null>(null);
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Web : prise de vue en cours dans la caméra de la page (null = fermée).
+  const [cameraTarget, setCameraTarget] = useState<Exclude<PhotoTarget, null> | null>(null);
+  // Web sur ordinateur : pas de KYC, un QR code renvoie vers le téléphone.
+  // Téléphone sans caméra accessible à la page : pas de KYC non plus.
+  const desktopWeb = useMemo(() => isDesktopWeb(), []);
+  const webNoCamera = useMemo(() => Platform.OS === 'web' && !desktopWeb && !hasLiveCamera(), [desktopWeb]);
+  const phoneUrl = useMemo(
+    () => kycPhoneUrl({ level: levelParam, edit, for: purpose, doc: docParam }),
+    [levelParam, edit, purpose, docParam]
+  );
 
   // Assistant : étape courante + erreurs affichées (elles n'apparaissent qu'après
   // une tentative de passage à l'étape suivante, jamais pendant la frappe).
@@ -336,6 +350,8 @@ export default function KycScreen() {
 
   const applyPhoto = async (uri: string, target: Exclude<PhotoTarget, null>) => {
     const compressed = await compressImage(uri, { maxEdge: MAX_EDGE_DOCUMENT });
+    // Web : la prise de vue brute (blob:) n'est plus utile une fois compressée.
+    if (Platform.OS === 'web' && uri.startsWith('blob:') && compressed !== uri) URL.revokeObjectURL(uri);
     ({ id: setFileUri, verso: setVersoUri, selfie: setSelfieUri })[target](compressed);
     setErrors((prev) => ({ ...prev, [({ id: 'idPhoto', verso: 'verso', selfie: 'selfie' })[target]]: '' }));
     if (target === 'id') readDocument(compressed);
@@ -385,9 +401,17 @@ export default function KycScreen() {
     }
   };
 
-  // Caméra exclusivement : aucune photo issue de la galerie n'est acceptée pour
-  // le KYC (la prise de vue en direct est ce qui rend la pièce vérifiable).
+  // Caméra exclusivement : aucune photo issue de la galerie ni d'un fichier
+  // n'est acceptée pour le KYC (la prise de vue en direct est ce qui rend la
+  // pièce vérifiable). Règle de Géraud du 31/10/2026, valable partout.
+  //  · natif : l'appareil photo du système, sans accès à la galerie ;
+  //  · web : la caméra dans la page (`KycCamera`). Jamais `launchCameraAsync`
+  //    sur le web : il n'y ouvre qu'un sélecteur de fichiers.
   const capturePhoto = async (target: Exclude<PhotoTarget, null>) => {
+    if (Platform.OS === 'web') {
+      setCameraTarget(target);
+      return;
+    }
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') { showAlert(t('common.error'), t('kyc.cameraPermission')); return; }
@@ -607,7 +631,6 @@ export default function KycScreen() {
               <FontAwesome6 name={icon} size={26} color={colors.primary} />
             </View>
             <Text style={styles.placeholderTitle}>{addLabel}</Text>
-            <Text style={styles.placeholderHint}>{t('kyc.photoFormat')}</Text>
           </View>
         )}
       </Bounce>
@@ -705,6 +728,62 @@ export default function KycScreen() {
       </ScreenBackground>
     );
   }
+
+  /* ─────────────────────────── Web sans caméra ─────────────────────────── */
+
+  // Ordinateur : aucun KYC, un QR code vers le même écran sur le téléphone
+  // (sans jeton ni session : le client s'y connecte). Téléphone dont le
+  // navigateur ne donne pas la caméra à la page : aucun KYC non plus.
+  if (desktopWeb || webNoCamera) {
+    return (
+      <ScreenBackground>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <View style={[styles.contentWrapper, { maxWidth: contentMaxWidth }]}>
+            {renderHeader()}
+            <Reveal>
+              <GlassCard style={styles.pendingContainer}>
+                {desktopWeb ? (
+                  <>
+                    <Text style={[styles.pendingTitle, styles.handoffTitle]}>{t('kyc.scanOnPhone')}</Text>
+                    <View style={styles.qrBox}>
+                      <QRCode value={phoneUrl} size={220} backgroundColor="#ffffff" color="#000000" />
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <View style={styles.noCameraIcon}>
+                      <FontAwesome6 name="video-slash" size={36} color={colors.textMuted} />
+                    </View>
+                    <Text style={[styles.pendingTitle, styles.handoffTitle]}>{t('kyc.cameraUnavailable')}</Text>
+                  </>
+                )}
+              </GlassCard>
+            </Reveal>
+          </View>
+        </ScrollView>
+      </ScreenBackground>
+    );
+  }
+
+  // Web : caméra de la page, ouverte par chaque zone photo. Arrière pour la
+  // pièce, avant pour le selfie.
+  const cameraTitle =
+    cameraTarget === 'selfie' ? t(level === 1 ? 'kyc.selfieWithId' : (docSpec?.selfie ?? 'kyc.selfieWithId'))
+      : cameraTarget === 'verso' ? t('kyc.back')
+      : t(docSpec?.front ?? 'kyc.idPhoto');
+  const cameraModal = Platform.OS === 'web' ? (
+    <KycCamera
+      visible={cameraTarget !== null}
+      facing={cameraTarget === 'selfie' ? 'user' : 'environment'}
+      title={cameraTitle}
+      onClose={() => setCameraTarget(null)}
+      onCapture={(uri) => {
+        const target = cameraTarget;
+        setCameraTarget(null);
+        if (target) applyPhoto(uri, target);
+      }}
+    />
+  ) : null;
 
   // Sélecteur de pays, partagé par les deux parcours.
   const countryModal = (
@@ -859,6 +938,7 @@ export default function KycScreen() {
           </View>
         </KeyboardAvoidingView>
         {countryModal}
+        {cameraModal}
       </ScreenBackground>
     );
   }
@@ -1285,6 +1365,7 @@ export default function KycScreen() {
       </KeyboardAvoidingView>
 
       {countryModal}
+      {cameraModal}
     </ScreenBackground>
   );
 }
@@ -1722,10 +1803,6 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: FontSize.sm,
     fontFamily: Fonts.semiBold,
   },
-  placeholderHint: {
-    color: Colors.textMuted,
-    fontSize: FontSize.xs,
-  },
   previewImage: {
     width: '100%',
     height: '100%',
@@ -1949,6 +2026,24 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
     fontSize: FontSize.xl,
     fontFamily: Fonts.bold,
     color: Colors.text,
+  },
+  // Web : QR code vers le téléphone, ou caméra absente.
+  handoffTitle: {
+    textAlign: 'center',
+    paddingHorizontal: Spacing.md,
+  },
+  qrBox: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    backgroundColor: '#ffffff',
+  },
+  noCameraIcon: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: withAlpha(Colors.textMuted, 0.12),
   },
   pendingText: {
     color: Colors.textSecondary,

@@ -949,6 +949,7 @@
     "fixErrors": "Fill in the fields in red",
     "uploadError": "Could not send your documents.",
     "cameraUnavailable": "Camera unavailable.",
+    "scanOnPhone": "Scan with your phone",
     "cameraPermission": "Camera access is required.",
     "progress": "{{done}}/3 steps",
     "personalInfo": "Personal information",

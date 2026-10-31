@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Stack, usePathname, useRouter, useSegments } from 'expo-router';
+import { Stack, useGlobalSearchParams, usePathname, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, Image, ActivityIndicator, StyleSheet, TouchableOpacity, Platform, Animated, AppState, Linking } from 'react-native';
 import Constants from 'expo-constants';
@@ -40,6 +40,7 @@ import {
 } from '../src/utils/pendingRoute';
 import { takeStoredNotificationUrl } from '../src/utils/webNotificationTarget';
 import { resolveDeferredReferral } from '../src/utils/deferredReferral';
+import { pickKycParams } from '../src/utils/kycDevice';
 
 /** Charge utile d'une notification push, telle qu'envoyée par le backend. */
 type NotificationData = Record<string, string | undefined>;
@@ -81,6 +82,7 @@ function RootInner() {
   const { isLocked, isSetupDone, isInitialized, initialize } = usePinStore();
   const segments = useSegments();
   const pathname = usePathname();
+  const globalParams = useGlobalSearchParams();
   const router = useRouter();
   const [apiStatus, setApiStatus] = useState<'checking' | 'ok' | 'error' | 'maintenance'>('checking');
   const [isMounted, setIsMounted] = useState(false);
@@ -603,10 +605,16 @@ function RootInner() {
 
     canNavigateRef.current = isAuthenticated && !needsSetup && !needsUnlock;
 
+    // KYC ouvert par le QR code d'un ordinateur : le téléphone n'est pas
+    // forcément connecté ni déverrouillé. L'écran, avec son parcours (niveau,
+    // correction, pièce demandée), attend la connexion au lieu d'être perdu.
+    const kycRoute: PendingRoute | null =
+      pathname === '/kyc' ? { pathname: '/kyc', params: pickKycParams(globalParams) } : null;
+
     if (!isAuthenticated && !inAuth) {
       // Déconnexion : une destination en attente appartenait à la session
       // précédente, elle n'a plus rien à ouvrir.
-      setPendingRoute(null);
+      setPendingRoute(kycRoute);
       router.replace('/(auth)/login');
     } else if (isAuthenticated && inAuth && currentRoute !== 'setup-pin' && currentRoute !== 'unlock') {
       if (needsSetup) {
@@ -624,7 +632,7 @@ function RootInner() {
         // notification, ou un lien ouvert dans la PWA, tombait sur un compte
         // verrouillé : le client arrivait sur l'accueil, jamais sur son fil.
         if (isWorthRemembering(pathname)) {
-          setPendingRoute({ pathname });
+          setPendingRoute(kycRoute ?? { pathname });
         }
         router.replace(needsSetup ? '/(auth)/setup-pin' : '/(auth)/unlock');
       } else {

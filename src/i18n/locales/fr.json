@@ -949,6 +949,7 @@
     "fixErrors": "Complétez les champs en rouge",
     "uploadError": "Erreur lors de l'envoi des documents.",
     "cameraUnavailable": "Caméra indisponible.",
+    "scanOnPhone": "Scannez avec votre téléphone",
     "cameraPermission": "L'accès à la caméra est nécessaire.",
     "progress": "{{done}}/3 étapes",
     "personalInfo": "Informations personnelles",
