@@ -1439,6 +1439,7 @@
     "sourceSponsor": "Sponsor",
     "openFailed": "Conversation unavailable.",
     "actionFailed": "Action failed.",
+    "codeRefused": "This text contains code (tags, scripts or commands), which is not accepted. Remove it, then try again.",
     "profileTitle": "Profile",
     "profileMissing": "Account not found.",
     "verified": "Identity verified",

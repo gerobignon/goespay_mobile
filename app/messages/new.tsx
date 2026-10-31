@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 
 import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { showAlert } from '../../src/stores/alertStore';
+import { detectCode } from '../../src/utils/codeGuard';
 import { Bounce, Reveal } from '../../src/components/anim';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useColors } from '../../src/components/ThemeProvider';
@@ -110,6 +111,10 @@ export default function NewConversationScreen() {
   };
 
   const sendInvite = async (identifier: string, label?: string) => {
+    if (note.trim() && detectCode(note)) {
+      showAlert(t('common.error', 'Erreur'), t('messages.codeRefused'));
+      return;
+    }
     setInviting(true);
     try {
       const message = await messagingService.invite(identifier, note);

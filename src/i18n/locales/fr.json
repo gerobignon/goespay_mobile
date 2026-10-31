@@ -1439,6 +1439,7 @@
     "sourceSponsor": "Parrain",
     "openFailed": "Conversation impossible.",
     "actionFailed": "Action impossible.",
+    "codeRefused": "Ce texte contient du code (balises, scripts ou commandes), ce qui n'est pas accepté. Retirez-le, puis réessayez.",
     "profileTitle": "Profil",
     "profileMissing": "Compte introuvable.",
     "verified": "Identité vérifiée",

@@ -21,6 +21,8 @@ import { BorderRadius, FontSize, Fonts, Spacing, withAlpha, type ColorPalette } 
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { useColors } from '../ThemeProvider';
 import { EmojiPicker } from './EmojiPicker';
+import { detectCode } from '../../utils/codeGuard';
+import { showAlert } from '../../stores/alertStore';
 
 /** Hauteur commune aux icônes et à la ligne de saisie, leur ligne de base. */
 const ICON_SLOT = 38;
@@ -147,6 +149,12 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
   const submit = async () => {
     const text = body.trim();
     if ((!text && !imageUri) || sending) return;
+    // Le serveur refuse tout code (balises, scripts, commandes) : on le dit
+    // avant l'envoi, et le texte reste dans le champ pour être corrigé.
+    if (text && detectCode(text)) {
+      showAlert(t('common.error', 'Erreur'), t('messages.codeRefused'));
+      return;
+    }
     // On vide tout de suite : la bulle optimiste prend le relais côté store.
     setBody('');
     setImageUri(null);

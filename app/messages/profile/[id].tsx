@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 
 import { ScreenBackground } from '../../../src/components/ScreenBackground';
 import { showAlert } from '../../../src/stores/alertStore';
+import { detectCode } from '../../../src/utils/codeGuard';
 import { Bounce } from '../../../src/components/anim';
 import { useThemedStyles } from '../../../src/hooks/useThemedStyles';
 import { useColors } from '../../../src/components/ThemeProvider';
@@ -112,6 +113,10 @@ export default function PeerProfileScreen() {
 
   const submitReport = async () => {
     if (!profile) return;
+    if (details.trim() && detectCode(details)) {
+      showAlert(t('common.error', 'Erreur'), t('messages.codeRefused'));
+      return;
+    }
     setBusy(true);
     try {
       const msg = await messagingService.report(profile.id, reason, details, profile.conversation_id);
