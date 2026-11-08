@@ -2,7 +2,7 @@
   "expo": {
     "name": "GOESPAY",
     "slug": "goespay",
-    "version": "1.2.11",
+    "version": "1.2.12",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -25,10 +25,7 @@
       },
       "associatedDomains": [
         "applinks:app.goespay.io"
-      ],
-      "entitlements": {
-        "com.apple.developer.devicecheck.appattest-environment": "production"
-      }
+      ]
     },
     "android": {
       "adaptiveIcon": {
