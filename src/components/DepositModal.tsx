@@ -52,6 +52,7 @@ import { useCryptoSearch } from '../hooks/useCryptoSearch';
 import { CloseButton } from './CloseButton';
 import { kycLevelOf, handleKycError, promptKycUpgrade } from '../utils/kycLevel';
 import { useStoreReviewOnClose, type ReviewStatus } from '../stores/storeReviewStore';
+import { sanitizeDigitsInput, sanitizePhoneInput } from '../utils/inputFilters';
 
 // Même aiguillage que checkStatus, pour le suivi après fermeture du modal.
 async function depositReviewStatus(depositId: number, ref: string | null): Promise<ReviewStatus> {
@@ -1620,7 +1621,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                       ? '770000000'
                       : t('depositModal.phoneNumber')}
                     value={phone}
-                    onChangeText={setPhone}
+                    onChangeText={(v) => setPhone(sanitizePhoneInput(v))}
                     keyboardType="phone-pad"
                     prefix={phonePrefix}
                   />
@@ -1687,7 +1688,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                       label={t('depositModal.otpLabel', { operator: OPERATORS_SRC.find((op) => op.id === operator)?.name ?? '' })}
                       placeholder={t('depositModal.refPlaceholder')}
                       value={otp}
-                      onChangeText={setOtp}
+                      onChangeText={(v) => setOtp(sanitizeDigitsInput(v))}
                       keyboardType="numeric"
                     />
                   </>

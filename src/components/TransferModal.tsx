@@ -58,6 +58,7 @@ import { CloseButton } from './CloseButton';
 import { ReferralPrompt } from './ReferralPrompt';
 import { kycLevelOf, promptKycUpgrade, handleKycUpgradeError } from '../utils/kycLevel';
 import { useStoreReviewOnClose, type ReviewStatus } from '../stores/storeReviewStore';
+import { sanitizeDigitsInput, sanitizePhoneInput } from '../utils/inputFilters';
 
 type PollOpts = { transferId?: number; aggRef?: string; isWire?: boolean };
 
@@ -1850,7 +1851,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                     ? '770000000'
                     : t('transferModal.phonePlaceholder')}
                   value={phone}
-                  onChangeText={setPhone}
+                  onChangeText={(v) => setPhone(sanitizePhoneInput(v))}
                   keyboardType="phone-pad"
                   prefix={isAggOp && aggRail === 'mobile_money'
                     ? (aggDialCode ? `+${aggDialCode}` : undefined)
@@ -1918,7 +1919,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                           label="Téléphone du bénéficiaire *"
                           placeholder="ex: +27721234567"
                           value={bankMobileNumber}
-                          onChangeText={setBankMobileNumber}
+                          onChangeText={(v) => setBankMobileNumber(sanitizePhoneInput(v))}
                           keyboardType="phone-pad"
                         />
                         <Input
@@ -2112,7 +2113,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       label="Numéro de routage (USA uniquement)"
                       placeholder="ex: 021000021"
                       value={routingNumber}
-                      onChangeText={setRoutingNumber}
+                      onChangeText={(v) => setRoutingNumber(sanitizeDigitsInput(v))}
                       keyboardType="numeric"
                     />
                     <Input
@@ -2153,7 +2154,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                     {cnyServiceCode === 'WECHAT' ? (
                       <>
                         <Input label="WeChat ID *" placeholder="WeChat ID" value={cnyWechatId} onChangeText={setCnyWechatId} autoCapitalize="none" />
-                        <Input label="Téléphone WeChat *" placeholder="ex: +8613699262597" value={cnyWalletAccount} onChangeText={setCnyWalletAccount} keyboardType="phone-pad" />
+                        <Input label="Téléphone WeChat *" placeholder="ex: +8613699262597" value={cnyWalletAccount} onChangeText={(v) => setCnyWalletAccount(sanitizePhoneInput(v))} keyboardType="phone-pad" />
                       </>
                     ) : (
                       <>
@@ -2215,7 +2216,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                         <Input label="Numéro de compte *" placeholder="N° de compte du bénéficiaire" value={bankAccountNumber} onChangeText={setBankAccountNumber} />
                         <Input label="Titulaire du compte *" placeholder="Nom du titulaire" value={bankAccountHolder} onChangeText={setBankAccountHolder} />
                         <Input label="N° pièce d'identité du bénéficiaire *" placeholder="N° de pièce d'identité" value={cnyIdNumber} onChangeText={setCnyIdNumber} />
-                        <Input label="Téléphone du bénéficiaire *" placeholder="ex: +8613699262597" value={cnyMobile} onChangeText={setCnyMobile} keyboardType="phone-pad" />
+                        <Input label="Téléphone du bénéficiaire *" placeholder="ex: +8613699262597" value={cnyMobile} onChangeText={(v) => setCnyMobile(sanitizePhoneInput(v))} keyboardType="phone-pad" />
                         {/* La relation expéditeur↔bénéficiaire (requise par Klasha) est
                             renseignée automatiquement (SELF), pas demandée au client. */}
                       </>
@@ -2224,7 +2225,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                     {/* UnionPay (carte) */}
                     {cnyService === 'BANK_CARD' && (
                       <>
-                        <Input label="Numéro de carte UnionPay *" placeholder="N° de carte" value={cnyCardNumber} onChangeText={setCnyCardNumber} keyboardType="numeric" />
+                        <Input label="Numéro de carte UnionPay *" placeholder="N° de carte" value={cnyCardNumber} onChangeText={(v) => setCnyCardNumber(sanitizeDigitsInput(v))} keyboardType="numeric" />
                         <Input label="Titulaire de la carte *" placeholder="Nom du titulaire" value={cnyCardHolder} onChangeText={setCnyCardHolder} />
                       </>
                     )}

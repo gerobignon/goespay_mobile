@@ -29,6 +29,7 @@ import { useResponsive } from '../../src/hooks/useResponsive';
 import { getApiErrorMessage } from '../../src/utils/apiError';
 import { sanitizePersonNameInput } from '../../src/utils/personName';
 import { startAccountDeletion } from '../../src/utils/accountDeletion';
+import { sanitizePhoneInput } from '../../src/utils/inputFilters';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -158,7 +159,7 @@ export default function ProfileScreen() {
                 <Input
                   label={t('account.phone')}
                   value={form.phone}
-                  onChangeText={(v) => setField('phone', v)}
+                  onChangeText={(v) => setField('phone', sanitizePhoneInput(v))}
                   editable={!isReadonly}
                   keyboardType="phone-pad"
                 />

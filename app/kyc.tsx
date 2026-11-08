@@ -41,8 +41,9 @@ import { useThemedStyles } from '../src/hooks/useThemedStyles';
 import { showAlert } from '../src/stores/alertStore';
 import { ALL_COUNTRIES } from '../src/constants/countries';
 import { getApiErrorMessage } from '../src/utils/apiError';
-import { withKnownAccents } from '../src/utils/personName';
+import { sanitizePersonNameInput, withKnownAccents } from '../src/utils/personName';
 import { useTranslation } from 'react-i18next';
+import { sanitizePhoneInput } from '../src/utils/inputFilters';
 
 // `back` : la pièce a un verso à photographier (le passeport n'en a pas).
 // `front`/`addFront`/`selfie` : libellés des prises de vue propres à la pièce.
@@ -897,7 +898,7 @@ export default function KycScreen() {
                     <Input
                       placeholder={t('kyc.phonePlaceholder')}
                       value={phone}
-                      onChangeText={setPhone}
+                      onChangeText={(v) => setPhone(sanitizePhoneInput(v))}
                       keyboardType="phone-pad"
                       prefix={prefix || undefined}
                       error={errors.phone}
@@ -1143,11 +1144,11 @@ export default function KycScreen() {
                       Pleine largeur : plusieurs prénoms ne tiennent pas en demi-colonne. */}
                   {renderField(
                     t('kyc.lastName'),
-                    <Input value={lastName} onChangeText={setLastName} editable={!nameLocked('last_name', lastName)} error={hint('lastName')} containerStyle={StyleSheet.flatten([styles.inputFlush, nameLocked('last_name', lastName) && styles.locked])} />
+                    <Input value={lastName} onChangeText={(v) => setLastName(sanitizePersonNameInput(v))} editable={!nameLocked('last_name', lastName)} error={hint('lastName')} containerStyle={StyleSheet.flatten([styles.inputFlush, nameLocked('last_name', lastName) && styles.locked])} />
                   )}
                   {renderField(
                     t('kyc.firstName'),
-                    <Input value={firstName} onChangeText={setFirstName} editable={!nameLocked('first_name', firstName)} error={hint('firstName')} containerStyle={StyleSheet.flatten([styles.inputFlush, nameLocked('first_name', firstName) && styles.locked])} />
+                    <Input value={firstName} onChangeText={(v) => setFirstName(sanitizePersonNameInput(v))} editable={!nameLocked('first_name', firstName)} error={hint('firstName')} containerStyle={StyleSheet.flatten([styles.inputFlush, nameLocked('first_name', firstName) && styles.locked])} />
                   )}
                   {renderCountryPicker()}
 
@@ -1252,7 +1253,7 @@ export default function KycScreen() {
                     <Input
                       placeholder={t('kyc.phonePlaceholder')}
                       value={phone}
-                      onChangeText={setPhone}
+                      onChangeText={(v) => setPhone(sanitizePhoneInput(v))}
                       keyboardType="phone-pad"
                       prefix={prefix || undefined}
                       error={errors.phone}

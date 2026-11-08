@@ -30,6 +30,7 @@ import { useResponsive } from '../../src/hooks/useResponsive';
 import { useCatalogStore } from '../../src/stores/catalogStore';
 import { useAuthStore } from '../../src/stores/authStore';
 import type { SavedPhone } from '../../src/types';
+import { sanitizePhoneInput } from '../../src/utils/inputFilters';
 
 export default function PhonesScreen() {
   const router = useRouter();
@@ -242,7 +243,7 @@ export default function PhonesScreen() {
             <Input
               label={t('account.number')}
               value={phoneForm.tel}
-              onChangeText={(value) => setPhoneForm((prev) => ({ ...prev, tel: value }))}
+              onChangeText={(value) => setPhoneForm((prev) => ({ ...prev, tel: sanitizePhoneInput(value) }))}
               keyboardType="phone-pad"
               placeholder={t('account.numberPlaceholder')}
             />
