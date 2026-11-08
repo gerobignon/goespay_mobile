@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import api from '../services/api';
 import { SafeStorage } from '../services/storage';
+import { CLIENT_PASS_HEADER, getClientPass } from '../services/clientAttestation';
 import { useColors } from './ThemeProvider';
 
 /**
@@ -107,10 +108,13 @@ export function useAuthImage(uri: string | null | undefined) {
           if (alive) setLoading(false);
         });
     } else {
-      SafeStorage.getItem('auth_token')
-        .then((token) => {
+      Promise.all([SafeStorage.getItem('auth_token'), getClientPass()])
+        .then(([token, pass]) => {
           if (!alive) return;
-          setSource({ uri, headers: token ? { Authorization: `Bearer ${token}` } : undefined });
+          const headers: Record<string, string> = {};
+          if (token) headers.Authorization = `Bearer ${token}`;
+          if (pass) headers[CLIENT_PASS_HEADER] = pass;
+          setSource({ uri, headers: Object.keys(headers).length ? headers : undefined });
         })
         .catch(() => {
           if (alive) setFailed(true);

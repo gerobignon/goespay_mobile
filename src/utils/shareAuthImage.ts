@@ -3,6 +3,7 @@ import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import api from '../services/api';
 import { SafeStorage } from '../services/storage';
+import { CLIENT_PASS_HEADER, getClientPass } from '../services/clientAttestation';
 
 const EXT_BY_TYPE: Record<string, string> = {
   'image/jpeg': 'jpg',
@@ -49,10 +50,12 @@ export async function shareAuthImage(uri: string, baseName: string, dialogTitle:
   }
 
   const token = await SafeStorage.getItem('auth_token');
+  const pass = await getClientPass();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (pass) headers[CLIENT_PASS_HEADER] = pass;
   const tmpUri = `${FileSystem.cacheDirectory}${baseName}`;
-  const res = await FileSystem.downloadAsync(uri, tmpUri, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+  const res = await FileSystem.downloadAsync(uri, tmpUri, { headers });
   if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
 
   // Extension tirée du type servi : la feuille de partage s'en sert pour

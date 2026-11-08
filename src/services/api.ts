@@ -2,6 +2,7 @@ import axios from 'axios';
 import { SafeStorage } from './storage';
 import { API_BASE_URL } from '../constants/config';
 import i18n from '../i18n';
+import { CLIENT_PASS_HEADER, clearClientPass, getClientPass, needsClientPass } from './clientAttestation';
 
 /** Token admin posé en cookie .goespay.io par le backend October (web seulement). */
 function readAdminCookie(): string | null {
@@ -34,6 +35,13 @@ api.interceptors.request.use(
     if (adminToken) {
       config.headers['X-Admin-Token'] = adminToken;
     }
+    // Proof that the request comes from the official app (server ClientGate).
+    if (needsClientPass(config.url)) {
+      const pass = await getClientPass();
+      if (pass) {
+        config.headers[CLIENT_PASS_HEADER] = pass;
+      }
+    }
     return config;
   },
   (error) => Promise.reject(error)
@@ -46,6 +54,17 @@ api.interceptors.response.use(
   async (error) => {
     const status = error.response?.status;
     const data = error.response?.data;
+    // Pass missing, expired or refused: attest again and replay the request once.
+    if (status === 403 && data?.code === 'client_unverified' && error.config && !error.config._clientRetry) {
+      error.config._clientRetry = true;
+      await clearClientPass();
+      const pass = await getClientPass(true);
+      if (pass) {
+        error.config.headers = error.config.headers ?? {};
+        error.config.headers[CLIENT_PASS_HEADER] = pass;
+        return api.request(error.config);
+      }
+    }
     if (status === 401 || (status === 403 && data?.account_suspended)) {
       // Dynamic import pour éviter une boucle circulaire api <-> authStore.
       try {

@@ -25,7 +25,10 @@
       },
       "associatedDomains": [
         "applinks:app.goespay.io"
-      ]
+      ],
+      "entitlements": {
+        "com.apple.developer.devicecheck.appattest-environment": "production"
+      }
     },
     "android": {
       "adaptiveIcon": {
