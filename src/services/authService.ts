@@ -68,8 +68,17 @@ export const authService = {
     return response.data;
   },
 
-  changeEmail: async (email: string, newEmail: string): Promise<{ message: string }> => {
-    const response = await api.post('/auth/change-email', { email, new_email: newEmail });
+  /**
+   * Corrige l'adresse d'un compte en attente d'activation. La preuve est le
+   * jeton remis à l'inscription par ce même appareil : le client qui a mal
+   * tapé son adresse n'a jamais reçu le code.
+   */
+  changeEmail: async (email: string, newEmail: string, signupToken?: string | null): Promise<{ message: string }> => {
+    const response = await api.post('/auth/change-email', {
+      email,
+      new_email: newEmail,
+      ...(signupToken ? { signup_token: signupToken } : {}),
+    });
     return response.data;
   },
 

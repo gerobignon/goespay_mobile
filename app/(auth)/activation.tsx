@@ -11,7 +11,8 @@ import { Button } from '../../src/components/Button';
 import { LinkButton } from '../../src/components/LinkButton';
 import { authService } from '../../src/services/authService';
 import { useAuthStore } from '../../src/stores/authStore';
-import { readPendingActivation, clearPendingActivation } from '../../src/utils/pendingActivation';
+import { readPendingActivation, clearPendingActivation, savePendingActivation } from '../../src/utils/pendingActivation';
+import { getApiErrorMessage } from '../../src/utils/apiError';
 import type { LoginResponse } from '../../src/types';
 import { showAlert } from '../../src/stores/alertStore';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
@@ -143,15 +144,19 @@ export default function ActivationScreen() {
     }
     setChangingEmail(true);
     try {
-      await authService.changeEmail(currentEmail, newEmail.trim());
+      await authService.changeEmail(currentEmail, newEmail.trim(), signupToken);
+      // Le jeton reste valable pour la nouvelle adresse : la reprise de
+      // l'activation (retour de la messagerie, app relancée) doit la suivre.
+      if (signupToken) await savePendingActivation(newEmail.trim(), signupToken);
       setCurrentEmail(newEmail.trim());
       setNewEmail('');
       setShowChangeEmail(false);
       setCode('');
       showAlert(t('common.success'), t('auth.activation.emailChanged', `Adresse email modifiée. Un nouveau code a été envoyé à ${newEmail.trim()}.`));
     } catch (error: any) {
-      const msg = error?.response?.data?.error || t('auth.activation.emailChangeError');
-      showAlert(t('common.error'), msg);
+      // Le serveur porte le vrai motif : adresse mal tapée avec la correction
+      // proposée (erreur de champ), ou changement impossible depuis cet appareil.
+      showAlert(t('common.error'), getApiErrorMessage(error, t, t('auth.activation.emailChangeError')));
     } finally {
       setChangingEmail(false);
     }
