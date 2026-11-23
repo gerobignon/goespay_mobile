@@ -10,7 +10,7 @@ import {
   Modal,
   Platform,
 } from 'react-native';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { compressImage, MAX_EDGE_AVATAR } from '../../src/utils/imageCompress';
@@ -43,8 +43,8 @@ import { DepositModal } from '../../src/components/DepositModal';
 import { TransferModal } from '../../src/components/TransferModal';
 import { P2PTransferModal } from '../../src/components/P2PTransferModal';
 import type { SavedBank } from '../../src/services/walletService';
-import { CryptoModal } from '../../src/components/CryptoModal';
-import { CRYPTO_AVAILABLE } from '../../src/constants/features';
+import { useAddons, addonPending, getTxKind } from '../../src/addons/registry';
+import type { FlowDirection } from '../../src/addons/types';
 import { TransactionItem } from '../../src/components/TransactionItem';
 import { TransactionDetailModal, type TxType } from '../../src/components/TransactionDetailModal';
 import {
@@ -56,7 +56,6 @@ import {
   type PromoSlide,
 } from '../../src/components/home/HomeWidgets';
 import { RateSimulator } from '../../src/components/home/RateSimulator';
-import { useCryptoStore } from '../../src/stores/cryptoStore';
 import { useConfigStore } from '../../src/stores/configStore';
 import { useCorridorStore } from '../../src/stores/corridorStore';
 import { useCatalogStore } from '../../src/stores/catalogStore';
@@ -77,10 +76,6 @@ export default function DashboardScreen() {
   const [depositVisible, setDepositVisible] = useState(false);
   const [transferVisible, setTransferVisible] = useState(false);
   const [p2pVisible, setP2pVisible] = useState(false);
-  const [cryptoVisible, setCryptoVisible] = useState(false);
-  // Crypto lancé depuis Dépôt (vente) ou Retrait (achat) : onglet forcé + crypto pré-sélectionnée.
-  const [cryptoTab, setCryptoTab] = useState<'buy' | 'sell'>('sell');
-  const [cryptoCurrency, setCryptoCurrency] = useState<string | undefined>(undefined);
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [modalTxId, setModalTxId] = useState<number | null>(null);
   const [modalTxType, setModalTxType] = useState<TxType | null>(null);
@@ -96,18 +91,19 @@ export default function DashboardScreen() {
   const stickyStyle = (active: boolean): any => active ? { position: 'sticky', top: 0, alignSelf: 'flex-start' } : undefined;
 
   const { logout } = useAuthStore();
-  const { deposit_enabled, transfer_enabled, deposit_blocked, transfer_blocked, crypto_buy_enabled, crypto_sell_enabled, p2p_enabled, p2p_blocked, isLoaded: configLoaded, fetchConfig } = useConfigStore();
+  const { deposit_enabled, transfer_enabled, deposit_blocked, transfer_blocked, p2p_enabled, p2p_blocked, isLoaded: configLoaded, fetchConfig } = useConfigStore();
   const promoSlidesConfig = useConfigStore((s) => s.promo_slides);
   const fetchCorridors = useCorridorStore((s) => s.fetchCorridors);
   const fetchCatalog = useCatalogStore((s) => s.fetchCatalog);
   const isAdmin = user?.group === 'admin';
-  // Éligibilité crypto : groupe `crypto` OU un corridor crypto (NowPayments ou
-  // futur agrégateur crypto) actif en payin (vente) et/ou payout (achat) pour le
-  // pays du user. Les flags /config crypto_*_enabled portent DÉJÀ cette logique
-  // par pays (api_mobile.php → RoutingResolver::cryptoBuy/SellEnabledFor =
-  // corridor nowpayments-<cc>). On ne dépend donc plus de la liste statique COUNTRIES.
-  // CRYPTO_AVAILABLE : absent des binaires iOS et Android (licence d'échange exigée par les stores).
-  const isCryptoUser = CRYPTO_AVAILABLE && (isAdmin || user?.group === 'crypto' || crypto_buy_enabled || crypto_sell_enabled);
+  // Extensions chargées après la connexion (src/addons) : leurs flux, raccourcis
+  // et actions ne sont publiés que pour les comptes qui y ont droit.
+  const addon = useAddons((s) => s.addon);
+  const addonStatus = useAddons((s) => s.status);
+  const addonFlows = useAddons((s) => s.flows);
+  const addonActions = useAddons((s) => s.actions);
+  const accountLinks = useAddons((s) => s.accountLinks);
+  const beneficiaryLinks = useAddons((s) => s.beneficiaryLinks);
   // L'admin voit tous les services même désactivés (un bandeau s'affiche dans le modal concerné).
   // Conditions vérifiées AVANT rendu : tant que /config n'a pas répondu (isLoaded
   // false), on ne rend AUCUNE action (skeleton à la place). Évite le flash
@@ -119,17 +115,15 @@ export default function DashboardScreen() {
   // message perso. L'enforcement reste backend.
   const showDeposit = isAdmin || (configLoaded && (deposit_enabled || deposit_blocked));
   const showTransfer = isAdmin || (configLoaded && (transfer_enabled || transfer_blocked));
-  const showCrypto = CRYPTO_AVAILABLE && (isAdmin || (configLoaded && isCryptoUser && (crypto_buy_enabled || crypto_sell_enabled)));
   // Transfert compte à compte : interne au wallet, il ne dépend d'aucun corridor
   // ni d'un blocage payout : seul son propre kill-switch le masque.
   const showP2P = isAdmin || (configLoaded && (p2p_enabled || p2p_blocked));
-  // Ouvre le flux crypto avec l'action forcée, depuis Dépôt (vente) ou Retrait (achat).
-  const openCrypto = (tab: 'buy' | 'sell', currency?: string) => {
-    setCryptoTab(tab);
-    setCryptoCurrency(currency);
+  // Flux d'une extension choisi depuis Recharger (in) ou Envoyer (out) : on
+  // ferme le modal d'origine avant d'ouvrir celui de l'extension.
+  const startAddonFlow = (direction: FlowDirection, item?: string) => {
     setDepositVisible(false);
     setTransferVisible(false);
-    setTimeout(() => setCryptoVisible(true), 350);
+    setTimeout(() => useAddons.getState().addon?.start(direction, item), 350);
   };
   const isValidated = user?.validate === 1;
   const { t } = useTranslation();
@@ -148,15 +142,18 @@ export default function DashboardScreen() {
     if (!action || !configReady) return;
 
     const flows: Record<string, (() => void) | undefined> = {
+      ...addonActions,
       deposit: showDeposit ? () => setDepositVisible(true) : undefined,
       transfer: showTransfer ? () => setTransferVisible(true) : undefined,
       p2p: showP2P ? () => setP2pVisible(true) : undefined,
-      crypto: showCrypto ? () => openCrypto('buy') : undefined,
     };
+    // Action d'une extension pas encore chargée : on l'attend plutôt que de
+    // perdre le lien.
+    if (!flows[String(action)] && addonPending(addonStatus)) return;
     flows[String(action)]?.();
 
     router.setParams({ action: undefined } as any);
-  }, [action, configReady, showDeposit, showTransfer, showP2P, showCrypto]);
+  }, [action, configReady, showDeposit, showTransfer, showP2P, addonActions, addonStatus]);
 
   // Slides du carrousel promo : pilotées depuis l'admin (/config → promo_slides).
   // Image = URL distante ({uri}), lien optionnel ouvert au tap. Carrousel masqué
@@ -186,10 +183,10 @@ export default function DashboardScreen() {
     setTransferPrefillBank(bank);
     setTransferVisible(true);
   }, [isValidated]);
-  const onBenefAdd = useCallback((type: 'phone' | 'bank' | 'crypto') => {
-    router.push(type === 'bank' ? '/account/bank-accounts' : type === 'crypto' ? '/account/wallets' : '/account/phones');
+  const onBenefAdd = useCallback((type: 'phone' | 'bank') => {
+    router.push(type === 'bank' ? '/account/bank-accounts' : '/account/phones');
   }, [router]);
-  const prefetchRates = useCryptoStore((s) => s.fetchRates);
+  const onBenefLink = useCallback((route: Href) => router.push(route), [router]);
   const { isWide, isDesktop, contentMaxWidth } = useResponsive();
   const { isDark } = useTheme();
   const styles = useThemedStyles(createStyles);
@@ -203,7 +200,8 @@ export default function DashboardScreen() {
       setModalTxType(type);
       return;
     }
-    router.push(`/transaction/${type === 'deposit' ? 'deposit' : type === 'transfer' ? 'transfer' : type === 'crypto' ? 'crypto' : 'withdraw'}/${tx.id}`);
+    const route = type === 'deposit' || type === 'transfer' || getTxKind(type) ? type : 'withdraw';
+    router.push(`/transaction/${route}/${tx.id}`);
   };
 
   const handleLogout = () => {
@@ -246,7 +244,7 @@ export default function DashboardScreen() {
     }
   };
 
-  const menuItems = getAccountMenuItems(t, { isCryptoUser, isSuperAdmin: user?.id === 1 });
+  const menuItems = getAccountMenuItems(t, { isSuperAdmin: user?.id === 1, extra: accountLinks });
 
   useFocusEffect(
     useCallback(() => {
@@ -257,7 +255,7 @@ export default function DashboardScreen() {
       fetchConfig();
       fetchCorridors();
       fetchCatalog();
-      if (isCryptoUser) prefetchRates();
+      useAddons.getState().addon?.refresh();
     }, [])
   );
 
@@ -447,9 +445,9 @@ export default function DashboardScreen() {
               {/* Widgets en dessous : V + G + A + C + E. */}
               {showDeposit && <VirtualAccountsBar />}
               <PromoCarousel slides={promoSlides} />
-              {showTransfer && <RecentBeneficiaries onPick={onBenefPick} onPickBank={onBenefPickBank} onAdd={onBenefAdd} allowCrypto={isCryptoUser} />}
+              {showTransfer && <RecentBeneficiaries onPick={onBenefPick} onPickBank={onBenefPickBank} onAdd={onBenefAdd} extraLinks={beneficiaryLinks} onAddLink={onBenefLink} />}
               <ReferralCard />
-              <RateSimulator allowCrypto={showCrypto} />
+              <RateSimulator />
             </View>
 
             {/* Right column: recent transactions */}
@@ -531,9 +529,9 @@ export default function DashboardScreen() {
             {/* Widgets en dessous : V + G + A + C + E. */}
             {showDeposit && <VirtualAccountsBar />}
             <PromoCarousel slides={promoSlides} />
-            {showTransfer && <RecentBeneficiaries onPick={onBenefPick} onPickBank={onBenefPickBank} onAdd={onBenefAdd} allowCrypto={isCryptoUser} />}
+            {showTransfer && <RecentBeneficiaries onPick={onBenefPick} onPickBank={onBenefPickBank} onAdd={onBenefAdd} extraLinks={beneficiaryLinks} onAddLink={onBenefLink} />}
             <ReferralCard />
-            <RateSimulator allowCrypto={showCrypto} />
+            <RateSimulator />
 
             <View style={[styles.recentHeader, { marginTop: Spacing.lg }]}>
               <Text style={styles.sectionTitle}>{ t('home.recentTransactions') }</Text>
@@ -564,16 +562,16 @@ export default function DashboardScreen() {
       <DepositModal
         visible={depositVisible}
         onClose={() => setDepositVisible(false)}
-        cryptoEnabled={showCrypto && (crypto_sell_enabled || isAdmin)}
-        onSellCrypto={(currency?: string) => openCrypto('sell', currency)}
+        addonEnabled={addonFlows.in}
+        onAddonPick={(item) => startAddonFlow('in', item)}
       />
       )}
       {showTransfer && (
       <TransferModal
         visible={transferVisible}
         onClose={() => { setTransferVisible(false); setTransferPrefillPhone(undefined); setTransferPrefillBank(null); setTransferPrefillOperator(undefined); }}
-        cryptoEnabled={showCrypto && (crypto_buy_enabled || isAdmin)}
-        onBuyCrypto={(currency?: string) => openCrypto('buy', currency)}
+        addonEnabled={addonFlows.out}
+        onAddonPick={(item) => startAddonFlow('out', item)}
         prefillPhone={transferPrefillPhone}
         prefillOperator={transferPrefillOperator}
         prefillBank={transferPrefillBank}
@@ -585,17 +583,7 @@ export default function DashboardScreen() {
         onClose={() => setP2pVisible(false)}
       />
       )}
-      {showCrypto && (
-        <CryptoModal
-          visible={cryptoVisible}
-          onClose={() => setCryptoVisible(false)}
-          buyEnabled={crypto_buy_enabled}
-          sellEnabled={crypto_sell_enabled}
-          initialTab={cryptoTab}
-          initialCurrency={cryptoCurrency}
-          forceTab
-        />
-      )}
+      {addon && <addon.Host />}
 
       {/* Dropdown avatar menu */}
       <Modal

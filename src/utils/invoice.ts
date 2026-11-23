@@ -1,6 +1,7 @@
 import { downloadPdf } from './pdfDownload';
 
-export type InvoiceType = 'deposit' | 'withdraw' | 'crypto';
+/** Type de transaction facturable ; les extensions (src/addons) passent le leur. */
+export type InvoiceType = 'deposit' | 'withdraw' | (string & {});
 
 /**
  * Télécharge la facture PDF officielle GOESPAY générée côté backend.

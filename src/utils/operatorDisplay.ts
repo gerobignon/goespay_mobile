@@ -1,5 +1,6 @@
 import { OPERATORS } from '../constants/config';
 import { useCatalogStore } from '../stores/catalogStore';
+import { useAddons } from '../addons/registry';
 import i18n from '../i18n';
 
 // Drapeau du pays bénéficiaire dérivé de la devise Fincra (le « pays »).
@@ -70,7 +71,8 @@ function genericModeLabel(mode: string): string {
   if (/wire/.test(n)) return 'Virement international';
   if (/bank|(^|_)bt(_|$)/.test(n)) return 'Virement bancaire';
   if (/card|visa|mastercard/.test(n)) return 'Carte bancaire';
-  if (/crypto|usdt|trc|erc/.test(n)) return 'Crypto';
+  const fromAddon = useAddons.getState().modeLabel?.(n);
+  if (fromAddon) return fromAddon;
   const clean = n.replace(AGGREGATOR_BRANDS, '').replace(/_+/g, ' ').trim();
   if (!clean) return 'Transfert';
   return clean.replace(/\b\w/g, (c) => c.toUpperCase());

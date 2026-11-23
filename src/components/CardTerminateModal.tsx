@@ -39,6 +39,20 @@ export function CardTerminateModal({ visible, card, busy = false, onClose, onCon
 
   const hasBalance = !!card && card.balance > 0;
 
+  // Montant réellement rendu, annoncé par le serveur : le solde moins le dollar
+  // gardé par l'émetteur et les frais de retrait. Un serveur plus ancien ne le
+  // donne pas, on garde alors l'ancien libellé.
+  const balanceLine = (c: VirtualCard) => {
+    const fmt = (v: number) => `${v.toFixed(2)} ${c.currency}`;
+    if (c.terminate_refund === undefined) {
+      return t('cards.terminateBalanceBack', { amount: fmt(c.balance) });
+    }
+    if (c.terminate_refund <= 0) {
+      return t('cards.terminateRefundNone', { balance: fmt(c.balance) });
+    }
+    return t('cards.terminateRefundNet', { amount: fmt(c.terminate_refund), balance: fmt(c.balance) });
+  };
+
   const consequences = [
     { icon: 'ban', text: t('cards.terminateConsequencePayments') },
     { icon: 'rotate-left', text: t('cards.terminateConsequenceFinal') },
@@ -70,9 +84,7 @@ export function CardTerminateModal({ visible, card, busy = false, onClose, onCon
           {hasBalance && (
             <View style={styles.row}>
               <FontAwesome6 name="arrow-right-arrow-left" size={13} color={Colors.textMuted} iconStyle="solid" />
-              <Text style={styles.rowText}>
-                {t('cards.terminateBalanceBack', { amount: `${card!.balance.toFixed(2)} ${card!.currency}` })}
-              </Text>
+              <Text style={styles.rowText}>{balanceLine(card!)}</Text>
             </View>
           )}
         </View>

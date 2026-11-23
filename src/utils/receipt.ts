@@ -9,23 +9,16 @@ interface ReceiptRow {
   value: string;
 }
 
-function buildRows(tx: Transaction, type: 'deposit' | 'withdraw' | 'transfer' | 'crypto'): ReceiptRow[] {
+type ReceiptType = 'deposit' | 'withdraw' | 'transfer';
+
+function buildRows(tx: Transaction, type: ReceiptType): ReceiptRow[] {
   const rows: ReceiptRow[] = [
     { label: 'Transaction ID', value: `#${tx.id}` },
-    {
-      label: 'Type',
-      value: type === 'deposit' ? 'Dépôt' : type === 'withdraw' ? 'Envoi' : type === 'transfer' ? 'Envoi' : (tx.mode === 'Buy' ? 'Achat de monnaie numérique' : 'Vente de monnaie numérique'),
-    },
+    { label: 'Type', value: type === 'deposit' ? 'Dépôt' : 'Envoi' },
     { label: 'Statut', value: 'Succès' },
   ];
 
-  if (type === 'crypto') {
-    rows.push({ label: 'Montant payé', value: formatXof(tx.amount) });
-    if (tx.dollar != null) rows.push({ label: 'Quantité crypto', value: `${tx.dollar} ${tx.currency_src ?? ''}`.trim() });
-    if (tx.currency_src) rows.push({ label: 'Monnaie numérique', value: tx.currency_src });
-    if (tx.address) rows.push({ label: 'Adresse portefeuille', value: tx.address });
-    if (tx.cp_hash) rows.push({ label: 'Hash transaction', value: tx.cp_hash });
-  } else if (type === 'withdraw' || type === 'transfer') {
+  if (type === 'withdraw' || type === 'transfer') {
     // Retrait Fincra : amount = XOF débité (total), amount_sent = livré en
     // currency_dest (NGN/GHS/…), fee_xof = frais GOESPAY (XOF). On n'additionne
     // ni ne soustrait JAMAIS deux devises différentes.
@@ -59,7 +52,7 @@ function buildRows(tx: Transaction, type: 'deposit' | 'withdraw' | 'transfer' | 
     return `${disp.flag ? disp.flag + ' ' : ''}${disp.name}`.trim();
   };
 
-  if (type !== 'crypto') {
+  {
     if (tx.mode) rows.push({ label: 'Mode', value: cleanMode(tx.mode) });
     if (tx.de) rows.push({ label: 'De', value: tx.de });
     if (tx.phone) rows.push({ label: 'Destinataire', value: tx.phone });
@@ -68,9 +61,6 @@ function buildRows(tx: Transaction, type: 'deposit' | 'withdraw' | 'transfer' | 
     // Texte libre du client : échappé, la ligne est injectée telle quelle dans le HTML.
     if (tx.motif) rows.push({ label: 'Motif', value: escapeHtml(tx.motif) });
     if (tx.reference) rows.push({ label: 'Référence', value: tx.reference });
-    if (tx.avant != null) rows.push({ label: 'Solde avant', value: formatXof(tx.avant) });
-    if (tx.apres != null) rows.push({ label: 'Solde après', value: formatXof(tx.apres) });
-  } else {
     if (tx.avant != null) rows.push({ label: 'Solde avant', value: formatXof(tx.avant) });
     if (tx.apres != null) rows.push({ label: 'Solde après', value: formatXof(tx.apres) });
   }
@@ -87,13 +77,9 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 }
 
-export async function shareReceipt(tx: Transaction, type: 'deposit' | 'withdraw' | 'transfer' | 'crypto') {
+export async function shareReceipt(tx: Transaction, type: ReceiptType) {
   const rows = buildRows(tx, type);
-  const typeLabel =
-    type === 'deposit' ? 'Dépôt' :
-    type === 'withdraw' ? 'Envoi' :
-    type === 'transfer' ? 'Envoi' :
-    (tx.mode === 'Buy' ? 'Achat crypto' : 'Vente crypto');
+  const typeLabel = type === 'deposit' ? 'Dépôt' : 'Envoi';
 
   const html = `
     <html>

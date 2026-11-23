@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useIdempotencyKey, withIdempotency } from '../utils/idempotency';
+import { useIdempotencyKey, withIdempotency } from '../../utils/idempotency';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Modal,
@@ -13,33 +13,32 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
-import { Input } from './Input';
-import { ResponsiveModal } from './ResponsiveModal';
-import { Button } from './Button';
+import { Input } from '../../components/Input';
+import { ResponsiveModal } from '../../components/ResponsiveModal';
+import { Button } from '../../components/Button';
 import { CryptoSellDetailsModal } from './CryptoSellDetailsModal';
 import { CryptoLogo } from './CryptoLogo';
 import { CryptoSearchField } from './CryptoSearchField';
-import { useCryptoSearch } from '../hooks/useCryptoSearch';
-import { isValidCryptoAddress } from '../utils/cryptoAddress';
-import { useAuthStore } from '../stores/authStore';
-import { getApiErrorMessage } from '../utils/apiError';
-import { useWalletStore } from '../stores/walletStore';
-import { useCryptoStore, isCryptoDirAllowed, CryptoRate } from '../stores/cryptoStore';
-import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
-import { useThemedStyles } from '../hooks/useThemedStyles';
-import { useResponsive } from '../hooks/useResponsive';
-import api from '../services/api';
-import { showAlert } from '../stores/alertStore';
-import { walletService } from '../services/walletService';
-import type { SavedWallet } from '../types';
+import { useCryptoSearch } from '../useCryptoSearch';
+import { isValidCryptoAddress } from '../address';
+import { useAuthStore } from '../../stores/authStore';
+import { getApiErrorMessage } from '../../utils/apiError';
+import { useWalletStore } from '../../stores/walletStore';
+import { useCryptoStore, isCryptoDirAllowed, CryptoRate } from '../store';
+import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../constants/theme';
+import { useThemedStyles } from '../../hooks/useThemedStyles';
+import { useResponsive } from '../../hooks/useResponsive';
+import api from '../../services/api';
+import { showAlert } from '../../stores/alertStore';
+import { cryptoService, type SavedWallet } from '../service';
 import { useTranslation } from 'react-i18next';
 
-import { useConfigStore } from '../stores/configStore';
-import { useCurrencyStore } from '../stores/currencyStore';
-import { useFormatXof, useCurrencyCode } from '../utils/format';
-import { AdminDisabledBanner } from './AdminDisabledBanner';
-import { TransactionAlertBanner } from './TransactionAlertBanner';
-import { CloseButton } from './CloseButton';
+import { useCryptoSetting } from '../config';
+import { useCurrencyStore } from '../../stores/currencyStore';
+import { useFormatXof, useCurrencyCode } from '../../utils/format';
+import { AdminDisabledBanner } from '../../components/AdminDisabledBanner';
+import { TransactionAlertBanner } from '../../components/TransactionAlertBanner';
+import { CloseButton } from '../../components/CloseButton';
 
 interface CryptoModalProps {
   visible: boolean;
@@ -72,12 +71,12 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
   const cryptoError = useCryptoStore((s) => s.error);
   const fetchRates = useCryptoStore((s) => s.fetchRates);
   const fetchEstimate = useCryptoStore((s) => s.fetchEstimate);
-  const stablecoinCodes = useConfigStore((s) => s.stablecoin_codes);
-  const cryptoBuyMinDefault = useConfigStore((s) => s.crypto_buy_min_default);
-  const cryptoBuyMinBtc = useConfigStore((s) => s.crypto_buy_min_btc);
-  const cryptoMinBuyXof = useConfigStore((s) => s.crypto_min_buy_xof);
-  const cryptoMinSellXof = useConfigStore((s) => s.crypto_min_sell_xof);
-  const cryptoSellMinReceive = useConfigStore((s) => s.crypto_sell_min_receive);
+  const stablecoinCodes = useCryptoSetting('stablecoin_codes');
+  const cryptoBuyMinDefault = useCryptoSetting('crypto_buy_min_default');
+  const cryptoBuyMinBtc = useCryptoSetting('crypto_buy_min_btc');
+  const cryptoMinBuyXof = useCryptoSetting('crypto_min_buy_xof');
+  const cryptoMinSellXof = useCryptoSetting('crypto_min_sell_xof');
+  const cryptoSellMinReceive = useCryptoSetting('crypto_sell_min_receive');
   const userCurrency = useCurrencyCode();
   const convertToXof = useCurrencyStore((s) => s.convertToXof);
   const convertFromXof = useCurrencyStore((s) => s.convertFromXof);
@@ -116,7 +115,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
 
   const loadSavedWallets = async () => {
     try {
-      const data = await walletService.getSavedWallets();
+      const data = await cryptoService.getSavedWallets();
       setSavedWallets(data);
       setSavedWalletsLoadError(null);
     } catch (error: any) {
@@ -256,7 +255,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
 
     setSaveWalletLoading(true);
     try {
-      const created = await walletService.createSavedWallet({
+      const created = await cryptoService.createSavedWallet({
         currency: currencyToSave,
         address,
         name: saveWalletName.trim(),
@@ -285,7 +284,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
           text: t('common.delete'),
           onPress: async () => {
             try {
-              await walletService.deleteSavedWallet(existing.id);
+              await cryptoService.deleteSavedWallet(existing.id);
               setSavedWallets((prev) => prev.filter((item) => item.id !== existing.id));
             } catch (error: any) {
               showAlert(t('common.error'), error?.response?.data?.error || error?.response?.data?.message || t('account.walletDeleteError'));
@@ -406,7 +405,7 @@ export function CryptoModal({ visible, onClose, buyEnabled = true, sellEnabled =
         if (normalizedCurrency && normalizedAddress) {
           const existing = savedWallets.find((item) => item.currency === normalizedCurrency && item.address === normalizedAddress);
           if (!existing) {
-            const created = await walletService.createSavedWallet({
+            const created = await cryptoService.createSavedWallet({
               currency: normalizedCurrency,
               address: normalizedAddress,
               name: '',

@@ -491,9 +491,14 @@ export default function KycScreen() {
           last_name: { key: 'lastName', step: 1 },
           first_name: { key: 'firstName', step: 1 },
           birthdate: { key: 'birthdate', step: 1 },
+          country: { key: 'country', step: 1 },
+          city: { key: 'city', step: 1 },
+          postcode: { key: 'postcode', step: 1 },
           state: { key: 'state', step: 1 },
+          address: { key: 'address', step: 1 },
           phone: { key: 'phone', step: 1 },
           bvn: { key: 'bvn', step: 1 },
+          telegram: { key: 'telegram', step: 1 },
         };
         const e: Errors = {};
         const fixes: Record<string, string> = {};
@@ -1155,13 +1160,13 @@ export default function KycScreen() {
                   <View style={styles.row}>
                     {renderField(
                       t('kyc.city'),
-                      <Input placeholder={t('kyc.cityPlaceholder')} value={city} onChangeText={setCity} error={errors.city} editable={!isLocked('city', city)} containerStyle={StyleSheet.flatten([styles.inputFlush, isLocked('city', city) && styles.locked])} />,
+                      <Input placeholder={t('kyc.cityPlaceholder')} value={city} onChangeText={setCity} autoComplete="postal-address-locality" textContentType="addressCity" error={errors.city} editable={!isLocked('city', city)} containerStyle={StyleSheet.flatten([styles.inputFlush, isLocked('city', city) && styles.locked])} />,
                       undefined,
                       styles.col
                     )}
                     {renderField(
                       `${t('kyc.postcode')} ${t('kyc.optionalSuffix')}`,
-                      <Input placeholder={t('kyc.postcodePlaceholder')} value={postcode} onChangeText={setPostcode} error={errors.postcode} editable={!isLocked('postcode', postcode)} containerStyle={StyleSheet.flatten([styles.inputFlush, isLocked('postcode', postcode) && styles.locked])} />,
+                      <Input placeholder={t('kyc.postcodePlaceholder')} value={postcode} onChangeText={setPostcode} autoComplete="postal-code" textContentType="postalCode" error={errors.postcode} editable={!isLocked('postcode', postcode)} containerStyle={StyleSheet.flatten([styles.inputFlush, isLocked('postcode', postcode) && styles.locked])} />,
                       undefined,
                       styles.col
                     )}
@@ -1169,12 +1174,12 @@ export default function KycScreen() {
 
                   {renderField(
                     `${t('kyc.state')}${chinaRequired ? '' : ` ${t('kyc.optionalSuffix')}`}`,
-                    <Input placeholder={t('kyc.statePlaceholder')} value={stateProv} onChangeText={setStateProv} error={errors.state} editable={!isLocked('state', stateProv)} containerStyle={StyleSheet.flatten([styles.inputFlush, isLocked('state', stateProv) && styles.locked])} />
+                    <Input placeholder={t('kyc.statePlaceholder')} value={stateProv} onChangeText={setStateProv} autoComplete="postal-address-region" textContentType="addressState" error={errors.state} editable={!isLocked('state', stateProv)} containerStyle={StyleSheet.flatten([styles.inputFlush, isLocked('state', stateProv) && styles.locked])} />
                   )}
 
                   {renderField(
                     t('kyc.address'),
-                    <Input placeholder={t('kyc.addressPlaceholder')} value={address} onChangeText={setAddress} error={errors.address} editable={!isLocked('address', address)} containerStyle={StyleSheet.flatten([styles.inputFlush, isLocked('address', address) && styles.locked])} />
+                    <Input placeholder={t('kyc.addressPlaceholder')} value={address} onChangeText={setAddress} autoComplete="street-address" textContentType="fullStreetAddress" error={errors.address} editable={!isLocked('address', address)} containerStyle={StyleSheet.flatten([styles.inputFlush, isLocked('address', address) && styles.locked])} />
                   )}
 
                   <View style={styles.divider} />
@@ -1264,7 +1269,7 @@ export default function KycScreen() {
 
                   {renderField(
                     t('kyc.telegramOptional'),
-                    <Input placeholder="@username" value={telegram} onChangeText={setTelegram} editable={!isLocked('telegram', telegram)} containerStyle={StyleSheet.flatten([styles.inputFlush, isLocked('telegram', telegram) && styles.locked])} />
+                    <Input placeholder="@username" value={telegram} onChangeText={setTelegram} autoComplete="off" autoCapitalize="none" autoCorrect={false} error={errors.telegram} editable={!isLocked('telegram', telegram)} containerStyle={StyleSheet.flatten([styles.inputFlush, isLocked('telegram', telegram) && styles.locked])} />
                   )}
                 </Card>
               </Reveal>

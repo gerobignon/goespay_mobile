@@ -1,7 +1,7 @@
 {
   "name": "GOESPAY",
   "short_name": "GOESPAY",
-  "description": "Wallet mobile money & crypto pour l'UEMOA",
+  "description": "Portefeuille Mobile Money multi-devises de l'Afrique de l'Ouest et Centrale",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

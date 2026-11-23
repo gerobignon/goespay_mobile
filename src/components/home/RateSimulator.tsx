@@ -16,7 +16,7 @@ import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } fro
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { useAuthStore } from '../../stores/authStore';
 import { useCatalogStore, type CatalogOperator } from '../../stores/catalogStore';
-import { useCryptoStore, isCryptoDirAllowed, type CryptoRate } from '../../stores/cryptoStore';
+import { useAddons } from '../../addons/registry';
 import { walletService, type SimulationParams } from '../../services/walletService';
 import { useFormatXof } from '../../utils/format';
 
@@ -31,9 +31,12 @@ import { useFormatXof } from '../../utils/format';
 //  Le rail Chine (CNY) est absent : son prix vient d'une cotation Klasha
 //  facturée à l'unité, qu'on ne peut pas approcher par un taux (cf.
 //  TransferQuote::quoteCnyForXof côté backend).
+//
+//  Un onglet de plus (`extra`) vient d'une extension chargée après la
+//  connexion (src/addons) : elle publie ses options, ses sens et ses taux.
 // ═══════════════════════════════════════════════════════════════════
 
-type Tab = 'send' | 'deposit' | 'crypto';
+type Tab = 'send' | 'deposit' | 'extra';
 type SimRail = 'mobile_money' | 'bank_transfer' | 'checkout' | 'SWIFT' | 'SEPA';
 
 /** Corridor simulable, dérivé du catalogue serveur. */
@@ -55,7 +58,7 @@ const num = (v: unknown): number => {
   return 0;
 };
 
-/** Montant lisible : XOF sans décimale, devises et cryptos avec la précision utile. */
+/** Montant lisible : XOF sans décimale, autres unités avec la précision utile. */
 const fmt = (v: number, decimals: number): string =>
   v > 0 ? v.toLocaleString('fr-FR', { maximumFractionDigits: decimals }) : '';
 
@@ -72,21 +75,20 @@ const railOf = (op: CatalogOperator): SimRail | undefined => {
 const aggOf = (op: CatalogOperator): Corridor['aggregator'] =>
   op.klasha ? 'klasha' : op.fincra ? 'fincra' : op.afribapay ? 'afribapay' : undefined;
 
-export function RateSimulator({ allowCrypto = false }: { allowCrypto?: boolean }) {
+export function RateSimulator() {
   const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
   const fmtXof = useFormatXof();
-  const user = useAuthStore((s) => s.user);
-  const userCountry = ((user as any)?.country || '').toUpperCase();
+  // Les taux d'une extension peuvent dépendre du pays du compte : on se
+  // redessine quand il change.
+  useAuthStore((s) => (s.user as any)?.country);
   const operators = useCatalogStore((s) => s.operators);
   const countries = useCatalogStore((s) => s.countries);
-  const cryptoRates = useCryptoStore((s) => s.rates);
-  const fetchCryptoRates = useCryptoStore((s) => s.fetchRates);
-  const fetchCryptoEstimate = useCryptoStore((s) => s.fetchEstimate);
+  const quote = useAddons((s) => s.quote);
 
   const [tab, setTab] = useState<Tab>('send');
-  const [corridorKey, setCorridorKey] = useState<Record<Tab, string>>({ send: '', deposit: '', crypto: '' });
-  const [cryptoSide, setCryptoSide] = useState<'buy' | 'sell'>('buy');
+  const [corridorKey, setCorridorKey] = useState<Record<Tab, string>>({ send: '', deposit: '', extra: '' });
+  const [side, setSide] = useState('');
   const [params, setParams] = useState<SimulationParams | null>(null);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -138,23 +140,27 @@ export function RateSimulator({ allowCrypto = false }: { allowCrypto?: boolean }
     };
   }, [operators, countries, t]);
 
-  // Le simulateur suit le sens choisi : une crypto ouverte à l'achat seulement
-  // ne doit pas être cotée à la vente.
-  const cryptoAny = useMemo(
-    () => cryptoRates.filter((r) => r.code && (isCryptoDirAllowed(r, 'buy') || isCryptoDirAllowed(r, 'sell'))),
-    [cryptoRates]
+  // ── Onglet d'extension : options du sens courant ──
+  // Le simulateur suit le sens choisi : une option ouverte dans un seul sens ne
+  // doit pas être cotée dans l'autre.
+  const sideKey = quote?.sides.some((sd) => sd.key === side) ? side : (quote?.sides[0]?.key ?? '');
+  const extraBySide = useMemo(
+    () => Object.fromEntries((quote?.sides ?? []).map((sd) => [sd.key, quote!.options(sd.key)])),
+    [quote]
   );
-  const cryptoList = useMemo(
-    () => cryptoAny.filter((r) => isCryptoDirAllowed(r, cryptoSide)),
-    [cryptoAny, cryptoSide]
-  );
+  const extraList = extraBySide[sideKey] ?? [];
+  const extraAny = Object.values(extraBySide).some((list) => list.length > 0);
 
-  // Aucun actif dans le sens courant : on bascule sur l'autre plutôt que de
-  // laisser un onglet Crypto vide (et le simulateur entier masqué).
+  // Aucune option dans le sens courant : on bascule sur un sens qui en a plutôt
+  // que de laisser l'onglet vide (et le simulateur entier masqué).
   useEffect(() => {
-    if (!cryptoAny.length || cryptoList.length) return;
-    setCryptoSide((s) => (s === 'buy' ? 'sell' : 'buy'));
-  }, [cryptoAny, cryptoList]);
+    if (!quote || extraList.length) return;
+    const other = quote.sides.find((sd) => (extraBySide[sd.key] ?? []).length > 0);
+    if (other) setSide(other.key);
+  }, [quote, extraList.length, extraBySide]);
+
+  // Extension déchargée (déconnexion, droits retirés) : retour sur Envoi.
+  useEffect(() => { if (!quote && tab === 'extra') setTab('send'); }, [quote, tab]);
 
   // Sélection par défaut dès que les listes arrivent.
   useEffect(() => {
@@ -162,24 +168,23 @@ export function RateSimulator({ allowCrypto = false }: { allowCrypto?: boolean }
       const next = { ...prev };
       if (!next.send && corridors.send.length) next.send = corridors.send[0].key;
       if (!next.deposit && corridors.deposit.length) next.deposit = corridors.deposit[0].key;
-      if (cryptoList.length && !cryptoList.some((r) => r.code === next.crypto)) next.crypto = cryptoList[0].code;
+      if (extraList.length && !extraList.some((o) => o.value === next.extra)) next.extra = extraList[0].value;
       return next;
     });
-  }, [corridors, cryptoList]);
+  }, [corridors, extraList]);
 
-  useEffect(() => { if (allowCrypto) fetchCryptoRates(); }, [allowCrypto, fetchCryptoRates]);
-
-  const corridor = tab === 'crypto'
+  const corridor = tab === 'extra'
     ? undefined
     : corridors[tab].find((c) => c.key === corridorKey[tab]);
 
-  const crypto: CryptoRate | undefined = tab === 'crypto'
-    ? cryptoList.find((r) => r.code === corridorKey.crypto)
-    : undefined;
+  const extraValue = tab === 'extra' && extraList.some((o) => o.value === corridorKey.extra)
+    ? corridorKey.extra
+    : '';
+  const paysInWallet = quote ? quote.paysInWallet(sideKey) : true;
 
   // ── Paramètres serveur du corridor sélectionné (un appel par corridor) ──
   useEffect(() => {
-    if (tab === 'crypto' || !corridor) { setParams(null); return; }
+    if (tab === 'extra' || !corridor) { setParams(null); return; }
     let cancelled = false;
     setLoading(true);
     setFailed(false);
@@ -196,32 +201,18 @@ export function RateSimulator({ allowCrypto = false }: { allowCrypto?: boolean }
     return () => { cancelled = true; };
   }, [tab, corridor?.key]);
 
-  // Seules les devises les plus utilisées arrivent avec un live_rate : les
-  // autres sont chiffrées à la sélection.
+  // L'extension chiffre l'option à la sélection quand elle n'a pas encore son prix.
   useEffect(() => {
-    if (tab !== 'crypto' || !crypto?.code) return;
-    fetchCryptoEstimate(crypto.code);
-  }, [tab, crypto?.code]);
-
-  // ── Taux crypto : buy_rate/sell_rate du pays (XOF par USD) × live_rate (USD par unité) ──
-  const cryptoRate = useMemo(() => {
-    if (!crypto) return null;
-    const suffix = userCountry.toLowerCase();
-    const pick = (base: 'buy_rate' | 'sell_rate') => {
-      const perCountry = num((crypto as any)[`${base}_${suffix}`]);
-      return perCountry > 0 ? perCountry : num((crypto as any)[base]);
-    };
-    const xofPerUsd = pick(cryptoSide === 'buy' ? 'buy_rate' : 'sell_rate');
-    const usdPerUnit = num(crypto.live_rate) || (num(crypto.buy_rate) > 0 ? 1 : 0);
-    if (xofPerUsd <= 0 || usdPerUnit <= 0) return null;
-    return xofPerUsd * usdPerUnit;   // XOF pour 1 unité de crypto
-  }, [crypto, cryptoSide, userCountry]);
+    if (tab !== 'extra' || !extraValue || !quote) return;
+    quote.prepare(extraValue);
+  }, [tab, extraValue]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Conversion ─────────────────────────────────────────────────────────
   // send    : src = total débité (XOF)           → dst = reçu par le bénéficiaire
   // deposit : src = payé en devise               → dst = crédité au compte (XOF)
-  // crypto  : src = XOF (achat) / crypto (vente) → dst = l'inverse
-  const rate = tab === 'crypto' ? (cryptoRate ?? 0) : num(params?.rate);
+  // extra   : src = XOF (paiement depuis le wallet) ou l'unité de l'option → dst = l'inverse
+  const extraRate = tab === 'extra' && extraValue && quote ? quote.rate(extraValue, sideKey) : null;
+  const rate = tab === 'extra' ? (extraRate ?? 0) : num(params?.rate);
   const feeFixed = num(params?.fee_fixed);
   const feePercent = num(params?.fee_percent);
   const payinFee = num(params?.payin_fee_percent) / 100;
@@ -262,8 +253,8 @@ export function RateSimulator({ allowCrypto = false }: { allowCrypto?: boolean }
       return { total: gross, received: dstVal, fee: gross - net };
     }
 
-    // Crypto : le taux d'achat/vente porte déjà la marge, pas de frais séparés.
-    if (cryptoSide === 'buy') {
+    // Extension : le taux porte déjà la marge, pas de frais séparés.
+    if (paysInWallet) {
       if (edit === 'src') {
         if (srcVal <= 0) return null;
         return { total: srcVal, received: srcVal / rate, fee: 0 };
@@ -277,26 +268,27 @@ export function RateSimulator({ allowCrypto = false }: { allowCrypto?: boolean }
     }
     if (dstVal <= 0) return null;
     return { total: dstVal / rate, received: dstVal, fee: 0 };
-  }, [tab, edit, srcVal, dstVal, rate, feeFixed, feePercent, payinFee, cryptoSide]);
+  }, [tab, edit, srcVal, dstVal, rate, feeFixed, feePercent, payinFee, paysInWallet]);
 
   // Le champ non édité reflète le calcul.
-  const srcDecimals = tab === 'deposit' ? 2 : tab === 'crypto' && cryptoSide === 'sell' ? 8 : 0;
-  const dstDecimals = tab === 'send' ? 2 : tab === 'crypto' && cryptoSide === 'buy' ? 8 : 0;
+  const assetDecimals = quote?.decimals ?? 8;
+  const srcDecimals = tab === 'deposit' ? 2 : tab === 'extra' && !paysInWallet ? assetDecimals : 0;
+  const dstDecimals = tab === 'send' ? 2 : tab === 'extra' && paysInWallet ? assetDecimals : 0;
   const srcShown = edit === 'src' ? srcText : (computed ? fmt(computed.total, srcDecimals) : '');
   const dstShown = edit === 'dst' ? dstText : (computed ? fmt(computed.received, dstDecimals) : '');
 
   const srcCode = tab === 'send' ? 'XOF'
     : tab === 'deposit' ? (corridor?.currency ?? '')
-    : cryptoSide === 'buy' ? 'XOF' : (crypto?.code ?? '');
+    : paysInWallet ? 'XOF' : extraValue;
   const dstCode = tab === 'send' ? (corridor?.currency ?? '')
     : tab === 'deposit' ? 'XOF'
-    : cryptoSide === 'buy' ? (crypto?.code ?? '') : 'XOF';
+    : paysInWallet ? extraValue : 'XOF';
 
   // Hors limites : le montant XOF concerné est le débit (envoi) ou le crédit (recharge).
   const limitAmount = tab === 'send' ? (computed?.total ?? 0) : (computed?.received ?? 0);
   const min = num(params?.min_xof);
   const max = num(params?.max_xof);
-  const limitError = tab === 'crypto' || !computed ? null
+  const limitError = tab === 'extra' || !computed ? null
     : min > 0 && limitAmount < min ? t('simulator.min', { amount: fmtXof(min, { withCode: false }) })
     : max > 0 && limitAmount > max ? t('simulator.max', { amount: fmtXof(max, { withCode: false }) })
     : null;
@@ -312,24 +304,24 @@ export function RateSimulator({ allowCrypto = false }: { allowCrypto?: boolean }
   const tabs: { key: Tab; label: string }[] = [
     { key: 'send', label: t('simulator.tabSend') },
     { key: 'deposit', label: t('simulator.tabDeposit') },
-    ...(allowCrypto && cryptoAny.length ? [{ key: 'crypto' as Tab, label: t('simulator.tabCrypto') }] : []),
+    ...(quote && extraAny ? [{ key: 'extra' as Tab, label: t(quote.tabKey) }] : []),
   ];
 
-  const options = tab === 'crypto'
-    ? cryptoList.map((r) => ({ value: r.code, label: r.name ? `${r.code} · ${r.name}` : r.code }))
+  const options = tab === 'extra'
+    ? extraList
     : corridors[tab].map((c) => ({ value: c.key, label: `${c.label} · ${c.currency}` }));
-  const selectedOption = options.find((o) => o.value === (tab === 'crypto' ? corridorKey.crypto : corridorKey[tab]));
+  const selectedOption = options.find((o) => o.value === corridorKey[tab]);
   const filteredOptions = search.trim()
     ? options.filter((o) => o.label.toLowerCase().includes(search.trim().toLowerCase()))
     : options;
 
-  // L'onglet crypto reste affiché tant qu'un sens est ouvert : le masquer
+  // L'onglet d'extension reste affiché tant qu'un sens est ouvert : le masquer
   // emporterait toute la carte, y compris Envoi et Recharge.
-  if (!options.length && !(tab === 'crypto' && cryptoAny.length)) return null;
+  if (!options.length && !(tab === 'extra' && extraAny)) return null;
 
   const rateLine = rate <= 0 ? null
     : tab === 'deposit' ? `1 ${srcCode} = ${fmt(rate, 2)} XOF`
-    : tab === 'crypto' ? `1 ${crypto?.code ?? ''} = ${fmt(rate, 0)} XOF`
+    : tab === 'extra' ? `1 ${extraValue} = ${fmt(rate, 0)} XOF`
     : `1 ${dstCode} = ${fmt(rate, 2)} XOF`;
 
   const feeLine = !computed
@@ -389,17 +381,17 @@ export function RateSimulator({ allowCrypto = false }: { allowCrypto?: boolean }
         ))}
       </View>
 
-      {tab === 'crypto' && (
+      {tab === 'extra' && quote && (
         <View style={styles.sideRow}>
-          {(['buy', 'sell'] as const).map((side) => (
+          {quote.sides.map((sd) => (
             <TouchableOpacity
-              key={side}
-              onPress={() => { setCryptoSide(side); reset(); }}
-              style={[styles.sideChip, cryptoSide === side && styles.sideChipActive]}
+              key={sd.key}
+              onPress={() => { setSide(sd.key); reset(); }}
+              style={[styles.sideChip, sideKey === sd.key && styles.sideChipActive]}
               activeOpacity={0.85}
             >
-              <Text style={[styles.sideText, cryptoSide === side && styles.sideTextActive]}>
-                {side === 'buy' ? t('simulator.cryptoBuy') : t('simulator.cryptoSell')}
+              <Text style={[styles.sideText, sideKey === sd.key && styles.sideTextActive]}>
+                {t(sd.labelKey)}
               </Text>
             </TouchableOpacity>
           ))}
@@ -420,7 +412,7 @@ export function RateSimulator({ allowCrypto = false }: { allowCrypto?: boolean }
       <View style={styles.amounts}>
         {amountField(
           'src',
-          tab === 'crypto' && cryptoSide === 'sell' ? t('simulator.youGive') : t('simulator.youPay'),
+          tab === 'extra' && !paysInWallet ? t('simulator.youGive') : t('simulator.youPay'),
           srcShown,
           srcCode,
         )}
@@ -451,7 +443,7 @@ export function RateSimulator({ allowCrypto = false }: { allowCrypto?: boolean }
                 <Text style={styles.recapValue}>{rateLine}</Text>
               </View>
             )}
-            {tab !== 'crypto' && (
+            {tab !== 'extra' && (
               <View style={styles.recapRow}>
                 <Text style={styles.recapLabel}>{t('simulator.fees')}</Text>
                 <Text style={styles.recapValue}>{feeLine}</Text>

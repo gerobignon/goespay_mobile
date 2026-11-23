@@ -26,6 +26,8 @@ interface Props {
   onDone: (card?: VirtualCard) => void;
   /** Dossier KYC à compléter (ex. BVN nigérian) : l'écran parent renvoie au KYC. */
   onIneligible?: (e: any) => void;
+  /** XOF pour 1 USD au rechargement, pour dire le solde du wallet en dollars. */
+  fundRate?: number | null;
 }
 
 /**
@@ -39,7 +41,7 @@ interface Props {
  * abouti. On ne présente jamais ce cas comme un échec, le rapprochement serveur
  * tranchera, et le solde du wallet est rétabli si la recharge n'a pas eu lieu.
  */
-export function CardFundModal({ visible, card, direction, onClose, onDone, onIneligible }: Props) {
+export function CardFundModal({ visible, card, direction, onClose, onDone, onIneligible, fundRate }: Props) {
   const review = useStoreReviewOnClose(visible);
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();
@@ -198,6 +200,11 @@ export function CardFundModal({ visible, card, direction, onClose, onDone, onIne
   const availableLabel = isFund
     ? fmtXof(walletBalance, { decimals: 2 })
     : `${withdrawable.toFixed(2)} ${card?.currency ?? 'USD'}`;
+  // Le taux du devis, dès qu'il existe, prime sur celui de la grille.
+  const usdRate = quote?.rate || fundRate || 0;
+  const availableUsdLabel = isFund && usdRate > 0
+    ? `(≈ ${(walletBalance / usdRate).toFixed(2)} ${card?.currency ?? 'USD'})`
+    : null;
 
   return (
     <ResponsiveModal visible={visible} onClose={onClose} disableBackdropClose={step === 'sending'}>
@@ -222,6 +229,9 @@ export function CardFundModal({ visible, card, direction, onClose, onDone, onIne
                 {isFund ? t('cards.availableBalance') : t('cards.withdrawable')} :{' '}
               </Text>
               <Text style={[styles.balanceAmount, exceeds && styles.over]}>{availableLabel}</Text>
+              {!!availableUsdLabel && (
+                <Text style={[styles.balanceText, exceeds && styles.over]}>{availableUsdLabel}</Text>
+              )}
             </View>
             {!isFund && <Text style={styles.balanceText}>{t('cards.withdrawHold')}</Text>}
 
@@ -312,7 +322,7 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   title: { fontSize: FontSize.lg, fontFamily: Fonts.bold, color: Colors.text },
   hint: { fontSize: FontSize.sm, color: Colors.textMuted },
   // Même rangée que sur l'envoi d'argent : icône, libellé, montant en gras.
-  balanceRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  balanceRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.xs },
   balanceText: { fontSize: FontSize.sm, color: Colors.textMuted },
   balanceAmount: { fontSize: FontSize.sm, fontFamily: Fonts.bold, color: Colors.secondary },
   over: { color: Colors.error },

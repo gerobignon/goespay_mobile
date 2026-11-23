@@ -92,7 +92,8 @@ export interface AccountDeletionStatus {
 export interface Transaction {
   id: number;
   user_id: number;
-  type: 'deposit' | 'withdraw' | 'transfer' | 'crypto';
+  /** Core types, or one brought by an add-on (src/addons). */
+  type: 'deposit' | 'withdraw' | 'transfer' | (string & {});
   amount: number;
   amount_sent?: number;
   real?: number;
@@ -129,8 +130,10 @@ export interface Transaction {
     title: string;
     payer: string;
     email?: string;
-    /** Numéro du payeur, absent sur les moyens qui ne le demandent pas. */
+    /** Numéro du payeur, absent sur les paiements par carte antérieurs à v1.1.70. */
     phone?: string;
+    /** Motif saisi par le payeur (aussi renvoyé dans `motif` du détail). */
+    motif?: string;
     fee?: number;
     /** Présent seulement si le paiement peut être remboursé (voir PayLinkRefundInfo). */
     refund?: {
@@ -152,15 +155,6 @@ export interface SavedPhone {
   tel: string;
   type?: 'transfer' | 'deposit';
   operator?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface SavedWallet {
-  id: number;
-  name?: string;
-  currency: string;
-  address: string;
   created_at?: string;
   updated_at?: string;
 }

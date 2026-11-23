@@ -33,6 +33,7 @@ import { walletService, type SavedBank, type VirtualAccount } from '../../servic
 import { affiliationService } from '../../services/affiliationService';
 import * as Clipboard from 'expo-clipboard';
 import { Bounce } from '../anim';
+import type { AddonLink } from '../../addons/types';
 
 // ═══════════════════════════════════════════════════════════════════
 //  G : Carrousel promo : images 4:3, autoplay, tap → lien.
@@ -187,13 +188,21 @@ export function MonthlyInsights() {
 // ═══════════════════════════════════════════════════════════════════
 const PALETTE = ['#3176FE', '#F4900C', '#10B981', '#A855F7', '#EC4899', '#0EA5E9'];
 
-export function RecentBeneficiaries({ onPick, onPickBank, onAdd, allowCrypto = false }: { onPick: (tel: string, operator?: string) => void; onPickBank: (bank: SavedBank) => void; onAdd: (type: 'phone' | 'bank' | 'crypto') => void; allowCrypto?: boolean }) {
+export function RecentBeneficiaries({ onPick, onPickBank, onAdd, extraLinks = [], onAddLink }: {
+  onPick: (tel: string, operator?: string) => void;
+  onPickBank: (bank: SavedBank) => void;
+  onAdd: (type: 'phone' | 'bank') => void;
+  /** Entrées « Ajouter » publiées par les extensions chargées (src/addons). */
+  extraLinks?: AddonLink[];
+  onAddLink?: (route: AddonLink['route']) => void;
+}) {
   const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
   const [phones, setPhones] = useState<{ id: number; tel: string; name?: string; operator?: string }[]>([]);
   const [banks, setBanks] = useState<SavedBank[]>([]);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
-  const pick = (type: 'phone' | 'bank' | 'crypto') => { setAddMenuOpen(false); onAdd(type); };
+  const pick = (type: 'phone' | 'bank') => { setAddMenuOpen(false); onAdd(type); };
+  const pickLink = (link: AddonLink) => { setAddMenuOpen(false); onAddLink?.(link.route); };
 
   React.useEffect(() => {
     walletService.getSavedPhones({ type: 'transfer' })
@@ -250,12 +259,12 @@ export function RecentBeneficiaries({ onPick, onPickBank, onAdd, allowCrypto = f
               <FontAwesome6 name="building-columns" size={16} color={Colors.secondary} iconStyle="solid" />
               <Text style={styles.addMenuItemText}>{t('home.benefAddBank')}</Text>
             </TouchableOpacity>
-            {allowCrypto && (
-              <TouchableOpacity style={styles.addMenuItem} onPress={() => pick('crypto')}>
-                <FontAwesome6 name="bitcoin-sign" size={16} color={Colors.secondary} iconStyle="solid" />
-                <Text style={styles.addMenuItemText}>{t('home.benefAddCrypto')}</Text>
+            {extraLinks.map((link) => (
+              <TouchableOpacity key={link.key} style={styles.addMenuItem} onPress={() => pickLink(link)}>
+                <FontAwesome6 name={link.icon as any} size={16} color={Colors.secondary} iconStyle="solid" />
+                <Text style={styles.addMenuItemText}>{t(link.labelKey)}</Text>
               </TouchableOpacity>
-            )}
+            ))}
           </View>
         </TouchableOpacity>
       </Modal>

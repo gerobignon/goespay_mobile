@@ -1,6 +1,6 @@
-/**
- * Route « Adresses enregistrées ». L'écran vit dans `src/screens` pour que Metro
- * puisse lui substituer une variante native : les binaires iOS et Android
- * n'embarquent aucune fonctionnalité crypto.
- */
-export { default } from '../../src/screens/SavedWalletsScreen';
+import { AddonScreen } from '../../src/addons/AddonRoute';
+
+/** Saved addresses: screen provided by the add-on loaded after login (src/addons). */
+export default function WalletsRoute() {
+  return <AddonScreen name="wallets" />;
+}

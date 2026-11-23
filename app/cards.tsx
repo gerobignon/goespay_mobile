@@ -1099,6 +1099,7 @@ export default function CardsScreen() {
         onClose={() => { setFundFor(null); load(); }}
         onDone={(card) => { if (card) applyCard(card); }}
         onIneligible={onIneligible}
+        fundRate={(pricing?.card?.rate_usd_xof ?? 0) > 0 ? pricing?.card?.rate_usd_xof : pricing?.rate}
       />
     </>
   );

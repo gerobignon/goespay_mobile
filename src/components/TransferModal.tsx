@@ -37,7 +37,7 @@ import type { SavedPhone } from '../types';
 import { useTranslation } from 'react-i18next';
 
 import { useConfigStore } from '../stores/configStore';
-import { useCryptoStore, isCryptoDirAllowed } from '../stores/cryptoStore';
+import { useAddons } from '../addons/registry';
 import { useFormatXof } from '../utils/format';
 import { useFincraRate } from '../stores/fincraRateStore';
 import { useTransferQuote } from '../stores/transferQuoteStore';
@@ -50,15 +50,14 @@ import { GatewayBadge } from './GatewayBadge';
 import { CountryPickerStep } from './CountryPickerStep';
 import FincraConversionHint from './FincraConversionHint';
 import { OperatorLogo } from './OperatorLogo';
-import { CryptoLogo } from './CryptoLogo';
-import { CryptoSearchField } from './CryptoSearchField';
-import { useCryptoSearch } from '../hooks/useCryptoSearch';
 import { noConnectionMessage } from '../utils/apiError';
 import { CloseButton } from './CloseButton';
 import { ReferralPrompt } from './ReferralPrompt';
 import { kycLevelOf, promptKycUpgrade, handleKycUpgradeError } from '../utils/kycLevel';
 import { useStoreReviewOnClose, type ReviewStatus } from '../stores/storeReviewStore';
 import { sanitizeDigitsInput, sanitizePhoneInput } from '../utils/inputFilters';
+import * as ImagePicker from 'expo-image-picker';
+import { compressImage, imageToDataUrl } from '../utils/imageCompress';
 
 type PollOpts = { transferId?: number; aggRef?: string; isWire?: boolean };
 
@@ -95,10 +94,10 @@ const isoToFlag = (cc: string): string => {
 interface TransferModalProps {
   visible: boolean;
   onClose: () => void;
-  /** Affiche le groupe « Crypto-monnaies » (achat) dans le retrait. */
-  cryptoEnabled?: boolean;
-  /** Lance le flux d'achat crypto (débite le wallet) pour la crypto choisie. */
-  onBuyCrypto?: (currency?: string) => void;
+  /** Affiche l'entrée de l'extension chargée (src/addons) parmi les destinations. */
+  addonEnabled?: boolean;
+  /** Lance le flux de l'extension pour l'élément choisi. */
+  onAddonPick?: (item: string) => void;
   /** Téléphone bénéficiaire pré-rempli (depuis la home : tap sur un avatar). */
   prefillPhone?: string;
   /** Opérateur enregistré avec ce numéro : saute les étapes pays / opérateur. */
@@ -107,7 +106,7 @@ interface TransferModalProps {
   prefillBank?: SavedBank | null;
 }
 
-export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCrypto, prefillPhone, prefillOperator, prefillBank }: TransferModalProps) {
+export function TransferModal({ visible, onClose, addonEnabled = false, onAddonPick, prefillPhone, prefillOperator, prefillBank }: TransferModalProps) {
   const { t } = useTranslation();
   const review = useStoreReviewOnClose(visible);
   const router = useRouter();
@@ -118,8 +117,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const [amount, setAmount] = useState('');
   const [operator, setOperator] = useState('');
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
-  // « Crypto-monnaies » : sous-liste des cryptos actives (achat → débite le wallet).
-  const [cryptoOpen, setCryptoOpen] = useState(false);
+  // Liste ouverte depuis l'entrée d'une extension (src/addons).
+  const [addonOpen, setAddonOpen] = useState(false);
   // « Autres » : rails internationaux Fincra (zones XOF/XAF + USD/EUR/GBP) en payout.
   const [phone, setPhone] = useState('');
   // Motif facultatif (hors Chine manuelle, qui a son propre motif obligatoire).
@@ -198,6 +197,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   const [cnyWechatId, setCnyWechatId] = useState('');
   const [cnyPurpose, setCnyPurpose] = useState<'' | 'GOODS' | 'SERVICES' | 'FAMILY' | 'OTHER'>('');
   const [cnyPurposeOther, setCnyPurposeOther] = useState('');
+  // QR code du bénéficiaire (URI locale) : obligatoire pour WeChat, facultatif pour Alipay.
+  const [cnyQrUri, setCnyQrUri] = useState<string | null>(null);
 
   // Picker de banques + résolution de compte (Fincra bank_transfer)
   const [aggBanks, setAggBanks] = useState<{ code: string; name: string; swiftCode?: string }[]>([]);
@@ -214,21 +215,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
 
   const fetchBalance = useWalletStore((s) => s.fetchBalance);
   const balance = useWalletStore((s) => s.balance);
-  const cryptoRates = useCryptoStore((s) => s.rates);
-  const {
-    query: cryptoQuery,
-    setQuery: setCryptoQuery,
-    cryptos: visibleCryptos,
-    showSearch: showCryptoSearch,
-    empty: noCryptoMatch,
-  } = useCryptoSearch(cryptoRates, undefined, 'buy');
-  // Cryptos dont l'admin a ouvert l'ACHAT : envoyer vers une adresse, c'est acheter.
-  const buyRates = useMemo(() => cryptoRates.filter((r) => isCryptoDirAllowed(r, 'buy')), [cryptoRates]);
-  const hasBuyCrypto = buyRates.length > 0;
-  // Tant que les taux ne sont pas chargés on garde l'entrée : la masquer puis la
-  // remettre ferait clignoter la liste des destinations.
-  const showCryptoEntry = cryptoEnabled && (cryptoRates.length === 0 || hasBuyCrypto);
-  const fetchCryptoRates = useCryptoStore((s) => s.fetchRates);
+  const addon = useAddons((s) => s.addon);
+  const showAddonEntry = addonEnabled && !!addon;
   const user = useAuthStore((s) => s.user);
   // Le wire Klasha joint le téléphone du profil au bénéficiaire : ce champ ne
   // vit plus dans le cache local, on le redemande à l'ouverture.
@@ -343,13 +331,30 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
   // Clé d'idempotence de l'envoi : rejouée à l'identique si l'on retente après
   // une erreur réseau, renouvelée dès qu'un champ du formulaire change.
   const transferIdempotencyKey = useIdempotencyKey(
-    JSON.stringify([amount, operator, phone, bankAccountNumber, iban, bankCode, bankName, cnyService, cnyWalletAccount, cnyCardNumber]),
+    JSON.stringify([amount, operator, phone, bankAccountNumber, iban, bankCode, bankName, cnyService, cnyWalletAccount, cnyCardNumber, cnyQrUri]),
   );
   // Wallet chinois : Alipay (défaut) ou WeChat, porte le serviceCode + le libellé.
   const cnyServiceCode: 'ALIPAY' | 'WECHAT' = ((selectedOp as any)?.cnyServiceCode) ?? 'ALIPAY';
   const cnyWalletLabel = cnyServiceCode === 'WECHAT' ? 'WeChat' : 'Alipay';
   // Tuile servie à la main (agrégateur Manual China) : formulaire propre.
   const isCnyManual = !!(selectedOp as any)?.cnyManual;
+  // QR code exigé : WeChat paie en scannant le QR du bénéficiaire.
+  const cnyQrRequired = isCnyManual && cnyServiceCode === 'WECHAT';
+  const pickCnyQr = async () => {
+    if (Platform.OS !== 'web') {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.9,
+      allowsMultipleSelection: false,
+    });
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      const asset = result.assets[0];
+      setCnyQrUri(await compressImage(asset.uri, { width: asset.width, height: asset.height }));
+    }
+  };
   const userFullName = `${user?.name ?? ''} ${user?.surname ?? ''}`.trim();
   useEffect(() => {
     if (isCnyManual && !cnyFullName) setCnyFullName(userFullName);
@@ -593,7 +598,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     setSaveBankName('');
     setSelectedCountry(null);
     setOperator('');
-    setCryptoOpen(false);
+    setAddonOpen(false);
     setAggZoneCountry(null);
     setBankAccountHolder('');
     setBankAccountNumber('');
@@ -660,7 +665,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
     const country = String(op.country || (op.countries || [])[0] || '').toUpperCase();
     if (!country) return;
     prefillOpAppliedRef.current = true;
-    setCryptoOpen(false);
+    setAddonOpen(false);
     setSelectedCountry(country);
     setOperator(op.id);
   }, [visible, prefillOperator, catalogOperators.length, corridorsLoaded]);
@@ -674,9 +679,6 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       setAggZoneCountry(contextCountry);
     }
   }, [aggRail, zoneHasContext, contextCountry, aggZoneCountry]);
-
-  // Charge les taux crypto quand on ouvre le groupe « Crypto-monnaies ».
-  useEffect(() => { if (cryptoOpen) fetchCryptoRates(cryptoRates.length === 0); }, [cryptoOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Charge la liste des banques Fincra quand on entre en rail bank_transfer.
   // Cache local : on garde la liste tant que la devise ne change pas.
@@ -1172,6 +1174,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
       if (aggRail === 'cny' && isCnyManual) {
         const ok = !!cnyFullName.trim() && !!cnyWalletAccount.trim()
           && (cnyServiceCode !== 'WECHAT' || !!cnyWechatId.trim())
+          && (!cnyQrRequired || !!cnyQrUri)
           && !!cnyPurpose && (cnyPurpose !== 'OTHER' || !!cnyPurposeOther.trim());
         if (!ok) {
           showAlert(t('common.error'), t('transferModal.cnyFieldsRequired'));
@@ -1267,7 +1270,8 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
             receiverLastName: cnyLastName.trim(),
           };
           if (isCnyManual) {
-            // Champs déjà posés ci-dessus.
+            // Champs déjà posés ci-dessus ; QR joint en data: base64.
+            if (cnyQrUri) ben.qrCode = await imageToDataUrl(cnyQrUri);
           } else if (cnyService === 'BANK_ACCOUNT') {
             ben.receiverIdNumber = cnyIdNumber.trim();
             ben.receiverMobileNumber = cnyMobile.trim();
@@ -1304,7 +1308,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
           // Purge le bénéficiaire (PII) après envoi → pas de réutilisation silencieuse.
           setCnyFirstName(''); setCnyLastName(''); setCnyIdNumber(''); setCnyMobile('');
           setCnyCardNumber(''); setCnyCardHolder(''); setCnyWalletAccount('');
-          setCnyFullName(''); setCnyWechatId(''); setCnyPurpose(''); setCnyPurposeOther('');
+          setCnyFullName(''); setCnyWechatId(''); setCnyPurpose(''); setCnyPurposeOther(''); setCnyQrUri(null);
           setBankCode(''); setBankName(''); setBankAccountNumber(''); setBankAccountHolder('');
           setPendingDetails({
             amount_sent: numAmount,
@@ -1574,53 +1578,40 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                 <Text style={styles.kycBannerText}>{t('transferModal.kycRequired')}</Text>
               </View>
             )}
-            {!selectedCountry && !cryptoOpen ? (
+            {!selectedCountry && !addonOpen ? (
               <CountryPickerStep
                 operators={pickerOperators}
                 groupByContinent
                 onSelectCountry={(code) => { setSelectedCountry(code); setOperator(''); }}
-                showCryptoTile={showCryptoEntry}
-                cryptoLabel={t('depositModal.cryptoGroup')}
-                onSelectCrypto={() => { setCryptoOpen(true); setOperator(''); }}
+                renderExtra={showAddonEntry && addon ? (variant, entryStyles) => (
+                  <addon.PickerEntry
+                    key="__addon"
+                    direction="out"
+                    variant={variant}
+                    styles={entryStyles}
+                    onOpen={() => { setAddonOpen(true); setOperator(''); }}
+                    onPick={(item) => onAddonPick?.(item)}
+                  />
+                ) : undefined}
                 label={t('transferModal.chooseCountry')}
               />
-            ) : cryptoOpen ? (
-              <>
-                <Text style={styles.operatorLabel}>{t('depositModal.cryptoGroup')}</Text>
-                <TouchableOpacity
-                  onPress={() => { setCryptoOpen(false); setOperator(''); }}
-                  style={styles.changeCountryBtn}
-                >
-                  <FontAwesome6 name="arrow-left" size={12} color={Colors.secondary} />
-                  <Text style={styles.changeCountryText}>{t('transferModal.changeCountry')}</Text>
-                </TouchableOpacity>
-                {cryptoRates.length === 0 ? (
-                  <Text style={styles.phoneHint}>{t('common.loading')}</Text>
-                ) : !hasBuyCrypto ? (
-                  <Text style={styles.phoneHint}>{t('cryptoModal.noBuyCrypto')}</Text>
-                ) : (
-                  <>
-                    {showCryptoSearch && <CryptoSearchField value={cryptoQuery} onChange={setCryptoQuery} />}
-                    {noCryptoMatch && (
-                      <Text style={styles.phoneHint}>{t('cryptoModal.noSearchResult')}</Text>
-                    )}
-                    {visibleCryptos.length > 0 && (
-                      <View style={styles.operatorListVertical}>
-                        {visibleCryptos.map((c) => (
-                          <TouchableOpacity
-                            key={c.code}
-                            style={styles.operatorRow}
-                            onPress={() => onBuyCrypto?.(c.code)}
-                          >
-                            <CryptoLogo rate={c} size={26} fallbackBackground={Colors.inputBg} fallbackColor={Colors.text} />
-                            <Text style={styles.operatorRowName} numberOfLines={1}>{c.name || c.code}</Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    )}
-                  </>
-                )}
-              </>
+            ) : addonOpen && addon ? (
+              <addon.PickerPanel
+                direction="out"
+                layout="list"
+                styles={{
+                  title: styles.operatorLabel,
+                  back: styles.changeCountryBtn,
+                  backText: styles.changeCountryText,
+                  hint: styles.phoneHint,
+                  container: styles.operatorListVertical,
+                  item: styles.operatorRow,
+                  itemText: styles.operatorRowName,
+                }}
+                backLabel={t('transferModal.changeCountry')}
+                onBack={() => { setAddonOpen(false); setOperator(''); }}
+                onPick={(item) => onAddonPick?.(item)}
+              />
             ) : (
               <>
                 <Text style={styles.operatorLabel}>{t('transferModal.chooseOperator')}</Text>
@@ -2175,6 +2166,28 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                         />
                       </>
                     )}
+                    <Text style={styles.fieldLabel}>QR code {cnyWalletLabel}{cnyQrRequired ? ' *' : ''}</Text>
+                    {cnyQrUri ? (
+                      <View style={styles.cnyQrRow}>
+                        <TouchableOpacity onPress={pickCnyQr} accessibilityLabel={`Changer le QR code ${cnyWalletLabel}`}>
+                          <Image source={{ uri: cnyQrUri }} style={styles.cnyQrThumb} resizeMode="contain" />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.cnyQrAction} onPress={pickCnyQr}>
+                          <Text style={styles.cnyQrActionText}>Changer</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.cnyQrAction} onPress={() => setCnyQrUri(null)}>
+                          <Text style={[styles.cnyQrActionText, { color: Colors.error }]}>{t('common.delete')}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <TouchableOpacity style={styles.bankPickerBtn} onPress={pickCnyQr}>
+                        <FontAwesome6 name="qrcode" size={14} color={Colors.textMuted} iconStyle="solid" />
+                        <Text style={[styles.bankPickerText, styles.bankPickerPlaceholder]} numberOfLines={1}>
+                          Ajouter le QR code
+                        </Text>
+                        <FontAwesome6 name="image" size={12} color={Colors.textMuted} />
+                      </TouchableOpacity>
+                    )}
                     <Text style={styles.fieldLabel}>Motif du transfert *</Text>
                     <View style={styles.cnyChipsRow}>
                       {([['GOODS', 'Achat de marchandises'], ['SERVICES', 'Services'], ['FAMILY', 'Soutien familial'], ['OTHER', 'Autre']] as const).map(([val, label]) => (
@@ -2411,6 +2424,7 @@ export function TransferModal({ visible, onClose, cryptoEnabled = false, onBuyCr
                       || (aggRail === 'wire' && (!bankAccountHolder || (!bankAccountNumber && !iban) || !bankName || !swiftCode || !bankCountry))
                       || (aggRail === 'cny' && isCnyManual && (!cnyFullName.trim() || !cnyWalletAccount.trim()
                         || (cnyServiceCode === 'WECHAT' && !cnyWechatId.trim())
+                        || (cnyQrRequired && !cnyQrUri)
                         || !cnyPurpose || (cnyPurpose === 'OTHER' && !cnyPurposeOther.trim())))
                       || (aggRail === 'cny' && !isCnyManual && (!cnyFirstName || !cnyLastName))
                       || (aggRail === 'cny' && cnyService === 'BANK_ACCOUNT' && (!cnyIdNumber || !cnyMobile || !bankCode || !bankName || !bankAccountNumber || !bankAccountHolder))
@@ -3628,6 +3642,28 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   },
   cnyChipTextActive: {
     color: Colors.white,
+  },
+  cnyQrRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  cnyQrThumb: {
+    width: 96,
+    height: 96,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.inputBg,
+  },
+  cnyQrAction: {
+    paddingVertical: 6,
+  },
+  cnyQrActionText: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semiBold,
+    color: Colors.primary,
   },
   bankPickerBtn: {
     flexDirection: 'row',

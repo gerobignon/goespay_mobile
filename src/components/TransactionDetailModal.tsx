@@ -30,14 +30,14 @@ import type { Transaction } from '../types';
 import { CloseButton } from './CloseButton';
 import { TransferProof } from './TransferProof';
 import { FailureReasonBanner } from './FailureReasonBanner';
+import { useTxKind } from '../addons/registry';
 
-function getCryptoStatus(statut: string | number, t: (key: string) => string): { label: string; color: string; icon: string } {
-  const norm = normalizeStatut(statut, 'crypto');
-  const info = getTransactionStatus(t)[norm] ?? { label: String(statut), color: Colors.textMuted };
-  return { label: info.label, color: info.color, icon: getStatusIcon(norm) };
-}
+/** Types servis ici ; les autres viennent d'une extension (src/addons), qui fournit son détail. */
+type CoreTxType = 'deposit' | 'withdraw' | 'transfer';
+export type TxType = CoreTxType | (string & {});
 
-export type TxType = 'deposit' | 'withdraw' | 'transfer' | 'crypto';
+const isCoreType = (type: string | null): type is CoreTxType =>
+  type === 'deposit' || type === 'withdraw' || type === 'transfer';
 
 interface Props {
   txId: number | null;
@@ -49,6 +49,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
   const visible = txId !== null && txType !== null;
   const styles = useThemedStyles(createStyles);
   const { t } = useTranslation();
+  const kind = useTxKind(isCoreType(txType) ? null : txType);
   const fmtXof = useFormatXof();
   const currencyCode = useCurrencyCode();
   // Résout le moyen (tx.mode) en { nom, drapeau, op } via le résolveur UNIQUE
@@ -116,13 +117,12 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
       setNoteMessage('');
       return;
     }
+    // Type d'extension : son composant de détail charge lui-même la transaction.
+    if (!isCoreType(txType)) return;
     setLoading(true);
     const load = async () => {
       try {
-        const data =
-          txType === 'crypto'
-            ? await walletService.getCryptoTransaction(txId!)
-            : await walletService.getTransaction(txId!, txType!);
+        const data = await walletService.getTransaction(txId!, txType);
         setTx(data);
       } catch {
         showAlert('Erreur', 'Impossible de charger la transaction.');
@@ -140,11 +140,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
     }
     setClaimLoading(true);
     try {
-      if (txType === 'crypto') {
-        await walletService.submitClaimCrypto({ transaction_id: txId!, message: claimMessage.trim() });
-      } else {
-        await walletService.submitClaim({ transaction_id: txId!, type: txType!, message: claimMessage.trim() });
-      }
+      await walletService.submitClaim({ transaction_id: txId!, type: txType!, message: claimMessage.trim() });
       showAlert('Réclamation envoyée', 'Vous recevrez une réponse sous 24h.');
       setShowClaim(false);
       setClaimMessage('');
@@ -201,7 +197,7 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
     }
   };
 
-  const handleDownloadInvoice = async (type: 'deposit' | 'withdraw' | 'crypto', id: number) => {
+  const handleDownloadInvoice = async (type: 'deposit' | 'withdraw', id: number) => {
     setInvoiceLoading(true);
     try {
       await downloadInvoice(type, id);
@@ -213,6 +209,9 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
   };
 
   const renderContent = () => {
+    if (!isCoreType(txType)) {
+      return kind?.Detail && txId !== null ? <kind.Detail id={txId} embedded /> : null;
+    }
     if (loading) {
       return (
         <View style={styles.loaderWrap}>
@@ -606,125 +605,24 @@ export function TransactionDetailModal({ txId, txType, onClose }: Props) {
       );
     }
 
-    // ── Crypto ────────────────────────────────────────────────────────────────
-    if (txType === 'crypto') {
-      const status = getCryptoStatus(tx.statut, t);
-      const isBuy = tx.mode === 'Buy';
-      const cryptoCode = tx.currency_src ?? '-';
-      // `state` est une colonne STRING côté backend → statut arrive en "1"/"0"/"3".
-      // On normalise (robuste string/number) au lieu d'un `=== 1` strict qui
-      // masquait le bouton de reçu pour toutes les crypto réussies.
-      const isCryptoSuccess = normalizeStatut(tx.statut, 'crypto') === 'success';
-      return (
-        <>
-          <View style={styles.actionRow}>
-            {isCryptoSuccess && (
-              <TouchableOpacity
-                style={[styles.invoiceBtn, invoiceLoading && { opacity: 0.6 }]}
-                onPress={() => handleDownloadInvoice('crypto', tx.id)}
-                disabled={invoiceLoading}
-                activeOpacity={0.7}
-              >
-                <FontAwesome6 name="file-invoice-dollar" size={12} color={Colors.white} />
-                <Text style={styles.invoiceBtnText}>{t('transaction.viewInvoice')}</Text>
-              </TouchableOpacity>
-            )}
-            {!isCryptoSuccess && (
-              <TouchableOpacity style={styles.claimBtn} onPress={() => setShowClaim(!showClaim)} activeOpacity={0.7}>
-                <FontAwesome6 name="triangle-exclamation" size={12} color={Colors.white} />
-                <Text style={styles.claimBtnText}>{t('transaction.claim')}</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {showClaim && (
-            <View style={styles.inlineForm}>
-              <Text style={styles.inlineFormTitle}>{t('transaction.addClaim')}</Text>
-              <Text style={[styles.inlineFormHint, { color: '#F4B228' }]}>⚠️ Vérifiez votre portefeuille et l'adresse avant toute réclamation.</Text>
-              <TextInput
-                style={styles.formInput}
-                placeholder={t('transaction.describeProblem')}
-                placeholderTextColor={Colors.textMuted}
-                value={claimMessage}
-                onChangeText={setClaimMessage}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-                selectionColor={Colors.secondary}
-              />
-              <View style={styles.formRow}>
-                <TouchableOpacity style={styles.formCancelBtn} onPress={() => setShowClaim(false)}>
-                  <Text style={styles.formCancelText}>{t('common.cancel')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.formSubmitBtn, claimLoading && { opacity: 0.6 }]} onPress={handleClaim} disabled={claimLoading} activeOpacity={0.7}>
-                  <FontAwesome6 name="paper-plane" size={13} color={Colors.white} />
-                  <Text style={styles.formSubmitText}>{claimLoading ? t('common.sending') : t('common.send')}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          <Card style={styles.flatCard}>
-            <Hero
-              statusColor={status.color}
-              statusIcon={status.icon}
-              statusLabel={status.label}
-              sign={isBuy ? '-' : '+'}
-              amount={fmtXof(tx.amount, { withCode: false })}
-              amountColor={isBuy ? Colors.error : Colors.secondary}
-            />
-            <TransactionDetailRow label="Transaction ID" value={`#${tx.id}`} mono />
-            <TransactionDetailRow label={t('transaction.type')} value={isBuy ? t('transaction.buyType') : t('transaction.sellType')} badge badgeColor={Colors.secondary} badgeIcon="bitcoin-sign" />
-            <TransactionDetailRow label={t('transaction.status')} value={status.label} badge badgeColor={status.color} badgeIcon={status.icon} />
-            <TransactionDetailRow label={t('transaction.currency')} value={cryptoCode} badge badgeColor={Colors.secondary} />
-            {tx.dollar != null && (
-              <TransactionDetailRow label={t('transaction.amount')} value={`${tx.dollar} ${cryptoCode}`} mono />
-            )}
-            <TransactionDetailRow label={t('transaction.address')} value={tx.address ?? '-'} copyable mono />
-            {tx.tx_id && (
-              <TransactionDetailRow
-                label={tx.provider === 'nowpayments' ? t('transaction.npReference') : t('transaction.cpReference')}
-                value={tx.tx_id}
-                copyable
-                mono
-              />
-            )}
-            {tx.cp_id && tx.cp_id !== tx.tx_id && (
-              <TransactionDetailRow
-                label={tx.provider === 'nowpayments' ? t('transaction.npReference') : t('transaction.cpReference')}
-                value={tx.cp_id}
-                copyable
-                mono
-              />
-            )}
-            {tx.cp_hash && <TransactionDetailRow label={t('transaction.txHash')} value={tx.cp_hash} copyable mono />}
-            <TransactionDetailRow label={t('transaction.balanceBefore')} value={tx.avant != null ? fmtXof(tx.avant) : '-'} mono />
-            <TransactionDetailRow label={t('transaction.balanceAfter')} value={tx.apres != null ? fmtXof(tx.apres) : '-'} mono color={status.color} />
-            <TransactionDetailRow label={t('transaction.date')} value={formatDate(tx.created_at)} />
-            {tx.updated_at && tx.updated_at !== tx.created_at && (
-              <TransactionDetailRow label={t('transaction.updatedAt')} value={formatDate(tx.updated_at)} />
-            )}
-          </Card>
-        </>
-      );
-    }
-
     return null;
   };
 
-  const titleMap: Record<TxType, string> = {
+  const titleMap: Record<CoreTxType, string> = {
     deposit: t('transaction.depositDetail'),
     withdraw: t('transaction.withdrawDetail'),
     transfer: t('transaction.transferDetail'),
-    crypto: t('transaction.cryptoDetail'),
   };
+  const title = isCoreType(txType)
+    ? titleMap[txType]
+    : kind?.detailTitleKey ? t(kind.detailTitleKey) : '';
 
   return (
     <ResponsiveModal visible={visible} onClose={onClose}>
       <View style={styles.root}>
         {/* Modal header */}
         <View style={styles.header}>
-          <Text style={styles.title}>{txType ? titleMap[txType] : ''}</Text>
+          <Text style={styles.title}>{title}</Text>
           <CloseButton onPress={onClose} size={18} color={Colors.text} />
         </View>
 

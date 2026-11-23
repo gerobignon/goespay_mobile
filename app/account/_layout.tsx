@@ -20,7 +20,7 @@ import VerifiedBadge from '../../src/components/VerifiedBadge';
 import { Colors, DarkColors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
 import { API_BASE_URL } from '../../src/constants/config';
 import { getAccountMenuItems } from '../../src/constants/accountMenu';
-import { CRYPTO_AVAILABLE } from '../../src/constants/features';
+import { useAddons } from '../../src/addons/registry';
 
 export default function AccountLayout() {
   const { isDesktop } = useResponsive();
@@ -74,10 +74,8 @@ function DesktopAccountLayout() {
     ? { uri: user.avatar.startsWith('http') ? user.avatar : `${API_BASE_URL.replace('/api/mobile/v1', '')}${user.avatar}` }
     : null;
 
-  // CRYPTO_AVAILABLE : absent des binaires iOS et Android (licence d'échange exigée par les stores).
-  const isCryptoUser = CRYPTO_AVAILABLE && (user?.group === 'admin' || user?.group === 'crypto');
-
-  const menuItems = getAccountMenuItems(t, { isCryptoUser, isSuperAdmin: user?.id === 1 });
+  const accountLinks = useAddons((s) => s.accountLinks);
+  const menuItems = getAccountMenuItems(t, { isSuperAdmin: user?.id === 1, extra: accountLinks });
 
   const handleLogout = () => {
     showAlert(t('account.logoutTitle'), t('account.logoutMessage'), [

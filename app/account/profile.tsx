@@ -172,24 +172,32 @@ export default function ProfileScreen() {
                   label={t('account.city')}
                   value={form.city}
                   onChangeText={(v) => setField('city', v)}
+                  autoComplete="postal-address-locality"
+                  textContentType="addressCity"
                   editable={!isReadonly}
                 />
                 <Input
                   label={t('kyc.state')}
                   value={form.state}
                   onChangeText={(v) => setField('state', v)}
+                  autoComplete="postal-address-region"
+                  textContentType="addressState"
                   editable={!isReadonly}
                 />
                 <Input
                   label={t('kyc.postcode')}
                   value={form.postcode}
                   onChangeText={(v) => setField('postcode', v)}
+                  autoComplete="postal-code"
+                  textContentType="postalCode"
                   editable={!isReadonly}
                 />
                 <Input
-                  label={t('account.walletAddress')}
+                  label={t('kyc.address')}
                   value={form.address}
                   onChangeText={(v) => setField('address', v)}
+                  autoComplete="street-address"
+                  textContentType="fullStreetAddress"
                   editable={!isReadonly}
                 />
                 {user?.idnumber ? (
@@ -214,6 +222,9 @@ export default function ProfileScreen() {
                   label={t('account.telegram')}
                   value={form.telegram}
                   onChangeText={(v) => setField('telegram', v)}
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  autoCorrect={false}
                   editable={true}
                   prefix="@"
                   rightAction={isReadonly ? { icon: 'floppy-disk', onPress: handleSave, loading } : undefined}

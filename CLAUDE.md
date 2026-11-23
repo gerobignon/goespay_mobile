@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-GoesPay is a multi-currency wallet for West/Central Africa: Mobile Money deposits/withdrawals/transfers + crypto buy/sell. It's an Expo / React Native app (iOS, Android, and PWA web) that talks to an OctoberCMS backend (plugin `lightlab/goes`) via a REST API. This repo is the **frontend only**; the backend lives in a separate project.
+GoesPay is a multi-currency wallet for West/Central Africa: Mobile Money deposits/withdrawals/transfers + crypto buy/sell (PWA only, after login). It's an Expo / React Native app (iOS, Android, and PWA web) that talks to an OctoberCMS backend (plugin `lightlab/goes`) via a REST API. This repo is the **frontend only**; the backend lives in a separate project.
 
 ## Commands
 
@@ -40,14 +40,14 @@ Stores are plain Zustand (no persist middleware), caching is done manually via `
 - `configStore` : server-driven feature flags (`deposit_enabled`, etc.) + fees/limits/alerts + admin-managed promo slides (drive the home `PromoCarousel`) from `/config`. Has hardcoded `DEFAULT_APP_CONFIG` fallback for offline. Admin toggles features here.
 - `currencyStore` : **XOF is the canonical source of truth**; all display amounts are derived via `convertFromXof` / `formatFromXof`. Fetches rates (`1 XOF = N currency`), cached 12h. Per-currency decimal rules live here.
 - `catalogStore` / `corridorStore`, **server-driven catalog (P3)**, fed by `/catalog` (admin "Marchés": normalized countries/currencies/networks + `aggregator_routing` corridors). These progressively replace the hardcoded `OPERATORS`/`COUNTRIES` lists: availability comes from the server, presentation (logos) stays local. `catalogStore` maps server `logo_key` → bundled asset via a static `LOGO_BY_KEY` require() map (Metro requires static requires). `corridorStore` exposes routing helpers (`isPayoutAvailable`, `isCodeEnabled`, `hasEnabledAggregator`, `dialCodeFor`, `networkLabel`). `config.ts` remains the **fallback** until the catalog loads (offline / first render).
-- `walletStore` : `cryptoStore`, `fincraRateStore`, `alertStore` (global `showAlert()` + `CustomAlert`), `themeStore`.
+- `walletStore`, `fincraRateStore`, `alertStore` (global `showAlert()` + `CustomAlert`), `themeStore`. The crypto store lives in the crypto add-on (see below).
 
 ### Storage abstraction
 `src/services/storage.ts` exports `SafeStorage`-`localStorage` on web, `expo-secure-store` on mobile. Use it for anything sensitive (tokens, PIN, credentials). Non-sensitive caches use `AsyncStorage` directly.
 
 ### Navigation (expo-router, file-based in `app/`)
 - `app/_layout.tsx` is the gatekeeper: loads fonts, token, PIN state, language, push notifications, API status; then a routing effect redirects between `(auth)`, `setup-pin`/`unlock`, and `(tabs)` based on `isAuthenticated` + lock state. It also handles the Fincra web-redirect deep link (`?reference=FCD-…`) and notification-tap navigation.
-- Route groups: `(auth)` (login/register/activation/forgot-password/setup-pin/unlock), `(tabs)` (index/history/affiliation/support), `account/*` (index/profile/security/settings/phones/wallets/bank-accounts), `transaction/{deposit,transfer,withdraw,crypto}/[id]`, `kyc`.
+- Route groups: `(auth)` (login/register/activation/forgot-password/setup-pin/unlock), `(tabs)` (index/history/affiliation/support), `account/*` (index/profile/security/settings/phones/wallets/bank-accounts), `transaction/{deposit,transfer,withdraw}/[id]` plus `transaction/[kind]/[id]` (types brought by an add-on, e.g. `crypto`), `kyc`.
 - The home tab (`(tabs)/index.tsx`) is composed from `src/components/home/HomeWidgets.tsx`, exports `PromoCarousel`, `MonthlyInsights`, `RecentBeneficiaries`, `QuickConverter`, `ReferralCard`.
 - Display currency: `currencyStore` holds `currencySource: 'auto' | 'manual'` and `setUserCurrency(currency, source)` / `hydrateFromUser(...)` (persists to the user profile + refreshes rates). Currency is currently hydrated from the user's profile/country (`auto`); there is no standalone `account/currency.tsx` picker route.
 - `account/phones.tsx` (saved phones) resolves its operator list the **same way as the deposit/withdraw modals**: catalog (`catalogStore.operators`) ∪ `OPERATORS` fallback, filtered by `operatorServesCountry(op, userCountry)` so the picker shows only the user's country (not the full list), and auto-selects when a single operator is available. Use `operatorServesCountry` + `OperatorLogo` rather than re-deriving from raw `OPERATORS`.
@@ -68,8 +68,16 @@ Desktop web gets no KYC at all: `/kyc` shows a QR code to `https://app.goespay.i
 ### Operator display & receipts
 - `src/utils/operatorDisplay.ts` (`resolveOperatorDisplay(mode)`) is the **single resolver** turning a raw payment-mode string (e.g. `fincra-bank_transfer`, `klasha-mm-…`) into a clean `{ name, flag, logo }` (precise operator + rail + catalog lookup, falling back to the raw code). It is shared by history, transaction detail, **and** the PDF receipt (`src/utils/receipt.ts`) / invoice (`src/utils/invoice.ts`) : never re-parse mode strings ad hoc.
 
+### Crypto add-on (web only, loaded after login)
+Meta refuses ads for a site whose public page carries crypto code, and the stores require an exchange licence: crypto must never be in the bundle a visitor loads, nor in the native binaries.
+- Everything crypto lives in `src/crypto/` (store, buy/sell modal, pickers, simulator quote, detail screen, saved addresses, API service, translations). It is reached only through `src/addons/installed.ts`, which `src/addons/boot.ts` loads with `import()` once the user is signed in: Metro emits it as a separate file (`installed-<hash>.js`). **Never import `src/crypto/*` from shared code.**
+- Shared screens only read the neutral registry `src/addons/registry.ts` (`useAddons`): published flows (`flows.in/out`), account and beneficiary links, history filters, home `?action=` handlers, the simulator `quote`, transaction kinds (`getTxKind`/`useTxKind`: label, icon, status normalisation, title, detail component). Slots are rendered as add-on components (`addon.PickerEntry`, `addon.PickerPanel`, `addon.Host`, `addon.screens`), never as add-on hooks.
+- Native: `src/addons/boot.native.ts` loads no add-on and only registers the crypto history kind (`src/crypto/kind.ts`) so customers keep reading past operations.
+- Translations: edit only `fr.json`/`en.json`. `scripts/gen-locales.js` (run by `metro.config.js`) writes `*.web.json` (no crypto wording, fails if a new crypto label is not listed), `*.native.json` and `src/crypto/i18n/*.json`.
+- Guard: `npm run check:web` (also a `PRE_DEPLOY` step in `.deploy-ftp`) fails if crypto leaks into the files `index.html` loads.
+
 ### i18n & theming
-- `src/i18n/` : i18next with `fr` (default/fallback) + `en`. `initLanguage()` runs at startup, persists choice via `SafeStorage`. **UI strings must go through `t()` and be added to both `fr.json` and `en.json`.**
+- `src/i18n/` : i18next with `fr` (default/fallback) + `en`. `initLanguage()` runs at startup, persists choice via `SafeStorage`. **UI strings must go through `t()` and be added to both `fr.json` and `en.json`** (the derived `*.web.json`/`*.native.json` are generated, see the crypto add-on section).
 - Theming via `ThemeProvider` + `useThemedStyles(createStyles)` hook; `createStyles(Colors)` receives the active `DarkColors`/`LightColors` palette from `src/constants/theme.ts`. Font is Quicksand (force-patched globally onto `<Text>` for Android).
 - `useResponsive` distinguishes mobile vs desktop web (desktop gets `DesktopHeader`/`DesktopFooter`, `ResponsiveContainer`/`ResponsiveModal`).
 

@@ -63,6 +63,8 @@ export interface PayLinkPayment {
   reference: string;
   payer_name: string;
   payer_phone?: string;
+  /** Motif saisi par le payeur sur la page du lien, vide s'il n'en a pas mis. */
+  motif?: string;
   amount: number;
   fee: number;
   status: 'pending' | 'success' | 'fail';

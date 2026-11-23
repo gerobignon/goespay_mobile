@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BorderRadius, FontSize, Fonts, Spacing, withAlpha, type ColorPalette } from '../../constants/theme';
 import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { useColors } from '../ThemeProvider';
+import { useAddons } from '../../addons/registry';
 
 /**
  * Carte promotionnelle d'une annonce du canal.
@@ -28,14 +29,14 @@ import { useColors } from '../ThemeProvider';
  */
 const ROUTES: Record<string, { pathname: string; params?: Record<string, string> }> = {
   home: { pathname: '/(tabs)' },
-  // Recharger, Envoyer, Compte à compte et Crypto ne sont pas des écrans mais
-  // des modals de l'accueil : on y arrive par `?action=…`, que l'accueil
-  // consomme à l'ouverture. Sans lui, le client atterrissait devant son solde,
-  // à chercher le bouton que l'annonce venait de lui promettre.
+  // Recharger, Envoyer et Compte à compte ne sont pas des écrans mais des
+  // modals de l'accueil : on y arrive par `?action=…`, que l'accueil consomme
+  // à l'ouverture. Sans lui, le client atterrissait devant son solde, à
+  // chercher le bouton que l'annonce venait de lui promettre. Les cibles des
+  // extensions (src/addons) suivent le même chemin, voir `openCta`.
   deposit: { pathname: '/(tabs)', params: { action: 'deposit' } },
   transfer: { pathname: '/(tabs)', params: { action: 'transfer' } },
   p2p: { pathname: '/(tabs)', params: { action: 'p2p' } },
-  crypto: { pathname: '/(tabs)', params: { action: 'crypto' } },
   history: { pathname: '/(tabs)/history' },
   affiliation: { pathname: '/(tabs)/affiliation' },
   kyc: { pathname: '/kyc' },
@@ -70,7 +71,9 @@ export function PromoCard({ meta }: Props) {
       openLink(ctaTarget, (path) => router.push(path as any));
       return;
     }
-    const route = ROUTES[ctaTarget];
+    // Cible d'une extension chargée : un flux de l'accueil, comme Recharger.
+    const route = ROUTES[ctaTarget]
+      ?? (useAddons.getState().actions[ctaTarget] ? { pathname: '/(tabs)', params: { action: ctaTarget } } : undefined);
     if (route) router.push({ pathname: route.pathname, params: route.params } as any);
   };
 

@@ -34,7 +34,7 @@ import type { SavedPhone } from '../types';
 import { useTranslation } from 'react-i18next';
 
 import { useConfigStore } from '../stores/configStore';
-import { useCryptoStore, isCryptoDirAllowed } from '../stores/cryptoStore';
+import { useAddons } from '../addons/registry';
 import { useFormatXof } from '../utils/format';
 import { useDepositQuote } from '../stores/transferQuoteStore';
 import { getApiErrorMessage } from '../utils/apiError';
@@ -46,9 +46,6 @@ import { GatewayBadge } from './GatewayBadge';
 import { CountryPickerStep } from './CountryPickerStep';
 import FincraConversionHint from './FincraConversionHint';
 import { OperatorLogo } from './OperatorLogo';
-import { CryptoLogo } from './CryptoLogo';
-import { CryptoSearchField } from './CryptoSearchField';
-import { useCryptoSearch } from '../hooks/useCryptoSearch';
 import { CloseButton } from './CloseButton';
 import { kycLevelOf, handleKycError, promptKycUpgrade } from '../utils/kycLevel';
 import { useStoreReviewOnClose, type ReviewStatus } from '../stores/storeReviewStore';
@@ -71,8 +68,6 @@ async function depositReviewStatus(depositId: number, ref: string | null): Promi
 // Combinaison USSD Orange Money pour générer le code OTP de paiement, par
 // opérateur (Softpay orange-money-* ET AfribaPay orange-*-afp). Codes officiels
 // AfribaPay (/v1/countries → ussd_code). « montant » = montant saisi.
-/** Au-delà, les cryptos passent sous un groupe « Crypto-monnaies » au lieu d'être listées. */
-const FLATTEN_CRYPTO_MAX = 4;
 
 const ORANGE_OTP_USSD: Record<string, string> = {
   'orange-money-ci':      '#144*82#',
@@ -109,13 +104,13 @@ interface DepositModalProps {
   visible: boolean;
   onClose: () => void;
   prefill?: { amount?: string; operator?: string; phone?: string };
-  /** Affiche le groupe « Crypto-monnaies » (vente) dans le dépôt. */
-  cryptoEnabled?: boolean;
-  /** Lance le flux de vente crypto (crédite le wallet) pour la crypto choisie. */
-  onSellCrypto?: (currency?: string) => void;
+  /** Affiche l'entrée de l'extension chargée (src/addons) parmi les moyens de recharge. */
+  addonEnabled?: boolean;
+  /** Lance le flux de l'extension pour l'élément choisi. */
+  onAddonPick?: (item: string) => void;
 }
 
-export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false, onSellCrypto }: DepositModalProps) {
+export function DepositModal({ visible, onClose, prefill, addonEnabled = false, onAddonPick }: DepositModalProps) {
   const { t } = useTranslation();
   const review = useStoreReviewOnClose(visible);
   const insets = useSafeAreaInsets();
@@ -131,8 +126,8 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // « Autres » : sous-liste des zones internationales (Fincra) + carte, pour les
   // pays non couverts par un moyen local.
   const [othersOpen, setOthersOpen] = useState(false);
-  // « Crypto-monnaies » : sous-liste des cryptos actives (vente → crédite le wallet).
-  const [cryptoOpen, setCryptoOpen] = useState(false);
+  // Liste ouverte depuis l'entrée d'une extension (src/addons).
+  const [addonOpen, setAddonOpen] = useState(false);
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
@@ -168,22 +163,8 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   const intlRails = useConfigStore((s) => s.intl_rails);
   const depositMin = useConfigStore((s) => s.deposit_min);
   const depositMax = useConfigStore((s) => s.deposit_max);
-  const cryptoRates = useCryptoStore((s) => s.rates);
-  const {
-    query: cryptoQuery,
-    setQuery: setCryptoQuery,
-    cryptos: visibleCryptos,
-    showSearch: showCryptoSearch,
-    empty: noCryptoMatch,
-  } = useCryptoSearch(cryptoRates, undefined, 'sell');
-  // Cryptos dont l'admin a ouvert la VENTE : recharger le solde, c'est vendre.
-  const sellRates = useMemo(() => cryptoRates.filter((r) => isCryptoDirAllowed(r, 'sell')), [cryptoRates]);
-  const cryptoLoaded = cryptoRates.length > 0;
-  const hasSellCrypto = sellRates.length > 0;
-  // Tant que les taux ne sont pas chargés on garde l'entrée : la masquer puis la
-  // remettre ferait clignoter la liste des moyens de recharge.
-  const showCryptoEntry = cryptoEnabled && (!cryptoLoaded || hasSellCrypto);
-  const fetchCryptoRates = useCryptoStore((s) => s.fetchRates);
+  const addon = useAddons((s) => s.addon);
+  const showAddonEntry = addonEnabled && !!addon;
   const fmtXof = useFormatXof();
   // Garde une trace si l'utilisateur a vidé/modifié le champ téléphone manuellement
   const phoneUserEditedRef = useRef(false);
@@ -223,7 +204,7 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
     setSelectedCountry(null);
     setFincraZoneCountry(null);
     setOthersOpen(false);
-    setCryptoOpen(false);
+    setAddonOpen(false);
     setOtp('');
     setPollingState('idle');
     setPollingMessage('');
@@ -264,11 +245,6 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
 
   // Reset le sous-pays Fincra à chaque changement d'opérateur.
   useEffect(() => { setFincraZoneCountry(null); }, [operator]);
-
-  // Charge les taux crypto quand on ouvre le groupe « Crypto-monnaies ».
-  // Charge les taux crypto à l'ouverture du groupe (admin) OU dès l'ouverture du
-  // modal quand la crypto est active (clients : cryptos listées directement).
-  useEffect(() => { if (cryptoOpen || (visible && cryptoEnabled)) fetchCryptoRates(cryptoRates.length === 0); }, [cryptoOpen, visible, cryptoEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stopPolling = useCallback(() => {
     if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
@@ -517,12 +493,9 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
   // DIRECTEMENT les moyens internationaux actifs (au lieu de l'obliger à ouvrir
   // « Autres »). L'admin garde le regroupement « Autres » pour ses tests.
   const clientFlattenOthers = !isAdmin && primaryOps.length === 0 && otherOps.length > 0;
-  // Côté client : on liste les cryptos actives DIRECTEMENT (pas de groupe
-  // « Crypto-monnaies »). L'admin garde le groupe pour ses tests.
-  // Au-delà d'une poignée de devises (le catalogue NOWPayments en rend des
-  // dizaines activables), les aplatir noierait les opérateurs Mobile Money :
-  // on repasse au groupe « Crypto », qui ouvre l'écran de sélection avec recherche.
-  const flattenCrypto = !isAdmin && cryptoEnabled && hasSellCrypto && sellRates.length <= FLATTEN_CRYPTO_MAX;
+  // Côté client, l'extension liste ses éléments directement quand ils sont peu
+  // nombreux ; l'admin garde l'entrée groupée pour ses tests.
+  const addonInline = !isAdmin;
   const operatorsForStep = othersOpen ? otherOps : (clientFlattenOthers ? otherOps : primaryOps);
   // Entrée « International » : visible dès qu'il y a des rails internationaux pour
   // ce user (y compris pays listés, dim 3), au niveau du picker, hors flatten.
@@ -1225,55 +1198,42 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                 <Text style={styles.kycBannerText}>{t('depositModal.kycRequired')}</Text>
               </View>
             )}
-            {useCountryStep && !selectedCountry && !othersOpen && !cryptoOpen ? (
+            {useCountryStep && !selectedCountry && !othersOpen && !addonOpen ? (
               <CountryPickerStep
                 operators={displayOperators.filter((op) => !isZoneFincra(op))}
                 showCardTile={showOthersEntry}
                 cardLabel={t('depositModal.others')}
                 onSelectCountry={(code) => { setSelectedCountry(code); setOperator(''); }}
                 onSelectCard={() => { setOthersOpen(true); setOperator(''); }}
-                showCryptoTile={showCryptoEntry}
-                cryptoLabel={t('depositModal.cryptoGroup')}
-                onSelectCrypto={() => { setCryptoOpen(true); setOperator(''); }}
+                renderExtra={showAddonEntry && addon ? (variant, entryStyles) => (
+                  <addon.PickerEntry
+                    key="__addon"
+                    direction="in"
+                    variant={variant}
+                    styles={entryStyles}
+                    onOpen={() => { setAddonOpen(true); setOperator(''); }}
+                    onPick={(item) => onAddonPick?.(item)}
+                  />
+                ) : undefined}
                 label={t('depositModal.chooseCountry')}
               />
-            ) : cryptoOpen ? (
-              <>
-                <Text style={styles.operatorLabel}>{t('depositModal.cryptoGroup')}</Text>
-                <TouchableOpacity
-                  onPress={() => { setCryptoOpen(false); setOperator(''); }}
-                  style={styles.changeCountryBtn}
-                >
-                  <FontAwesome6 name="arrow-left" size={12} color={Colors.secondary} />
-                  <Text style={styles.changeCountryText}>{t('depositModal.changeCountry')}</Text>
-                </TouchableOpacity>
-                {cryptoRates.length === 0 ? (
-                  <Text style={styles.hintText}>{t('common.loading')}</Text>
-                ) : !hasSellCrypto ? (
-                  <Text style={styles.hintText}>{t('cryptoModal.noSellCrypto')}</Text>
-                ) : (
-                  <>
-                    {showCryptoSearch && <CryptoSearchField value={cryptoQuery} onChange={setCryptoQuery} />}
-                    {noCryptoMatch && (
-                      <Text style={styles.hintText}>{t('cryptoModal.noSearchResult')}</Text>
-                    )}
-                    {visibleCryptos.length > 0 && (
-                      <View style={styles.operatorChipGrid}>
-                        {visibleCryptos.map((c) => (
-                          <TouchableOpacity
-                            key={c.code}
-                            style={styles.operatorChip}
-                            onPress={() => onSellCrypto?.(c.code)}
-                          >
-                            <CryptoLogo rate={c} size={22} fallbackBackground={Colors.inputBg} fallbackColor={Colors.text} />
-                            <Text style={styles.operatorChipText} numberOfLines={1}>{c.name || c.code}</Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    )}
-                  </>
-                )}
-              </>
+            ) : addonOpen && addon ? (
+              <addon.PickerPanel
+                direction="in"
+                layout="grid"
+                styles={{
+                  title: styles.operatorLabel,
+                  back: styles.changeCountryBtn,
+                  backText: styles.changeCountryText,
+                  hint: styles.hintText,
+                  container: styles.operatorChipGrid,
+                  item: styles.operatorChip,
+                  itemText: styles.operatorChipText,
+                }}
+                backLabel={t('depositModal.changeCountry')}
+                onBack={() => { setAddonOpen(false); setOperator(''); }}
+                onPick={(item) => onAddonPick?.(item)}
+              />
             ) : (
               <>
                 <Text style={styles.operatorLabel}>{othersOpen ? t('depositModal.others') : t('depositModal.chooseOperator')}</Text>
@@ -1341,23 +1301,15 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                     <Text style={styles.operatorChipText} numberOfLines={1}>{t('depositModal.others')}</Text>
                   </TouchableOpacity>
                 )}
-                {showCryptoEntry && (flattenCrypto
-                  ? visibleCryptos.map((c) => (
-                      <TouchableOpacity key={`crypto-${c.code}`} style={styles.operatorChip} onPress={() => onSellCrypto?.(c.code)}>
-                        <CryptoLogo rate={c} size={22} fallbackBackground={Colors.inputBg} fallbackColor={Colors.text} />
-                        <Text style={styles.operatorChipText} numberOfLines={1}>{c.name || c.code}</Text>
-                      </TouchableOpacity>
-                    ))
-                  : (
-                    <TouchableOpacity
-                      key="__crypto"
-                      style={styles.operatorChip}
-                      onPress={() => { setCryptoOpen(true); setOperator(''); }}
-                    >
-                      <FontAwesome6 name="bitcoin-sign" size={16} color={Colors.text} />
-                      <Text style={styles.operatorChipText} numberOfLines={1}>{t('depositModal.cryptoGroup')}</Text>
-                    </TouchableOpacity>
-                  )
+                {showAddonEntry && addon && (
+                  <addon.PickerEntry
+                    direction="in"
+                    variant="chip"
+                    inline={addonInline}
+                    styles={{ item: styles.operatorChip, text: styles.operatorChipText }}
+                    onOpen={() => { setAddonOpen(true); setOperator(''); }}
+                    onPick={(item) => onAddonPick?.(item)}
+                  />
                 )}
               </View>
             ) : (
@@ -1400,23 +1352,15 @@ export function DepositModal({ visible, onClose, prefill, cryptoEnabled = false,
                     <Text style={styles.operatorRowName}>{t('depositModal.others')}</Text>
                   </TouchableOpacity>
                 )}
-                {!operator && showCryptoEntry && (flattenCrypto
-                  ? visibleCryptos.map((c) => (
-                      <TouchableOpacity key={`crypto-${c.code}`} style={styles.operatorRow} onPress={() => onSellCrypto?.(c.code)}>
-                        <CryptoLogo rate={c} size={26} fallbackBackground={Colors.inputBg} fallbackColor={Colors.text} />
-                        <Text style={styles.operatorRowName} numberOfLines={1}>{c.name || c.code}</Text>
-                      </TouchableOpacity>
-                    ))
-                  : (
-                    <TouchableOpacity
-                      key="__crypto"
-                      style={styles.operatorRow}
-                      onPress={() => { setCryptoOpen(true); setOperator(''); }}
-                    >
-                      <FontAwesome6 name="bitcoin-sign" size={20} color={Colors.text} style={{ width: 32, textAlign: 'center' }} />
-                      <Text style={styles.operatorRowName}>{t('depositModal.cryptoGroup')}</Text>
-                    </TouchableOpacity>
-                  )
+                {!operator && showAddonEntry && addon && (
+                  <addon.PickerEntry
+                    direction="in"
+                    variant="row"
+                    inline={addonInline}
+                    styles={{ item: styles.operatorRow, text: styles.operatorRowName }}
+                    onOpen={() => { setAddonOpen(true); setOperator(''); }}
+                    onPick={(item) => onAddonPick?.(item)}
+                  />
                 )}
               </View>
                 )}

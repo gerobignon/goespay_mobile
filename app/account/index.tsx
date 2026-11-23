@@ -16,7 +16,6 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { compressImage, MAX_EDGE_AVATAR } from '../../src/utils/imageCompress';
 import { useAuthStore } from '../../src/stores/authStore';
-import { useConfigStore } from '../../src/stores/configStore';
 import { usePinStore } from '../../src/stores/pinStore';
 import { authService } from '../../src/services/authService';
 import { Button } from '../../src/components/Button';
@@ -32,7 +31,7 @@ import { useTheme } from '../../src/components/ThemeProvider';
 import VerifiedBadge from '../../src/components/VerifiedBadge';
 import { Reveal, Bounce } from '../../src/components/anim';
 import { useTranslation } from 'react-i18next';
-import { CRYPTO_AVAILABLE } from '../../src/constants/features';
+import { useAddons } from '../../src/addons/registry';
 
 export default function AccountScreen() {
   const router = useRouter();
@@ -98,14 +97,8 @@ export default function AccountScreen() {
     ? { uri: user.avatar.startsWith('http') ? user.avatar : `${API_BASE_URL.replace('/api/mobile/v1', '')}${user.avatar}` }
     : null;
 
-  // Éligibilité crypto : groupe `crypto`/admin OU corridor crypto (NowPayments/
-  // futur) actif en payin (vente) et/ou payout (achat) pour le pays : porté par
-  // les flags /config crypto_*_enabled (cohérent avec l'accueil et l'historique).
-  const cryptoBuyEnabled = useConfigStore((s) => s.crypto_buy_enabled);
-  const cryptoSellEnabled = useConfigStore((s) => s.crypto_sell_enabled);
-  // CRYPTO_AVAILABLE : absent des binaires iOS et Android (licence d'échange exigée par les stores).
-  const isCryptoUser = CRYPTO_AVAILABLE && (user?.group === 'admin' || user?.group === 'crypto' || cryptoBuyEnabled || cryptoSellEnabled);
-  const menuItems = getAccountMenuItems(t, { isCryptoUser, isSuperAdmin: user?.id === 1 });
+  const accountLinks = useAddons((s) => s.accountLinks);
+  const menuItems = getAccountMenuItems(t, { isSuperAdmin: user?.id === 1, extra: accountLinks });
 
   return (
     <View style={{ flex: 1 }}>

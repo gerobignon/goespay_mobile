@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Image, Platform, StyleSheet, Text, View } from 'react-native';
 import { SvgUri } from 'react-native-svg';
-import { isSvgUrl, localCryptoSource } from '../utils/cryptoLogos';
+import { isSvgUrl, localCryptoSource } from '../logos';
 
 interface CryptoLogoProps {
   rate?: { code?: string; img?: string | null } | null;

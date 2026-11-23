@@ -1,7 +1,8 @@
+import { getTxKind } from '../addons/registry';
+
 /**
- * Single source of truth for transaction status presentation.
- * Replaces the STATUS_ICONS map + crypto 1/0/3 normalization duplicated
- * across TransactionItem, history, the transaction detail screens and modals.
+ * Single source of truth for transaction status presentation, shared by
+ * TransactionItem, history, the transaction detail screens and modals.
  */
 
 export const STATUS_ICONS: Record<string, string> = {
@@ -13,13 +14,11 @@ export const STATUS_ICONS: Record<string, string> = {
 
 /**
  * Normalize a raw transaction status to a canonical key ('success' | 'wait' | 'failed').
- * Crypto transactions use a numeric state (1 = success, 0 = failed, anything else = pending).
+ * Types brought by an add-on may use their own encoding (see `TxKind.normalizeStatus`).
  */
 export function normalizeStatut(statut: string | number, type?: string): string {
-  if (type === 'crypto') {
-    return statut == 1 ? 'success' : statut == 0 ? 'failed' : 'wait';
-  }
-  return String(statut);
+  const normalize = getTxKind(type)?.normalizeStatus;
+  return normalize ? normalize(statut) : String(statut);
 }
 
 /** FontAwesome6 icon name for a normalized status. */

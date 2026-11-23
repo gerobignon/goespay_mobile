@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { isCryptoDirAllowed, type CryptoDir, type CryptoRate } from '../stores/cryptoStore';
+import { isCryptoDirAllowed, type CryptoDir, type CryptoRate } from './store';
 
 /** En dessous de ce nombre de devises, la recherche n'apporte rien. */
 const SEARCH_THRESHOLD = 12;

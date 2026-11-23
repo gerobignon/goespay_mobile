@@ -14,7 +14,6 @@ import { ScreenBackground } from '../../src/components/ScreenBackground';
 import { RefreshableFlatList } from '../../src/components/Refreshable';
 import { useWalletStore } from '../../src/stores/walletStore';
 import { TransactionItem, getTransactionLogo, getModeName } from '../../src/components/TransactionItem';
-import { useAuthStore } from '../../src/stores/authStore';
 import { TransactionDetailModal, type TxType } from '../../src/components/TransactionDetailModal';
 import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../src/constants/theme';
 import { TRANSACTION_STATUS, getTransactionStatus } from '../../src/constants/config';
@@ -24,8 +23,7 @@ import type { Transaction } from '../../src/types';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { useThemedStyles } from '../../src/hooks/useThemedStyles';
 import { useTranslation } from 'react-i18next';
-import { useConfigStore } from '../../src/stores/configStore';
-import { CRYPTO_AVAILABLE } from '../../src/constants/features';
+import { useAddons, getTxKind } from '../../src/addons/registry';
 
 // 8 colonnes sur 12 à 1200px max
 const DESKTOP_MAX_WIDTH = 1100;
@@ -34,8 +32,13 @@ const getTypeLabels = (t: (key: string) => string): Record<string, string> => ({
   deposit: t('transaction.deposit'),
   withdraw: t('transaction.withdraw'),
   transfer: t('transaction.transfer'),
-  crypto: t('transaction.crypto'),
 });
+
+/** Nom du type, y compris ceux qu'apporte une extension (src/addons). */
+const typeLabel = (type: string, t: (key: string) => string): string | undefined => {
+  const kind = getTxKind(type);
+  return kind ? t(kind.labelKey) : getTypeLabels(t)[type];
+};
 
 const FILTER_KEYS = [
   { key: undefined, labelKey: 'history.filterAll' },
@@ -46,8 +49,7 @@ const FILTER_KEYS = [
   // permettait de les isoler.
   { key: 'paylink', labelKey: 'history.filterPaylink' },
   { key: 'p2p', labelKey: 'history.filterP2p' },
-  { key: 'crypto', labelKey: 'history.filterCrypto' },
-] as const;
+];
 
 export default function HistoryScreen() {
   const router = useRouter();
@@ -60,18 +62,11 @@ export default function HistoryScreen() {
     fetchTransactions,
     loadMoreTransactions,
   } = useWalletStore();
-  const { user } = useAuthStore();
-  const crypto_buy_enabled = useConfigStore((s) => s.crypto_buy_enabled);
-  const crypto_sell_enabled = useConfigStore((s) => s.crypto_sell_enabled);
-  const isAdmin = user?.group === 'admin';
-  // Éligibilité crypto : groupe `crypto` OU corridor crypto (NowPayments/futur)
-  // actif en payin (vente) et/ou payout (achat) pour le pays, porté par les flags
-  // /config crypto_*_enabled. Plus de dépendance à la liste statique COUNTRIES.
-  // CRYPTO_AVAILABLE : absent des binaires iOS et Android (licence d'échange exigée par les stores).
-  const isCryptoUser = CRYPTO_AVAILABLE && (isAdmin || user?.group === 'crypto' || crypto_buy_enabled || crypto_sell_enabled);
-  // crypto_buy_enabled est prioritaire : si off, seuls les admins voient le filtre Crypto.
-  const showCrypto = CRYPTO_AVAILABLE && (isAdmin || (isCryptoUser && crypto_buy_enabled));
-  const filteredFilterKeys = FILTER_KEYS.filter((f) => f.key !== 'crypto' || showCrypto);
+  // Filtres des types apportés par les extensions chargées, selon les droits du compte.
+  const addonFilters = useAddons((s) => s.historyFilters);
+  // Présentation des types d'extension : on se redessine quand elle arrive.
+  useAddons((s) => s.kinds);
+  const filteredFilterKeys = [...FILTER_KEYS, ...addonFilters];
   const [activeFilter, setActiveFilter] = useState<string | undefined>(undefined);
   const [refreshing, setRefreshing] = useState(false);
   const hasFetchedRef = useRef(false);
@@ -107,14 +102,8 @@ export default function HistoryScreen() {
       setModalTxType(type);
       return;
     }
-    if (tx.type === 'deposit') {
-      router.push(`/transaction/deposit/${tx.id}`);
-    } else if (tx.type === 'withdraw') {
-      router.push(`/transaction/withdraw/${tx.id}`);
-    } else if (tx.type === 'transfer') {
-      router.push(`/transaction/transfer/${tx.id}`);
-    } else if (tx.type === 'crypto') {
-      router.push(`/transaction/crypto/${tx.id}`);
+    if (tx.type === 'deposit' || tx.type === 'withdraw' || tx.type === 'transfer' || getTxKind(tx.type)) {
+      router.push(`/transaction/${tx.type}/${tx.id}`);
     }
   };
 
@@ -220,11 +209,8 @@ export default function HistoryScreen() {
 
 function getDetail(tx: Transaction, t: (key: string) => string): string {
   if (tx.type === 'transfer') return tx.receiver_name || tx.receiver_email || tx.phone || tx.note || '-';
-  if (tx.type === 'crypto') {
-    const side = tx.mode === 'Buy' ? t('history.buy') : t('history.sell');
-    if (tx.address) return `${side} · ${tx.address.slice(0, 10)}…`;
-    return `${side} ${tx.currency_src ?? ''}`;
-  }
+  const kind = getTxKind(tx.type);
+  if (kind) return kind.summary(tx, t);
   if (tx.type === 'withdraw') return tx.phone || tx.note || '-';
   // deposit
   return tx.note || '-';
@@ -238,7 +224,7 @@ function DesktopTransactionRow({ tx, onPress, styles }: { tx: Transaction; onPre
   const { t } = useTranslation();
   const fmtXof = useFormatXof();
   const currencyCode = useCurrencyCode();
-  const TYPE_LABELS = getTypeLabels(t);
+  const label = typeLabel(tx.type, t);
   const normalizedStatut = normalizeStatut(tx.statut, tx.type);
   const status = getTransactionStatus(t)[normalizedStatut] || { label: String(tx.statut), color: '#888' };
   const logo = getTransactionLogo(tx);
@@ -256,11 +242,11 @@ function DesktopTransactionRow({ tx, onPress, styles }: { tx: Transaction; onPre
           <Image source={logo} style={styles.rowLogo} resizeMode="contain" />
         ) : (
           <View style={[styles.rowIconCircle, { backgroundColor: status.color + '20' }]}>
-            <FontAwesome6 name={TYPE_LABELS[tx.type] ? 'arrow-down' : 'circle-question'} size={12} color={status.color} />
+            <FontAwesome6 name={label ? 'arrow-down' : 'circle-question'} size={12} color={status.color} />
           </View>
         )}
         <View style={{ flex: 1 }}>
-          <Text style={styles.tdCell} numberOfLines={1}>{TYPE_LABELS[tx.type] || tx.type}</Text>
+          <Text style={styles.tdCell} numberOfLines={1}>{label || tx.type}</Text>
           {modeName ? <Text style={styles.tdModeLabel} numberOfLines={1}>{modeName}</Text> : null}
         </View>
       </View>

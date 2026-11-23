@@ -427,6 +427,12 @@ export default function PaymentLinksScreen() {
                     <Text style={styles.entryPayer} numberOfLines={1}>
                       {p.payer_name || t('paylinks.unknownPayer')}
                     </Text>
+                    {!!p.payer_phone && (
+                      <Text style={styles.entryPhone} selectable>{p.payer_phone}</Text>
+                    )}
+                    {!!p.motif && (
+                      <Text style={styles.entryMotif} numberOfLines={2}>{p.motif}</Text>
+                    )}
                     <Text style={styles.entryDate}>
                       {p.created_at ? new Date(p.created_at).toLocaleDateString('fr-FR', {
                         day: '2-digit', month: 'short', year: 'numeric',
@@ -890,6 +896,8 @@ const createStyles = (Colors: ColorPalette) => StyleSheet.create({
   entries: { marginTop: Spacing.sm, gap: Spacing.sm },
   entry: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.sm, borderTopWidth: 1, borderTopColor: Colors.border },
   entryPayer: { fontSize: FontSize.sm, color: Colors.text, fontFamily: Fonts.semiBold },
+  entryPhone: { fontSize: FontSize.sm, fontFamily: Fonts.medium, color: Colors.text, marginTop: 2 },
+  entryMotif: { fontSize: FontSize.sm, fontFamily: Fonts.regular, color: Colors.textSecondary, marginTop: 2 },
   entryDate: { fontSize: FontSize.xs, fontFamily: Fonts.regular, color: Colors.textSecondary, marginTop: 2 },
   entryAmount: { fontSize: FontSize.sm, fontFamily: Fonts.bold, color: Colors.success },
   entryPending: { color: Colors.textSecondary },

@@ -12,30 +12,29 @@ import {
   Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { RefreshableScrollView } from '../components/Refreshable';
+import { RefreshableScrollView } from '../../components/Refreshable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
-import { walletService } from '../services/walletService';
-import { Input } from '../components/Input';
-import { Button } from '../components/Button';
-import { CloseButton } from '../components/CloseButton';
-import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../constants/theme';
-import { useThemedStyles } from '../hooks/useThemedStyles';
-import { showAlert } from '../stores/alertStore';
-import { useTheme } from '../components/ThemeProvider';
+import { cryptoService, type SavedWallet } from '../service';
+import { Input } from '../../components/Input';
+import { Button } from '../../components/Button';
+import { CloseButton } from '../../components/CloseButton';
+import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts } from '../../constants/theme';
+import { useThemedStyles } from '../../hooks/useThemedStyles';
+import { showAlert } from '../../stores/alertStore';
+import { useTheme } from '../../components/ThemeProvider';
 import { useTranslation } from 'react-i18next';
-import { useResponsive } from '../hooks/useResponsive';
-import type { SavedWallet } from '../types';
+import { useResponsive } from '../../hooks/useResponsive';
 
 const CRYPTO_CURRENCIES = [
-  { id: 'BTC',        label: 'Bitcoin',    logo: require('../../assets/crypto/btc.png') },
-  { id: 'ETH',        label: 'Ethereum',   logo: require('../../assets/crypto/eth.png') },
-  { id: 'TRX',        label: 'TRON',       logo: require('../../assets/crypto/trx.png') },
-  { id: 'USDT',       label: 'USDT',       logo: require('../../assets/crypto/usdt.png') },
-  { id: 'USDT.TRC20', label: 'USDT TRC20', logo: require('../../assets/crypto/usdt.png') },
-  { id: 'LTC',        label: 'Litecoin',   logo: require('../../assets/crypto/ltc.png') },
-  { id: 'BNB.BSC',    label: 'BNB',        logo: require('../../assets/crypto/bnb.png') },
-  { id: 'BUSD.BEP20', label: 'BUSD',       logo: require('../../assets/crypto/busd.png') },
+  { id: 'BTC',        label: 'Bitcoin',    logo: require('../../../assets/crypto/btc.png') },
+  { id: 'ETH',        label: 'Ethereum',   logo: require('../../../assets/crypto/eth.png') },
+  { id: 'TRX',        label: 'TRON',       logo: require('../../../assets/crypto/trx.png') },
+  { id: 'USDT',       label: 'USDT',       logo: require('../../../assets/crypto/usdt.png') },
+  { id: 'USDT.TRC20', label: 'USDT TRC20', logo: require('../../../assets/crypto/usdt.png') },
+  { id: 'LTC',        label: 'Litecoin',   logo: require('../../../assets/crypto/ltc.png') },
+  { id: 'BNB.BSC',    label: 'BNB',        logo: require('../../../assets/crypto/bnb.png') },
+  { id: 'BUSD.BEP20', label: 'BUSD',       logo: require('../../../assets/crypto/busd.png') },
 ];
 
 export default function WalletsScreen() {
@@ -52,7 +51,7 @@ export default function WalletsScreen() {
   const [walletForm, setWalletForm] = useState({ id: 0, name: '', currency: '', address: '' });
 
   const loadWallets = useCallback(
-    () => walletService.getSavedWallets()
+    () => cryptoService.getSavedWallets()
       .then((data) => { setSavedWallets(data); setLoadError(null); })
       .catch(() => setLoadError(t('account.walletsLoadError'))),
     [t]
@@ -80,7 +79,7 @@ export default function WalletsScreen() {
     setWalletSaving(true);
     try {
       if (walletForm.id) {
-        const updated = await walletService.updateSavedWallet(walletForm.id, {
+        const updated = await cryptoService.updateSavedWallet(walletForm.id, {
           name: walletForm.name.trim(),
           currency,
           address,
@@ -88,7 +87,7 @@ export default function WalletsScreen() {
         setSavedWallets((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
         showAlert(t('common.success'), t('account.walletUpdated'));
       } else {
-        const created = await walletService.createSavedWallet({
+        const created = await cryptoService.createSavedWallet({
           name: walletForm.name.trim(),
           currency,
           address,
@@ -115,7 +114,7 @@ export default function WalletsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await walletService.deleteSavedWallet(id);
+              await cryptoService.deleteSavedWallet(id);
               setSavedWallets((prev) => prev.filter((item) => item.id !== id));
               if (walletForm.id === id) resetWalletForm();
             } catch (error: any) {
@@ -242,7 +241,7 @@ export default function WalletsScreen() {
   return (
     <View style={{ flex: 1 }}>
       <ImageBackground
-        source={isDark ? require('../../assets/bg_page.jpg') : require('../../assets/bg_page_light.jpg')}
+        source={isDark ? require('../../../assets/bg_page.jpg') : require('../../../assets/bg_page_light.jpg')}
         style={styles.background}
       >
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>

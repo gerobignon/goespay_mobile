@@ -107,3 +107,25 @@ export async function compressImage(uri: string, options: CompressOptions = {}):
   }
   return last;
 }
+
+/**
+ * Image locale (URI du sélecteur ou de compressImage) en adresse data: base64,
+ * pour la joindre à une requête JSON. Web : lecture du blob ; natif : lecture
+ * du fichier. Lève une erreur si le fichier est illisible.
+ */
+export async function imageToDataUrl(uri: string): Promise<string> {
+  if (uri.startsWith('data:')) return uri;
+  if (Platform.OS === 'web') {
+    const blob = await (await fetch(uri)).blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => (typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('read failed')));
+      reader.onerror = () => reject(reader.error ?? new Error('read failed'));
+      reader.readAsDataURL(blob);
+    });
+  }
+  const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+  const ext = (/\.(\w+)$/.exec(uri.split('?')[0])?.[1] || 'jpeg').toLowerCase();
+  const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+  return `data:${mime};base64,${base64}`;
+}

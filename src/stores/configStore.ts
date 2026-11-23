@@ -1,12 +1,9 @@
 import { create } from 'zustand';
 import api from '../services/api';
-import { STABLECOIN_CODES } from './stablecoinDefaults';
 
 interface FeatureFlags {
   deposit_enabled: boolean;
   transfer_enabled: boolean;
-  crypto_buy_enabled: boolean;
-  crypto_sell_enabled: boolean;
   afribapay_enabled: boolean;
   /** Transfert compte à compte (interne au wallet, même zone monétaire). */
   p2p_enabled: boolean;
@@ -31,8 +28,9 @@ export interface TransactionAlert {
   message: string;
   level: AlertLevel;
 }
-export type AlertType = 'deposit' | 'withdraw' | 'transfer' | 'crypto_buy' | 'crypto_sell';
-export type TransactionAlerts = Record<AlertType, TransactionAlert>;
+// Les extensions (src/addons) ont leurs propres types de bandeau, servis par /config.
+export type AlertType = 'deposit' | 'withdraw' | 'transfer' | (string & {});
+export type TransactionAlerts = Partial<Record<AlertType, TransactionAlert>>;
 
 export interface AppConfig {
   // Frais par défaut (fixe + pourcentage)
@@ -49,15 +47,7 @@ export interface AppConfig {
   transfer_max: number;
   transfer_min_world: number;
   transfer_min_ng: number;
-  crypto_buy_max: number;
-  crypto_buy_min_btc: number;
-  crypto_buy_min_default: number;
-  crypto_sell_min_receive: number;
-  // Min en XOF par code crypto, défini en /admin (override les globaux)
-  crypto_min_buy_xof: Record<string, number>;
-  crypto_min_sell_xof: Record<string, number>;
   // Listes dynamiques
-  stablecoin_codes: string[];
   mobile_money_countries: string[];
   // Bandeaux d'alerte par type de transaction (configurés via /admin/settings)
   transaction_alerts: TransactionAlerts;
@@ -85,8 +75,6 @@ interface ConfigState extends FeatureFlags, AppConfig {
 const defaultFlags: FeatureFlags = {
   deposit_enabled: true,
   transfer_enabled: true,
-  crypto_buy_enabled: true,
-  crypto_sell_enabled: true,
   afribapay_enabled: true,
   p2p_enabled: true,
   p2p_blocked: false,
@@ -115,20 +103,11 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   transfer_max: 500000,
   transfer_min_world: 5000,
   transfer_min_ng: 25000,
-  crypto_buy_max: 250000,
-  crypto_buy_min_btc: 50000,
-  crypto_buy_min_default: 2500,
-  crypto_sell_min_receive: 1000,
-  crypto_min_buy_xof: {},
-  crypto_min_sell_xof: {},
-  stablecoin_codes: STABLECOIN_CODES,
   mobile_money_countries: ['BJ', 'BF', 'CI', 'TG', 'SN', 'ML', 'CM'],
   transaction_alerts: {
     deposit:     { message: '', level: 'info' },
     withdraw:    { message: '', level: 'info' },
     transfer:    { message: '', level: 'info' },
-    crypto_buy:  { message: '', level: 'info' },
-    crypto_sell: { message: '', level: 'info' },
   },
   site_message: '',
   promo_slides: [],

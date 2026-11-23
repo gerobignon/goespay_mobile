@@ -6,7 +6,7 @@ import StatusBadge from './StatusBadge';
 
 interface Props {
   statut: string | number;
-  /** Transaction type : crypto uses a numeric state (1/0/3). */
+  /** Transaction type : an add-on type may encode its status its own way (see `normalizeStatut`). */
   type?: string;
   /** Pre-formatted amount, without currency code. */
   amount: string;

@@ -350,11 +350,6 @@ export const walletService = {
     return response.data?.data ?? response.data;
   },
 
-  getCryptoTransaction: async (id: number): Promise<Transaction> => {
-    const response = await api.get(`/wallet/history/crypto/${id}`);
-    return response.data?.data ?? response.data;
-  },
-
   deposit: async (data: DepositRequest, idempotencyKey?: string): Promise<any> => {
     const response = await api.post('/deposit/init', data, withIdempotency(idempotencyKey));
     return response.data;
@@ -605,11 +600,6 @@ export const walletService = {
     return response.data;
   },
 
-  submitClaimCrypto: async (data: { transaction_id: number; message: string }): Promise<any> => {
-    const response = await api.post('/claim/crypto', data);
-    return response.data;
-  },
-
   addNote: async (data: { transaction_id: number; message: string }): Promise<any> => {
     const response = await api.post('/wallet/note', data);
     return response.data;
@@ -658,26 +648,6 @@ export const walletService = {
 
   deleteSavedBank: async (id: number): Promise<any> => {
     const response = await api.delete(`/user/bank-accounts/${id}`);
-    return response.data;
-  },
-
-  getSavedWallets: async (): Promise<any[]> => {
-    const response = await api.get('/user/wallets');
-    return response.data?.data ?? response.data ?? [];
-  },
-
-  createSavedWallet: async (data: Record<string, any>): Promise<any> => {
-    const response = await api.post('/user/wallets', data);
-    return response.data?.data ?? response.data;
-  },
-
-  updateSavedWallet: async (id: number, data: Record<string, any>): Promise<any> => {
-    const response = await api.put(`/user/wallets/${id}`, data);
-    return response.data?.data ?? response.data;
-  },
-
-  deleteSavedWallet: async (id: number): Promise<any> => {
-    const response = await api.delete(`/user/wallets/${id}`);
     return response.data;
   },
 };

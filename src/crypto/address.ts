@@ -1,4 +1,4 @@
-import type { CryptoRate } from '../stores/cryptoStore';
+import type { CryptoRate } from './store';
 
 /**
  * Valide une adresse de portefeuille avec la regex fournie par le catalogue

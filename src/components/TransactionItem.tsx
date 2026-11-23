@@ -12,7 +12,7 @@ import { useCatalogStore } from '../stores/catalogStore';
 import { formatAmount, formatDate, useFormatXof } from '../utils/format';
 import { resolveOperatorDisplay } from '../utils/operatorDisplay';
 import { getStatusIcon, normalizeStatut } from '../utils/transactionStatus';
-import { cryptoLogoFor } from '../utils/cryptoIcons';
+import { getTxKind, useTxKind } from '../addons/registry';
 import type { Transaction } from '../types';
 
 interface TransactionItemProps {
@@ -78,7 +78,8 @@ export function getTransactionLogo(transaction: Transaction): ImageSourcePropTyp
     return PAYMENT_MODE_LOGOS[specialType] ?? null;
   }
   
-  if (transaction.type === 'crypto') return cryptoLogoFor(transaction.currency_src);
+  const kind = getTxKind(transaction.type);
+  if (kind) return kind.logo?.(transaction) ?? null;
   if (transaction.mode) {
     const mode = transaction.mode.toLowerCase();
     // Try OPERATORS first
@@ -149,23 +150,23 @@ const TYPE_ICONS: Record<string, string> = {
   deposit: 'arrow-down',
   withdraw: 'arrow-up',
   transfer: 'right-left',
-  crypto: 'bitcoin-sign',
 };
 
-const getTypeLabel = (t: any) => ({
+const getTypeLabel = (t: any): Record<string, string> => ({
   deposit: t('transaction.deposit'),
   withdraw: t('transaction.withdraw'),
   transfer: t('transaction.transfer'),
-  crypto: t('transaction.crypto'),
 });
 
 export function TransactionItem({ transaction, onPress, padded = false, index = 0 }: TransactionItemProps) {
   const { t } = useTranslation();
   const fmtXof = useFormatXof();
+  // Type apporté par une extension (src/addons) : présentation fournie par elle.
+  const kind = useTxKind(transaction.type);
   const normalizedStatut = normalizeStatut(transaction.statut, transaction.type);
   const styles = useThemedStyles(createStyles);
   const status = getTransactionStatus(t)[normalizedStatut] || { label: String(transaction.statut), color: '#888' };
-  const icon = TYPE_ICONS[transaction.type] || 'circle-question';
+  const icon = kind?.icon || TYPE_ICONS[transaction.type] || 'circle-question';
   const statusIcon = getStatusIcon(normalizedStatut);
   const logo = getTransactionLogo(transaction);
   const scale = useRef(new Animated.Value(1)).current;
@@ -190,9 +191,7 @@ export function TransactionItem({ transaction, onPress, padded = false, index = 
         <View style={styles.typeRow}>
           <FontAwesome6 name={statusIcon} size={12} color={status.color} style={{ marginRight: 6 }} />
           <Text style={styles.type}>
-            {transaction.type === 'crypto'
-              ? `${transaction.mode === 'Buy' ? t('history.buy') : t('history.sell')} ${transaction.currency_src ?? 'Crypto'}`
-              : getTypeLabel(t)[transaction.type]}
+            {kind ? kind.title(transaction, t) : getTypeLabel(t)[transaction.type]}
           </Text>
         </View>
         <Text style={styles.date}>{formatDate(transaction.created_at)}</Text>

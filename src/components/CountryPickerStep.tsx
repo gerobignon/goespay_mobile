@@ -8,6 +8,7 @@ import { useThemedStyles } from '../hooks/useThemedStyles';
 import { useResponsive } from '../hooks/useResponsive';
 import { useTheme } from './ThemeProvider';
 import { useTranslation } from 'react-i18next';
+import type { EntryStyles } from '../addons/types';
 
 export interface CountryEntry {
   code: string;
@@ -23,10 +24,11 @@ interface Props {
   onSelectCountry: (code: string) => void;
   /** Appelé si l'utilisateur clique sur la tuile carte (showCardTile) */
   onSelectCard?: () => void;
-  /** Tuile « Crypto-monnaies » */
-  showCryptoTile?: boolean;
-  cryptoLabel?: string;
-  onSelectCrypto?: () => void;
+  /**
+   * Entrée fournie par une extension (src/addons), rendue après les pays :
+   * `chip` dans la grille, `card` dans la liste des continents.
+   */
+  renderExtra?: RenderExtra;
   label?: string;
   /**
    * Envoi : regroupe d'abord les pays par continent (écran continents →
@@ -35,9 +37,11 @@ interface Props {
   groupByContinent?: boolean;
 }
 
+type RenderExtra = (variant: 'chip' | 'card', styles: EntryStyles) => React.ReactNode;
+
 export function CountryPickerStep({
   operators, showCardTile, cardLabel, onSelectCountry, onSelectCard,
-  showCryptoTile, cryptoLabel, onSelectCrypto, label, groupByContinent,
+  renderExtra, label, groupByContinent,
 }: Props) {
   const { t } = useTranslation();
   const styles = useThemedStyles(createStyles);
@@ -86,12 +90,7 @@ export function CountryPickerStep({
             <Text style={styles.chipText} numberOfLines={1}>{cardLabel ?? t('depositModal.bankCard')}</Text>
           </TouchableOpacity>
         )}
-        {showCryptoTile && onSelectCrypto && (
-          <TouchableOpacity key="__crypto" style={styles.chip} onPress={onSelectCrypto}>
-            <FontAwesome6 name="bitcoin-sign" size={16} color={DefaultColors.text} />
-            <Text style={styles.chipText} numberOfLines={1}>{cryptoLabel ?? 'Crypto'}</Text>
-          </TouchableOpacity>
-        )}
+        {renderExtra?.('chip', { item: styles.chip, text: styles.chipText })}
       </>
     );
     return (
@@ -108,9 +107,7 @@ export function CountryPickerStep({
       countries={countries}
       styles={styles}
       onSelectCountry={onSelectCountry}
-      showCryptoTile={showCryptoTile}
-      cryptoLabel={cryptoLabel}
-      onSelectCrypto={onSelectCrypto}
+      renderExtra={renderExtra}
       showCardTile={showCardTile}
       cardLabel={cardLabel}
       onSelectCard={onSelectCard}
@@ -122,9 +119,7 @@ interface ContinentPickerProps {
   countries: CountryEntry[];
   styles: ReturnType<typeof createStyles>;
   onSelectCountry: (code: string) => void;
-  showCryptoTile?: boolean;
-  cryptoLabel?: string;
-  onSelectCrypto?: () => void;
+  renderExtra?: RenderExtra;
   showCardTile?: boolean;
   cardLabel?: string;
   onSelectCard?: () => void;
@@ -132,7 +127,7 @@ interface ContinentPickerProps {
 
 function ContinentPicker({
   countries, styles, onSelectCountry,
-  showCryptoTile, cryptoLabel, onSelectCrypto, showCardTile, cardLabel, onSelectCard,
+  renderExtra, showCardTile, cardLabel, onSelectCard,
 }: ContinentPickerProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -186,15 +181,7 @@ function ContinentPicker({
           );
         })}
 
-        {showCryptoTile && onSelectCrypto && (
-          <TouchableOpacity style={styles.specialRow} onPress={onSelectCrypto}>
-            <View style={styles.continentIconWrap}>
-              <FontAwesome6 name="bitcoin-sign" size={20} color={colors.secondary} iconStyle="solid" />
-            </View>
-            <Text style={styles.specialRowText}>{cryptoLabel ?? 'Crypto'}</Text>
-            <FontAwesome6 name="chevron-right" size={16} color={colors.textMuted} />
-          </TouchableOpacity>
-        )}
+        {renderExtra?.('card', { item: styles.specialRow, text: styles.specialRowText, iconWrap: styles.continentIconWrap })}
         {showCardTile && onSelectCard && (
           <TouchableOpacity style={styles.specialRow} onPress={onSelectCard}>
             <View style={styles.continentIconWrap}>

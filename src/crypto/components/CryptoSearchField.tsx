@@ -2,9 +2,9 @@ import React from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { type ColorPalette, BorderRadius, FontSize, Fonts, Spacing } from '../constants/theme';
-import { useThemedStyles } from '../hooks/useThemedStyles';
-import { useColors } from './ThemeProvider';
+import { type ColorPalette, BorderRadius, FontSize, Fonts, Spacing } from '../../constants/theme';
+import { useThemedStyles } from '../../hooks/useThemedStyles';
+import { useColors } from '../../components/ThemeProvider';
 
 interface CryptoSearchFieldProps {
   value: string;

@@ -43,6 +43,8 @@ export interface VirtualCard {
   balance: number;
   /** Retirable vers le wallet, en USD : l'émetteur garde 1 USD sur la carte. */
   withdrawable?: number;
+  /** Rendu au wallet par la résiliation, en USD : retrait moins ses frais, le dollar gardé par l'émetteur n'étant pas promis. */
+  terminate_refund?: number;
   nickname: string;
   /** Adresse imposée par l'émetteur, requise par certains marchands. */
   billing_address: BillingAddress | null;

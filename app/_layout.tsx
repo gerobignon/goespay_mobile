@@ -41,6 +41,7 @@ import {
 import { takeStoredNotificationUrl } from '../src/utils/webNotificationTarget';
 import { resolveDeferredReferral } from '../src/utils/deferredReferral';
 import { pickKycParams } from '../src/utils/kycDevice';
+import { bootAddons } from '../src/addons/boot';
 
 /** Charge utile d'une notification push, telle qu'envoyée par le backend. */
 type NotificationData = Record<string, string | undefined>;
@@ -104,6 +105,12 @@ function RootInner() {
 
   // Web/PWA : re-verrouiller après un passage prolongé en arrière-plan.
   useWebAutoLock(isAuthenticated && isSetupDone);
+
+  // Extensions chargées après la connexion seulement (fichier JS à part) : la
+  // page qu'ouvre un visiteur sans compte n'en contient rien. Voir src/addons.
+  useEffect(() => {
+    if (isAuthenticated) bootAddons();
+  }, [isAuthenticated]);
 
   /**
    * Destination d'une notification, sans naviguer : fonction pure, pour que le

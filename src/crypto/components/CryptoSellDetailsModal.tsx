@@ -14,12 +14,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
-import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts, Shadow } from '../constants/theme';
-import { useThemedStyles } from '../hooks/useThemedStyles';
-import { useResponsive } from '../hooks/useResponsive';
+import { Colors, type ColorPalette, Spacing, FontSize, BorderRadius, Fonts, Shadow } from '../../constants/theme';
+import { useThemedStyles } from '../../hooks/useThemedStyles';
+import { useResponsive } from '../../hooks/useResponsive';
 import { useTranslation } from 'react-i18next';
-import { useFormatXof } from '../utils/format';
-import { useCryptoStore } from '../stores/cryptoStore';
+import { useFormatXof } from '../../utils/format';
+import { useCryptoStore } from '../store';
 
 interface CryptoSellDetailsModalProps {
   visible: boolean;
